@@ -2,15 +2,25 @@ const OpenAI = require('openai');
 const axios = require('axios');
 const { logger } = require('../utils/logger');
 
-// DeepSeek — OpenAI-compatible API
-const deepseek = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1',
-});
+// DeepSeek — lazy initialization (server key bo'lmasa ham ishga tushadi)
+let _deepseek = null;
+function getDeepseek() {
+  if (!_deepseek) {
+    const key = process.env.DEEPSEEK_API_KEY;
+    if (!key || key === 'placeholder') {
+      throw new Error('DEEPSEEK_API_KEY sozlanmagan. Railway Variables ga qo\'shing.');
+    }
+    _deepseek = new OpenAI({
+      apiKey: key,
+      baseURL: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1',
+    });
+  }
+  return _deepseek;
+}
 
 // ─── AI Chat (SSE stream) ─────────────────────────────────────────────────────
 async function streamChat(messages, res) {
-  const stream = await deepseek.chat.completions.create({
+  const stream = await getDeepseek().chat.completions.create({
     model: 'deepseek-chat',
     messages,
     stream: true,
@@ -39,7 +49,7 @@ Foydalanuvchi ${format} formatida hujjat yaratishni so'raydi.
 Hujjat tarkibini markdown formatida yaz. Tuzilmali va professional bo'lsin.
 Uzbek tilida javob ber.`;
 
-  const response = await deepseek.chat.completions.create({
+  const response = await getDeepseek().chat.completions.create({
     model: 'deepseek-chat',
     messages: [
       { role: 'system', content: systemPrompt },
@@ -108,7 +118,7 @@ async function analyzeCalorie(imageBase64, mimeType = 'image/jpeg') {
 
 // ─── DTM Test AI hint ─────────────────────────────────────────────────────────
 async function getTestHint(question, options, subject) {
-  const response = await deepseek.chat.completions.create({
+  const response = await getDeepseek().chat.completions.create({
     model: 'deepseek-chat',
     messages: [{
       role: 'user',

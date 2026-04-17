@@ -35,7 +35,15 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ─── Static frontend ─────────────────────────────────────────────────────────
-app.use(express.static(path.join(__dirname, '../../frontend')));
+// frontend/ papkasi backend/ ichida joylashgan (Railway deploy uchun)
+const fs = require('fs');
+const frontendPath = path.join(__dirname, '../frontend');
+if (fs.existsSync(frontendPath)) {
+  logger.info(`Frontend serving from: ${frontendPath}`);
+  app.use(express.static(frontendPath));
+} else {
+  logger.warn('Frontend papkasi topilmadi: ' + frontendPath);
+}
 
 // ─── API Routes ──────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
@@ -54,7 +62,12 @@ app.get('/health', (req, res) => {
 
 // ─── SPA fallback ────────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../frontend/index.html'));
+  const indexPath = path.join(__dirname, '../frontend/index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).json({ status: 'API ishlayapti', frontend: 'topilmadi' });
+  }
 });
 
 // ─── Error handler ───────────────────────────────────────────────────────────
