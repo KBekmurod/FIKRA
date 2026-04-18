@@ -27,14 +27,43 @@ router.post('/chat', authMiddleware, aiLimiter, requireTokens(COST.chat), async 
   } catch (err) { if (!res.headersSent) next(err); }
 });
 
-// POST /api/ai/document
+// POST /api/ai/document  — real DOCX/PDF/PPTX fayl qaytaradi
 router.post('/document', authMiddleware, aiLimiter, requireTokens(COST.document), async (req, res, next) => {
   try {
     const { prompt, format = 'DOCX', history = [] } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt kerak' });
+
     await spendTokens(req.user._id, req.user.telegramId, COST.document, 'ai_document', { format });
+
+    // AI matn yaratadi
     const content = await ai.generateDocument(prompt, format, history);
-    res.json({ success: true, content, format });
+
+    // Birinchi heading dan sarlavha olish (yoki default)
+    const titleMatch = content.match(/^#\s+(.+)$/m);
+    const title = titleMatch ? titleMatch[1].trim() : (prompt.slice(0, 60) || 'Hujjat');
+
+    // Real fayl yaratish
+    const documentService = require('../services/documentService');
+    const file = await documentService.generateFile(format, title, content);
+
+    // Fayl nomini tayyorlash (xavfsiz — faqat harflar, raqamlar, tire)
+    const safeTitle = title
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '_')
+      .slice(0, 50) || 'fikra_document';
+    const fileName = `${safeTitle}_${Date.now()}.${file.ext}`;
+
+    // Base64 qilib frontend ga qaytarish (brauzerdan to'g'ridan yuklanishi uchun)
+    res.json({
+      success: true,
+      format: format.toUpperCase(),
+      fileName,
+      mimeType: file.mime,
+      base64: file.buffer.toString('base64'),
+      sizeKb: Math.round(file.buffer.length / 1024),
+      title,
+      preview: content.slice(0, 300), // Chatda ko'rsatish uchun
+    });
   } catch (err) { next(err); }
 });
 
@@ -76,11 +105,64 @@ router.post('/video', authMiddleware, requireTokens(COST.video), async (req, res
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt kerak' });
     await spendTokens(req.user._id, req.user.telegramId, COST.video, 'ai_video');
-    res.json({ success: true, message: 'Video tayyorlanmoqda...' });
+    res.json({ success: true, message: 'Video tayyorlanmoqda... 2-5 daqiqa davomida Telegram ga yuboriladi.' });
+
+    const telegramId = req.user.telegramId;
+    const userFirstName = req.user.firstName || 'Foydalanuvchi';
+
+    // Fon jarayon — video tayyor bo'lganda bot orqali yuboradi
     ai.generateVideo(prompt)
-      .then(url => require('../utils/logger').logger.info(`Video ready: ${url}`))
-      .catch(err => require('../utils/logger').logger.error('Video err:', err));
-  } catch (err) { next(err); }
+      .then(async (url) => {
+        const { logger } = require('../utils/logger');
+        logger.info(`Video ready: user=${telegramId} url=${url}`);
+
+        // Bot orqali foydalanuvchiga yuborish
+        try {
+          const { getBot } = require('../bot');
+          const bot = getBot && getBot();
+          if (bot && url) {
+            await bot.telegram.sendVideo(telegramId, url, {
+              caption: `🎬 ${userFirstName}, videongiz tayyor!\n\n"${prompt.slice(0, 180)}"`,
+              supports_streaming: true,
+            });
+            logger.info(`Video sent to user ${telegramId}`);
+          } else if (!bot) {
+            logger.warn('Bot instance topilmadi, video yuborilmadi');
+          }
+        } catch (botErr) {
+          logger.error('Video bot send error:', botErr?.message || botErr);
+          // Fallback — oddiy xabar
+          try {
+            const { getBot } = require('../bot');
+            const bot = getBot && getBot();
+            if (bot) {
+              await bot.telegram.sendMessage(telegramId,
+                `🎬 Videongiz tayyor!\n${url}`
+              );
+            }
+          } catch {}
+        }
+      })
+      .catch(async (err) => {
+        const { logger } = require('../utils/logger');
+        logger.error('Video generation err:', err?.message || err);
+        // Foydalanuvchiga xatolik haqida xabar
+        try {
+          const { getBot } = require('../bot');
+          const bot = getBot && getBot();
+          if (bot) {
+            await bot.telegram.sendMessage(telegramId,
+              `❌ Kechirasiz, video yaratishda xatolik yuz berdi.\nTokenlaringiz qaytariladi.`
+            );
+          }
+        } catch {}
+        // Tokenni qaytarish
+        try {
+          const { earnTokens } = require('../services/tokenService');
+          await earnTokens(req.user._id, telegramId, COST.video, 'video_refund', 'earn');
+        } catch {}
+      });
+  } catch (err) { if (!res.headersSent) next(err); }
 });
 
 module.exports = router;

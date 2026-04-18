@@ -21,9 +21,31 @@
   // ─── Auth ─────────────────────────────────────────────────────────────────
   async function login() {
     try {
-      const initData = tg?.initData || 'test_init_data';
+      const initData = tg?.initData || '';
       const refCode = new URLSearchParams(window.location.search).get('ref') ||
                       tg?.initDataUnsafe?.start_param || null;
+
+      // Avval saqlangan tokenlar bilan qayta urinish
+      const saved = localStorage.getItem('fikra_access_token');
+      if (saved) {
+        try {
+          const me = await API.me();
+          if (me) { user = me; tokens = me.tokens; return; }
+        } catch(e) {
+          // Token eskirgan, yangilash kerak
+          if (e.code !== 'TOKEN_EXPIRED') throw e;
+        }
+      }
+
+      // Telegram initData bilan login
+      if (!initData) {
+        // Brauzerdan kirgan — demo rejim
+        console.log('Demo rejim: Telegram WebApp ichida ochilmagan');
+        tokens = 50;
+        user = { firstName: 'Mehmon', username: 'guest', tokens: 50, streakDays: 0 };
+        return;
+      }
+
       const res = await API.login(initData, refCode);
       if (res) {
         setTokens(res.accessToken, res.refreshToken);
@@ -31,7 +53,12 @@
         tokens = res.user.tokens;
       }
     } catch (e) {
-      console.error('Login error:', e);
+      console.warn('Login warning:', e.message);
+      // Xato bo'lsa ham demo rejimda ishlaydi
+      if (!user) {
+        tokens = 50;
+        user = { firstName: 'Foydalanuvchi', username: 'user', tokens: 50, streakDays: 0 };
+      }
     }
   }
 
@@ -152,6 +179,14 @@
     <div class="stat-card"><div class="stat-val" style="color:var(--al)" id="h-rank">12</div><div class="stat-key">O'rin</div></div>
     <div class="stat-card"><div class="stat-val" style="color:var(--g)">${user?.streakDays || 0}🔥</div><div class="stat-key">Streak</div></div>
   </div>
+  <div id="daily-bonus-banner" style="margin:0 14px 9px;display:none;background:linear-gradient(135deg,rgba(255,204,68,.09),rgba(0,212,170,.06));border:1px solid rgba(255,204,68,.22);border-radius:var(--br);padding:12px 14px;align-items:center;gap:11px">
+    <div style="width:38px;height:38px;border-radius:11px;background:rgba(255,204,68,.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🎁</div>
+    <div style="flex:1">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px" id="daily-bonus-title">Kunlik bonus</div>
+      <div style="font-size:11px;color:var(--m)" id="daily-bonus-sub">Har kuni token olish</div>
+    </div>
+    <button class="btn btn-sm" style="background:var(--y);color:#000;flex-shrink:0" onclick="FIKRA.claimDaily()">Olish</button>
+  </div>
   <div class="ads-strip">
     <div><div class="ads-strip-title">+5 token ol</div><div class="ads-strip-sub">Reklama ko'rib yig'</div></div>
     <button class="watch-btn" onclick="FIKRA.showAdsModal(5,'daily_bonus')">Ko'rish</button>
@@ -224,7 +259,7 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 10px">
       <div class="ai-svc-card" onclick="FIKRA.openAIChat('general')">💬<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:8px 0 2px">AI Chat</div><div style="font-size:10px;color:var(--m)">1 savol = <strong style="color:var(--y)">5t</strong></div></div>
       <div class="ai-svc-card" onclick="FIKRA.openAIChat('doc')">📄<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:8px 0 2px">Hujjat yaratish</div><div style="font-size:10px;color:var(--m)">DOCX·PDF·PPTX · <strong style="color:var(--y)">10t</strong></div></div>
-      <div class="ai-svc-card" onclick="FIKRA.showToast('Tez kunda...')">🎨<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:8px 0 2px">Rasm yaratish</div><div style="font-size:10px;color:var(--m)">1 rasm = <strong style="color:var(--y)">30t</strong></div></div>
+      <div class="ai-svc-card" onclick="FIKRA.openImage()">🎨<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:8px 0 2px">Rasm yaratish</div><div style="font-size:10px;color:var(--m)">1 rasm = <strong style="color:var(--y)">30t</strong></div></div>
       <div class="ai-svc-card" onclick="FIKRA.openKal()">🥗<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:8px 0 2px">Kaloriya AI</div><div style="font-size:10px;color:var(--m)">1 skan = <strong style="color:var(--y)">15t</strong></div></div>
     </div>
     <div class="sl">Chatlar tarixi</div>
@@ -232,6 +267,7 @@
   </div>
   <div class="subpanel" id="sa-chat"></div>
   <div class="subpanel" id="sa-doc"></div>
+  <div class="subpanel" id="sa-image"></div>
   <div class="subpanel" id="sa-kal"></div>
 </div>`;
   }
@@ -239,6 +275,9 @@
   function buildProfile() {
     const name = user ? (user.firstName || user.username || 'Foydalanuvchi') : 'Foydalanuvchi';
     const initials = name.slice(0, 2).toUpperCase();
+    const refLink = user?.telegramId
+      ? `https://t.me/${window.BOT_USERNAME || 'fikra_bot'}?start=ref_${user.telegramId}`
+      : '';
     return `<div class="panel" id="p-profile">
   <div style="height:5px"></div>
   <div style="display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:13px;margin:0 14px 9px">
@@ -251,22 +290,56 @@
   </div>
   <div class="stats-row">
     <div class="stat-card"><div class="stat-val" style="color:var(--y)" id="p-tok">${tokens.toLocaleString()}</div><div class="stat-key">Token</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:var(--al)" id="p-games">0</div><div class="stat-key">O'yin</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:var(--g)" id="p-ai">0</div><div class="stat-key">AI so'rov</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--al)" id="p-games">${user?.totalGamesPlayed || 0}</div><div class="stat-key">O'yin</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--g)" id="p-ai">${user?.totalAiRequests || 0}</div><div class="stat-key">AI so'rov</div></div>
   </div>
+
+  <!-- REFERRAL BO'LIMI -->
+  <div style="background:var(--s2);border:1px solid rgba(0,212,170,.22);border-radius:var(--br);padding:14px;margin:0 14px 9px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:34px;height:34px;border-radius:10px;background:rgba(0,212,170,.15);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">🎯</div>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Do'stni taklif qil</div>
+        <div style="font-size:10px;color:var(--m)">Har taklif = <strong style="color:var(--g)">+50t</strong> senga · +25t do'stga</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;background:var(--s3);border:1px solid var(--f);border-radius:var(--br2);padding:8px 10px;margin-bottom:8px">
+      <input id="ref-link" value="${refLink}" readonly style="flex:1;background:transparent;border:none;color:var(--txt);font-size:11px;font-family:monospace;outline:none;overflow:hidden;text-overflow:ellipsis">
+      <button onclick="FIKRA.copyRef()" style="background:var(--acc);color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0">Nusxa</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <button onclick="FIKRA.shareRef()" style="padding:8px;background:var(--g);color:#000;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">📤 Ulashish</button>
+      <div style="padding:8px;background:var(--s3);border:1px solid var(--f);border-radius:var(--br2);text-align:center">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--g)">${user?.referralCount || 0}</div>
+        <div style="font-size:9px;color:var(--m);margin-top:1px;text-transform:uppercase;font-weight:700">Do'stlar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOKEN TARIXI -->
+  <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:12px 14px;margin:0 14px 9px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Token tarixi</div>
+      <button onclick="FIKRA.loadTokenHistory()" style="font-size:10px;color:var(--al);background:transparent;border:none;cursor:pointer;font-weight:700">Ko'rish ↓</button>
+    </div>
+    <div id="token-history-list"></div>
+  </div>
+
   <div style="background:var(--s2);border:1px solid rgba(123,104,238,.22);border-radius:var(--br);padding:13px;margin:0 14px 9px">
     <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:3px">Obunani kengaytirish</div>
     <div style="font-size:11px;color:var(--m);margin-bottom:11px;line-height:1.4">Cheksiz AI, ko'p token, reklamasiz tajriba</div>
     <div style="display:flex;gap:7px">
-      <div class="plan-card" onclick="FIKRA.showToast('Basic obuna tanlandi!')">
+      <div class="plan-card" onclick="FIKRA.buyPlan('basic')">
         <div class="plan-price">$5<span style="font-size:10px;font-weight:400;color:var(--m)">/oy</span></div>
         <div class="plan-name">Basic</div>
         <div class="plan-features">500t/oy<br>Kam reklama<br>Barcha AI</div>
+        <div style="margin-top:6px;font-size:9px;color:var(--y);font-weight:700">⭐ 385 Stars</div>
       </div>
-      <div class="plan-card pro" onclick="FIKRA.showToast('Pro obuna tanlandi!')">
+      <div class="plan-card pro" onclick="FIKRA.buyPlan('pro')">
         <div class="plan-price">$12<span style="font-size:10px;font-weight:400;color:rgba(157,143,255,.5)">/oy</span></div>
         <div class="plan-name">Pro ✦</div>
         <div class="plan-features">Cheksiz chat<br>50 rasm · 5 video<br>Musiqa + slider</div>
+        <div style="margin-top:6px;font-size:9px;color:var(--y);font-weight:700">⭐ 923 Stars</div>
       </div>
     </div>
   </div>
@@ -316,6 +389,130 @@
   function openKal() {
     switchPanel('ai');
     setTimeout(() => renderKaloriya(), 20);
+  }
+
+  function openImage() {
+    switchPanel('ai');
+    setTimeout(() => renderImage(), 20);
+  }
+
+  function renderImage() {
+    IMG.loadHistory();
+    const history = IMG.getHistory();
+    document.getElementById('sa-image').innerHTML = `
+<div class="back-btn" onclick="FIKRA.backToAI()">← AI</div>
+<div style="padding:0 14px">
+  <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:14px;margin-bottom:10px">
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:8px">🎨 Rasm yaratish</div>
+    <textarea id="img-prompt" rows="3" placeholder="Masalan: futuristik shahar kechki payt, neon chiroqlar..." style="width:100%;background:var(--s3);border:1px solid var(--f);border-radius:var(--br2);padding:10px;color:var(--txt);font-family:'Nunito',sans-serif;font-size:13px;resize:none;outline:none;line-height:1.5"></textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+      <span style="font-size:10px;color:var(--y);background:rgba(255,204,68,.08);padding:3px 8px;border-radius:100px;border:1px solid rgba(255,204,68,.2);font-weight:700">−30t</span>
+      <button class="btn btn-acc btn-sm" style="flex:1" onclick="FIKRA.genImage()">Yaratish ✨</button>
+    </div>
+  </div>
+  <div id="img-result"></div>
+  ${history.length > 0 ? `
+    <div class="sl" style="margin:14px 0 6px">Oxirgi rasmlar</div>
+    <div id="img-history" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:14px">
+      ${history.slice(0,4).map((h, i) => `
+        <div onclick="FIKRA.showOldImage(${i})" style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:5px;cursor:pointer">
+          <img src="data:${h.mimeType};base64,${h.base64}" style="width:100%;height:90px;object-fit:cover;border-radius:6px;display:block">
+          <div style="font-size:10px;color:var(--m);margin-top:4px;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.prompt.slice(0,24)}</div>
+        </div>
+      `).join('')}
+    </div>
+  ` : ''}
+</div>`;
+    showSubpanel('ai', 'sa-image');
+  }
+
+  async function genImage() {
+    const inp = document.getElementById('img-prompt');
+    const prompt = inp.value.trim();
+    if (!prompt) {
+      showToast('Avval tavsif yozing');
+      return;
+    }
+
+    const resultDiv = document.getElementById('img-result');
+    resultDiv.innerHTML = `
+<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:22px;text-align:center;margin-bottom:10px">
+  <div style="display:inline-block;width:24px;height:24px;border:2.5px solid var(--acc);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;margin-bottom:10px"></div>
+  <div style="font-size:12px;color:var(--m)">Rasm yaratilmoqda... (15-30 soniya)</div>
+</div>`;
+
+    try {
+      const res = await IMG.generate(prompt);
+      _showImageResult(res);
+      updateTokenDisplay();
+      showToast('Rasm tayyor!');
+      inp.value = '';
+      // History bo'limini yangilash uchun qayta render
+      setTimeout(() => renderImage(), 100);
+    } catch (e) {
+      resultDiv.innerHTML = `<div style="background:rgba(255,95,126,.07);border:1px solid rgba(255,95,126,.2);border-radius:var(--br);padding:14px;margin-bottom:10px"><div style="font-size:13px;color:var(--r);font-weight:600">❌ ${e.message || 'Xatolik'}</div></div>`;
+      if (e.code === 'INSUFFICIENT_TOKENS') {
+        showAdsModal(5, 'image_retry');
+      }
+    }
+  }
+
+  function _showImageResult(res) {
+    const resultDiv = document.getElementById('img-result');
+    if (!resultDiv) return;
+    const btnId = 'img-dl-' + Date.now();
+    const shareBtnId = 'img-sh-' + Date.now();
+    resultDiv.innerHTML = `
+<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:10px;margin-bottom:10px">
+  <img src="data:${res.mimeType};base64,${res.base64}" style="width:100%;border-radius:var(--br2);display:block;margin-bottom:10px">
+  <div style="font-size:11px;color:var(--m);padding:0 4px 10px;line-height:1.5">"${res.prompt}"</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <button id="${btnId}" style="padding:9px;background:var(--acc);color:#fff;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">⬇ Yuklab olish</button>
+    <button id="${shareBtnId}" style="padding:9px;background:var(--s3);color:var(--txt);border:1px solid var(--f);border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">↗ Ulashish</button>
+  </div>
+</div>`;
+
+    // Download
+    const dl = document.getElementById(btnId);
+    if (dl) {
+      dl.onclick = () => {
+        try {
+          const bytes = atob(res.base64);
+          const arr = new Uint8Array(bytes.length);
+          for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+          const blob = new Blob([arr], { type: res.mimeType });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'fikra_ai_' + Date.now() + '.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          showToast('Yuklab olindi!');
+        } catch (e) {
+          showToast('Xatolik: ' + e.message);
+        }
+      };
+    }
+
+    // Share — Telegram orqali
+    const sh = document.getElementById(shareBtnId);
+    if (sh) {
+      sh.onclick = () => {
+        if (tg && tg.shareURL) {
+          tg.shareURL('Mening FIKRA AI rasmim', res.prompt);
+        } else {
+          showToast('Ulashish Telegram ichida ishlaydi');
+        }
+      };
+    }
+  }
+
+  function showOldImage(idx) {
+    const history = IMG.getHistory();
+    const item = history[idx];
+    if (item) _showImageResult(item);
   }
 
   // ─── Stroop render ────────────────────────────────────────────────────────
@@ -772,19 +969,68 @@
     DOC.addMessage('user', text);
 
     const loadId = 'dl-' + Date.now();
-    msgs.innerHTML += `<div id="${loadId}" class="msg-ai"><div class="msg-av-ai">📄</div><div class="bbl-ai">Tayyorlanmoqda...</div></div>`;
+    const fmt = DOC.getFormat();
+    msgs.innerHTML += `<div id="${loadId}" class="msg-ai"><div class="msg-av-ai">📄</div><div class="bbl-ai">
+      <span style="display:inline-flex;align-items:center;gap:6px">
+        <span style="width:14px;height:14px;border:2px solid var(--acc);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;display:inline-block"></span>
+        ${fmt} fayl tayyorlanmoqda...
+      </span>
+    </div></div>`;
     msgs.scrollTop = msgs.scrollHeight;
 
     try {
-      const res = await API.document(text, DOC.getFormat(), DOC.getHistory());
+      const res = await API.document(text, fmt, DOC.getHistory());
       const tw = document.getElementById(loadId);
-      if (tw) tw.innerHTML = `<div class="msg-av-ai">📄</div><div class="bbl-ai">${res.content?.slice(0,300)}...<br><br><strong>[${res.format}]</strong> ✓ Tayyor</div>`;
-      DOC.addMessage('assistant', res.content || '');
+      if (!tw) return;
+
+      // Download handler
+      const downloadId = 'dl-btn-' + Date.now();
+      tw.innerHTML = `<div class="msg-av-ai">📄</div><div class="bbl-ai" style="max-width:260px">
+        <div style="font-weight:600;margin-bottom:6px;color:var(--txt)">${res.title}</div>
+        <div style="font-size:11px;color:var(--m);margin-bottom:10px;line-height:1.5">${(res.preview || '').slice(0, 140)}...</div>
+        <div style="display:flex;align-items:center;gap:9px;padding:9px 11px;background:var(--s1);border:1px solid var(--f);border-radius:9px;margin-bottom:8px">
+          <div style="width:34px;height:34px;border-radius:8px;background:${fmt==='PDF'?'rgba(255,95,126,.15)':fmt==='PPTX'?'rgba(255,204,68,.15)':'rgba(123,104,238,.15)'};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">📄</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)">${res.fileName}</div>
+            <div style="font-size:10px;color:var(--m)">${res.format} · ${res.sizeKb} KB</div>
+          </div>
+        </div>
+        <button id="${downloadId}" style="width:100%;padding:8px;background:var(--acc);color:#fff;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">⬇ Yuklab olish</button>
+      </div>`;
+
+      // Download tugmasi
+      const btn = document.getElementById(downloadId);
+      if (btn) {
+        btn.onclick = () => {
+          try {
+            // base64 → Blob → download link
+            const byteString = atob(res.base64);
+            const arr = new Uint8Array(byteString.length);
+            for (let i = 0; i < byteString.length; i++) arr[i] = byteString.charCodeAt(i);
+            const blob = new Blob([arr], { type: res.mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = res.fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            showToast('Yuklab olindi!');
+          } catch (err) {
+            showToast('Yuklab olish xatosi');
+            console.error(err);
+          }
+        };
+      }
+
+      DOC.addMessage('assistant', `[${res.format}] ${res.title} — ${res.sizeKb} KB`);
       updateTokenDisplay();
     } catch (e) {
       const tw = document.getElementById(loadId);
-      if (tw) tw.innerHTML = `<div class="msg-av-ai">⚠️</div><div class="bbl-ai">${e.message}</div>`;
+      if (tw) tw.innerHTML = `<div class="msg-av-ai">⚠️</div><div class="bbl-ai">${e.message || 'Xatolik'}</div>`;
     }
+    msgs.scrollTop = msgs.scrollHeight;
   }
 
   function renderKaloriya() {
@@ -827,10 +1073,22 @@
   }
 
   // ─── Leaderboard ──────────────────────────────────────────────────────────
+  let _lbPollingTimer = null;
+  let _currentLbType = 'stroop-color';
+  let _lbPanelVisible = false;
+
   async function loadHomeLeaderboard() {
     try {
       const data = await API.leaderboard('stroop-color', 'today');
       renderLbRows('lb-home-rows', data, user?.telegramId);
+    } catch {}
+  }
+
+  async function loadGameLeaderboard(type) {
+    _currentLbType = type;
+    try {
+      const data = await API.leaderboard(type, 'week');
+      renderLbRows('lb-game-rows', data, user?.telegramId);
     } catch {}
   }
 
@@ -839,16 +1097,42 @@
     btn.classList.add('active');
     document.getElementById('lb-game-rows').innerHTML =
       '<div style="padding:12px 14px;font-size:12px;color:var(--m)">Yuklanmoqda...</div>';
-    try {
-      const data = await API.leaderboard(type, 'week');
-      renderLbRows('lb-game-rows', data, user?.telegramId);
-    } catch {}
+    await loadGameLeaderboard(type);
+  }
+
+  // Real vaqt polling — faqat leaderboard ko'rinib turganda
+  function startLbPolling() {
+    stopLbPolling();
+    _lbPanelVisible = true;
+    _lbPollingTimer = setInterval(() => {
+      if (!_lbPanelVisible || document.hidden) return;
+      if (activePanel === 'home') {
+        loadHomeLeaderboard();
+      } else if (activePanel === 'games') {
+        const gameRows = document.getElementById('lb-game-rows');
+        if (gameRows && gameRows.offsetParent !== null) {
+          loadGameLeaderboard(_currentLbType);
+        }
+      }
+    }, 30000); // 30 soniya
+  }
+
+  function stopLbPolling() {
+    if (_lbPollingTimer) {
+      clearInterval(_lbPollingTimer);
+      _lbPollingTimer = null;
+    }
+    _lbPanelVisible = false;
   }
 
   function renderLbRows(containerId, data, myTid) {
     const ranks = ['rank-gold','rank-silver','rank-bronze'];
     const container = document.getElementById(containerId);
     if (!container) return;
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--m);text-align:center">Hali natijalar yo\'q — birinchi bo\'l!</div>';
+      return;
+    }
     container.innerHTML = data.slice(0, 10).map((r, i) => `
 <div class="lb-row ${r.telegramId === myTid ? 'me' : ''}">
   <div class="lb-rank ${ranks[i] || ''}" style="${r.telegramId === myTid ? 'color:var(--al)' : ''}">${r.rank}</div>
@@ -958,9 +1242,31 @@
   function backToAI() { showSubpanel('ai', 'sa-home'); renderChatHistory(); }
 
   // ─── Init games ───────────────────────────────────────────────────────────
-  function initGames() {
+  async function initGames() {
+    // Config yuklash — Adsgram Block ID va Bot username ni olish
+    try {
+      const resp = await fetch('/api/config');
+      const config = await resp.json();
+      if (config.adsgramBlockId) {
+        window.ADSGRAM_BLOCK_ID = config.adsgramBlockId;
+      }
+      if (config.botUsername) {
+        window.BOT_USERNAME = config.botUsername;
+      }
+    } catch (e) { console.warn('Config yuklanmadi'); }
+
     ADS.initAdsgram();
     loadHomeLeaderboard();
+    startLbPolling(); // Real vaqt leaderboard
+
+    // Background ga o'tganda polling to'xtaydi
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopLbPolling();
+      else startLbPolling();
+    });
+
+    // Kunlik bonus — login qilingan bo'lsa
+    setTimeout(() => checkDailyBonus(), 500);
     // Stats
     API.myStats().then(s => {
       const el = document.getElementById('p-games');
@@ -1037,21 +1343,226 @@
     document.head.appendChild(style);
   }
 
+  // ─── Kunlik bonus ─────────────────────────────────────────────────────────
+  async function checkDailyBonus() {
+    // user ma'lumotlarida lastLoginDate bo'lsa — bugun olinganmi tekshirish
+    if (!user) return;
+    try {
+      const today = new Date().toDateString();
+      const last = user.lastLoginDate ? new Date(user.lastLoginDate).toDateString() : null;
+      const banner = document.getElementById('daily-bonus-banner');
+      if (!banner) return;
+
+      if (last === today) {
+        banner.style.display = 'none';
+      } else {
+        banner.style.display = 'flex';
+        const streak = user.streakDays || 0;
+        const bonus = streak >= 7 ? 6 : 3;
+        const title = document.getElementById('daily-bonus-title');
+        const sub = document.getElementById('daily-bonus-sub');
+        if (title) title.textContent = `Kunlik bonus +${bonus}t`;
+        if (sub) sub.textContent = streak >= 7
+          ? `🔥 ${streak} kunlik streak — 2x bonus!`
+          : `Har kuni kiring — ${7 - streak} kun qoldi 2x gacha`;
+      }
+    } catch (e) { console.warn(e); }
+  }
+
+  async function claimDaily() {
+    try {
+      const res = await API.dailyBonus();
+      showToast(`+${res.bonus} token olindi! 🎁`);
+      const banner = document.getElementById('daily-bonus-banner');
+      if (banner) banner.style.display = 'none';
+      updateTokenDisplay();
+      // user ma'lumotini yangilash
+      try {
+        const me = await API.me();
+        if (me) user = me;
+      } catch {}
+    } catch (e) {
+      if (e.code === 'ALREADY_CLAIMED') {
+        showToast('Bugungi bonus allaqachon olindi');
+        const banner = document.getElementById('daily-bonus-banner');
+        if (banner) banner.style.display = 'none';
+      } else {
+        showToast(e.message || 'Xatolik');
+      }
+    }
+  }
+
+  // ─── Referral ─────────────────────────────────────────────────────────────
+  function copyRef() {
+    const inp = document.getElementById('ref-link');
+    if (!inp) return;
+    const link = inp.value;
+    if (!link) {
+      showToast('Referral link mavjud emas');
+      return;
+    }
+    try {
+      // Telegram ichida navigator.clipboard ishlamasligi mumkin
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link)
+          .then(() => showToast('Link nusxalandi!'))
+          .catch(() => _fallbackCopy(inp));
+      } else {
+        _fallbackCopy(inp);
+      }
+    } catch {
+      _fallbackCopy(inp);
+    }
+  }
+
+  function _fallbackCopy(inp) {
+    try {
+      inp.select();
+      inp.setSelectionRange(0, 99999);
+      document.execCommand('copy');
+      showToast('Link nusxalandi!');
+    } catch {
+      showToast('Linkni qo\'lda belgilab oling');
+    }
+  }
+
+  function shareRef() {
+    const inp = document.getElementById('ref-link');
+    if (!inp || !inp.value) {
+      showToast('Link tayyor emas');
+      return;
+    }
+    const link = inp.value;
+    const text = `🧠 FIKRA — miya faolligi platformasiga qo'shil!\nBepul token olish uchun:`;
+
+    if (tg && typeof tg.openTelegramLink === 'function') {
+      // Telegram'da share oynasi
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+      tg.openTelegramLink(shareUrl);
+    } else {
+      // Fallback — nusxalash
+      copyRef();
+    }
+  }
+
+  // ─── Token tarixi ─────────────────────────────────────────────────────────
+  async function loadTokenHistory() {
+    const container = document.getElementById('token-history-list');
+    if (!container) return;
+    container.innerHTML = '<div style="padding:8px 0;font-size:11px;color:var(--m)">Yuklanmoqda...</div>';
+    try {
+      const history = await API.tokenHistory();
+      if (!history || history.length === 0) {
+        container.innerHTML = '<div style="padding:8px 0;font-size:11px;color:var(--m);text-align:center">Tarix bo\'sh</div>';
+        return;
+      }
+      const sourceNames = {
+        ai_chat: '💬 AI Chat',
+        ai_document: '📄 Hujjat',
+        ai_image: '🎨 Rasm',
+        ai_calorie: '🥗 Kaloriya',
+        ai_video: '🎬 Video',
+        game_stroop: '🎮 Stroop',
+        game_test: '📝 DTM Test',
+        daily_bonus: '🎁 Kunlik bonus',
+        ads_rewarded: '📺 Reklama',
+        referral_bonus: '🎯 Referral',
+      };
+      container.innerHTML = history.slice(0, 15).map(h => {
+        const date = new Date(h.createdAt);
+        const dateStr = date.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' })
+          + ' ' + date.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+        const isPlus = h.amount > 0;
+        return `
+<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--f);font-size:11px">
+  <div style="flex:1;overflow:hidden">
+    <div style="color:var(--txt);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sourceNames[h.source] || h.source}</div>
+    <div style="color:var(--m);font-size:10px;margin-top:1px">${dateStr}</div>
+  </div>
+  <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:${isPlus ? 'var(--g)' : 'var(--r)'}">${isPlus ? '+' : ''}${h.amount}t</div>
+</div>`;
+      }).join('');
+    } catch (e) {
+      container.innerHTML = `<div style="padding:8px 0;font-size:11px;color:var(--r)">Xatolik: ${e.message}</div>`;
+    }
+  }
+
+  // ─── Stars to'lovi ────────────────────────────────────────────────────────
+  async function buyPlan(planId) {
+    showToast('To\'lov tayyorlanmoqda...');
+    try {
+      const res = await API.createInvoice(planId);
+      if (!res?.invoiceUrl) {
+        showToast('To\'lov linki olinmadi');
+        return;
+      }
+
+      // Telegram WebApp openInvoice
+      if (tg && typeof tg.openInvoice === 'function') {
+        tg.openInvoice(res.invoiceUrl, (status) => {
+          if (status === 'paid') {
+            showToast('✅ Obuna faollashtirildi!');
+            setTimeout(async () => {
+              await updateTokenDisplay();
+              try {
+                const me = await API.me();
+                if (me) user = me;
+              } catch {}
+              // Profilni qayta render qilish
+              if (activePanel === 'profile') {
+                const pp = document.getElementById('p-profile');
+                if (pp) pp.outerHTML = buildProfile();
+              }
+            }, 1000);
+          } else if (status === 'failed') {
+            showToast('❌ To\'lov amalga oshmadi');
+          } else if (status === 'cancelled') {
+            showToast('To\'lov bekor qilindi');
+          }
+        });
+      } else {
+        // Brauzerda — link orqali ochish
+        if (window.confirm('Telegram to\'lov oynasi ochiladi. Davom etamizmi?')) {
+          window.open(res.invoiceUrl, '_blank');
+        }
+      }
+    } catch (e) {
+      showToast(e.message || 'To\'lov xatosi');
+      console.error('buyPlan:', e);
+    }
+  }
+
   // ─── Expose ───────────────────────────────────────────────────────────────
   window.FIKRA = {
-    switchPanel, goGame, openAIChat, openKal, backToGames, backToAI,
+    switchPanel, goGame, openAIChat, openKal, openImage, backToGames, backToAI,
     selectStroopMode, sAns, tfAns,
     switchTestNav, selMajFan, selMajOpt, nextMajQ,
     selDir, startMut, switchMutFan, selMutFan: selMajFan, selMutOpt, nextMutQ,
     setDocFmt, sendChat, sendDoc, doScan, getHint,
+    genImage, showOldImage,
     showAdsModal, showToast, updateTokenDisplay,
     switchLbTab, reLogin: login,
+    buyPlan,
+    claimDaily, copyRef, shareRef, loadTokenHistory,
   };
 
   // ─── Bootstrap ────────────────────────────────────────────────────────────
-  await login();
-  document.getElementById('loading').classList.add('hide');
-  setTimeout(() => { document.getElementById('loading')?.remove(); }, 350);
+  // login() xato bersa ham UI ko'rsatiladi — loading ekranda qotib qolmaydi
+  try {
+    await Promise.race([
+      login(),
+      new Promise(resolve => setTimeout(resolve, 3000)) // 3s timeout
+    ]);
+  } catch(e) {
+    console.warn('Login error (ignored):', e);
+  }
+
+  const loadingEl = document.getElementById('loading');
+  if (loadingEl) {
+    loadingEl.style.opacity = '0';
+    loadingEl.style.transition = 'opacity .3s';
+    setTimeout(() => loadingEl.remove(), 350);
+  }
   buildUI();
 
 })();

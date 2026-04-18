@@ -3,14 +3,24 @@
 
 const API_BASE = window.location.origin;
 
-let _accessToken = localStorage.getItem('fikra_access_token') || null;
-let _refreshToken = localStorage.getItem('fikra_refresh_token') || null;
+let _accessToken = null;
+let _refreshToken = null;
+try {
+  _accessToken = localStorage.getItem('fikra_access_token') || null;
+  _refreshToken = localStorage.getItem('fikra_refresh_token') || null;
+} catch(e) { console.warn('localStorage unavailable'); }
 
 function setTokens(access, refresh) {
   _accessToken = access;
   _refreshToken = refresh;
-  localStorage.setItem('fikra_access_token', access);
-  localStorage.setItem('fikra_refresh_token', refresh);
+  try {
+    if (access) localStorage.setItem('fikra_access_token', access);
+    if (refresh) localStorage.setItem('fikra_refresh_token', refresh);
+    if (!access && !refresh) {
+      localStorage.removeItem('fikra_access_token');
+      localStorage.removeItem('fikra_refresh_token');
+    }
+  } catch(e) { console.warn('localStorage unavailable'); }
 }
 
 async function apiRequest(path, options = {}) {
@@ -171,6 +181,8 @@ const API = {
   // Subscription
   plans: () => apiRequest('/api/sub/plans'),
   subStatus: () => apiRequest('/api/sub/status'),
+  createInvoice: (planId) =>
+    apiRequest('/api/sub/create-invoice', { method: 'POST', body: { planId } }),
 };
 
 window.API = API;

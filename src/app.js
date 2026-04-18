@@ -54,6 +54,15 @@ require('./bot')(app);
 // ─── Health ───────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
 
+// ─── Client config (public keys only) ────────────────────────────────────────
+app.get('/api/config', (req, res) => {
+  res.json({
+    adsgramBlockId: process.env.ADSGRAM_BLOCK_ID || '',
+    botUsername: process.env.BOT_USERNAME || 'fikra_bot',
+    version: '1.2.0',
+  });
+});
+
 // ─── SPA fallback ─────────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
   const index = path.join(publicDir, 'index.html');
