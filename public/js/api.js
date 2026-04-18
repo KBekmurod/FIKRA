@@ -1,37 +1,59 @@
 // ─── FIKRA API Client ──────────────────────────────────────────────────────────
-// Barcha fetch so'rovlari shu yerdan o'tadi
-
 const API_BASE = window.location.origin;
 
 let _accessToken = null;
 let _refreshToken = null;
-try {
-  _accessToken = localStorage.getItem('fikra_access_token') || null;
-  _refreshToken = localStorage.getItem('fikra_refresh_token') || null;
-} catch(e) { console.warn('localStorage unavailable'); }
+let _tokenOwnerTgId = null; // JWT qaysi Telegram ID ga tegishli — konflikt aniqlash uchun
 
-function setTokens(access, refresh) {
-  _accessToken = access;
-  _refreshToken = refresh;
+// ─── Tokenni yuklash ─────────────────────────────────────────────────────────
+// Token faqat shu Telegram foydalanuvchi uchun bo'lsa ishlatiladi
+function _loadSavedTokens(currentTgId) {
   try {
-    if (access) localStorage.setItem('fikra_access_token', access);
-    if (refresh) localStorage.setItem('fikra_refresh_token', refresh);
-    if (!access && !refresh) {
-      localStorage.removeItem('fikra_access_token');
-      localStorage.removeItem('fikra_refresh_token');
+    const saved = localStorage.getItem('fikra_auth');
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    // Agar saqlangan token boshqa foydalanuvchiga tegishli bo'lsa — o'chirib tashla
+    if (currentTgId && data.tgId && data.tgId !== currentTgId) {
+      console.warn('[API] Boshqa user tokeni topildi, tozalanmoqda');
+      localStorage.removeItem('fikra_auth');
+      return;
     }
-  } catch(e) { console.warn('localStorage unavailable'); }
+    _accessToken = data.access || null;
+    _refreshToken = data.refresh || null;
+    _tokenOwnerTgId = data.tgId || null;
+  } catch (e) {
+    console.warn('localStorage unavailable:', e);
+  }
 }
 
+function setTokens(access, refresh, tgId) {
+  _accessToken = access;
+  _refreshToken = refresh;
+  _tokenOwnerTgId = tgId || null;
+  try {
+    if (access && refresh) {
+      localStorage.setItem('fikra_auth', JSON.stringify({
+        access, refresh, tgId: tgId || null, ts: Date.now()
+      }));
+    } else {
+      localStorage.removeItem('fikra_auth');
+    }
+  } catch (e) { console.warn('localStorage unavailable'); }
+}
+
+function clearTokens() {
+  setTokens(null, null, null);
+}
+
+function getTokenOwner() { return _tokenOwnerTgId; }
+
+// ─── Asosiy so'rov funksiya ──────────────────────────────────────────────────
 async function apiRequest(path, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
   };
-
-  if (_accessToken) {
-    headers['Authorization'] = `Bearer ${_accessToken}`;
-  }
+  if (_accessToken) headers['Authorization'] = `Bearer ${_accessToken}`;
 
   let res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -41,8 +63,8 @@ async function apiRequest(path, options = {}) {
       : options.body,
   });
 
-  // Token muddati tugagan — refresh qilamiz
-  if (res.status === 401 && _refreshToken) {
+  // Token muddati tugagan — refresh
+  if (res.status === 401 && _refreshToken && path !== '/api/auth/refresh') {
     const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -51,12 +73,11 @@ async function apiRequest(path, options = {}) {
 
     if (refreshRes.ok) {
       const data = await refreshRes.json();
-      setTokens(data.accessToken, data.refreshToken);
+      setTokens(data.accessToken, data.refreshToken, _tokenOwnerTgId);
       headers['Authorization'] = `Bearer ${data.accessToken}`;
       res = await fetch(`${API_BASE}${path}`, { ...options, headers });
     } else {
-      // Refresh ham ishlamadi — qayta login
-      setTokens(null, null);
+      clearTokens();
       window.FIKRA && window.FIKRA.reLogin && window.FIKRA.reLogin();
       return null;
     }
@@ -70,21 +91,16 @@ async function apiRequest(path, options = {}) {
     e.data = err;
     throw e;
   }
-
   return res.json();
 }
 
-// ─── Multipart (rasm yuklash uchun) ─────────────────────────────────────────
+// ─── Multipart upload ─────────────────────────────────────────────────────────
 async function apiUpload(path, formData) {
   const headers = {};
   if (_accessToken) headers['Authorization'] = `Bearer ${_accessToken}`;
-
   const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers,
-    body: formData,
+    method: 'POST', headers, body: formData,
   });
-
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Yuklash xatosi');
@@ -92,33 +108,31 @@ async function apiUpload(path, formData) {
   return res.json();
 }
 
-// ─── SSE Stream (AI chat uchun) ──────────────────────────────────────────────
+// ─── SSE Stream ───────────────────────────────────────────────────────────────
 async function apiStream(path, body, onChunk, onDone) {
   const headers = {
     'Content-Type': 'application/json',
     ..._accessToken ? { 'Authorization': `Bearer ${_accessToken}` } : {},
   };
-
   const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
+    method: 'POST', headers, body: JSON.stringify(body),
   });
-
-  if (!res.ok) throw new Error('Stream xatosi');
-
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const e = new Error(err.error || 'Stream xatosi');
+    e.code = err.code;
+    e.statusCode = res.status;
+    throw e;
+  }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
     buffer = lines.pop();
-
     for (const line of lines) {
       if (!line.startsWith('data: ')) continue;
       const data = line.slice(6);
@@ -132,14 +146,13 @@ async function apiStream(path, body, onChunk, onDone) {
   onDone && onDone();
 }
 
-// ─── API Methods ─────────────────────────────────────────────────────────────
+// ─── API Methods ──────────────────────────────────────────────────────────────
 const API = {
-  // Auth
   login: (initData, referralCode) =>
     apiRequest('/api/auth/login', { method: 'POST', body: { initData, referralCode } }),
   me: () => apiRequest('/api/auth/me'),
+  logout: () => { clearTokens(); },
 
-  // Tokens
   balance: () => apiRequest('/api/tokens/balance'),
   dailyBonus: () => apiRequest('/api/tokens/daily-bonus', { method: 'POST' }),
   adsReward: (format, context) =>
@@ -148,7 +161,6 @@ const API = {
     apiRequest('/api/tokens/referral', { method: 'POST', body: { refCode } }),
   tokenHistory: () => apiRequest('/api/tokens/history'),
 
-  // Games
   stroopResult: (gameType, score, correctAnswers, wrongAnswers, durationSec) =>
     apiRequest('/api/games/stroop/result', { method: 'POST',
       body: { gameType, score, correctAnswers, wrongAnswers, durationSec } }),
@@ -162,7 +174,6 @@ const API = {
     apiRequest(`/api/games/leaderboard/${type}?period=${period}`),
   myStats: () => apiRequest('/api/games/my-stats'),
 
-  // AI
   chat: (message, history, onChunk, onDone) =>
     apiStream('/api/ai/chat', { message, history }, onChunk, onDone),
   document: (prompt, format, history) =>
@@ -178,7 +189,6 @@ const API = {
   video: (prompt) =>
     apiRequest('/api/ai/video', { method: 'POST', body: { prompt } }),
 
-  // Subscription
   plans: () => apiRequest('/api/sub/plans'),
   subStatus: () => apiRequest('/api/sub/status'),
   createInvoice: (planId) =>
@@ -187,3 +197,6 @@ const API = {
 
 window.API = API;
 window.setTokens = setTokens;
+window.clearTokens = clearTokens;
+window.getTokenOwner = getTokenOwner;
+window._loadSavedTokens = _loadSavedTokens;

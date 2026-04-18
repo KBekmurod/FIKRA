@@ -168,6 +168,38 @@ html, body {
 .subpanel { display: none; }
 .subpanel.active { display: block; }
 
+/* AI chat va Doc subpanellari — full height, tashqi scroll'ni blokirovka qilish */
+#sa-chat.active,
+#sa-doc.active,
+#sa-image.active,
+#sa-kal.active {
+  position: absolute;
+  top: 60px; /* status bar + header */
+  left: 0; right: 0; bottom: 60px; /* bottom nav uchun */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Games'dagi o'yin subpanellari ham full height */
+#sg-stroop.active,
+#sg-test.active,
+#sg-result.active {
+  position: absolute;
+  top: 60px;
+  left: 0; right: 0; bottom: 60px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* When chat subpanel is active, hide main scroll */
+body:has(#sa-chat.active) .scroll,
+body:has(#sa-doc.active) .scroll,
+body:has(#sa-image.active) .scroll,
+body:has(#sa-kal.active) .scroll {
+  overflow: hidden !important;
+}
+
 /* ─── Section label ────────────────────────────────────────────────────────── */
 .sl {
   font-family: 'Syne', sans-serif; font-weight: 700;
@@ -313,18 +345,33 @@ html, body {
 /* ─── Stroop ───────────────────────────────────────────────────────────────── */
 .stroop-word {
   font-family: 'Syne', sans-serif;
-  font-size: 44px; font-weight: 800; letter-spacing: -2px;
+  font-size: clamp(38px, 12vw, 56px);
+  font-weight: 800; letter-spacing: -2px;
   transition: all .18s;
+  line-height: 1.1;
 }
 .stroop-ans {
-  padding: 15px; border-radius: var(--br2);
+  padding: 18px 12px;
+  min-height: 54px;
+  border-radius: var(--br2);
   border: 1.5px solid var(--f); background: var(--s2);
-  font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700;
+  font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700;
   cursor: pointer; transition: all .15s; text-align: center; color: var(--txt);
+  display: flex; align-items: center; justify-content: center;
+  user-select: none; -webkit-user-select: none;
 }
 .stroop-ans:active { transform: scale(.94); }
 .stroop-ans.correct { border-color: var(--g); background: rgba(0,212,170,.1); color: var(--g); }
 .stroop-ans.wrong   { border-color: var(--r); background: rgba(255,95,126,.1); color: var(--r); }
+
+/* Responsive ekranlar */
+@media (max-width: 360px) {
+  .stroop-word { font-size: 36px; }
+  .stroop-ans { padding: 14px 8px; min-height: 48px; font-size: 13px; }
+}
+@media (min-width: 500px) {
+  .stroop-word { font-size: 64px; }
+}
 
 /* ─── Test opts ────────────────────────────────────────────────────────────── */
 .test-opt {
@@ -368,3 +415,8 @@ html, body {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0,212,170,.4); }
+  50% { transform: scale(1.02); box-shadow: 0 0 0 8px rgba(0,212,170,0); }
+}

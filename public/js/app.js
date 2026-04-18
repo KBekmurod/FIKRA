@@ -20,45 +20,77 @@
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
   async function login() {
-    try {
-      const initData = tg?.initData || '';
-      const refCode = new URLSearchParams(window.location.search).get('ref') ||
-                      tg?.initDataUnsafe?.start_param || null;
+    const initData = tg?.initData || '';
+    const initUser = tg?.initDataUnsafe?.user;
+    const currentTgId = initUser?.id || null;
+    const refCode = new URLSearchParams(window.location.search).get('ref') ||
+                    tg?.initDataUnsafe?.start_param || null;
 
-      // Avval saqlangan tokenlar bilan qayta urinish
-      const saved = localStorage.getItem('fikra_access_token');
-      if (saved) {
-        try {
-          const me = await API.me();
-          if (me) { user = me; tokens = me.tokens; return; }
-        } catch(e) {
-          // Token eskirgan, yangilash kerak
-          if (e.code !== 'TOKEN_EXPIRED') throw e;
+    // MUHIM: Saqlangan tokenlarni faqat joriy Telegram ID ga tegishli bo'lsa ishlat
+    window._loadSavedTokens(currentTgId);
+
+    // Saqlangan token bor va joriy foydalanuvchiga tegishli — tekshirish
+    const savedOwner = window.getTokenOwner();
+    if (savedOwner && savedOwner === currentTgId) {
+      try {
+        const me = await API.me();
+        if (me && me.telegramId === currentTgId) {
+          user = me;
+          tokens = me.tokens;
+          console.log('[Auth] Saved token valid');
+          return;
         }
+      } catch (e) {
+        console.warn('[Auth] Saved token invalid:', e.code);
+        window.clearTokens();
       }
+    } else if (savedOwner && savedOwner !== currentTgId) {
+      // Boshqa foydalanuvchi tokeni — darhol o'chir
+      console.warn('[Auth] Different user detected, clearing tokens');
+      window.clearTokens();
+    }
 
-      // Telegram initData bilan login
-      if (!initData) {
-        // Brauzerdan kirgan — demo rejim
-        console.log('Demo rejim: Telegram WebApp ichida ochilmagan');
-        tokens = 50;
-        user = { firstName: 'Mehmon', username: 'guest', tokens: 50, streakDays: 0 };
-        return;
-      }
+    // Brauzerdan kirgan (Telegram WebApp emas) — demo rejim, lekin JWT bermaymiz
+    if (!initData || !currentTgId) {
+      console.log('[Auth] Brauzer rejimi (Telegram tashqarida)');
+      tokens = 0;
+      user = { firstName: 'Mehmon', username: 'guest', tokens: 0, streakDays: 0, _demo: true };
+      return;
+    }
 
+    // Haqiqiy Telegram login — initData server da HMAC bilan tekshiriladi
+    try {
       const res = await API.login(initData, refCode);
-      if (res) {
-        setTokens(res.accessToken, res.refreshToken);
+      if (res && res.user) {
+        // Serverdan qaytgan user ID joriy Telegram ID ga mos kelishi shart
+        if (res.user.telegramId !== currentTgId) {
+          console.error('[Auth] User ID mismatch!', res.user.telegramId, currentTgId);
+          throw new Error('Identifikatsiya xatoligi');
+        }
+        setTokens(res.accessToken, res.refreshToken, currentTgId);
         user = res.user;
         tokens = res.user.tokens;
+        console.log('[Auth] Logged in as:', user.firstName, 'tgId:', currentTgId);
       }
     } catch (e) {
-      console.warn('Login warning:', e.message);
-      // Xato bo'lsa ham demo rejimda ishlaydi
-      if (!user) {
-        tokens = 50;
-        user = { firstName: 'Foydalanuvchi', username: 'user', tokens: 50, streakDays: 0 };
-      }
+      console.error('[Auth] Login failed:', e.message);
+      // Brauzer-like demo rejimga tushmaymiz, chunki Telegram ichidamiz
+      tokens = 0;
+      user = { firstName: initUser?.first_name || 'Xatolik', username: initUser?.username || '', tokens: 0, streakDays: 0, _authError: e.message };
+      showToast && showToast('Kirish xatoligi: ' + e.message);
+    }
+  }
+
+  // Ilova boshqa hisobga o'tganligini aniqlash — har 30s bir tekshiramiz
+  async function verifyAuth() {
+    if (!user || user._demo) return;
+    const currentTgId = tg?.initDataUnsafe?.user?.id;
+    if (!currentTgId) return;
+    if (user.telegramId && user.telegramId !== currentTgId) {
+      console.warn('[Auth] Telegram account switched! Re-login required');
+      window.clearTokens();
+      await login();
+      buildUI(); // UI ni qayta qur
     }
   }
 
@@ -67,7 +99,7 @@
     document.getElementById('app').innerHTML = `
 <div class="main-wrap" id="main">
   <div class="status-bar">
-    <span class="status-time" id="clock">9:41</span>
+    <span class="status-time" id="clock"></span>
     <div class="status-tokens" id="tok-pill" onclick="FIKRA.showAdsModal(5,'bonus')">
       <div class="tok-dot"></div>
       <span id="tok-val">${tokens.toLocaleString()}</span>
@@ -113,7 +145,7 @@
 </div>
 `;
     updateClock();
-    setInterval(updateClock, 30000);
+    setInterval(updateClock, 10000);
     setTimeout(() => {
       document.getElementById('main').classList.add('visible');
     }, 50);
@@ -381,8 +413,12 @@
   function openAIChat(type) {
     switchPanel('ai');
     setTimeout(() => {
-      if (type === 'doc') renderDocChat();
-      else renderGeneralChat();
+      // Chat tarixidan kirilganda mavjud chatni ochish
+      // Oddiy tugmadan kirilganda (general/doc) — yangi chat
+      if (type === 'doc' || type === 'doc_new') renderDocChat('doc_new');
+      else if (type === 'doc_continue') renderDocChat('doc');
+      else if (type === 'general_continue') renderGeneralChat('general');
+      else renderGeneralChat('general_new'); // default: yangi chat
     }, 20);
   }
 
@@ -643,59 +679,86 @@
 </div>
 <div class="prog-bar" style="margin-bottom:10px"><div class="prog-fill gradient" style="width:${((idx+1)/total)*100}%"></div></div>
 <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:15px">
-  <div style="font-size:14px;font-weight:600;line-height:1.5;margin-bottom:12px">${q.question}</div>
+  <div style="font-size:14px;font-weight:600;line-height:1.5;margin-bottom:12px">${_escapeHtml(q.question)}</div>
   <div id="maj-opts">${q.options.map((o,i) => `
     <div class="test-opt" onclick="FIKRA.selMajOpt(this,${i},'${q._id}')" data-idx="${i}" data-qid="${q._id}">
       <div class="opt-letter">${letters[i]}</div>
-      <div style="font-size:13px;font-weight:500">${o}</div>
+      <div style="font-size:13px;font-weight:500">${_escapeHtml(o)}</div>
     </div>`).join('')}
   </div>
+  <div id="maj-explanation" style="display:none;margin-top:12px;padding:10px;background:rgba(123,104,238,.06);border:1px solid rgba(123,104,238,.15);border-radius:var(--br2)"></div>
 </div>
 <div style="display:flex;gap:7px;margin-top:10px">
-  <button style="flex:1;padding:10px;border-radius:var(--br2);background:var(--s3);border:1px solid var(--f);color:var(--m);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" onclick="FIKRA.getHint('${q._id}','${q.question.replace(/'/g,"\\'")}')">
+  <button style="flex:1;padding:10px;border-radius:var(--br2);background:var(--s3);border:1px solid var(--f);color:var(--m);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" onclick="FIKRA.getHint('${q._id}','${q.question.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
     AI hint <span style="font-size:10px;color:var(--y);font-weight:700">−10t</span>
   </button>
-  <button style="flex:2;padding:10px;border-radius:var(--br2);background:var(--acc);color:#fff;border:none;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer" onclick="FIKRA.nextMajQ()">Keyingisi →</button>
+  <button id="maj-next-btn" style="flex:2;padding:10px;border-radius:var(--br2);background:var(--acc);color:#fff;border:none;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer" onclick="FIKRA.nextMajQ()">Keyingisi →</button>
 </div>`;
   }
 
   let _majSelectedIdx = -1;
   let _majSelectedQId = '';
 
-  function selMajOpt(el, idx, qId) {
-    document.querySelectorAll('#maj-opts .test-opt').forEach(o => o.className = 'test-opt');
+  let _majAnswered = false;
+
+  async function selMajOpt(el, idx, qId) {
+    if (_majAnswered) return; // Javob tanlangan, qayta tanlash yo'q
+    _majAnswered = true;
+    document.querySelectorAll('#maj-opts .test-opt').forEach(o => {
+      o.className = 'test-opt';
+      o.style.pointerEvents = 'none';
+    });
     el.classList.add('sel');
     _majSelectedIdx = idx;
     _majSelectedQId = qId;
-  }
 
-  async function nextMajQ() {
-    if (_majSelectedIdx < 0) return;
-    const res = await TEST.checkMajAnswer(_majSelectedQId, _majSelectedIdx);
+    // Darhol javobni tekshirish
+    const res = await TEST.checkMajAnswer(qId, idx);
     const opts = document.querySelectorAll('#maj-opts .test-opt');
     if (res.isCorrect) {
-      opts[_majSelectedIdx].classList.add('ok');
+      opts[idx].classList.add('ok');
       showToast('+2 token — to\'g\'ri!');
       updateTokenDisplay();
     } else {
-      opts[_majSelectedIdx].classList.add('no');
+      opts[idx].classList.add('no');
       if (opts[res.correctIndex]) opts[res.correctIndex].classList.add('ok');
     }
+
+    // Tushuntirish ko'rsatish (agar bo'lsa)
+    if (res.explanation) {
+      const exp = document.getElementById('maj-explanation');
+      if (exp) {
+        exp.style.display = 'block';
+        exp.innerHTML = `<div style="font-size:10px;color:var(--al);font-weight:700;margin-bottom:4px">💡 Tushuntirish</div><div style="font-size:12px;line-height:1.5;color:var(--txt)">${_escapeHtml(res.explanation)}</div>`;
+      }
+    }
+
+    // "Keyingisi" tugmasini yoqish (pulse animatsiya bilan)
+    const nextBtn = document.getElementById('maj-next-btn');
+    if (nextBtn) {
+      nextBtn.style.background = res.isCorrect ? 'var(--g)' : 'var(--acc)';
+      nextBtn.style.animation = 'pulse 1.5s ease-in-out infinite';
+    }
+  }
+
+  async function nextMajQ() {
+    if (!_majAnswered) {
+      showToast('Avval javobni tanlang');
+      return;
+    }
+    _majAnswered = false;
     _majSelectedIdx = -1;
     const { done } = await TEST.nextMajQuestion();
     if (done) {
       setTimeout(async () => {
-        // Reklama + natija
         await ADS.showInterstitialAd('test_result');
         const result = await TEST.finishAndSave('maj');
         renderTestResult(result);
-      }, 700);
+      }, 300);
       return;
     }
-    setTimeout(() => {
-      const q = TEST.getCurrentQ();
-      renderMajQuestion(q, TEST.getQIdx(), TEST.getTotal());
-    }, 700);
+    const q = TEST.getCurrentQ();
+    renderMajQuestion(q, TEST.getQIdx(), TEST.getTotal());
   }
 
   function renderMutSection() {
@@ -765,6 +828,7 @@
   function renderMutQuestion(q, idx, total) {
     const letters = ['A','B','C','D'];
     _mutSelIdx = -1;
+    _mutAnswered = false;
     document.getElementById('mut-q-wrap').innerHTML = `
 <div style="display:flex;justify-content:space-between;margin-bottom:6px">
   <span style="font-size:11px;color:var(--m);font-weight:600">${idx+1} / ${total} savol</span>
@@ -772,38 +836,61 @@
 </div>
 <div class="prog-bar" style="margin-bottom:10px"><div class="prog-fill gradient" style="width:${((idx+1)/total)*100}%"></div></div>
 <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:15px">
-  <div style="font-size:14px;font-weight:600;line-height:1.5;margin-bottom:12px">${q.question}</div>
+  <div style="font-size:14px;font-weight:600;line-height:1.5;margin-bottom:12px">${_escapeHtml(q.question)}</div>
   <div id="mut-opts">${q.options.map((o,i) => `
     <div class="test-opt" onclick="FIKRA.selMutOpt(this,${i},'${q._id}')" data-idx="${i}">
       <div class="opt-letter">${letters[i]}</div>
-      <div style="font-size:13px;font-weight:500">${o}</div>
+      <div style="font-size:13px;font-weight:500">${_escapeHtml(o)}</div>
     </div>`).join('')}
   </div>
+  <div id="mut-explanation" style="display:none;margin-top:12px;padding:10px;background:rgba(123,104,238,.06);border:1px solid rgba(123,104,238,.15);border-radius:var(--br2)"></div>
 </div>
 <div style="display:flex;gap:7px;margin-top:10px">
-  <button style="flex:1;padding:10px;border-radius:var(--br2);background:var(--s3);border:1px solid var(--f);color:var(--m);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" onclick="FIKRA.getHint('${q._id}','${q.question.replace(/'/g,"\\'")}')">
+  <button style="flex:1;padding:10px;border-radius:var(--br2);background:var(--s3);border:1px solid var(--f);color:var(--m);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" onclick="FIKRA.getHint('${q._id}','${q.question.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
     AI hint <span style="font-size:10px;color:var(--y)">−10t</span>
   </button>
-  <button style="flex:2;padding:10px;border-radius:var(--br2);background:var(--acc);color:#fff;border:none;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer" onclick="FIKRA.nextMutQ()">Keyingisi →</button>
+  <button id="mut-next-btn" style="flex:2;padding:10px;border-radius:var(--br2);background:var(--acc);color:#fff;border:none;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer" onclick="FIKRA.nextMutQ()">Keyingisi →</button>
 </div>`;
   }
 
-  function selMutOpt(el, idx, qId) {
-    document.querySelectorAll('#mut-opts .test-opt').forEach(o => o.className = 'test-opt');
+  let _mutAnswered = false;
+
+  async function selMutOpt(el, idx, qId) {
+    if (_mutAnswered) return;
+    _mutAnswered = true;
+    document.querySelectorAll('#mut-opts .test-opt').forEach(o => {
+      o.className = 'test-opt';
+      o.style.pointerEvents = 'none';
+    });
     el.classList.add('sel');
     _mutSelIdx = idx; _mutSelQId = qId;
+
+    const res = await TEST.checkMutAnswer(qId, idx);
+    const opts = document.querySelectorAll('#mut-opts .test-opt');
+    if (res.isCorrect) {
+      opts[idx].classList.add('ok');
+      showToast('+2t · to\'g\'ri!');
+      updateTokenDisplay();
+    } else {
+      opts[idx].classList.add('no');
+      if (opts[res.correctIndex]) opts[res.correctIndex].classList.add('ok');
+    }
+
+    if (res.explanation) {
+      const exp = document.getElementById('mut-explanation');
+      if (exp) {
+        exp.style.display = 'block';
+        exp.innerHTML = `<div style="font-size:10px;color:var(--al);font-weight:700;margin-bottom:4px">💡 Tushuntirish</div><div style="font-size:12px;line-height:1.5;color:var(--txt)">${_escapeHtml(res.explanation)}</div>`;
+      }
+    }
   }
 
   async function nextMutQ() {
-    if (_mutSelIdx < 0) return;
-    const res = await TEST.checkMutAnswer(_mutSelQId, _mutSelIdx);
-    const opts = document.querySelectorAll('#mut-opts .test-opt');
-    if (res.isCorrect) {
-      opts[_mutSelIdx].classList.add('ok'); showToast('+2t · to\'g\'ri!'); updateTokenDisplay();
-    } else {
-      opts[_mutSelIdx].classList.add('no');
-      if (opts[res.correctIndex]) opts[res.correctIndex].classList.add('ok');
+    if (!_mutAnswered) {
+      showToast('Avval javobni tanlang');
+      return;
     }
+    _mutAnswered = false;
     _mutSelIdx = -1;
     const { done } = await TEST.nextMajQuestion();
     if (done) {
@@ -811,10 +898,10 @@
         await ADS.showInterstitialAd('test_result');
         const result = await TEST.finishAndSave('mut');
         renderTestResult(result);
-      }, 700);
+      }, 300);
       return;
     }
-    setTimeout(() => renderMutQuestion(TEST.getCurrentQ(), TEST.getQIdx(), TEST.getTotal()), 700);
+    renderMutQuestion(TEST.getCurrentQ(), TEST.getQIdx(), TEST.getTotal());
   }
 
   function renderTestResult(result) {
@@ -849,42 +936,126 @@
   }
 
   // ─── AI Chat render ───────────────────────────────────────────────────────
-  function renderGeneralChat() {
-    CHAT.loadFromLocal('general');
+  // openChatId=null → yangi chat | 'general' → davom etgan chat
+  function renderGeneralChat(openChatId) {
+    // Yangi chat — default
+    if (!openChatId || openChatId === 'general_new') {
+      CHAT.startNew();
+    } else {
+      CHAT.loadFromLocal(openChatId);
+    }
     const history = CHAT.getHistory();
+    const limits = CHAT.limits;
+    const emptyGreeting = history.length === 0;
+
     document.getElementById('sa-chat').innerHTML = `
-<div style="display:flex;flex-direction:column;height:calc(100vh - 120px)">
+<div style="display:flex;flex-direction:column;height:100%;width:100%">
   <div style="display:flex;align-items:center;gap:9px;padding:9px 14px;background:var(--bg);border-bottom:1px solid var(--f);flex-shrink:0">
-    <div class="back-btn" style="padding:0" onclick="FIKRA.backToAI()">←</div>
-    <div style="flex:1"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px">AI Chat</div><div style="font-size:10px;color:var(--m)">DeepSeek V3.2</div></div>
-    <div style="font-size:10px;color:var(--y);font-weight:700;background:rgba(255,204,68,.08);padding:3px 8px;border-radius:100px;border:1px solid rgba(255,204,68,.2)">−5t/savol</div>
+    <div class="back-btn" style="padding:0;cursor:pointer" onclick="FIKRA.backToAI()">←</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px">AI Chat</div>
+      <div style="font-size:10px;color:var(--m)">DeepSeek V3.2 · <span id="chat-count">${history.length}</span>/${limits.MAX_HISTORY}</div>
+    </div>
+    <button onclick="FIKRA.newChat()" title="Yangi chat" style="width:28px;height:28px;border-radius:50%;background:var(--s3);border:1px solid var(--f);color:var(--txt);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0" ${emptyGreeting?'style="display:none"':''}>+</button>
+    <div style="font-size:10px;color:var(--y);font-weight:700;background:rgba(255,204,68,.08);padding:3px 8px;border-radius:100px;border:1px solid rgba(255,204,68,.2);flex-shrink:0">−5t</div>
   </div>
-  <div id="chat-msgs" style="flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:9px">
-    <div class="msg-ai"><div class="msg-av-ai">🤖</div><div class="bbl-ai">Salom! Savolingizni yozing.</div></div>
+  <div id="chat-msgs" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;display:flex;flex-direction:column;gap:9px">
+    ${emptyGreeting ? `<div class="msg-ai"><div class="msg-av-ai">🤖</div><div class="bbl-ai">Salom! Savolingizni yozing.</div></div>` : ''}
     ${history.map(h => h.role === 'user'
-      ? `<div class="msg-me"><div class="bbl-me">${h.content}</div><div class="msg-av-u">😊</div></div>`
-      : `<div class="msg-ai"><div class="msg-av-ai">🤖</div><div class="bbl-ai">${h.content}</div></div>`
+      ? `<div class="msg-me"><div class="bbl-me">${_escapeHtml(h.content)}</div><div class="msg-av-u">😊</div></div>`
+      : `<div class="msg-ai"><div class="msg-av-ai">🤖</div><div class="bbl-ai">${_escapeHtml(h.content)}</div></div>`
     ).join('')}
   </div>
-  <div class="chat-input-row">
-    <input class="chat-input" id="chat-inp" placeholder="Xabar yozing..." onkeydown="if(event.key==='Enter')FIKRA.sendChat()">
-    <button class="send-btn" onclick="FIKRA.sendChat()">↑</button>
+  <div style="flex-shrink:0">
+    <div id="chat-input-warn" style="display:none;padding:6px 14px;font-size:11px;color:var(--r);background:rgba(255,95,126,.07);border-top:1px solid rgba(255,95,126,.15)"></div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chat-inp" maxlength="${limits.MAX_MSG_CHARS}" placeholder="Xabar yozing..." oninput="FIKRA._chatInputChange(this)" onkeydown="if(event.key==='Enter')FIKRA.sendChat()">
+      <button class="send-btn" id="chat-send-btn" onclick="FIKRA.sendChat()">↑</button>
+    </div>
   </div>
 </div>`;
     showSubpanel('ai', 'sa-chat');
     const msgs = document.getElementById('chat-msgs');
     if (msgs) msgs.scrollTop = msgs.scrollHeight;
+
+    // Telegram BackButton
+    if (tg && tg.BackButton) {
+      tg.BackButton.show();
+      tg.BackButton.onClick(() => backToAI());
+    }
+  }
+
+  function newChat() {
+    if (confirm('Yangi chat boshlaysizmi? Joriy suhbat tarixga saqlanadi.')) {
+      CHAT.startNew();
+      renderGeneralChat();
+      showToast('Yangi chat boshlandi');
+    }
+  }
+
+  function _chatInputChange(el) {
+    const len = el.value.length;
+    const max = CHAT.limits.MAX_MSG_CHARS;
+    const warn = document.getElementById('chat-input-warn');
+    if (warn) {
+      if (len > max * 0.9) {
+        warn.style.display = 'block';
+        warn.textContent = `${len}/${max} belgi`;
+      } else {
+        warn.style.display = 'none';
+      }
+    }
+  }
+
+  function _escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   async function sendChat() {
     const inp = document.getElementById('chat-inp');
+    const sendBtn = document.getElementById('chat-send-btn');
     const text = inp.value.trim();
-    if (!text) return;
+
+    // Validatsiya
+    const validation = CHAT.validateMessage(text);
+    if (!validation.ok) {
+      showToast(validation.reason);
+      return;
+    }
+
+    // Spam/limit tekshiruvi
+    const check = CHAT.canSend();
+    if (!check.ok) {
+      if (check.code === 'CHAT_FULL') {
+        if (confirm(check.reason + ' Yangi chat boshlash?')) {
+          CHAT.startNew();
+          renderGeneralChat();
+        }
+      } else {
+        showToast(check.reason);
+      }
+      return;
+    }
+    CHAT.markSent();
+
     inp.value = '';
+    inp.disabled = true;
+    if (sendBtn) sendBtn.disabled = true;
 
     const msgs = document.getElementById('chat-msgs');
-    msgs.innerHTML += `<div class="msg-me"><div class="bbl-me">${text}</div><div class="msg-av-u">😊</div></div>`;
+    // Greeting ni olib tashlash agar birinchi xabar bo'lsa
+    if (CHAT.getHistory().length === 0) {
+      msgs.innerHTML = '';
+    }
+    msgs.innerHTML += `<div class="msg-me"><div class="bbl-me">${_escapeHtml(text)}</div><div class="msg-av-u">😊</div></div>`;
     CHAT.addMessage('user', text);
+    _updateChatCount();
 
     const typingId = 'typing-' + Date.now();
     msgs.innerHTML += `<div id="${typingId}" class="msg-ai"><div class="msg-av-ai">🤖</div><div class="bbl-ai" style="display:flex;gap:4px;align-items:center"><span style="width:6px;height:6px;background:var(--m);border-radius:50%;animation:td .8s ease-in-out infinite"></span><span style="width:6px;height:6px;background:var(--m);border-radius:50%;animation:td .8s ease-in-out .15s infinite"></span><span style="width:6px;height:6px;background:var(--m);border-radius:50%;animation:td .8s ease-in-out .3s infinite"></span></div></div>`;
@@ -896,7 +1067,7 @@
     replyDiv.innerHTML = '<div class="msg-av-ai">🤖</div><div class="bbl-ai" id="streaming-reply"></div>';
 
     try {
-      await API.chat(text, CHAT.getHistory(),
+      await API.chat(text, CHAT.getContext().slice(0, -1), // oxirgisi yangi xabar
         (chunk) => {
           const tw = document.getElementById(typingId);
           if (tw) { tw.replaceWith(replyDiv); }
@@ -906,7 +1077,10 @@
           msgs.scrollTop = msgs.scrollHeight;
         },
         () => {
-          CHAT.addMessage('assistant', reply);
+          if (reply) {
+            CHAT.addMessage('assistant', reply);
+            _updateChatCount();
+          }
           updateTokenDisplay();
         }
       );
@@ -914,22 +1088,51 @@
       const tw = document.getElementById(typingId);
       if (tw) tw.remove();
       if (e.code === 'INSUFFICIENT_TOKENS') {
-        msgs.innerHTML += `<div class="msg-ai"><div class="msg-av-ai">⚠️</div><div class="bbl-ai">Token yetarli emas. Reklama ko'ring!</div></div>`;
+        msgs.innerHTML += `<div class="msg-ai"><div class="msg-av-ai">⚠️</div><div class="bbl-ai">Token yetarli emas (−5t kerak). Reklama ko'rib bepul token oling!</div></div>`;
         showAdsModal(5, 'chat_retry');
+      } else {
+        msgs.innerHTML += `<div class="msg-ai"><div class="msg-av-ai">⚠️</div><div class="bbl-ai">Xatolik: ${_escapeHtml(e.message || 'Noma\'lum')}</div></div>`;
       }
+    } finally {
+      inp.disabled = false;
+      if (sendBtn) sendBtn.disabled = false;
+      inp.focus();
     }
   }
 
-  function renderDocChat() {
-    DOC.loadHistory();
+  function _updateChatCount() {
+    const c = document.getElementById('chat-count');
+    if (c) c.textContent = CHAT.getHistory().length;
+    const warn = document.getElementById('chat-input-warn');
+    const remaining = CHAT.limits.MAX_HISTORY - CHAT.getHistory().length;
+    if (remaining <= 3 && warn) {
+      warn.style.display = 'block';
+      warn.style.color = 'var(--y)';
+      warn.textContent = `Chat to'lishga yaqin (${remaining} xabar qoldi). Yangi chat boshlang.`;
+    }
+  }
+
+  function renderDocChat(openChatId) {
+    // Yangi hujjat chati — default
+    if (!openChatId || openChatId === 'doc_new') {
+      DOC.clear();
+    } else {
+      DOC.loadHistory();
+    }
     const fmt = DOC.getFormat();
     const history = DOC.getHistory();
+    const emptyState = history.length === 0;
+
     document.getElementById('sa-doc').innerHTML = `
-<div style="display:flex;flex-direction:column;height:calc(100vh - 120px)">
+<div style="display:flex;flex-direction:column;height:100%;width:100%">
   <div style="display:flex;align-items:center;gap:9px;padding:9px 14px;background:var(--bg);border-bottom:1px solid var(--f);flex-shrink:0">
-    <div class="back-btn" style="padding:0" onclick="FIKRA.backToAI()">←</div>
-    <div style="flex:1"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Hujjat yaratish</div><div style="font-size:10px;color:var(--m)">AI bilan suhbatlashib istagan formatni yarating</div></div>
-    <div style="font-size:10px;color:var(--y);font-weight:700;background:rgba(255,204,68,.08);padding:3px 8px;border-radius:100px;border:1px solid rgba(255,204,68,.2)">−10t</div>
+    <div class="back-btn" style="padding:0;cursor:pointer" onclick="FIKRA.backToAI()">←</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Hujjat yaratish</div>
+      <div style="font-size:10px;color:var(--m)">AI bilan suhbatlashib fayl yarating</div>
+    </div>
+    <button onclick="FIKRA.newDocChat()" title="Yangi hujjat" style="width:28px;height:28px;border-radius:50%;background:var(--s3);border:1px solid var(--f);color:var(--txt);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">+</button>
+    <div style="font-size:10px;color:var(--y);font-weight:700;background:rgba(255,204,68,.08);padding:3px 8px;border-radius:100px;border:1px solid rgba(255,204,68,.2);flex-shrink:0">−10t</div>
   </div>
   <div style="padding:8px 14px;border-bottom:1px solid var(--f);background:var(--s1);flex-shrink:0">
     <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--m);margin-bottom:6px">Format tanlang</div>
@@ -937,19 +1140,33 @@
       ${['DOCX','PDF','PPTX'].map(f => `<button class="fmt-btn ${f===fmt?'active':''}" onclick="FIKRA.setDocFmt('${f}',this)">${f}</button>`).join('')}
     </div>
   </div>
-  <div id="doc-msgs" style="flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:9px">
-    <div class="msg-ai"><div class="msg-av-ai">📄</div><div class="bbl-ai">Qanday hujjat yaratishni xohlaysiz? Mavzu va tarkibini ayting.</div></div>
+  <div id="doc-msgs" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;display:flex;flex-direction:column;gap:9px">
+    ${emptyState ? `<div class="msg-ai"><div class="msg-av-ai">📄</div><div class="bbl-ai">Qanday hujjat yaratishni xohlaysiz? Mavzu va tarkibini ayting.</div></div>` : ''}
     ${history.map(h => h.role === 'user'
-      ? `<div class="msg-me"><div class="bbl-me">${h.content}</div><div class="msg-av-u">😊</div></div>`
-      : `<div class="msg-ai"><div class="msg-av-ai">📄</div><div class="bbl-ai">${h.content}</div></div>`
+      ? `<div class="msg-me"><div class="bbl-me">${_escapeHtml(h.content)}</div><div class="msg-av-u">😊</div></div>`
+      : `<div class="msg-ai"><div class="msg-av-ai">📄</div><div class="bbl-ai">${_escapeHtml(h.content)}</div></div>`
     ).join('')}
   </div>
-  <div class="chat-input-row">
-    <input class="chat-input" id="doc-inp" placeholder="Hujjat haqida yozing..." onkeydown="if(event.key==='Enter')FIKRA.sendDoc()">
-    <button class="send-btn" onclick="FIKRA.sendDoc()">↑</button>
+  <div style="flex-shrink:0">
+    <div class="chat-input-row">
+      <input class="chat-input" id="doc-inp" maxlength="2000" placeholder="Hujjat haqida yozing..." onkeydown="if(event.key==='Enter')FIKRA.sendDoc()">
+      <button class="send-btn" id="doc-send-btn" onclick="FIKRA.sendDoc()">↑</button>
+    </div>
   </div>
 </div>`;
     showSubpanel('ai', 'sa-doc');
+    if (tg && tg.BackButton) {
+      tg.BackButton.show();
+      tg.BackButton.onClick(() => backToAI());
+    }
+  }
+
+  function newDocChat() {
+    if (confirm('Yangi hujjat chatini boshlaysizmi?')) {
+      DOC.clear();
+      renderDocChat();
+      showToast('Yangi hujjat chati');
+    }
   }
 
   function setDocFmt(fmt, btn) {
@@ -1151,18 +1368,22 @@
       container.innerHTML = '<div style="padding:10px 0;font-size:12px;color:var(--m)">Hali chatlar yo\'q</div>';
       return;
     }
-    container.innerHTML = list.map(c => `
-<div style="display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br2);padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all .15s" onclick="FIKRA.openAIChat('${c.id}')">
+    container.innerHTML = list.map(c => {
+      const openArg = c.type === 'doc' ? 'doc_continue' : 'general_continue';
+      return `
+<div style="display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br2);padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all .15s" onclick="FIKRA.openAIChat('${openArg}')">
   <div style="width:34px;height:34px;border-radius:9px;background:${c.type==='doc'?'rgba(0,212,170,.1)':'rgba(123,104,238,.14)'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${c.icon}</div>
   <div style="flex:1;min-width:0">
     <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">
       <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${c.name}</span>
       ${c.format ? `<span style="font-size:8px;font-weight:700;padding:2px 5px;border-radius:3px;background:rgba(0,212,170,.12);color:var(--g)">${c.format}</span>` : ''}
+      ${c.count ? `<span style="font-size:9px;font-weight:700;color:var(--al)">· ${c.count} xabar</span>` : ''}
       <span style="font-size:10px;color:var(--m);margin-left:auto">${c.time}</span>
     </div>
-    <div style="font-size:11px;color:var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.lastMsg || 'Yangi chat'}</div>
+    <div style="font-size:11px;color:var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escapeHtml(c.lastMsg || 'Yangi chat')}</div>
   </div>
-</div>`).join('');
+</div>`;
+    }).join('');
   }
 
   // ─── AI Hint ──────────────────────────────────────────────────────────────
@@ -1238,8 +1459,16 @@
   }
 
   // ─── Back buttons ─────────────────────────────────────────────────────────
-  function backToGames() { STROOP.stop(); showSubpanel('games', 'sg-list'); }
-  function backToAI() { showSubpanel('ai', 'sa-home'); renderChatHistory(); }
+  function backToGames() {
+    STROOP.stop();
+    showSubpanel('games', 'sg-list');
+    if (tg && tg.BackButton) tg.BackButton.hide();
+  }
+  function backToAI() {
+    showSubpanel('ai', 'sa-home');
+    renderChatHistory();
+    if (tg && tg.BackButton) tg.BackButton.hide();
+  }
 
   // ─── Init games ───────────────────────────────────────────────────────────
   async function initGames() {
@@ -1544,6 +1773,7 @@
     switchLbTab, reLogin: login,
     buyPlan,
     claimDaily, copyRef, shareRef, loadTokenHistory,
+    newChat, newDocChat, _chatInputChange,
   };
 
   // ─── Bootstrap ────────────────────────────────────────────────────────────
@@ -1564,5 +1794,8 @@
     setTimeout(() => loadingEl.remove(), 350);
   }
   buildUI();
+
+  // Har 30s — joriy Telegram user = login qilgan user ekanligini tekshirish
+  setInterval(() => verifyAuth(), 30000);
 
 })();

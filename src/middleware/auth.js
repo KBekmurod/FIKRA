@@ -31,10 +31,13 @@ function verifyTelegramInitData(initDataString) {
 
     if (computedHash !== hash) return null;
 
-    // Vaqt tekshirish (5 daqiqadan eski bo'lmasin)
+    // Vaqt tekshirish (24 soatdan eski bo'lmasin — Telegram tavsiyasi)
     const authDate = parseInt(params.get('auth_date'), 10);
     const now = Math.floor(Date.now() / 1000);
-    if (now - authDate > 300) return null; // 5 daqiqa
+    if (now - authDate > 86400) {
+      logger.warn('initData eskirgan: ' + (now - authDate) + ' soniya');
+      return null;
+    }
 
     // user ma'lumotlarini parse qilish
     const userStr = params.get('user');
