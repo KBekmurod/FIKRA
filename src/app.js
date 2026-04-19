@@ -14,6 +14,7 @@ const tokenRoutes = require('./routes/tokens');
 const gameRoutes  = require('./routes/games');
 const aiRoutes    = require('./routes/ai');
 const subRoutes   = require('./routes/subscription');
+const contentRoutes = require('./routes/content');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -47,6 +48,7 @@ app.use('/api/tokens', tokenRoutes);
 app.use('/api/games',  gameRoutes);
 app.use('/api/ai',     aiRoutes);
 app.use('/api/sub',    subRoutes);
+app.use('/api/content', contentRoutes);
 
 // ─── Telegram Bot ─────────────────────────────────────────────────────────────
 require('./bot')(app);

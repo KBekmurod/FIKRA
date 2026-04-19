@@ -197,6 +197,14 @@ const API = {
     apiRequest('/api/sub/create-invoice', { method: 'POST', body: { planId } }),
   buyPack: (packId) =>
     apiRequest('/api/sub/create-invoice', { method: 'POST', body: { packId } }),
+
+  // Musiqa va turnir
+  music: () => apiRequest('/api/content/music'),
+  musicCategories: () => apiRequest('/api/content/music/categories'),
+  musicPlay: (trackId) =>
+    apiRequest('/api/content/music/play', { method: 'POST', body: { trackId } }),
+  tournaments: () => apiRequest('/api/content/tournaments'),
+  weeklyTournament: () => apiRequest('/api/content/tournaments/weekly'),
 };
 
 window.API = API;
