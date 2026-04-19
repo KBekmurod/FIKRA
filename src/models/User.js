@@ -18,16 +18,24 @@ const userSchema = new mongoose.Schema({
   // Obuna
   plan: {
     type: String,
-    enum: ['free', 'basic', 'pro'],
+    enum: ['free', 'basic', 'pro', 'vip', 'business'],
     default: 'free',
   },
+  planTier: { type: String, default: 'free' },
+  planId: { type: String, default: null },
   planExpiresAt: { type: Date, default: null },
+  planLastPurchaseAt: { type: Date, default: null },
 
   // Gamification
   streakDays: { type: Number, default: 0 },
   lastLoginDate: { type: Date, default: null },
   totalGamesPlayed: { type: Number, default: 0 },
   totalAiRequests: { type: Number, default: 0 },
+
+  // Daraja va Lavozim (XP tizimi)
+  xp: { type: Number, default: 0, min: 0, index: true },
+  rank: { type: String, default: 'seedling' }, // rank id
+  rankLevel: { type: Number, default: 1 }, // 1-8
 
   // Referral
   referredBy: { type: Number, default: null }, // telegramId

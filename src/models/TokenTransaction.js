@@ -11,7 +11,7 @@ const tokenTransactionSchema = new mongoose.Schema({
   amount: { type: Number, required: true }, // musbat = kirim, manfiy = chiqim
   type: {
     type: String,
-    enum: ['earn', 'spend', 'bonus', 'referral', 'daily', 'streak', 'subscription'],
+    enum: ['earn', 'spend', 'bonus', 'referral', 'daily', 'streak', 'subscription', 'xp'],
     required: true,
   },
   source: {

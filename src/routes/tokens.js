@@ -5,6 +5,7 @@ const { adsLimiter } = require('../middleware/rateLimit');
 const {
   getBalance, earnTokens, claimDailyBonus, processAdsReward
 } = require('../services/tokenService');
+const { addXp } = require('../services/rankService');
 const AdsEvent = require('../models/AdsEvent');
 const User = require('../models/User');
 
@@ -30,7 +31,18 @@ router.post('/daily-bonus', authMiddleware, async (req, res, next) => {
     const newBalance = await claimDailyBonus(user._id, user.telegramId, user.streakDays);
     const bonus = user.streakDays >= 7 ? 6 : 3;
 
-    res.json({ success: true, bonus, newBalance, streakDays: user.streakDays });
+    // XP: kunlik kirish 10
+    const xpResult = await addXp(user._id, user.telegramId, 10, 'daily_bonus');
+
+    res.json({
+      success: true, bonus, newBalance, streakDays: user.streakDays,
+      xp: xpResult ? {
+        added: xpResult.xpAdded,
+        total: xpResult.xpAfter,
+        levelUp: xpResult.levelUp,
+        newRank: xpResult.levelUp ? xpResult.rankAfter : null,
+      } : null,
+    });
   } catch (err) { next(err); }
 });
 
@@ -68,6 +80,8 @@ router.post('/ads-reward', authMiddleware, adsLimiter, async (req, res, next) =>
     let newBalance = user.tokens;
     if (tokensToGive > 0) {
       newBalance = await processAdsReward(user._id, user.telegramId, tokensToGive, context);
+      // Reklama ko'rgani uchun 1 XP
+      addXp(user._id, user.telegramId, 1, 'ads_reward').catch(() => {});
     }
 
     res.json({ success: true, tokensGiven: tokensToGive, newBalance });

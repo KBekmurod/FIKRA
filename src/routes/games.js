@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const { earnTokens } = require('../services/tokenService');
+const { addXp } = require('../services/rankService');
 const GameSession = require('../models/GameSession');
 const TestQuestion = require('../models/TestQuestion');
 const User = require('../models/User');
@@ -20,6 +21,9 @@ router.post('/stroop/result', authMiddleware, async (req, res, next) => {
 
     // Token hisoblash: har 10 ball = 1 token, max 20t
     const tokensEarned = Math.min(Math.floor((score || 0) / 10), 20);
+
+    // XP: ball/10, min 10, max 50
+    const xpEarned = Math.max(10, Math.min(Math.floor((score || 0) / 10), 50));
 
     const session = await GameSession.create({
       userId: user._id,
@@ -42,7 +46,18 @@ router.post('/stroop/result', authMiddleware, async (req, res, next) => {
       );
     }
 
-    res.json({ success: true, tokensEarned, newBalance, sessionId: session._id });
+    // XP qo'shish — rank oshishi ham qaytariladi
+    const xpResult = await addXp(user._id, user.telegramId, xpEarned, 'stroop', { gameType, score });
+
+    res.json({
+      success: true, tokensEarned, newBalance, sessionId: session._id,
+      xp: xpResult ? {
+        added: xpResult.xpAdded,
+        total: xpResult.xpAfter,
+        levelUp: xpResult.levelUp,
+        newRank: xpResult.levelUp ? xpResult.rankAfter : null,
+      } : null,
+    });
   } catch (err) { next(err); }
 });
 
@@ -91,6 +106,10 @@ router.post('/test/result', authMiddleware, async (req, res, next) => {
     // Token: har to'g'ri javob = 2t, max 30t
     const tokensEarned = Math.min(correctCount * 2, 30);
 
+    // XP: majburiy = correctCount×3, mutaxassislik = correctCount×4
+    const xpPerCorrect = gameType === 'test-mut' ? 4 : 3;
+    const xpEarned = Math.max(20, correctCount * xpPerCorrect);
+
     await GameSession.create({
       userId: user._id,
       telegramId: user.telegramId,
@@ -114,7 +133,17 @@ router.post('/test/result', authMiddleware, async (req, res, next) => {
       );
     }
 
-    res.json({ success: true, tokensEarned, newBalance });
+    const xpResult = await addXp(user._id, user.telegramId, xpEarned, 'test', { gameType, correctCount });
+
+    res.json({
+      success: true, tokensEarned, newBalance,
+      xp: xpResult ? {
+        added: xpResult.xpAdded,
+        total: xpResult.xpAfter,
+        levelUp: xpResult.levelUp,
+        newRank: xpResult.levelUp ? xpResult.rankAfter : null,
+      } : null,
+    });
   } catch (err) { next(err); }
 });
 
@@ -126,9 +155,16 @@ router.get('/leaderboard/:type', async (req, res, next) => {
     const { type } = req.params;
     const { period = 'week' } = req.query;
 
-    const validTypes = ['stroop-color', 'stroop-tf', 'stroop-avg', 'test-maj', 'test-mut'];
+    const validTypes = ['stroop-color', 'stroop-tf', 'stroop-avg', 'test-maj', 'test-mut', 'xp'];
     if (!validTypes.includes(type)) {
       return res.status(400).json({ error: 'Yaroqsiz reyting turi' });
+    }
+
+    // XP leaderboard — alohida, User collection dan
+    if (type === 'xp') {
+      const { getTopByXp } = require('../services/rankService');
+      const results = await getTopByXp(50);
+      return res.json(results);
     }
 
     // Vaqt filtri

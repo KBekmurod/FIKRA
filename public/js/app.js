@@ -206,9 +206,15 @@
     </div>
   </div>
   <div class="sl">Bugun</div>
-  <div class="stats-row">
+  <div class="stats-row" style="grid-template-columns:repeat(4,1fr)">
     <div class="stat-card"><div class="stat-val" style="color:var(--y)" id="h-tok">${tokens.toLocaleString()}</div><div class="stat-key">Token</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:var(--al)" id="h-rank">12</div><div class="stat-key">O'rin</div></div>
+    <div class="stat-card" onclick="FIKRA.switchPanel('profile')" style="cursor:pointer">
+      <div class="stat-val" style="color:var(--al);display:flex;align-items:center;justify-content:center;gap:3px" id="h-xp">
+        ${user?.rank?.current?.emoji || '🌱'}<span style="font-size:14px">${(user?.xp || 0) > 999 ? ((user.xp/1000).toFixed(1) + 'k') : (user?.xp || 0)}</span>
+      </div>
+      <div class="stat-key">XP</div>
+    </div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--al)" id="h-rank-pos">12</div><div class="stat-key">O'rin</div></div>
     <div class="stat-card"><div class="stat-val" style="color:var(--g)">${user?.streakDays || 0}🔥</div><div class="stat-key">Streak</div></div>
   </div>
   <div id="daily-bonus-banner" style="margin:0 14px 9px;display:none;background:linear-gradient(135deg,rgba(255,204,68,.09),rgba(0,212,170,.06));border:1px solid rgba(255,204,68,.22);border-radius:var(--br);padding:12px 14px;align-items:center;gap:11px">
@@ -225,7 +231,7 @@
   </div>
   <div class="sl">Liderlar</div>
   <div class="lb">
-    <div class="lb-head"><span class="lb-title">Stroop — bugun</span><span class="live-dot">Jonli</span></div>
+    <div class="lb-head"><span class="lb-title">⚡ Top XP — global</span><span class="live-dot">Jonli</span></div>
     <div id="lb-home-rows"><div style="padding:12px 14px;font-size:12px;color:var(--m)">Yuklanmoqda...</div></div>
   </div>
 </div>`;
@@ -269,7 +275,8 @@
     <div class="lb" style="margin:0 14px 14px">
       <div class="lb-head"><span class="lb-title">O'yinlar reytingi</span><span class="live-dot">Jonli</span></div>
       <div style="display:flex;gap:5px;padding:8px 13px;border-bottom:1px solid var(--f);overflow-x:auto" id="lb-tabs">
-        <button class="lb-tab-btn active" onclick="FIKRA.switchLbTab(this,'stroop-color')">Stroop rang</button>
+        <button class="lb-tab-btn active" onclick="FIKRA.switchLbTab(this,'xp')">⚡ XP</button>
+        <button class="lb-tab-btn" onclick="FIKRA.switchLbTab(this,'stroop-color')">Stroop rang</button>
         <button class="lb-tab-btn" onclick="FIKRA.switchLbTab(this,'stroop-tf')">Stroop t/n</button>
         <button class="lb-tab-btn" onclick="FIKRA.switchLbTab(this,'stroop-avg')">Stroop o'rt</button>
         <button class="lb-tab-btn" onclick="FIKRA.switchLbTab(this,'test-maj')">Test maj.</button>
@@ -310,16 +317,59 @@
     const refLink = user?.telegramId
       ? `https://t.me/${window.BOT_USERNAME || 'fikra_bot'}?start=ref_${user.telegramId}`
       : '';
+    const rank = user?.rank || null;
+    const rankCurrent = rank?.current;
+    const rankNext = rank?.next;
+    const rankPct = rank?.percent || 0;
+
     return `<div class="panel" id="p-profile">
   <div style="height:5px"></div>
+
+  <!-- PROFILE + RANK BADGE -->
   <div style="display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:13px;margin:0 14px 9px">
-    <div style="width:48px;height:48px;border-radius:13px;background:linear-gradient(135deg,var(--acc),var(--r));display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:19px;flex-shrink:0">${initials}</div>
-    <div>
+    <div style="position:relative;flex-shrink:0">
+      <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--acc),var(--r));display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:20px">${initials}</div>
+      ${rankCurrent ? `
+        <div style="position:absolute;right:-4px;bottom:-4px;width:24px;height:24px;border-radius:50%;background:${rankCurrent.color};display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid var(--bg);box-shadow:0 0 12px ${rankCurrent.glow}" title="${rankCurrent.name}">${rankCurrent.emoji}</div>
+      ` : ''}
+    </div>
+    <div style="flex:1;min-width:0">
       <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px">${name}</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px">@${user?.username || 'user'}</div>
-      <div style="font-size:10px;color:var(--al);margin-top:3px;font-weight:700">12-o'rin · Stroop haftalik</div>
+      ${rankCurrent ? `
+        <div style="display:flex;align-items:center;gap:5px;margin-top:4px;font-size:10px;font-weight:700">
+          <span style="color:${rankCurrent.color}">${rankCurrent.name}</span>
+          <span style="color:var(--m)">·</span>
+          <span style="color:var(--y)">${(user.xp || 0).toLocaleString()} XP</span>
+        </div>
+      ` : ''}
     </div>
+    <button onclick="FIKRA.showRankDetail()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:1px solid var(--f);color:var(--m);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0" title="Barcha lavozimlar">ℹ</button>
   </div>
+
+  ${rankCurrent ? `
+  <!-- RANK PROGRESS BAR -->
+  <div style="background:var(--s2);border:1px solid ${rankCurrent.color}33;border-radius:var(--br);padding:12px 14px;margin:0 14px 9px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:${rankCurrent.color}">
+        ${rankCurrent.emoji} ${rankCurrent.name} · Daraja ${rankCurrent.level}
+      </div>
+      <div style="font-size:11px;color:var(--m);font-weight:700">${rankPct}%</div>
+    </div>
+    <div style="height:8px;background:var(--s3);border-radius:100px;overflow:hidden;margin-bottom:6px">
+      <div style="height:100%;background:linear-gradient(90deg,${rankCurrent.color},${rankNext ? rankNext.color : rankCurrent.color});width:${rankPct}%;border-radius:100px;transition:width .5s ease;box-shadow:0 0 8px ${rankCurrent.glow}"></div>
+    </div>
+    ${rankNext ? `
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--m)">
+        <span>${(rank.xpInLevel || 0).toLocaleString()} / ${(rankNext.minXp - rankCurrent.minXp).toLocaleString()}</span>
+        <span>Keyingi: <span style="color:${rankNext.color};font-weight:700">${rankNext.emoji} ${rankNext.name}</span> · ${rank.xpToNext.toLocaleString()} XP qoldi</span>
+      </div>
+    ` : `
+      <div style="font-size:10px;color:var(--y);font-weight:700;text-align:center">🏆 Eng yuqori daraja!</div>
+    `}
+  </div>
+  ` : ''}
+
   <div class="stats-row">
     <div class="stat-card"><div class="stat-val" style="color:var(--y)" id="p-tok">${tokens.toLocaleString()}</div><div class="stat-key">Token</div></div>
     <div class="stat-card"><div class="stat-val" style="color:var(--al)" id="p-games">${user?.totalGamesPlayed || 0}</div><div class="stat-key">O'yin</div></div>
@@ -357,24 +407,20 @@
     <div id="token-history-list"></div>
   </div>
 
-  <div style="background:var(--s2);border:1px solid rgba(123,104,238,.22);border-radius:var(--br);padding:13px;margin:0 14px 9px">
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:3px">Obunani kengaytirish</div>
-    <div style="font-size:11px;color:var(--m);margin-bottom:11px;line-height:1.4">Cheksiz AI, ko'p token, reklamasiz tajriba</div>
-    <div style="display:flex;gap:7px">
-      <div class="plan-card" onclick="FIKRA.buyPlan('basic')">
-        <div class="plan-price">$5<span style="font-size:10px;font-weight:400;color:var(--m)">/oy</span></div>
-        <div class="plan-name">Basic</div>
-        <div class="plan-features">500t/oy<br>Kam reklama<br>Barcha AI</div>
-        <div style="margin-top:6px;font-size:9px;color:var(--y);font-weight:700">⭐ 385 Stars</div>
-      </div>
-      <div class="plan-card pro" onclick="FIKRA.buyPlan('pro')">
-        <div class="plan-price">$12<span style="font-size:10px;font-weight:400;color:rgba(157,143,255,.5)">/oy</span></div>
-        <div class="plan-name">Pro ✦</div>
-        <div class="plan-features">Cheksiz chat<br>50 rasm · 5 video<br>Musiqa + slider</div>
-        <div style="margin-top:6px;font-size:9px;color:var(--y);font-weight:700">⭐ 923 Stars</div>
-      </div>
+  <!-- OBUNA VA TOKEN HARID -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 14px 9px">
+    <div onclick="FIKRA.openSubscriptions()" style="background:linear-gradient(135deg,rgba(123,104,238,.15),rgba(255,111,163,.08));border:1px solid rgba(123,104,238,.28);border-radius:var(--br);padding:14px;cursor:pointer;transition:all .15s">
+      <div style="font-size:22px;margin-bottom:6px">✨</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px">Obuna</div>
+      <div style="font-size:10px;color:var(--m)">Basic · Pro · VIP</div>
+    </div>
+    <div onclick="FIKRA.openTokenShop()" style="background:linear-gradient(135deg,rgba(255,204,68,.15),rgba(0,212,170,.08));border:1px solid rgba(255,204,68,.28);border-radius:var(--br);padding:14px;cursor:pointer;transition:all .15s">
+      <div style="font-size:22px;margin-bottom:6px">🪙</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px">Token harid</div>
+      <div style="font-size:10px;color:var(--m)">50t dan 1500t gacha</div>
     </div>
   </div>
+
   <div class="ads-strip">
     <div><div class="ads-strip-title">Token yig'</div><div class="ads-strip-sub">+5t reklama ko'rib</div></div>
     <button class="watch-btn" onclick="FIKRA.showAdsModal(5,'profile_bonus')">Ko'rish</button>
@@ -918,6 +964,24 @@
     <div class="prog-bar" style="margin:10px 0 4px"><div class="prog-fill gradient" style="width:${pct}%"></div></div>
     <div style="font-size:11px;color:var(--m)">${pct}% — <span style="font-weight:700;color:${gc}">${grade}</span></div>
   </div>
+  ${result.xp ? `
+    <div style="background:linear-gradient(135deg,rgba(123,104,238,.12),rgba(0,212,170,.08));border:1px solid rgba(123,104,238,.25);border-radius:var(--br);padding:12px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
+      <div style="text-align:left">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--al);margin-bottom:2px">Tajriba</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--txt)">+${result.xp.added} XP</div>
+        <div style="font-size:10px;color:var(--m);margin-top:1px">Jami: ${(result.xp.total || 0).toLocaleString()} XP</div>
+      </div>
+      ${result.xp.newRank ? `
+        <div style="text-align:center">
+          <div style="font-size:9px;font-weight:700;color:${result.xp.newRank.color};margin-bottom:2px">YANGI!</div>
+          <div style="font-size:24px">${result.xp.newRank.emoji}</div>
+          <div style="font-size:9px;color:${result.xp.newRank.color};font-weight:700">${result.xp.newRank.name}</div>
+        </div>
+      ` : `
+        <div style="font-size:22px">⚡</div>
+      `}
+    </div>
+  ` : ''}
   <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:14px;margin-bottom:14px;text-align:left">
     ${result.breakdown.map(b => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--f)">
@@ -933,6 +997,11 @@
   <button class="btn btn-full" style="background:var(--s3);color:var(--txt);margin-top:8px" onclick="FIKRA.backToGames()">O'yinlarga qaytish</button>
 </div>`;
     showSubpanel('games', 'sg-result');
+
+    // Level up ko'rsatish
+    if (result.xp && result.xp.newRank) {
+      setTimeout(() => showLevelUp(result.xp.newRank), 500);
+    }
   }
 
   // ─── AI Chat render ───────────────────────────────────────────────────────
@@ -1291,12 +1360,12 @@
 
   // ─── Leaderboard ──────────────────────────────────────────────────────────
   let _lbPollingTimer = null;
-  let _currentLbType = 'stroop-color';
+  let _currentLbType = 'xp';
   let _lbPanelVisible = false;
 
   async function loadHomeLeaderboard() {
     try {
-      const data = await API.leaderboard('stroop-color', 'today');
+      const data = await API.leaderboard('xp');
       renderLbRows('lb-home-rows', data, user?.telegramId);
     } catch {}
   }
@@ -1350,13 +1419,19 @@
       container.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--m);text-align:center">Hali natijalar yo\'q — birinchi bo\'l!</div>';
       return;
     }
-    container.innerHTML = data.slice(0, 10).map((r, i) => `
-<div class="lb-row ${r.telegramId === myTid ? 'me' : ''}">
-  <div class="lb-rank ${ranks[i] || ''}" style="${r.telegramId === myTid ? 'color:var(--al)' : ''}">${r.rank}</div>
-  <div class="lb-av">😊</div>
-  <div class="lb-name" style="${r.telegramId === myTid ? 'color:var(--al)' : ''}">${r.username}</div>
-  <div class="lb-score">${typeof r.score === 'number' && r.score % 1 !== 0 ? r.score.toFixed(1) : r.score}</div>
-</div>`).join('');
+    container.innerHTML = data.slice(0, 10).map((r, i) => {
+      // XP leaderboard uchun — rank emoji va score XP
+      const rankEmoji = r.emoji || '';
+      const isMe = r.telegramId === myTid;
+      const scoreDisplay = typeof r.score === 'number' && r.score % 1 !== 0 ? r.score.toFixed(1) : (r.score || 0).toLocaleString();
+      return `
+<div class="lb-row ${isMe ? 'me' : ''}">
+  <div class="lb-rank ${ranks[i] || ''}" style="${isMe ? 'color:var(--al)' : ''}">${r.rank}</div>
+  <div class="lb-av">${rankEmoji || '😊'}</div>
+  <div class="lb-name" style="${isMe ? 'color:var(--al)' : ''}">${_escapeHtml(r.username)}</div>
+  <div class="lb-score">${scoreDisplay}</div>
+</div>`;
+    }).join('');
   }
 
   // ─── Chat history ─────────────────────────────────────────────────────────
@@ -1605,6 +1680,12 @@
       const banner = document.getElementById('daily-bonus-banner');
       if (banner) banner.style.display = 'none';
       updateTokenDisplay();
+
+      // XP gain + level up
+      if (res.xp && res.xp.added) {
+        setTimeout(() => showXpGain(res.xp.added, res.xp.newRank), 500);
+      }
+
       // user ma'lumotini yangilash
       try {
         const me = await API.me();
@@ -1716,7 +1797,234 @@
     }
   }
 
-  // ─── Stars to'lovi ────────────────────────────────────────────────────────
+  // ─── Lavozim (Rank) ───────────────────────────────────────────────────────
+  async function showRankDetail() {
+    try {
+      const data = await API.rankInfo();
+      const modal = document.createElement('div');
+      modal.id = 'rank-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(6px)';
+      const currentId = data.progress?.current?.id;
+      modal.innerHTML = `
+<div style="background:var(--s1);border:1px solid var(--f);border-radius:var(--br);max-width:360px;width:100%;max-height:80vh;overflow-y:auto;padding:18px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px">Lavozimlar</div>
+    <button onclick="document.getElementById('rank-modal').remove()" style="width:28px;height:28px;border-radius:50%;background:var(--s3);border:none;color:var(--txt);font-size:16px;cursor:pointer;padding:0">×</button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    ${data.allRanks.map(r => {
+      const active = r.id === currentId;
+      const isNext = data.progress?.next?.id === r.id;
+      const isLocked = !active && !data.allRanks.slice(0, data.allRanks.findIndex(x => x.id === currentId) + 1).some(x => x.id === r.id);
+      return `
+      <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;background:${active ? r.color + '1A' : 'var(--s2)'};border:1.5px solid ${active ? r.color : 'var(--f)'};border-radius:var(--br2);${active ? 'box-shadow:0 0 14px ' + r.glow : ''}${isLocked ? 'opacity:.45' : ''}">
+        <div style="width:36px;height:36px;border-radius:10px;background:${r.color}1A;border:1px solid ${r.color}33;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${r.emoji}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+            <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:${r.color}">${r.name}</span>
+            ${active ? `<span style="font-size:8px;font-weight:700;color:#fff;background:${r.color};padding:1px 5px;border-radius:3px">SIZDA</span>` : ''}
+            ${isNext ? `<span style="font-size:8px;font-weight:700;color:var(--y);background:rgba(255,204,68,.15);padding:1px 5px;border-radius:3px">KEYINGI</span>` : ''}
+          </div>
+          <div style="font-size:10px;color:var(--m)">Daraja ${r.level} · ${r.minXp.toLocaleString()}+ XP</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+</div>`;
+      document.body.appendChild(modal);
+      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    } catch (e) {
+      showToast('Ma\'lumot yuklanmadi');
+    }
+  }
+
+  // Level up toast — katta, diqqatni tortadigan
+  function showLevelUp(newRank) {
+    if (!newRank) return;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadeIn .3s ease;backdrop-filter:blur(8px)';
+    overlay.innerHTML = `
+<div style="text-align:center;padding:32px;animation:scaleIn .5s cubic-bezier(.34,1.56,.64,1)">
+  <div style="font-size:12px;font-weight:700;letter-spacing:3px;color:${newRank.color};margin-bottom:12px;text-transform:uppercase">Yangi daraja!</div>
+  <div style="width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,${newRank.color}33,transparent 70%);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:70px;filter:drop-shadow(0 0 30px ${newRank.glow});animation:pulse 2s ease-in-out infinite">${newRank.emoji}</div>
+  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:26px;color:${newRank.color};margin-bottom:6px">${newRank.name}</div>
+  <div style="font-size:12px;color:var(--m);margin-bottom:20px">Daraja ${newRank.level} · ${newRank.minXp.toLocaleString()} XP</div>
+  <button onclick="this.closest('div[style*=\\"fixed\\"]').remove()" style="padding:11px 26px;background:${newRank.color};color:#fff;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer">Ajoyib! 🎉</button>
+</div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    // Avtomatik yopilish 6 soniyadan keyin
+    setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 6000);
+  }
+
+  // XP toast — kichik, o'yin natijalarida
+  function showXpGain(xp, levelUp) {
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:9998;background:linear-gradient(135deg,rgba(123,104,238,.95),rgba(0,212,170,.9));color:#fff;padding:10px 18px;border-radius:100px;font-family:\'Syne\',sans-serif;font-weight:700;font-size:13px;box-shadow:0 4px 20px rgba(123,104,238,.4);animation:slideDown .4s ease';
+    toast.innerHTML = `⚡ +${xp} XP`;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity .4s';
+      setTimeout(() => toast.remove(), 400);
+    }, 2500);
+    if (levelUp) {
+      setTimeout(() => showLevelUp(levelUp), 800);
+    }
+  }
+
+  // ─── Obuna sahifasi (modal) ───────────────────────────────────────────────
+  let _currentPlanPeriod = '1m'; // '1m' yoki '3m'
+
+  async function openSubscriptions() {
+    try {
+      const plans = await API.plans();
+      const current = user?.plan || 'free';
+      _currentPlanPeriod = '1m';
+      _renderSubscriptionsModal(plans, current);
+    } catch (e) {
+      showToast('Ma\'lumot yuklanmadi');
+    }
+  }
+
+  function _renderSubscriptionsModal(plans, currentPlan) {
+    const existing = document.getElementById('sub-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'sub-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;overflow-y:auto;backdrop-filter:blur(6px);padding:14px 0';
+
+    const filterPlans = (period) => plans.filter(p => p.id.endsWith('_' + period));
+
+    function renderList(period) {
+      const list = filterPlans(period);
+      return list.map(p => {
+        const isCurrent = p.tier === currentPlan;
+        const tierColors = {
+          basic: 'rgba(0,212,170,.2)',
+          pro: 'rgba(123,104,238,.28)',
+          vip: 'rgba(255,204,68,.28)',
+          business: 'rgba(255,95,126,.28)',
+        };
+        const tierAccent = {
+          basic: 'var(--g)', pro: 'var(--al)', vip: 'var(--y)', business: 'var(--r)',
+        };
+        const color = tierColors[p.tier] || 'var(--f)';
+        const accent = tierAccent[p.tier] || 'var(--acc)';
+
+        return `
+<div style="background:var(--s2);border:1.5px solid ${color};border-radius:var(--br);padding:14px;margin-bottom:10px;position:relative">
+  ${p.badge ? `<div style="position:absolute;top:-7px;right:10px;background:${accent};color:#000;padding:2px 8px;border-radius:100px;font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase">${p.badge}</div>` : ''}
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+    <div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:${accent}">${p.name}</div>
+      <div style="font-size:10px;color:var(--m);margin-top:1px">${p.durationDays} kun</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px">${p.priceUzs.toLocaleString()} <span style="font-size:11px;color:var(--m);font-weight:500">so'm</span></div>
+      <div style="font-size:10px;color:var(--y);font-weight:700;margin-top:1px">⭐ ${p.priceStars} Stars</div>
+    </div>
+  </div>
+  <ul style="list-style:none;padding:0;margin:0 0 10px">
+    ${p.features.map(f => `<li style="font-size:11px;color:var(--txt);padding:3px 0;display:flex;align-items:center;gap:6px"><span style="color:${accent};font-weight:700">✓</span>${_escapeHtml(f)}</li>`).join('')}
+  </ul>
+  <button onclick="FIKRA.buyPlan('${p.id}')" ${isCurrent ? 'disabled' : ''} style="width:100%;padding:10px;background:${isCurrent ? 'var(--s3)' : accent};color:${isCurrent ? 'var(--m)' : (p.tier === 'vip' ? '#000' : '#fff')};border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:${isCurrent ? 'default' : 'pointer'}">${isCurrent ? 'Joriy obuna' : 'Tanlash'}</button>
+</div>`;
+      }).join('');
+    }
+
+    modal.innerHTML = `
+<div style="max-width:420px;margin:0 auto;background:var(--s1);border-radius:var(--br);padding:16px;min-height:calc(100vh - 28px)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px">Obuna tariflari</div>
+    <button onclick="document.getElementById('sub-modal').remove()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:none;color:var(--txt);font-size:17px;cursor:pointer;padding:0">×</button>
+  </div>
+
+  <div style="display:flex;gap:6px;background:var(--s3);border-radius:var(--br2);padding:4px;margin-bottom:14px">
+    <button id="per-1m" onclick="FIKRA.switchPlanPeriod('1m')" style="flex:1;padding:8px;border:none;border-radius:var(--br2);background:var(--acc);color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">1 oy</button>
+    <button id="per-3m" onclick="FIKRA.switchPlanPeriod('3m')" style="flex:1;padding:8px;border:none;border-radius:var(--br2);background:transparent;color:var(--m);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">3 oy · chegirma</button>
+  </div>
+
+  <div id="sub-list">${renderList('1m')}</div>
+
+  <div style="padding:12px;background:rgba(123,104,238,.06);border:1px solid rgba(123,104,238,.15);border-radius:var(--br2);font-size:10px;color:var(--m);line-height:1.6;margin-top:10px">
+    💡 Obuna har oy avtomatik yangilanmaydi. Muddati tugagach qaytadan sotib olasiz.
+  </div>
+</div>`;
+
+    document.body.appendChild(modal);
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    // "1 oy" va "3 oy" tablarni ishlatish uchun plans global saqlaymiz
+    window._currentPlansList = plans;
+  }
+
+  function switchPlanPeriod(period) {
+    _currentPlanPeriod = period;
+    const plans = window._currentPlansList || [];
+    const list = plans.filter(p => p.id.endsWith('_' + period));
+    const currentPlan = user?.plan || 'free';
+    document.getElementById('per-1m').style.background = period === '1m' ? 'var(--acc)' : 'transparent';
+    document.getElementById('per-1m').style.color = period === '1m' ? '#fff' : 'var(--m)';
+    document.getElementById('per-3m').style.background = period === '3m' ? 'var(--acc)' : 'transparent';
+    document.getElementById('per-3m').style.color = period === '3m' ? '#fff' : 'var(--m)';
+    // Re-render
+    _renderSubscriptionsModal(plans, currentPlan);
+  }
+
+  // ─── Token shop (modal) ───────────────────────────────────────────────────
+  async function openTokenShop() {
+    try {
+      const packs = await API.packs();
+      _renderTokenShopModal(packs);
+    } catch (e) {
+      showToast('Ma\'lumot yuklanmadi');
+    }
+  }
+
+  function _renderTokenShopModal(packs) {
+    const existing = document.getElementById('shop-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'shop-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;overflow-y:auto;backdrop-filter:blur(6px);padding:14px 0';
+
+    modal.innerHTML = `
+<div style="max-width:420px;margin:0 auto;background:var(--s1);border-radius:var(--br);padding:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px">🪙 Token do'kon</div>
+    <button onclick="document.getElementById('shop-modal').remove()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:none;color:var(--txt);font-size:17px;cursor:pointer;padding:0">×</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+    ${packs.map(p => {
+      const total = p.tokens + (p.bonus || 0);
+      return `
+      <div onclick="FIKRA.buyPack('${p.id}')" style="background:var(--s2);border:1.5px solid ${p.badge ? 'rgba(255,204,68,.3)' : 'var(--f)'};border-radius:var(--br);padding:12px;cursor:pointer;position:relative;transition:all .15s;text-align:center">
+        ${p.badge ? `<div style="position:absolute;top:-7px;right:8px;background:var(--y);color:#000;padding:2px 7px;border-radius:100px;font-size:8px;font-weight:800;letter-spacing:.5px;text-transform:uppercase">${p.badge}</div>` : ''}
+        <div style="font-size:28px;margin-bottom:4px">🪙</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--y);margin-bottom:2px">${total}</div>
+        <div style="font-size:10px;color:var(--m);margin-bottom:8px">token${p.bonus > 0 ? ` (+${p.bonus} bonus)` : ''}</div>
+        <div style="border-top:1px solid var(--f);padding-top:8px">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${p.priceUzs.toLocaleString()} <span style="font-size:9px;color:var(--m);font-weight:500">so'm</span></div>
+          <div style="font-size:9px;color:var(--y);margin-top:1px">⭐ ${p.priceStars}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div style="padding:12px;background:rgba(0,212,170,.07);border:1px solid rgba(0,212,170,.15);border-radius:var(--br2);font-size:10px;color:var(--m);line-height:1.6;margin-top:12px">
+    💡 Yoki reklama ko'rib bepul token yig'ing. Profildan "Token yig'" tugmasini bosing.
+  </div>
+</div>`;
+
+    document.body.appendChild(modal);
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  }
+
+  // ─── Obuna sotib olish ────────────────────────────────────────────────────
   async function buyPlan(planId) {
     showToast('To\'lov tayyorlanmoqda...');
     try {
@@ -1725,39 +2033,59 @@
         showToast('To\'lov linki olinmadi');
         return;
       }
-
-      // Telegram WebApp openInvoice
-      if (tg && typeof tg.openInvoice === 'function') {
-        tg.openInvoice(res.invoiceUrl, (status) => {
-          if (status === 'paid') {
-            showToast('✅ Obuna faollashtirildi!');
-            setTimeout(async () => {
-              await updateTokenDisplay();
-              try {
-                const me = await API.me();
-                if (me) user = me;
-              } catch {}
-              // Profilni qayta render qilish
-              if (activePanel === 'profile') {
-                const pp = document.getElementById('p-profile');
-                if (pp) pp.outerHTML = buildProfile();
-              }
-            }, 1000);
-          } else if (status === 'failed') {
-            showToast('❌ To\'lov amalga oshmadi');
-          } else if (status === 'cancelled') {
-            showToast('To\'lov bekor qilindi');
-          }
-        });
-      } else {
-        // Brauzerda — link orqali ochish
-        if (window.confirm('Telegram to\'lov oynasi ochiladi. Davom etamizmi?')) {
-          window.open(res.invoiceUrl, '_blank');
-        }
-      }
+      _openInvoice(res.invoiceUrl, 'obuna');
     } catch (e) {
       showToast(e.message || 'To\'lov xatosi');
       console.error('buyPlan:', e);
+    }
+  }
+
+  // ─── Token paket sotib olish ──────────────────────────────────────────────
+  async function buyPack(packId) {
+    showToast('To\'lov tayyorlanmoqda...');
+    try {
+      const res = await API.buyPack(packId);
+      if (!res?.invoiceUrl) {
+        showToast('To\'lov linki olinmadi');
+        return;
+      }
+      _openInvoice(res.invoiceUrl, 'tokenlar');
+    } catch (e) {
+      showToast(e.message || 'To\'lov xatosi');
+    }
+  }
+
+  function _openInvoice(invoiceUrl, label) {
+    if (tg && typeof tg.openInvoice === 'function') {
+      tg.openInvoice(invoiceUrl, async (status) => {
+        if (status === 'paid') {
+          showToast(`✅ ${label} faollashtirildi!`);
+          // Modal yopish
+          ['sub-modal', 'shop-modal'].forEach(id => {
+            const m = document.getElementById(id);
+            if (m) m.remove();
+          });
+          setTimeout(async () => {
+            await updateTokenDisplay();
+            try {
+              const me = await API.me();
+              if (me) user = me;
+            } catch {}
+            if (activePanel === 'profile') {
+              const pp = document.getElementById('p-profile');
+              if (pp) pp.outerHTML = buildProfile();
+            }
+          }, 1000);
+        } else if (status === 'failed') {
+          showToast('❌ To\'lov amalga oshmadi');
+        } else if (status === 'cancelled') {
+          showToast('To\'lov bekor qilindi');
+        }
+      });
+    } else {
+      if (window.confirm('Telegram to\'lov oynasi ochiladi. Davom etamizmi?')) {
+        window.open(invoiceUrl, '_blank');
+      }
     }
   }
 
@@ -1771,9 +2099,11 @@
     genImage, showOldImage,
     showAdsModal, showToast, updateTokenDisplay,
     switchLbTab, reLogin: login,
-    buyPlan,
+    buyPlan, buyPack,
+    openSubscriptions, openTokenShop, switchPlanPeriod,
     claimDaily, copyRef, shareRef, loadTokenHistory,
     newChat, newDocChat, _chatInputChange,
+    showRankDetail, showLevelUp, showXpGain,
   };
 
   // ─── Bootstrap ────────────────────────────────────────────────────────────

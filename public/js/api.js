@@ -151,6 +151,7 @@ const API = {
   login: (initData, referralCode) =>
     apiRequest('/api/auth/login', { method: 'POST', body: { initData, referralCode } }),
   me: () => apiRequest('/api/auth/me'),
+  rankInfo: () => apiRequest('/api/auth/rank'),
   logout: () => { clearTokens(); },
 
   balance: () => apiRequest('/api/tokens/balance'),
@@ -190,9 +191,12 @@ const API = {
     apiRequest('/api/ai/video', { method: 'POST', body: { prompt } }),
 
   plans: () => apiRequest('/api/sub/plans'),
+  packs: () => apiRequest('/api/sub/packs'),
   subStatus: () => apiRequest('/api/sub/status'),
   createInvoice: (planId) =>
     apiRequest('/api/sub/create-invoice', { method: 'POST', body: { planId } }),
+  buyPack: (packId) =>
+    apiRequest('/api/sub/create-invoice', { method: 'POST', body: { packId } }),
 };
 
 window.API = API;

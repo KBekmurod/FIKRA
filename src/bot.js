@@ -59,12 +59,13 @@ module.exports = function setupBot(app) {
   });
 
   // ─── Stars to'lovi: pre_checkout_query ─────────────────────────────────────
-  // Telegram to'lov tugatishdan oldin botga so'raydi — darhol "ok" qaytaramiz
   bot.on('pre_checkout_query', async (ctx) => {
     try {
-      // Asosiy tekshiruv — payload yaroqli JSON mi?
       const payload = JSON.parse(ctx.preCheckoutQuery.invoice_payload);
-      if (!payload.planId || !payload.telegramId) {
+      // Yangi format: {type, id, telegramId} yoki eski format: {planId, telegramId}
+      const hasType = payload.type && payload.id;
+      const hasLegacy = payload.planId;
+      if (!payload.telegramId || (!hasType && !hasLegacy)) {
         return ctx.answerPreCheckoutQuery(false, 'Yaroqsiz payload');
       }
       await ctx.answerPreCheckoutQuery(true);
@@ -84,27 +85,48 @@ module.exports = function setupBot(app) {
       const payload = JSON.parse(pay.invoice_payload);
       const telegramId = ctx.from.id;
 
-      // Backend ga activate so'rovi
+      // Yangi format (type + id) yoki eski format (planId)
+      const type = payload.type || 'plan';
+      const id = payload.id || payload.planId;
+
       const activateUrl = `${process.env.FRONTEND_URL}/api/sub/activate`;
       await axios.post(activateUrl, {
         telegramId,
-        planId: payload.planId,
+        type,
+        id,
         starsAmount: pay.total_amount,
         chargeId: pay.telegram_payment_charge_id,
         secret: process.env.STARS_WEBHOOK_SECRET,
       }, { timeout: 10000 });
 
-      const planNames = { basic: 'Basic ⭐', pro: 'Pro ✨' };
-      await ctx.reply(
-        `✅ *To'lov muvaffaqiyatli!*\n\n` +
-        `${planNames[payload.planId] || payload.planId} obunasi 30 kunga faollashtirildi.\n\n` +
-        `Rahmat! 🎉`,
-        { parse_mode: 'Markdown' }
-      );
-      logger.info(`Payment success: user=${telegramId} plan=${payload.planId} stars=${pay.total_amount}`);
+      // Foydalanuvchiga muvaffaqiyat xabari
+      if (type === 'pack') {
+        await ctx.reply(
+          `✅ *Token haridi muvaffaqiyatli!*\n\n` +
+          `Tokenlaringiz balansingizga qo'shildi.\n\n` +
+          `Rahmat! 🎉`,
+          { parse_mode: 'Markdown' }
+        );
+      } else {
+        const planNames = {
+          basic_1m: 'Basic · 1 oy',
+          pro_1m: 'Pro · 1 oy',
+          basic_3m: 'Basic · 3 oy',
+          pro_3m: 'Pro · 3 oy',
+          vip_3m: 'VIP · 3 oy ✨',
+          business_3m: 'Business · 3 oy 🏢',
+        };
+        await ctx.reply(
+          `✅ *To'lov muvaffaqiyatli!*\n\n` +
+          `*${planNames[id] || id}* obunasi faollashtirildi.\n\n` +
+          `Rahmat! 🎉`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+      logger.info(`Payment success: user=${telegramId} type=${type} id=${id} stars=${pay.total_amount}`);
     } catch (err) {
       logger.error('successful_payment error:', err?.response?.data || err.message);
-      await ctx.reply('❌ Obunani faollashtirish xatoligi. Iltimos, qo\'llab-quvvatlash xizmatiga murojaat qiling.');
+      await ctx.reply('❌ Faollashtirish xatoligi. Qo\'llab-quvvatlash bilan bog\'laning.');
     }
   });
 

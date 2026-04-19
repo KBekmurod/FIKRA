@@ -420,3 +420,17 @@ body:has(#sa-kal.active) .scroll {
   0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0,212,170,.4); }
   50% { transform: scale(1.02); box-shadow: 0 0 0 8px rgba(0,212,170,0); }
 }
+
+/* ─── Rank / Level Up animations ─────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}

@@ -88,6 +88,8 @@ router.post('/refresh', async (req, res, next) => {
 // GET /api/auth/me
 router.get('/me', authMiddleware, async (req, res) => {
   const user = req.user;
+  const { getProgress } = require('../services/rankService');
+  const rankProgress = getProgress(user.xp || 0);
   res.json({
     id: user._id,
     telegramId: user.telegramId,
@@ -100,6 +102,21 @@ router.get('/me', authMiddleware, async (req, res) => {
     totalGamesPlayed: user.totalGamesPlayed,
     totalAiRequests: user.totalAiRequests,
     referralCount: user.referralCount,
+    lastLoginDate: user.lastLoginDate,
+    // Daraja va lavozim
+    xp: user.xp || 0,
+    rank: rankProgress,
+  });
+});
+
+// GET /api/user/rank — batafsil rank ma'lumoti
+router.get('/rank', authMiddleware, async (req, res) => {
+  const user = req.user;
+  const { RANKS, getProgress } = require('../services/rankService');
+  const progress = getProgress(user.xp || 0);
+  res.json({
+    progress,
+    allRanks: RANKS,
   });
 });
 

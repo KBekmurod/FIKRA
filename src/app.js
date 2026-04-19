@@ -51,6 +51,10 @@ app.use('/api/sub',    subRoutes);
 // ─── Telegram Bot ─────────────────────────────────────────────────────────────
 require('./bot')(app);
 
+// ─── Subscription cron ────────────────────────────────────────────────────────
+const { startSubscriptionCron } = require('./services/subscriptionCron');
+startSubscriptionCron();
+
 // ─── Health ───────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
 

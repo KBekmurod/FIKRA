@@ -150,9 +150,10 @@ const STROOP = (() => {
     const tokensEarned = Math.min(Math.floor(score / 10), 20);
     const gameType = mode === 0 ? 'stroop-color' : 'stroop-tf';
 
-    // Serverga yuborish
+    // Serverga yuborish — javobda XP bor
+    let result = null;
     try {
-      await API.stroopResult(gameType, score, correctCount, wrongCount, durationSec);
+      result = await API.stroopResult(gameType, score, correctCount, wrongCount, durationSec);
     } catch {}
 
     // Token toast
@@ -161,10 +162,17 @@ const STROOP = (() => {
       window.FIKRA && window.FIKRA.updateTokenDisplay();
     }
 
-    // Retry uchun reklama (miya charchaganida)
+    // XP va level up ko'rsatish
+    if (result && result.xp && window.FIKRA && window.FIKRA.showXpGain) {
+      setTimeout(() => {
+        window.FIKRA.showXpGain(result.xp.added, result.xp.newRank);
+      }, 300);
+    }
+
+    // Retry uchun reklama
     setTimeout(() => {
       window.ADS && window.ADS.showRewardedAd('stroop_retry');
-    }, 600);
+    }, 900);
   }
 
   return { init, start, stop, answerColor, answerTF };

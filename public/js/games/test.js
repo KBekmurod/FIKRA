@@ -121,6 +121,7 @@ const TEST = (() => {
     let totalBall = 0;
     let maxBall = 0;
     const breakdown = [];
+    let xpResult = null;
 
     if (type === 'maj') {
       const majSubjects = ['uztil', 'math', 'tarix'];
@@ -134,9 +135,10 @@ const TEST = (() => {
         }
       });
       try {
-        await API.testResult({ gameType: 'test-maj', ballAmount: totalBall, maxBall,
+        const r = await API.testResult({ gameType: 'test-maj', ballAmount: totalBall, maxBall,
           correctCount: breakdown.reduce((a,b) => a+b.correct, 0),
           totalQuestions: breakdown.reduce((a,b) => a+b.total, 0) });
+        xpResult = r?.xp || null;
       } catch {}
     } else if (type === 'mut' && direction) {
       const dir = DIRECTIONS[direction];
@@ -150,14 +152,20 @@ const TEST = (() => {
         }
       });
       try {
-        await API.testResult({ gameType: 'test-mut', direction,
+        const r = await API.testResult({ gameType: 'test-mut', direction,
           ballAmount: totalBall, maxBall,
           correctCount: breakdown.reduce((a,b) => a+b.correct, 0),
           totalQuestions: breakdown.reduce((a,b) => a+b.total, 0) });
+        xpResult = r?.xp || null;
       } catch {}
     }
 
-    return { totalBall: +totalBall.toFixed(1), maxBall: +maxBall.toFixed(1), breakdown };
+    return {
+      totalBall: +totalBall.toFixed(1),
+      maxBall: +maxBall.toFixed(1),
+      breakdown,
+      xp: xpResult,
+    };
   }
 
   // ─── Fallback savollar (internet yo'q bo'lganda) ──────────────────────────
