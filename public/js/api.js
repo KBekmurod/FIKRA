@@ -205,6 +205,32 @@ const API = {
     apiRequest('/api/content/music/play', { method: 'POST', body: { trackId } }),
   tournaments: () => apiRequest('/api/content/tournaments'),
   weeklyTournament: () => apiRequest('/api/content/tournaments/weekly'),
+
+  // Yangi o'yinlar
+  newGamesCatalog: () => apiRequest('/api/newgames/catalog'),
+  inventory: (gameType) => apiRequest(`/api/newgames/inventory/${gameType}`),
+  footballStart: (clubId) =>
+    apiRequest('/api/newgames/football/start', { method: 'POST', body: { clubId } }),
+  buyCar: (carModel) =>
+    apiRequest('/api/newgames/auto/buy', { method: 'POST', body: { carModel } }),
+  carTuning: (carId, part) =>
+    apiRequest('/api/newgames/auto/tuning', { method: 'POST', body: { carId, part } }),
+  carPaint: (carId, color) =>
+    apiRequest('/api/newgames/auto/paint', { method: 'POST', body: { carId, color } }),
+  buyOutfit: (styleId) =>
+    apiRequest('/api/newgames/fashion/buy', { method: 'POST', body: { styleId } }),
+  outfitDesign: (outfitId, updates) =>
+    apiRequest('/api/newgames/fashion/design', { method: 'POST', body: { outfitId, updates } }),
+  upgradePlayer: (playerId, stat) =>
+    apiRequest('/api/newgames/football/upgrade', { method: 'POST', body: { playerId, stat } }),
+  getMarket: (gameType) =>
+    apiRequest(`/api/newgames/market?gameType=${gameType || ''}`),
+  listItem: (itemId, priceTokens) =>
+    apiRequest('/api/newgames/market/list', { method: 'POST', body: { itemId, priceTokens } }),
+  cancelListing: (itemId) =>
+    apiRequest('/api/newgames/market/cancel', { method: 'POST', body: { itemId } }),
+  buyFromMarket: (itemId) =>
+    apiRequest('/api/newgames/market/buy', { method: 'POST', body: { itemId } }),
 };
 
 window.API = API;

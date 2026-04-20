@@ -241,6 +241,7 @@
     return `<div class="panel" id="p-games">
   <div class="subpanel active" id="sg-list">
     <div class="sl" style="margin-top:6px">O'yinlar</div>
+    <div class="sl" style="margin-top:6px">🧠 Miya faolligi</div>
     <div style="margin:0 14px 9px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br);overflow:hidden;cursor:pointer" onclick="FIKRA.goGame('stroop')">
       <div style="height:82px;background:linear-gradient(135deg,#0a0820,#1a1060,#2a1890);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
         <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">Stroop Brain</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">2 tur · Rang / To'g'ri-Noto'g'ri</div></div>
@@ -251,24 +252,50 @@
         <button class="btn btn-acc btn-sm">O'yna</button>
       </div>
     </div>
+
+    <div class="sl">📚 O'rganish</div>
     <div style="margin:0 14px 9px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br);overflow:hidden;cursor:pointer" onclick="FIKRA.goGame('test')">
       <div style="height:82px;background:linear-gradient(135deg,#080f08,#0e200e,#144018);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
         <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">Abituriyent</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">Majburiy + Mutaxassislik fanlar</div></div>
         <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:rgba(0,212,170,.3)">DTM</div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">DTM Test</div><div style="font-size:10px;color:var(--m);margin-top:2px">5 fan · Statistika · Ballar</div></div>
+        <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">DTM Test</div><div style="font-size:10px;color:var(--m);margin-top:2px">9 fan · 155+ savol · Ballar</div></div>
         <button class="btn btn-acc btn-sm">O'yna</button>
       </div>
     </div>
-    <div style="margin:0 14px 9px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br);overflow:hidden;opacity:.65">
-      <div style="height:82px;background:linear-gradient(135deg,#0f0a00,#1f1500,#2e2000);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">Math Skill</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">Tez hisoblash</div></div>
-        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:rgba(255,204,68,.25)">2×8</div>
+
+    <div class="sl">🎨 Dam olish</div>
+    <div style="margin:0 14px 9px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br);overflow:hidden;cursor:pointer" onclick="FIKRA.openNewGame('auto')">
+      <div style="height:82px;background:linear-gradient(135deg,#1a0510,#2e0e1d,#4a1830);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+        <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">Avto Tuning</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">Mashina yarating, sotib olsin</div></div>
+        <div style="font-size:26px">🏎️</div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Math Skill</div><div style="font-size:10px;color:var(--al);margin-top:2px">Tez kunda...</div></div>
-        <button class="btn btn-sm" style="background:rgba(123,104,238,.1);color:var(--al);border:1px solid rgba(123,104,238,.2)">Kutish</button>
+        <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Avto garaj</div><div style="font-size:10px;color:var(--m);margin-top:2px">8 model · Tuning · Bozor</div></div>
+        <button class="btn btn-acc btn-sm">Boshlash</button>
+      </div>
+    </div>
+
+    <div style="margin:0 14px 9px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br);overflow:hidden;cursor:pointer" onclick="FIKRA.openNewGame('fashion')">
+      <div style="height:82px;background:linear-gradient(135deg,#200a0f,#400e20,#700a3a);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+        <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">Fashion Design</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">Dizaynlar yarating</div></div>
+        <div style="font-size:26px">👗</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px">
+        <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Moda studiyasi</div><div style="font-size:10px;color:var(--m);margin-top:2px">5 uslub · Rang · Naqsh · Bozor</div></div>
+        <button class="btn btn-acc btn-sm">Boshlash</button>
+      </div>
+    </div>
+
+    <div style="margin:0 14px 9px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br);overflow:hidden;cursor:pointer" onclick="FIKRA.openNewGame('football')">
+      <div style="height:82px;background:linear-gradient(135deg,#081810,#0e3018,#145028);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+        <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">Master Liga</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">Klub tanlang, jamoa tuzing</div></div>
+        <div style="font-size:26px">⚽</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px">
+        <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Futbol manager</div><div style="font-size:10px;color:var(--m);margin-top:2px">8 klub · Transfer · O'yin</div></div>
+        <button class="btn btn-acc btn-sm">Boshlash</button>
       </div>
     </div>
     <div class="sl">Reyting</div>
@@ -2034,6 +2061,451 @@
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
   }
 
+  // ─── Yangi o'yinlar (Avto, Fashion, Football) ─────────────────────────────
+  let _newGamesCatalog = null;
+  let _currentNewGameType = null;
+
+  async function openNewGame(gameType) {
+    try {
+      if (!_newGamesCatalog) {
+        _newGamesCatalog = await API.newGamesCatalog();
+      }
+      _currentNewGameType = gameType;
+
+      // Football uchun alohida — avval klub tanlash
+      if (gameType === 'football') {
+        const inv = await API.inventory('football');
+        if (!inv.items || inv.items.length === 0) {
+          return _renderFootballClubSelect();
+        }
+        return _renderNewGameModal(gameType, inv.items);
+      }
+
+      const inv = await API.inventory(gameType);
+      _renderNewGameModal(gameType, inv.items);
+    } catch (e) {
+      showToast('Yuklanmadi: ' + (e.message || ''));
+    }
+  }
+
+  function _renderFootballClubSelect() {
+    const existing = document.getElementById('ng-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'ng-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;overflow-y:auto;backdrop-filter:blur(8px);padding:14px 0';
+
+    const clubs = _newGamesCatalog.clubs || [];
+    const tierColors = {
+      common: 'var(--g)', rare: 'var(--al)', epic: 'var(--y)', legendary: 'var(--r)',
+    };
+
+    modal.innerHTML = `
+<div style="max-width:420px;margin:0 auto;background:var(--s1);border-radius:var(--br);padding:16px;min-height:calc(100vh - 28px)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px">⚽ Master Liga</div>
+      <div style="font-size:10px;color:var(--m);margin-top:2px">Klub tanlang va jamoa tuzing</div>
+    </div>
+    <button onclick="document.getElementById('ng-modal').remove()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:none;color:var(--txt);font-size:17px;cursor:pointer;padding:0">×</button>
+  </div>
+  <div style="padding:12px;background:rgba(123,104,238,.08);border:1px solid rgba(123,104,238,.2);border-radius:var(--br2);font-size:11px;color:var(--m);line-height:1.5;margin-bottom:14px">
+    💡 Klub tanlagandan so'ng 4 ta boshlang'ich futbolchi (GK + DEF + MID + FWD) beriladi.
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    ${clubs.map(c => `
+    <div onclick="FIKRA.startFootballClub('${c.id}')" style="display:flex;align-items:center;gap:11px;padding:11px 12px;background:var(--s2);border:1.5px solid ${tierColors[c.tier]}33;border-radius:var(--br2);cursor:pointer;transition:all .15s">
+      <div style="width:36px;height:36px;border-radius:9px;background:${tierColors[c.tier]}1A;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${c.emoji}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:${tierColors[c.tier]}">${_escapeHtml(c.name)}</div>
+        <div style="font-size:10px;color:var(--m)">${c.country} · ${c.tier}</div>
+      </div>
+      <div style="font-size:18px">➔</div>
+    </div>`).join('')}
+  </div>
+</div>`;
+
+    document.body.appendChild(modal);
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  }
+
+  async function startFootballClub(clubId) {
+    try {
+      await API.footballStart(clubId);
+      showToast('Jamoa yaratildi! 🎉');
+      // Qayta ochish
+      setTimeout(() => openNewGame('football'), 500);
+    } catch (e) {
+      showToast(e.message || 'Xatolik');
+    }
+  }
+
+  function _renderNewGameModal(gameType, items) {
+    const existing = document.getElementById('ng-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'ng-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;overflow-y:auto;backdrop-filter:blur(8px);padding:14px 0';
+
+    const titles = {
+      auto: { emoji: '🏎️', name: 'Avto garaj', tab1: 'Mashinalarim', tab2: 'Do\'kon', tab3: 'Bozor' },
+      fashion: { emoji: '👗', name: 'Moda studiyasi', tab1: 'Liboslarim', tab2: 'Uslublar', tab3: 'Bozor' },
+      football: { emoji: '⚽', name: 'Master Liga', tab1: 'Jamoam', tab2: 'Transfer', tab3: 'Bozor' },
+    };
+    const info = titles[gameType];
+
+    modal.innerHTML = `
+<div style="max-width:420px;margin:0 auto;background:var(--s1);border-radius:var(--br);padding:16px;min-height:calc(100vh - 28px)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px">${info.emoji} ${info.name}</div>
+      <div style="font-size:10px;color:var(--m);margin-top:2px">Token: <span style="color:var(--y);font-weight:700">${tokens.toLocaleString()}</span></div>
+    </div>
+    <button onclick="document.getElementById('ng-modal').remove()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:none;color:var(--txt);font-size:17px;cursor:pointer;padding:0">×</button>
+  </div>
+
+  <div style="display:flex;gap:4px;background:var(--s3);border-radius:var(--br2);padding:3px;margin-bottom:14px">
+    <button class="ng-tab active" data-tab="my" onclick="FIKRA.ngTab('my')" style="flex:1;padding:7px;border:none;border-radius:6px;background:var(--acc);color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">${info.tab1}</button>
+    <button class="ng-tab" data-tab="shop" onclick="FIKRA.ngTab('shop')" style="flex:1;padding:7px;border:none;border-radius:6px;background:transparent;color:var(--m);font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">${info.tab2}</button>
+    <button class="ng-tab" data-tab="market" onclick="FIKRA.ngTab('market')" style="flex:1;padding:7px;border:none;border-radius:6px;background:transparent;color:var(--m);font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">${info.tab3}</button>
+  </div>
+
+  <div id="ng-content">${_renderMyItems(gameType, items)}</div>
+</div>`;
+
+    document.body.appendChild(modal);
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    window._currentNewGameItems = items;
+  }
+
+  function _renderMyItems(gameType, items) {
+    if (!items || items.length === 0) {
+      const shopName = gameType === 'auto' ? "Do'kon" : 'Uslublar';
+      return `<div style="padding:24px;text-align:center;color:var(--m);font-size:12px">Hali obyektlaringiz yo'q. "${shopName}" tabida tanlang.</div>`;
+    }
+
+    return `<div style="display:flex;flex-direction:column;gap:10px">
+${items.map(it => {
+  if (gameType === 'auto') return _renderCarCard(it);
+  if (gameType === 'fashion') return _renderOutfitCard(it);
+  if (gameType === 'football') return _renderPlayerCard(it);
+  return '';
+}).join('')}
+</div>`;
+  }
+
+  function _renderCarCard(car) {
+    const model = _newGamesCatalog.cars.find(c => c.id === car.carModel) || {};
+    const tuning = car.tuning || {};
+    const parts = ['engine', 'suspension', 'tires', 'paint', 'spoiler', 'rims'];
+    const partNames = { engine: 'Dvigatel', suspension: 'Amortizator', tires: 'Shina', paint: 'Rang', spoiler: 'Spoiler', rims: 'Disk' };
+
+    return `
+<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:12px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <div style="width:48px;height:48px;border-radius:12px;background:rgba(123,104,238,.12);display:flex;align-items:center;justify-content:center;font-size:24px">${model.emoji || '🚗'}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${_escapeHtml(model.name || car.name)}</div>
+      <div style="font-size:10px;color:var(--m)">Rang: ${car.carColor || 'white'} · Qiymat: <span style="color:var(--y);font-weight:700">${car.value} t</span></div>
+    </div>
+    ${car.acquiredFrom !== 'starter' ? `<button onclick="FIKRA.ngListItem('${car._id}', ${car.value})" style="padding:5px 10px;background:var(--g);color:#000;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer">Sotish</button>` : ''}
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    ${parts.map(p => {
+      const level = tuning[p] || 0;
+      const nextCost = level < 5 ? _newGamesCatalog.tuningCosts[p][level + 1] : null;
+      return `
+      <div style="background:var(--s3);border:1px solid var(--f);border-radius:var(--br2);padding:8px 10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:10px;font-weight:700;color:var(--m)">${partNames[p]}</span>
+          <span style="font-size:10px;color:var(--y);font-weight:700">${level}/5</span>
+        </div>
+        <div style="height:4px;background:var(--s2);border-radius:3px;margin-bottom:6px;overflow:hidden">
+          <div style="width:${level * 20}%;height:100%;background:var(--acc);border-radius:3px"></div>
+        </div>
+        ${level < 5 ? `
+          <button onclick="FIKRA.ngTuning('${car._id}', '${p}')" style="width:100%;padding:4px;background:var(--acc);color:#fff;border:none;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer">+1 · ${nextCost}t</button>
+        ` : `
+          <div style="text-align:center;font-size:9px;color:var(--g);font-weight:700;padding:3px">✓ MAX</div>
+        `}
+      </div>`;
+    }).join('')}
+  </div>
+</div>`;
+  }
+
+  function _renderOutfitCard(outfit) {
+    const style = _newGamesCatalog.outfitStyles.find(s => s.id === outfit.outfitStyle) || {};
+    const parts = outfit.outfitParts || {};
+
+    return `
+<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:12px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <div style="width:48px;height:48px;border-radius:12px;background:rgba(255,111,163,.12);display:flex;align-items:center;justify-content:center;font-size:24px">${style.emoji || '👗'}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${_escapeHtml(outfit.name || style.name)}</div>
+      <div style="font-size:10px;color:var(--m)">Qiymat: <span style="color:var(--y);font-weight:700">${outfit.value} t</span></div>
+    </div>
+    ${outfit.acquiredFrom !== 'starter' ? `<button onclick="FIKRA.ngListItem('${outfit._id}', ${outfit.value})" style="padding:5px 10px;background:var(--g);color:#000;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer">Sotish</button>` : ''}
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+    <div style="background:var(--s3);border-radius:var(--br2);padding:7px;text-align:center">
+      <div style="font-size:9px;color:var(--m);margin-bottom:3px">Ustki</div>
+      <div style="font-size:11px;font-weight:700">${parts.top?.color || '-'}</div>
+    </div>
+    <div style="background:var(--s3);border-radius:var(--br2);padding:7px;text-align:center">
+      <div style="font-size:9px;color:var(--m);margin-bottom:3px">Pastki</div>
+      <div style="font-size:11px;font-weight:700">${parts.bottom?.color || '-'}</div>
+    </div>
+    <div style="background:var(--s3);border-radius:var(--br2);padding:7px;text-align:center">
+      <div style="font-size:9px;color:var(--m);margin-bottom:3px">Oyoq</div>
+      <div style="font-size:11px;font-weight:700">${parts.shoes?.color || '-'}</div>
+    </div>
+  </div>
+
+  <button onclick="FIKRA.ngDesignOutfit('${outfit._id}')" style="width:100%;padding:8px;background:var(--acc);color:#fff;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">Dizayn qilish</button>
+</div>`;
+  }
+
+  function _renderPlayerCard(player) {
+    const stats = player.playerStats || {};
+    const posColors = { GK: 'var(--y)', DEF: 'var(--g)', MID: 'var(--al)', FWD: 'var(--r)' };
+    const posColor = posColors[player.playerPosition] || 'var(--acc)';
+    const totalStats = (stats.speed || 0) + (stats.skill || 0) + (stats.shot || 0) + (stats.defense || 0);
+
+    return `
+<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:12px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <div style="width:48px;height:48px;border-radius:12px;background:${posColor}1A;border:1px solid ${posColor}33;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:${posColor}">${player.playerPosition}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${_escapeHtml(player.name || 'Futbolchi')}</div>
+      <div style="font-size:10px;color:var(--m)">Jami: ${totalStats} · Qiymat: <span style="color:var(--y);font-weight:700">${player.value} t</span></div>
+    </div>
+    ${player.acquiredFrom !== 'starter' ? `<button onclick="FIKRA.ngListItem('${player._id}', ${player.value})" style="padding:5px 10px;background:var(--g);color:#000;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer">Sotish</button>` : ''}
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    ${['speed', 'skill', 'shot', 'defense'].map(s => {
+      const val = stats[s] || 0;
+      const labels = { speed: 'Tezlik', skill: 'Mahorat', shot: 'Zarba', defense: 'Himoya' };
+      return `
+      <div style="background:var(--s3);border-radius:var(--br2);padding:7px 10px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:10px;font-weight:700;color:var(--m)">${labels[s]}</span>
+          <span style="font-size:11px;color:${posColor};font-weight:700">${val}</span>
+        </div>
+        <div style="height:3px;background:var(--s2);border-radius:2px;margin-bottom:5px;overflow:hidden">
+          <div style="width:${val}%;height:100%;background:${posColor};border-radius:2px"></div>
+        </div>
+        ${val < 99 ? `
+          <button onclick="FIKRA.ngUpgradePlayer('${player._id}', '${s}')" style="width:100%;padding:3px;background:var(--acc);color:#fff;border:none;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer">+1 · ${_newGamesCatalog.statUpgradeCost}t</button>
+        ` : `<div style="text-align:center;font-size:9px;color:var(--g);padding:2px">MAX</div>`}
+      </div>`;
+    }).join('')}
+  </div>
+</div>`;
+  }
+
+  // ─── Tab o'zgartirish ─────────────────────────────────────────────────────
+  async function ngTab(tab) {
+    document.querySelectorAll('.ng-tab').forEach(t => {
+      t.classList.remove('active');
+      t.style.background = 'transparent';
+      t.style.color = 'var(--m)';
+    });
+    const btn = document.querySelector(`.ng-tab[data-tab="${tab}"]`);
+    if (btn) {
+      btn.classList.add('active');
+      btn.style.background = 'var(--acc)';
+      btn.style.color = '#fff';
+    }
+
+    const content = document.getElementById('ng-content');
+    if (!content) return;
+
+    if (tab === 'my') {
+      const inv = await API.inventory(_currentNewGameType);
+      window._currentNewGameItems = inv.items;
+      content.innerHTML = _renderMyItems(_currentNewGameType, inv.items);
+    } else if (tab === 'shop') {
+      content.innerHTML = _renderShop(_currentNewGameType);
+    } else if (tab === 'market') {
+      content.innerHTML = '<div style="padding:20px;text-align:center;color:var(--m)">Yuklanmoqda...</div>';
+      const m = await API.getMarket(_currentNewGameType);
+      content.innerHTML = _renderMarket(_currentNewGameType, m.items);
+    }
+  }
+
+  function _renderShop(gameType) {
+    if (gameType === 'auto') {
+      return `<div style="display:flex;flex-direction:column;gap:8px">
+  ${_newGamesCatalog.cars.filter(c => c.basePrice > 0).map(c => `
+    <div style="display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:11px">
+      <div style="width:44px;height:44px;border-radius:11px;background:rgba(123,104,238,.12);display:flex;align-items:center;justify-content:center;font-size:22px">${c.emoji}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${_escapeHtml(c.name)}</div>
+        <div style="font-size:10px;color:var(--m)">${_escapeHtml(c.description)}</div>
+      </div>
+      <button onclick="FIKRA.ngBuyCar('${c.id}')" style="padding:7px 11px;background:var(--acc);color:#fff;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0">${c.basePrice.toLocaleString()}t</button>
+    </div>`).join('')}
+</div>`;
+    }
+    if (gameType === 'fashion') {
+      return `<div style="display:flex;flex-direction:column;gap:8px">
+  ${_newGamesCatalog.outfitStyles.filter(s => s.basePrice > 0).map(s => `
+    <div style="display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:11px">
+      <div style="width:44px;height:44px;border-radius:11px;background:rgba(255,111,163,.12);display:flex;align-items:center;justify-content:center;font-size:22px">${s.emoji}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${_escapeHtml(s.name)}</div>
+        <div style="font-size:10px;color:var(--m)">${_escapeHtml(s.description)}</div>
+      </div>
+      <button onclick="FIKRA.ngBuyOutfit('${s.id}')" style="padding:7px 11px;background:var(--acc);color:#fff;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0">${s.basePrice.toLocaleString()}t</button>
+    </div>`).join('')}
+</div>`;
+    }
+    if (gameType === 'football') {
+      return `<div style="padding:20px;text-align:center;color:var(--m);font-size:12px;line-height:1.6">
+  💡 Futbolchilar faqat bozorda (boshqa o'yinchilardan) sotib olinadi.<br><br>
+  "Bozor" tabga o'ting.
+</div>`;
+    }
+    return '';
+  }
+
+  function _renderMarket(gameType, items) {
+    if (!items || items.length === 0) {
+      return '<div style="padding:24px;text-align:center;color:var(--m);font-size:12px">Bozorda obyektlar yo\'q. Birinchi bo\'ling — inventardan obyekt sotishga qo\'ying!</div>';
+    }
+
+    return `<div style="display:flex;flex-direction:column;gap:8px">
+  ${items.map(it => {
+    let icon = '📦', title = it.name || '-', subtitle = '';
+    if (gameType === 'auto') {
+      const model = _newGamesCatalog.cars.find(c => c.id === it.carModel) || {};
+      icon = model.emoji || '🚗';
+      title = model.name || it.name;
+      subtitle = `Rang: ${it.carColor || '-'}`;
+    } else if (gameType === 'fashion') {
+      const style = _newGamesCatalog.outfitStyles.find(s => s.id === it.outfitStyle) || {};
+      icon = style.emoji || '👗';
+      title = style.name || it.name;
+    } else if (gameType === 'football') {
+      icon = `<span style="font-size:11px;color:var(--y);font-weight:800">${it.playerPosition}</span>`;
+      title = it.name || 'Futbolchi';
+      const s = it.playerStats || {};
+      subtitle = `${s.speed||0}-${s.skill||0}-${s.shot||0}-${s.defense||0}`;
+    }
+    return `
+    <div style="display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid rgba(0,212,170,.15);border-radius:var(--br2);padding:10px">
+      <div style="width:40px;height:40px;border-radius:10px;background:rgba(0,212,170,.08);display:flex;align-items:center;justify-content:center;font-size:20px">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${_escapeHtml(title)}</div>
+        <div style="font-size:10px;color:var(--m)">${_escapeHtml(subtitle)} · Qiymat: ${it.value}t</div>
+      </div>
+      <button onclick="FIKRA.ngBuyFromMarket('${it._id}', '${it.priceTokens}')" style="padding:7px 11px;background:var(--g);color:#000;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0">${it.priceTokens.toLocaleString()}t</button>
+    </div>`;
+  }).join('')}
+</div>`;
+  }
+
+  // ─── Actions ──────────────────────────────────────────────────────────────
+  async function ngBuyCar(carModel) {
+    const car = _newGamesCatalog.cars.find(c => c.id === carModel);
+    if (!confirm(`${car.name} ni ${car.basePrice.toLocaleString()} token ga sotib olish?`)) return;
+    try {
+      await API.buyCar(carModel);
+      showToast(`${car.name} garajingizda! 🎉`);
+      await updateTokenDisplay();
+      ngTab('my');
+    } catch (e) {
+      showToast(e.message || 'Xatolik');
+    }
+  }
+
+  async function ngBuyOutfit(styleId) {
+    const style = _newGamesCatalog.outfitStyles.find(s => s.id === styleId);
+    if (!confirm(`${style.name} uslubini ${style.basePrice.toLocaleString()} token ga sotib olish?`)) return;
+    try {
+      await API.buyOutfit(styleId);
+      showToast(`${style.name} yaratildi! 🎉`);
+      await updateTokenDisplay();
+      ngTab('my');
+    } catch (e) {
+      showToast(e.message || 'Xatolik');
+    }
+  }
+
+  async function ngTuning(carId, part) {
+    try {
+      const r = await API.carTuning(carId, part);
+      showToast(`Daraja oshdi! Yangi qiymat: ${r.newValue}t`);
+      await updateTokenDisplay();
+      ngTab('my');
+    } catch (e) {
+      showToast(e.message || 'Xatolik');
+    }
+  }
+
+  async function ngUpgradePlayer(playerId, stat) {
+    try {
+      const r = await API.upgradePlayer(playerId, stat);
+      showToast(`+1 stat! Yangi qiymat: ${r.newValue}t`);
+      await updateTokenDisplay();
+      ngTab('my');
+    } catch (e) {
+      showToast(e.message || 'Xatolik');
+    }
+  }
+
+  async function ngDesignOutfit(outfitId) {
+    const colors = _newGamesCatalog.outfitColors;
+    const newColor = colors[Math.floor(Math.random() * colors.length)];
+    if (!confirm(`Libos rangini "${newColor}" ga o'zgartirish? (100 token)`)) return;
+    try {
+      const r = await API.outfitDesign(outfitId, { top: { color: newColor } });
+      showToast(`Dizayn o'zgartirildi! +${r.newValue - window._currentNewGameItems.find(x => x._id === outfitId).value}t`);
+      await updateTokenDisplay();
+      ngTab('my');
+    } catch (e) {
+      showToast(e.message || 'Xatolik');
+    }
+  }
+
+  async function ngListItem(itemId, currentValue) {
+    const priceStr = prompt(`Qancha tokenga sotmoqchisiz? (Joriy qiymat: ${currentValue}t)`, currentValue);
+    if (!priceStr) return;
+    const price = parseInt(priceStr);
+    if (isNaN(price) || price < 10) {
+      showToast('Yaroqsiz narx (min 10t)');
+      return;
+    }
+    try {
+      await API.listItem(itemId, price);
+      showToast('Bozorga qo\'yildi!');
+      ngTab('my');
+    } catch (e) {
+      showToast(e.message || 'Xatolik');
+    }
+  }
+
+  async function ngBuyFromMarket(itemId, priceStr) {
+    const price = parseInt(priceStr);
+    if (!confirm(`${price.toLocaleString()} token ga sotib olasizmi? (soliq 3%)`)) return;
+    try {
+      const r = await API.buyFromMarket(itemId);
+      showToast(`Sotib olindi! Soliq: ${r.tax}t`);
+      await updateTokenDisplay();
+      ngTab('market');
+    } catch (e) {
+      showToast(e.message || 'Xatolik');
+    }
+  }
+
   // ─── Musiqa player ────────────────────────────────────────────────────────
   async function openMusicPlayer() {
     try {
@@ -2420,6 +2892,9 @@
     showRankDetail, showLevelUp, showXpGain,
     openMusicPlayer, closeMusicPlayer, playTrack, togglePlay, setMusicVolume,
     openTournament,
+    openNewGame, startFootballClub, ngTab,
+    ngBuyCar, ngBuyOutfit, ngTuning, ngUpgradePlayer, ngDesignOutfit,
+    ngListItem, ngBuyFromMarket,
   };
 
   // ─── Bootstrap ────────────────────────────────────────────────────────────
@@ -2443,5 +2918,84 @@
 
   // Har 30s — joriy Telegram user = login qilgan user ekanligini tekshirish
   setInterval(() => verifyAuth(), 30000);
+
+  // ─── PWA: Service Worker Registration ───────────────────────────────────
+  if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then((reg) => console.log('[PWA] SW registered:', reg.scope))
+        .catch((err) => console.warn('[PWA] SW registration failed:', err));
+    });
+  }
+
+  // PWA Install prompt — foydalanuvchi 3 marta kirgach ko'rsatiladi
+  let _deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    _deferredPrompt = e;
+
+    // Kirish sonini yig'ish
+    try {
+      let visits = parseInt(localStorage.getItem('fikra_visits') || '0', 10);
+      visits++;
+      localStorage.setItem('fikra_visits', String(visits));
+
+      // 3 marta kirgandan keyin yoki allaqachon install qilingan bo'lmasa
+      const installed = localStorage.getItem('fikra_pwa_installed') === 'true';
+      const dismissed = localStorage.getItem('fikra_pwa_dismissed') === 'true';
+
+      if (visits >= 3 && !installed && !dismissed) {
+        setTimeout(() => showInstallPrompt(), 3000);
+      }
+    } catch (e) {}
+  });
+
+  window.addEventListener('appinstalled', () => {
+    try { localStorage.setItem('fikra_pwa_installed', 'true'); } catch {}
+    _deferredPrompt = null;
+    showToast && showToast('FIKRA telefonga yuklandi! 🎉');
+  });
+
+  function showInstallPrompt() {
+    if (!_deferredPrompt) return;
+    const banner = document.createElement('div');
+    banner.id = 'pwa-install-banner';
+    banner.style.cssText = 'position:fixed;bottom:74px;left:10px;right:10px;max-width:460px;margin:0 auto;background:linear-gradient(135deg,rgba(123,104,238,.98),rgba(90,79,212,.98));border-radius:14px;padding:14px;z-index:9998;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:slideDown .4s ease;display:flex;align-items:center;gap:12px;backdrop-filter:blur(10px)';
+    banner.innerHTML = `
+      <div style="font-size:28px">📱</div>
+      <div style="flex:1;min-width:0;color:#fff">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px">FIKRA ni telefonga yuklab oling</div>
+        <div style="font-size:11px;opacity:.85">Tezroq ishlaydi, Telegram tashqarida ham ochiladi</div>
+      </div>
+      <button onclick="FIKRA.installPWA()" style="padding:8px 14px;background:#fff;color:var(--acc);border:none;border-radius:100px;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer;flex-shrink:0">Yuklash</button>
+      <button onclick="FIKRA.dismissInstall()" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:14px;cursor:pointer;padding:0;flex-shrink:0">×</button>
+    `;
+    document.body.appendChild(banner);
+  }
+
+  async function installPWA() {
+    if (!_deferredPrompt) {
+      showToast('O\'rnatish imkoniyati mavjud emas');
+      return;
+    }
+    _deferredPrompt.prompt();
+    const { outcome } = await _deferredPrompt.userChoice;
+    console.log('[PWA] Install choice:', outcome);
+    _deferredPrompt = null;
+    const banner = document.getElementById('pwa-install-banner');
+    if (banner) banner.remove();
+  }
+
+  function dismissInstall() {
+    try { localStorage.setItem('fikra_pwa_dismissed', 'true'); } catch {}
+    const banner = document.getElementById('pwa-install-banner');
+    if (banner) banner.remove();
+  }
+
+  // Expose
+  if (window.FIKRA) {
+    window.FIKRA.installPWA = installPWA;
+    window.FIKRA.dismissInstall = dismissInstall;
+  }
 
 })();

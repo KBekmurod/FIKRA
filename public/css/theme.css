@@ -434,3 +434,141 @@ body:has(#sa-kal.active) .scroll {
   from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE DESIGN
+   Mobile: 375px (default) · Tablet: 768px · Desktop: 1200px+
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ─── TABLET (768px+) ─────────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  html, body { background: radial-gradient(circle at top, #14142a 0%, var(--bg) 60%); }
+
+  #app {
+    max-width: 600px;
+    border-left: 1px solid rgba(238,234,255,.06);
+    border-right: 1px solid rgba(238,234,255,.06);
+    box-shadow: 0 0 40px rgba(0,0,0,.5);
+  }
+
+  /* Slider kengroq */
+  #home-slides > div {
+    min-width: 600px !important;
+    padding: 0 24px !important;
+  }
+
+  /* Stat cards kengroq */
+  .stats-row { gap: 10px; }
+  .stat-card { padding: 14px 12px; }
+  .stat-val { font-size: 18px; }
+
+  /* Chat input kattaroq */
+  .chat-input { font-size: 14px; padding: 12px 14px; }
+
+  /* Test sahifasi — kattaroq yozuv */
+  .test-opt { padding: 13px 14px; font-size: 14px; }
+
+  /* Modallar — kattaroq */
+  #sub-modal > div,
+  #shop-modal > div,
+  #music-modal > div,
+  #tourn-modal > div,
+  #ng-modal > div,
+  #rank-modal > div {
+    max-width: 560px !important;
+  }
+}
+
+/* ─── DESKTOP (1200px+) ───────────────────────────────────────────────────── */
+@media (min-width: 1200px) {
+  html, body {
+    background: radial-gradient(circle at center, #14142a 0%, var(--bg) 70%);
+  }
+
+  #app {
+    max-width: 1120px;
+    display: grid;
+    grid-template-columns: 260px 1fr 260px;
+    gap: 16px;
+    padding: 16px;
+    box-sizing: border-box;
+  }
+
+  /* Desktop — tashqi wrapper yaratish */
+  #app::before {
+    content: '';
+    grid-column: 1;
+    background: var(--s1);
+    border-radius: var(--br);
+    border: 1px solid var(--f);
+    background-image:
+      linear-gradient(135deg, rgba(123,104,238,.1), transparent),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ctext x='20' y='36' font-size='22' fill='%237b68ee' opacity='.12'%3EF%3C/text%3E%3C/svg%3E");
+    background-repeat: repeat;
+  }
+
+  #app::after {
+    content: '';
+    grid-column: 3;
+    background: var(--s1);
+    border-radius: var(--br);
+    border: 1px solid var(--f);
+    background-image: linear-gradient(225deg, rgba(0,212,170,.08), transparent);
+  }
+
+  /* Asosiy kontent markazda */
+  #loading {
+    left: 50% !important;
+    transform: translateX(-50%);
+    max-width: 600px;
+    width: 100%;
+  }
+
+  /* Status bar — asosiy sahifa */
+  .status-bar {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* Bottom nav — faqat markazdagi panel uchun */
+  .bottom-nav {
+    max-width: 600px;
+    margin: 0 auto;
+    border-radius: var(--br) var(--br) 0 0;
+  }
+
+  /* Slider va kontent */
+  .panel {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+}
+
+/* ─── Kichik telefon (375px dan kichik) ──────────────────────────────────── */
+@media (max-width: 360px) {
+  .chat-input { font-size: 13px; padding: 9px 11px; }
+  .test-opt { padding: 10px; font-size: 12px; }
+  .stat-val { font-size: 15px; }
+  .app-logo { font-size: 19px; }
+
+  /* O'yin kartalarida narxlar */
+  .btn-sm { font-size: 10px; padding: 5px 9px; }
+}
+
+/* ─── Portret vs landscape ────────────────────────────────────────────────── */
+@media (orientation: landscape) and (max-height: 500px) {
+  /* Telefon yonboshda — scrollable */
+  .stroop-word { font-size: 34px; }
+  #loading .loading-logo { font-size: 28px; }
+}
+
+/* ─── Touch device optimizations ──────────────────────────────────────────── */
+@media (hover: hover) and (pointer: fine) {
+  /* Desktop — hover state */
+  .btn:hover, .nav-item:hover, .test-opt:hover {
+    filter: brightness(1.1);
+  }
+  .lb-row:hover {
+    background: var(--s2);
+  }
+}

@@ -15,6 +15,7 @@ const gameRoutes  = require('./routes/games');
 const aiRoutes    = require('./routes/ai');
 const subRoutes   = require('./routes/subscription');
 const contentRoutes = require('./routes/content');
+const newGamesRoutes = require('./routes/newgames');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -36,7 +37,30 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Railway: /app/public/  (package.json bilan bir papkada)
 const publicDir = path.join(__dirname, '..', 'public');
 if (fs.existsSync(publicDir)) {
-  app.use(express.static(publicDir));
+  // Service worker uchun alohida — cache-control va scope
+  app.get('/service-worker.js', (req, res) => {
+    res.set({
+      'Content-Type': 'application/javascript',
+      'Service-Worker-Allowed': '/',
+      'Cache-Control': 'no-cache', // SW o'zi yangilanishi kerak
+    });
+    res.sendFile(path.join(publicDir, 'service-worker.js'));
+  });
+
+  // Manifest
+  app.get('/manifest.json', (req, res) => {
+    res.set('Content-Type', 'application/manifest+json');
+    res.sendFile(path.join(publicDir, 'manifest.json'));
+  });
+
+  app.use(express.static(publicDir, {
+    maxAge: '7d', // Static cache 7 kun
+    setHeaders: (res, filepath) => {
+      if (filepath.endsWith('.html')) {
+        res.set('Cache-Control', 'no-cache'); // HTML doim yangilanadi
+      }
+    },
+  }));
   logger.info('Static: ' + publicDir);
 } else {
   logger.warn('public/ papkasi topilmadi: ' + publicDir);
@@ -49,6 +73,7 @@ app.use('/api/games',  gameRoutes);
 app.use('/api/ai',     aiRoutes);
 app.use('/api/sub',    subRoutes);
 app.use('/api/content', contentRoutes);
+app.use('/api/newgames', newGamesRoutes);
 
 // ─── Telegram Bot ─────────────────────────────────────────────────────────────
 require('./bot')(app);
