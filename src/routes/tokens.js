@@ -51,6 +51,8 @@ router.post('/ads-reward', authMiddleware, adsLimiter, async (req, res, next) =>
   try {
     const { format, context, adsgram_token } = req.body;
     const user = req.user;
+    const adFormat = format || 'rewarded';
+    const isRewarded = adFormat === 'rewarded';
 
     // Adsgram server-side verification (agar token berilsa)
     let verified = false;
@@ -63,14 +65,24 @@ router.post('/ads-reward', authMiddleware, adsLimiter, async (req, res, next) =>
       verified = adsgram_token === expected;
     }
 
+    // Rewarded ad uchun productionda majburiy server-side verifikatsiya
+    if (isRewarded && process.env.NODE_ENV === 'production') {
+      if (!process.env.ADSGRAM_SECRET) {
+        return res.status(503).json({ error: 'Ads reward vaqtincha mavjud emas' });
+      }
+      if (!adsgram_token || !verified) {
+        return res.status(403).json({ error: 'Reklama tasdiqlanmadi', code: 'ADS_NOT_VERIFIED' });
+      }
+    }
+
     // Rewarded → 5t, Interstitial → 0t (faqat log)
-    const tokensToGive = format === 'rewarded' ? 5 : 0;
+    const tokensToGive = isRewarded ? 5 : 0;
 
     await AdsEvent.create({
       userId: user._id,
       telegramId: user.telegramId,
       network: 'adsgram',
-      format: format || 'rewarded',
+      format: adFormat,
       tokensGiven: tokensToGive,
       estimatedRevUsd: 0.006,
       verified,

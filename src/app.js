@@ -8,6 +8,7 @@ const fs      = require('fs');
 const { connectDB }    = require('./utils/db');
 const { logger }       = require('./utils/logger');
 const { errorHandler } = require('./middleware/errorHandler');
+const { apiLimiter } = require('./middleware/rateLimit');
 
 const authRoutes  = require('./routes/auth');
 const tokenRoutes = require('./routes/tokens');
@@ -67,6 +68,7 @@ if (fs.existsSync(publicDir)) {
 }
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
+app.use('/api', apiLimiter);
 app.use('/api/auth',   authRoutes);
 app.use('/api/tokens', tokenRoutes);
 app.use('/api/games',  gameRoutes);
