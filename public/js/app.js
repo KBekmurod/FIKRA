@@ -18,6 +18,29 @@
   let adsResolve = null;
   let adsPendingTokens = 0;
 
+  // User obyektini ADS moduliga sinxronlash (obuna tekshiruvi uchun)
+  function _syncUserToWindow() {
+    window.user = user;
+  }
+
+  // Haptic feedback — Telegram ichida tugma bosganda tebranish
+  function hapticTap(style) {
+    // style: 'light', 'medium', 'heavy', 'rigid', 'soft'
+    try {
+      if (tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
+        tg.HapticFeedback.impactOccurred(style || 'light');
+      }
+    } catch {}
+  }
+  function hapticNotify(type) {
+    // type: 'error', 'success', 'warning'
+    try {
+      if (tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
+        tg.HapticFeedback.notificationOccurred(type || 'success');
+      }
+    } catch {}
+  }
+
   // ─── Auth ─────────────────────────────────────────────────────────────────
   async function login() {
     const initData = tg?.initData || '';
@@ -36,6 +59,7 @@
         const me = await API.me();
         if (me && me.telegramId === currentTgId) {
           user = me;
+          _syncUserToWindow();
           tokens = me.tokens;
           console.log('[Auth] Saved token valid');
           return;
@@ -55,6 +79,7 @@
       console.log('[Auth] Brauzer rejimi (Telegram tashqarida)');
       tokens = 0;
       user = { firstName: 'Mehmon', username: 'guest', tokens: 0, streakDays: 0, _demo: true };
+      _syncUserToWindow();
       return;
     }
 
@@ -69,6 +94,7 @@
         }
         setTokens(res.accessToken, res.refreshToken, currentTgId);
         user = res.user;
+        _syncUserToWindow();
         tokens = res.user.tokens;
         console.log('[Auth] Logged in as:', user.firstName, 'tgId:', currentTgId);
       }
@@ -697,6 +723,29 @@
   }
 
   function selectStroopMode(m) {
+    // Birinchi marta ochgan foydalanuvchi uchun qisqa tushuntirish
+    const key = 'fikra_stroop_tut_' + m;
+    const seen = (() => { try { return localStorage.getItem(key); } catch { return true; } })();
+    if (!seen) {
+      const explain = m === 0
+        ? "Ekranga so'z chiqadi. Lekin so'z o'qishingiz shart emas — uning RANGI qaysi, o'shani tanlang!\n\nMasalan: QIZIL so'zi ko'k rangda yozilgan bo'lsa — \"Ko'k\" ni tanlaysiz."
+        : "Ekranda so'z va rang chiqadi. Agar so'z matni o'z rangiga mos kelsa — \"To'g'ri\"; aks holda — \"Noto'g'ri\".\n\nMasalan: QIZIL so'zi qizil rangda — \"To'g'ri\".\nQIZIL so'zi ko'k rangda — \"Noto'g'ri\".";
+
+      uiConfirm(explain, {
+        title: m === 0 ? "Rang tanlash — qoida" : "To'g'ri/Noto'g'ri — qoida",
+        okLabel: "Tushundim, boshlash",
+        cancelLabel: "Orqaga",
+      }).then(ok => {
+        if (!ok) { backToGames(); return; }
+        try { localStorage.setItem(key, '1'); } catch {}
+        _startStroopWithMode(m);
+      });
+      return;
+    }
+    _startStroopWithMode(m);
+  }
+
+  function _startStroopWithMode(m) {
     document.querySelectorAll('.mode-btn').forEach((b, i) => b.classList.toggle('active', i === m));
     document.getElementById('mode0-ui').style.display = m === 0 ? 'block' : 'none';
     document.getElementById('mode1-ui').style.display = m === 1 ? 'block' : 'none';
@@ -705,6 +754,97 @@
 
   function sAns(btn) { STROOP.answerColor(btn); }
   function tfAns(val) { STROOP.answerTF(val); }
+
+  // ─── Stroop natija ekrani ─────────────────────────────────────────────────
+  function showStroopResult(r) {
+    const accuracy = r.correctCount + r.wrongCount > 0
+      ? Math.round((r.correctCount / (r.correctCount + r.wrongCount)) * 100)
+      : 0;
+    const overlay = document.createElement('div');
+    overlay.id = 'stroop-result';
+    overlay.className = 'ui-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9998;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(10px);animation:fadeIn .3s ease';
+
+    const reasonText = r.reason === 'no_lives'
+      ? "3 ta xatoga yo'l qo'ydingiz"
+      : "Vaqt tugadi";
+
+    overlay.innerHTML = `
+<div style="max-width:360px;width:100%;background:var(--s1);border:1px solid var(--f);border-radius:20px;padding:22px;animation:scaleIn .4s cubic-bezier(.34,1.56,.64,1);text-align:center">
+  <div style="font-size:38px;margin-bottom:6px">${r.isNewBest ? '🏆' : '🎯'}</div>
+  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px;margin-bottom:4px">${r.isNewBest ? 'Yangi rekord!' : 'O\'yin tugadi'}</div>
+  <div style="font-size:11px;color:var(--m);margin-bottom:16px">${reasonText}</div>
+
+  <div style="background:var(--s2);border:1px solid var(--f);border-radius:14px;padding:16px 12px;margin-bottom:14px">
+    <div style="font-size:10px;color:var(--m);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">Natijangiz</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:40px;color:var(--y);line-height:1">${r.score}</div>
+    <div style="font-size:11px;color:var(--m);margin-top:3px">ball</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px">
+      <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--g)">${r.correctCount}</div><div style="font-size:9px;color:var(--m);margin-top:1px">To'g'ri</div></div>
+      <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--r)">${r.wrongCount}</div><div style="font-size:9px;color:var(--m);margin-top:1px">Xato</div></div>
+      <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--al)">${accuracy}%</div><div style="font-size:9px;color:var(--m);margin-top:1px">Aniqlik</div></div>
+    </div>
+  </div>
+
+  ${r.tokensEarned > 0 ? `
+    <div style="background:linear-gradient(135deg,rgba(255,204,68,.1),rgba(0,212,170,.08));border:1px solid rgba(255,204,68,.25);border-radius:10px;padding:10px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:12px;font-weight:700;color:var(--y);display:flex;align-items:center;gap:5px">🪙 Token</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--y)">+${r.tokensEarned}</div>
+    </div>
+  ` : ''}
+
+  ${r.xp && r.xp.added ? `
+    <div style="background:linear-gradient(135deg,rgba(123,104,238,.1),rgba(0,212,170,.08));border:1px solid rgba(123,104,238,.25);border-radius:10px;padding:10px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:12px;font-weight:700;color:var(--al)">⚡ XP</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--al)">+${r.xp.added}</div>
+    </div>
+  ` : ''}
+
+  ${r.bestScore > 0 && !r.isNewBest ? `
+    <div style="font-size:11px;color:var(--m);margin-bottom:14px">Sizning rekord: <span style="color:var(--y);font-weight:700">${r.bestScore}</span></div>
+  ` : ''}
+
+  <div style="display:flex;gap:8px">
+    <button onclick="FIKRA.stroopWatchAd()" style="flex:1;padding:12px 10px;background:var(--s3);color:var(--txt);border:1px solid var(--y);border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px">
+      <span>Reklama ko'rish</span>
+      <span style="font-size:9px;color:var(--y)">+5 token</span>
+    </button>
+    <button onclick="FIKRA.stroopRetry()" style="flex:1.3;padding:12px;background:var(--acc);color:#fff;border:none;border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">Qayta o'ynash</button>
+  </div>
+  <button onclick="FIKRA.stroopExit()" style="width:100%;margin-top:8px;padding:11px;background:transparent;color:var(--m);border:1px solid var(--f);border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">Chiqish</button>
+</div>`;
+
+    document.body.appendChild(overlay);
+
+    // Haptic success agar yangi rekord
+    if (r.isNewBest) hapticNotify('success');
+  }
+
+  function stroopWatchAd() {
+    const overlay = document.getElementById('stroop-result');
+    if (overlay) overlay.remove();
+    if (window.ADS && window.ADS.showRewardedAd) {
+      window.ADS.showRewardedAd('stroop_bonus').then(() => {
+        updateTokenDisplay();
+      });
+    }
+  }
+
+  function stroopRetry() {
+    const overlay = document.getElementById('stroop-result');
+    if (overlay) overlay.remove();
+    // Joriy mode ni qayta boshlash
+    const activeMode = document.querySelector('.mode-btn.active');
+    const modeIdx = activeMode ? Array.from(document.querySelectorAll('.mode-btn')).indexOf(activeMode) : 0;
+    STROOP.start(modeIdx);
+  }
+
+  function stroopExit() {
+    const overlay = document.getElementById('stroop-result');
+    if (overlay) overlay.remove();
+    backToGames();
+  }
 
   // ─── Test render ──────────────────────────────────────────────────────────
   function renderTest() {
@@ -1074,7 +1214,7 @@
   <div style="flex-shrink:0">
     <div id="chat-input-warn" style="display:none;padding:6px 14px;font-size:11px;color:var(--r);background:rgba(255,95,126,.07);border-top:1px solid rgba(255,95,126,.15)"></div>
     <div class="chat-input-row">
-      <input class="chat-input" id="chat-inp" maxlength="${limits.MAX_MSG_CHARS}" placeholder="Xabar yozing..." oninput="FIKRA._chatInputChange(this)" onkeydown="if(event.key==='Enter')FIKRA.sendChat()">
+      <input class="chat-input" id="chat-inp" maxlength="${limits.MAX_MSG_CHARS}" inputmode="text" autocomplete="off" placeholder="Xabar yozing..." oninput="FIKRA._chatInputChange(this)" onkeydown="if(event.key==='Enter')FIKRA.sendChat()">
       <button class="send-btn" id="chat-send-btn" onclick="FIKRA.sendChat()">↑</button>
     </div>
   </div>
@@ -1091,11 +1231,15 @@
   }
 
   function newChat() {
-    if (confirm('Yangi chat boshlaysizmi? Joriy suhbat tarixga saqlanadi.')) {
-      CHAT.startNew();
-      renderGeneralChat();
-      showToast('Yangi chat boshlandi');
-    }
+    uiConfirm('Joriy suhbat tarixga saqlanadi. Yangi chat boshlaysizmi?', {
+      title: 'Yangi chat', okLabel: 'Ha', cancelLabel: 'Bekor'
+    }).then(ok => {
+      if (ok) {
+        CHAT.startNew();
+        renderGeneralChat();
+        showToast('Yangi chat boshlandi');
+      }
+    });
   }
 
   function _chatInputChange(el) {
@@ -1138,10 +1282,9 @@
     const check = CHAT.canSend();
     if (!check.ok) {
       if (check.code === 'CHAT_FULL') {
-        if (confirm(check.reason + ' Yangi chat boshlash?')) {
-          CHAT.startNew();
-          renderGeneralChat();
-        }
+        uiConfirm(check.reason, { title: 'Chat to\'ldi', okLabel: 'Yangi chat', cancelLabel: 'Bekor' }).then(ok => {
+          if (ok) { CHAT.startNew(); renderGeneralChat(); }
+        });
       } else {
         showToast(check.reason);
       }
@@ -1254,7 +1397,7 @@
   </div>
   <div style="flex-shrink:0">
     <div class="chat-input-row">
-      <input class="chat-input" id="doc-inp" maxlength="2000" placeholder="Hujjat haqida yozing..." onkeydown="if(event.key==='Enter')FIKRA.sendDoc()">
+      <input class="chat-input" id="doc-inp" maxlength="2000" inputmode="text" autocomplete="off" placeholder="Hujjat haqida yozing..." onkeydown="if(event.key==='Enter')FIKRA.sendDoc()">
       <button class="send-btn" id="doc-send-btn" onclick="FIKRA.sendDoc()">↑</button>
     </div>
   </div>
@@ -1267,11 +1410,15 @@
   }
 
   function newDocChat() {
-    if (confirm('Yangi hujjat chatini boshlaysizmi?')) {
-      DOC.clear();
-      renderDocChat();
-      showToast('Yangi hujjat chati');
-    }
+    uiConfirm('Joriy hujjat tarixi tozalanadi.', {
+      title: 'Yangi hujjat chati', okLabel: 'Ha', cancelLabel: 'Bekor'
+    }).then(ok => {
+      if (ok) {
+        DOC.clear();
+        renderDocChat();
+        showToast('Yangi hujjat chati');
+      }
+    });
   }
 
   function setDocFmt(fmt, btn) {
@@ -1512,7 +1659,31 @@
   }
 
   // ─── Ads modal ────────────────────────────────────────────────────────────
-  function showAdsModal(tokensToGive, context, resolve) {
+  async function showAdsModal(tokensToGive, context, resolve) {
+    // Obuna tekshiruvi — Pro/VIP/Business uchun reklamasiz bonus
+    const isPremium = user && ['pro', 'vip', 'business'].includes(user.plan);
+    if (isPremium) {
+      try {
+        const res = await API.adsReward ? API.adsReward('rewarded_premium', context) : null;
+        if (res) {
+          const r = await res;
+          if (r && r.tokensGiven > 0) {
+            tokens = r.newBalance;
+            updateTokenDisplay();
+            showToast(`✨ Premium bonus: +${r.tokensGiven} token`);
+            resolve && resolve({ success: true, tokensGiven: r.tokensGiven });
+            return;
+          } else if (r && r.limit === 'daily_max') {
+            showToast('Bugungi premium bonus limitiga yetdingiz (5/kun)');
+            resolve && resolve({ success: false, reason: 'daily_limit' });
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('[Ads] Premium bonus error:', e);
+      }
+    }
+
     adsPendingTokens = tokensToGive;
     adsResolve = resolve;
     document.getElementById('ads-sub').innerHTML =
@@ -1561,12 +1732,92 @@
   }
 
   // ─── Toast ────────────────────────────────────────────────────────────────
-  function showToast(msg) {
+  function showToast(msg, hapticType) {
     const t = document.getElementById('toast');
     if (!t) return;
     t.textContent = msg;
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2400);
+    // Haptic feedback (agar Telegram ichida)
+    if (hapticType === 'success' || hapticType === 'error' || hapticType === 'warning') {
+      hapticNotify(hapticType);
+    } else {
+      hapticTap('light');
+    }
+  }
+
+  // ─── Nice confirm (native confirm o'rniga) ────────────────────────────────
+  function uiConfirm(message, opts) {
+    opts = opts || {};
+    return new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.className = 'ui-modal-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);animation:fadeIn .2s ease';
+      overlay.innerHTML = `
+        <div style="background:var(--s1);border:1px solid var(--f);border-radius:16px;max-width:340px;width:100%;padding:20px;animation:scaleIn .25s cubic-bezier(.34,1.56,.64,1)">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:10px">${opts.title || 'Tasdiqlash'}</div>
+          <div style="font-size:13px;color:var(--m);line-height:1.5;margin-bottom:18px">${_escapeHtml(message)}</div>
+          <div style="display:flex;gap:8px">
+            <button id="ui-confirm-no" style="flex:1;padding:11px;background:var(--s3);color:var(--txt);border:1px solid var(--f);border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">${opts.cancelLabel || 'Bekor'}</button>
+            <button id="ui-confirm-yes" style="flex:1;padding:11px;background:${opts.danger ? 'var(--r)' : 'var(--acc)'};color:#fff;border:none;border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">${opts.okLabel || 'Ha'}</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      const close = (result) => {
+        hapticTap('light');
+        overlay.style.animation = 'fadeIn .15s ease reverse';
+        setTimeout(() => overlay.remove(), 150);
+        resolve(result);
+      };
+      document.getElementById('ui-confirm-yes').onclick = () => close(true);
+      document.getElementById('ui-confirm-no').onclick = () => close(false);
+      overlay.onclick = (e) => { if (e.target === overlay) close(false); };
+      // Escape tugmasi
+      const escHandler = (e) => {
+        if (e.key === 'Escape') { close(false); document.removeEventListener('keydown', escHandler); }
+      };
+      document.addEventListener('keydown', escHandler);
+    });
+  }
+
+  // ─── Nice prompt (native prompt o'rniga) ──────────────────────────────────
+  function uiPrompt(message, defaultValue, opts) {
+    opts = opts || {};
+    return new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.className = 'ui-modal-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);animation:fadeIn .2s ease';
+      overlay.innerHTML = `
+        <div style="background:var(--s1);border:1px solid var(--f);border-radius:16px;max-width:340px;width:100%;padding:20px;animation:scaleIn .25s cubic-bezier(.34,1.56,.64,1)">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:8px">${opts.title || 'Kiritish'}</div>
+          <div style="font-size:12px;color:var(--m);line-height:1.5;margin-bottom:12px">${_escapeHtml(message)}</div>
+          <input id="ui-prompt-input" type="${opts.type || 'text'}" inputmode="${opts.inputMode || 'text'}" value="${_escapeHtml(defaultValue || '')}" placeholder="${opts.placeholder || ''}" style="width:100%;box-sizing:border-box;padding:12px 14px;background:var(--s2);border:1px solid var(--f);border-radius:10px;color:var(--txt);font-family:'Nunito',sans-serif;font-size:14px;margin-bottom:14px">
+          <div style="display:flex;gap:8px">
+            <button id="ui-prompt-cancel" style="flex:1;padding:11px;background:var(--s3);color:var(--txt);border:1px solid var(--f);border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">Bekor</button>
+            <button id="ui-prompt-ok" style="flex:1;padding:11px;background:var(--acc);color:#fff;border:none;border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">Davom</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      const input = document.getElementById('ui-prompt-input');
+      setTimeout(() => input.focus(), 100);
+      input.select && input.select();
+
+      const close = (value) => {
+        hapticTap('light');
+        overlay.style.animation = 'fadeIn .15s ease reverse';
+        setTimeout(() => overlay.remove(), 150);
+        resolve(value);
+      };
+      document.getElementById('ui-prompt-ok').onclick = () => close(input.value);
+      document.getElementById('ui-prompt-cancel').onclick = () => close(null);
+      overlay.onclick = (e) => { if (e.target === overlay) close(null); };
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') close(input.value);
+        if (e.key === 'Escape') close(null);
+      };
+    });
   }
 
   // ─── Back buttons ─────────────────────────────────────────────────────────
@@ -1727,6 +1978,7 @@
       try {
         const me = await API.me();
         if (me) user = me;
+          _syncUserToWindow();
       } catch {}
     } catch (e) {
       if (e.code === 'ALREADY_CLAIMED') {
@@ -2416,7 +2668,8 @@ ${items.map(it => {
   // ─── Actions ──────────────────────────────────────────────────────────────
   async function ngBuyCar(carModel) {
     const car = _newGamesCatalog.cars.find(c => c.id === carModel);
-    if (!confirm(`${car.name} ni ${car.basePrice.toLocaleString()} token ga sotib olish?`)) return;
+    const ok = await uiConfirm(`${car.name} ni ${car.basePrice.toLocaleString()} token ga sotib olish?`, { title: 'Mashina harid', okLabel: 'Sotib olish' });
+    if (!ok) return;
     try {
       await API.buyCar(carModel);
       showToast(`${car.name} garajingizda! 🎉`);
@@ -2429,7 +2682,8 @@ ${items.map(it => {
 
   async function ngBuyOutfit(styleId) {
     const style = _newGamesCatalog.outfitStyles.find(s => s.id === styleId);
-    if (!confirm(`${style.name} uslubini ${style.basePrice.toLocaleString()} token ga sotib olish?`)) return;
+    const ok = await uiConfirm(`${style.name} uslubini ${style.basePrice.toLocaleString()} token ga sotib olish?`, { title: 'Libos harid', okLabel: 'Sotib olish' });
+    if (!ok) return;
     try {
       await API.buyOutfit(styleId);
       showToast(`${style.name} yaratildi! 🎉`);
@@ -2477,7 +2731,7 @@ ${items.map(it => {
   }
 
   async function ngListItem(itemId, currentValue) {
-    const priceStr = prompt(`Qancha tokenga sotmoqchisiz? (Joriy qiymat: ${currentValue}t)`, currentValue);
+    const priceStr = await uiPrompt(`Qancha tokenga sotmoqchisiz? (Joriy qiymat: ${currentValue}t)`, String(currentValue), { title: 'Bozorga qo\'yish', inputMode: 'numeric' });
     if (!priceStr) return;
     const price = parseInt(priceStr);
     if (isNaN(price) || price < 10) {
@@ -2495,7 +2749,8 @@ ${items.map(it => {
 
   async function ngBuyFromMarket(itemId, priceStr) {
     const price = parseInt(priceStr);
-    if (!confirm(`${price.toLocaleString()} token ga sotib olasizmi? (soliq 3%)`)) return;
+    const okb = await uiConfirm(`${price.toLocaleString()} token ga sotib olasizmi?\n(3% soliq)`, { title: 'Harid tasdiqi', okLabel: 'Sotib olish' });
+    if (!okb) return;
     try {
       const r = await API.buyFromMarket(itemId);
       showToast(`Sotib olindi! Soliq: ${r.tax}t`);
@@ -2841,7 +3096,7 @@ ${items.map(it => {
     }
   }
 
-  function _openInvoice(invoiceUrl, label) {
+  async function _openInvoice(invoiceUrl, label) {
     if (tg && typeof tg.openInvoice === 'function') {
       tg.openInvoice(invoiceUrl, async (status) => {
         if (status === 'paid') {
@@ -2856,6 +3111,7 @@ ${items.map(it => {
             try {
               const me = await API.me();
               if (me) user = me;
+          _syncUserToWindow();
             } catch {}
             if (activePanel === 'profile') {
               const pp = document.getElementById('p-profile');
@@ -2869,7 +3125,8 @@ ${items.map(it => {
         }
       });
     } else {
-      if (window.confirm('Telegram to\'lov oynasi ochiladi. Davom etamizmi?')) {
+      const okp = await uiConfirm('Telegram to\'lov oynasi ochiladi.', { title: 'To\'lov davom ettirish', okLabel: 'Davom' });
+      if (okp) {
         window.open(invoiceUrl, '_blank');
       }
     }
@@ -2895,6 +3152,7 @@ ${items.map(it => {
     openNewGame, startFootballClub, ngTab,
     ngBuyCar, ngBuyOutfit, ngTuning, ngUpgradePlayer, ngDesignOutfit,
     ngListItem, ngBuyFromMarket,
+    showStroopResult, stroopWatchAd, stroopRetry, stroopExit,
   };
 
   // ─── Bootstrap ────────────────────────────────────────────────────────────
@@ -2918,6 +3176,95 @@ ${items.map(it => {
 
   // Har 30s — joriy Telegram user = login qilgan user ekanligini tekshirish
   setInterval(() => verifyAuth(), 30000);
+
+  // ─── Global Escape tugmasi: modallarni yopish ─────────────────────────────
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    // Eng yuqori z-index dagi ochiq modalni yopish
+    const modalIds = [
+      'ui-modal-overlay', // eng yuqori
+      'ng-modal', 'tourn-modal', 'music-modal', 'rank-modal',
+      'sub-modal', 'shop-modal', 'pwa-install-banner',
+    ];
+    for (const cls of ['ui-modal-overlay']) {
+      const els = document.getElementsByClassName(cls);
+      if (els.length > 0) { els[els.length - 1].remove(); return; }
+    }
+    for (const id of modalIds.slice(1)) {
+      const m = document.getElementById(id);
+      if (m) { m.remove(); return; }
+    }
+    // Ads modal
+    const adsOverlay = document.getElementById('ads-overlay');
+    if (adsOverlay && adsOverlay.classList.contains('show')) {
+      const skipBtn = document.getElementById('ads-skip');
+      if (skipBtn) skipBtn.click();
+    }
+  });
+
+  // ─── Swipe gesture: bosh sahifa slider uchun ──────────────────────────────
+  function _initSliderSwipe() {
+    const slides = document.getElementById('home-slides');
+    if (!slides) return;
+    let startX = 0, startY = 0, startTime = 0, isSwiping = false;
+    let currentIdx = 0;
+    const slideWidth = 375;
+
+    slides.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      startTime = Date.now();
+      isSwiping = true;
+      slides.style.transition = 'none';
+    }, { passive: true });
+
+    slides.addEventListener('touchmove', (e) => {
+      if (!isSwiping) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      // Vertikal scroll ustun bo'lsa — swipe emas
+      if (Math.abs(dy) > Math.abs(dx)) { isSwiping = false; return; }
+      const offset = -currentIdx * slideWidth + dx;
+      slides.style.transform = `translateX(${offset}px)`;
+    }, { passive: true });
+
+    slides.addEventListener('touchend', (e) => {
+      if (!isSwiping) return;
+      isSwiping = false;
+      const dx = e.changedTouches[0].clientX - startX;
+      const duration = Date.now() - startTime;
+      const isQuick = duration < 300 && Math.abs(dx) > 30;
+      const isFar = Math.abs(dx) > slideWidth / 3;
+
+      const slideCount = slides.children.length;
+      if ((isQuick || isFar) && slideCount > 1) {
+        if (dx < 0) currentIdx = Math.min(currentIdx + 1, slideCount - 1);
+        else currentIdx = Math.max(currentIdx - 1, 0);
+        hapticTap('light');
+      }
+      slides.style.transition = 'transform .3s cubic-bezier(.34,1.56,.64,1)';
+      slides.style.transform = `translateX(${-currentIdx * slideWidth}px)`;
+    }, { passive: true });
+  }
+
+  // Slider avtomatik almashtirish (har 5 sekund)
+  function _initSliderAutoplay() {
+    let idx = 0;
+    setInterval(() => {
+      const slides = document.getElementById('home-slides');
+      if (!slides || !slides.children.length) return;
+      // Agar foydalanuvchi boshqa sahifada bo'lsa - to'xtat
+      if (activePanel !== 'home' || document.hidden) return;
+      idx = (idx + 1) % slides.children.length;
+      slides.style.transition = 'transform .5s cubic-bezier(.34,1.56,.64,1)';
+      slides.style.transform = `translateX(${-idx * 375}px)`;
+    }, 5000);
+  }
+
+  setTimeout(() => {
+    _initSliderSwipe();
+    _initSliderAutoplay();
+  }, 500);
 
   // ─── PWA: Service Worker Registration ───────────────────────────────────
   if ('serviceWorker' in navigator && window.location.protocol === 'https:') {

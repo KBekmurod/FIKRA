@@ -33,9 +33,45 @@ function initAdsgram() {
   }
 }
 
+// ─── Obuna tekshiruvi ──────────────────────────────────────────────────────────
+// Pro/VIP/Business: reklamasiz. Basic: faqat interstitial. Free: hammasi.
+function _shouldShowAd(format, context) {
+  const plan = (window.user && window.user.plan) || 'free';
+  const tier = plan;
+
+  // Pro, VIP, Business — reklama yo'q
+  if (['pro', 'vip', 'business'].includes(tier)) {
+    return { show: false, reason: 'premium_user' };
+  }
+
+  // Basic — interstitial qoladi, rewarded ixtiyoriy (foydalanuvchi xohlasa token oladi)
+  if (tier === 'basic') {
+    if (format === 'interstitial') return { show: false, reason: 'basic_skip_interstitial' };
+    // rewarded doim ko'rsatiladi — chunki foydalanuvchi xohlab token yig'moqchi
+    return { show: true };
+  }
+
+  // Free — hammasi
+  return { show: true };
+}
+
 // ─── Rewarded reklama ──────────────────────────────────────────────────────────
 async function showRewardedAd(context) {
   context = context || 'game_retry';
+
+  // Obuna tekshiruvi — rewarded faqat free/basic uchun
+  // Pro foydalanuvchi uchun token avtomatik beriladi (reklamasiz)
+  const check = _shouldShowAd('rewarded', context);
+  if (!check.show && check.reason === 'premium_user') {
+    // Pro/VIP ga reklama o'rniga token darhol beriladi (obuna bonusi)
+    try {
+      const res = await API.adsReward('rewarded_premium', context);
+      return { success: true, tokensGiven: res.tokensGiven || 5, newBalance: res.newBalance, premium: true };
+    } catch (err) {
+      return { success: true, tokensGiven: 5, premium: true };
+    }
+  }
+
   return new Promise((resolve) => {
     if (_adsgramController && typeof _adsgramController.show === 'function') {
       _adsgramController.show()
@@ -65,6 +101,14 @@ async function showRewardedAd(context) {
 // ─── Interstitial reklama ──────────────────────────────────────────────────────
 async function showInterstitialAd(context) {
   context = context || 'game_end';
+
+  // Obuna tekshiruvi — Pro/VIP/Basic uchun interstitial yo'q
+  const check = _shouldShowAd('interstitial', context);
+  if (!check.show) {
+    console.log('[Ads] Interstitial skipped for ' + check.reason);
+    return { success: true, skipped: true, premium: true };
+  }
+
   return new Promise((resolve) => {
     if (_adsgramController && typeof _adsgramController.show === 'function') {
       _adsgramController.show()

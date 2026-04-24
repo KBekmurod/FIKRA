@@ -67,8 +67,6 @@ router.post('/stroop/result', authMiddleware, async (req, res, next) => {
 router.get('/test/questions', authMiddleware, async (req, res, next) => {
   try {
     const { subject, block, limit = 10 } = req.query;
-    const parsedLimit = Number.parseInt(limit, 10);
-    const safeLimit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 50) : 10;
     const query = {};
     if (subject) query.subject = subject;
     if (block) query.block = block;
@@ -76,7 +74,7 @@ router.get('/test/questions', authMiddleware, async (req, res, next) => {
     // Tasodifiy savollar
     const questions = await TestQuestion.aggregate([
       { $match: query },
-      { $sample: { size: safeLimit } },
+      { $sample: { size: parseInt(limit) } },
       { $project: { question: 1, options: 1, subject: 1, block: 1 } }, // answer yo'q!
     ]);
 

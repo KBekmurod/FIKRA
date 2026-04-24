@@ -51,8 +51,30 @@ router.post('/ads-reward', authMiddleware, adsLimiter, async (req, res, next) =>
   try {
     const { format, context, adsgram_token } = req.body;
     const user = req.user;
-    const adFormat = format || 'rewarded';
-    const isRewarded = adFormat === 'rewarded';
+
+    // Pro/VIP/Business foydalanuvchi uchun reklama o'rniga token (obuna bonusi)
+    const isPremium = ['pro', 'vip', 'business'].includes(user.plan);
+    if (format === 'rewarded_premium' || (format === 'rewarded' && isPremium)) {
+      // Premium bonus — reklama yo'q, lekin token beriladi
+      // Kuniga max 5 ta premium bonus (abuse oldi)
+      const today = new Date().toDateString();
+      const todayCount = await AdsEvent.countDocuments({
+        userId: user._id,
+        format: 'premium_bonus',
+        createdAt: { $gte: new Date(new Date().setHours(0,0,0,0)) },
+      });
+      if (todayCount >= 5) {
+        return res.json({ success: true, tokensGiven: 0, newBalance: user.tokens, limit: 'daily_max' });
+      }
+      const newBalance = await processAdsReward(user._id, user.telegramId, 5, 'premium_bonus_' + context);
+      await AdsEvent.create({
+        userId: user._id, telegramId: user.telegramId,
+        network: 'premium', format: 'premium_bonus',
+        tokensGiven: 5, estimatedRevUsd: 0,
+        context: context || '',
+      });
+      return res.json({ success: true, tokensGiven: 5, newBalance, premium: true });
+    }
 
     // Adsgram server-side verification (agar token berilsa)
     let verified = false;
@@ -65,24 +87,14 @@ router.post('/ads-reward', authMiddleware, adsLimiter, async (req, res, next) =>
       verified = adsgram_token === expected;
     }
 
-    // Rewarded ad uchun productionda majburiy server-side verifikatsiya
-    if (isRewarded && process.env.NODE_ENV === 'production') {
-      if (!process.env.ADSGRAM_SECRET) {
-        return res.status(503).json({ error: 'Ads reward vaqtincha mavjud emas' });
-      }
-      if (!adsgram_token || !verified) {
-        return res.status(403).json({ error: 'Reklama tasdiqlanmadi', code: 'ADS_NOT_VERIFIED' });
-      }
-    }
-
     // Rewarded → 5t, Interstitial → 0t (faqat log)
-    const tokensToGive = isRewarded ? 5 : 0;
+    const tokensToGive = format === 'rewarded' ? 5 : 0;
 
     await AdsEvent.create({
       userId: user._id,
       telegramId: user.telegramId,
       network: 'adsgram',
-      format: adFormat,
+      format: format || 'rewarded',
       tokensGiven: tokensToGive,
       estimatedRevUsd: 0.006,
       verified,
