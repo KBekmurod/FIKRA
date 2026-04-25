@@ -2439,7 +2439,31 @@
       return `<div style="padding:24px;text-align:center;color:var(--m);font-size:12px">Hali obyektlaringiz yo'q. "${shopName}" tabida tanlang.</div>`;
     }
 
-    return `<div style="display:flex;flex-direction:column;gap:10px">
+    let header = '';
+    if (gameType === 'football' && items.length >= 4) {
+      // Jamoa rating va o'yin tugmasi
+      const totalStat = items.reduce((sum, p) => {
+        const s = p.playerStats || {};
+        return sum + (s.speed || 0) + (s.skill || 0) + (s.shot || 0) + (s.defense || 0);
+      }, 0);
+      const avgRating = Math.round(totalStat / (items.length * 4));
+      header = `
+<div style="background:linear-gradient(135deg,rgba(0,212,170,.1),rgba(123,104,238,.1));border:1px solid rgba(0,212,170,.25);border-radius:var(--br);padding:14px;margin-bottom:12px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div>
+      <div style="font-size:10px;color:var(--m);font-weight:700;letter-spacing:1.2px;text-transform:uppercase">Jamoa reytingi</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:24px;color:var(--g)">${avgRating}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:10px;color:var(--m)">Jamoa a'zolari</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px">${items.length}</div>
+    </div>
+  </div>
+  <button onclick="FIKRA.openFootballMatch()" style="width:100%;padding:11px;background:linear-gradient(135deg,var(--g),var(--acc));color:#000;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:800;font-size:13px;cursor:pointer">⚽ Bot bilan o'ynash</button>
+</div>`;
+    }
+
+    return header + `<div style="display:flex;flex-direction:column;gap:10px">
 ${items.map(it => {
   if (gameType === 'auto') return _renderCarCard(it);
   if (gameType === 'fashion') return _renderOutfitCard(it);
@@ -2455,15 +2479,26 @@ ${items.map(it => {
     const parts = ['engine', 'suspension', 'tires', 'paint', 'spoiler', 'rims'];
     const partNames = { engine: 'Dvigatel', suspension: 'Amortizator', tires: 'Shina', paint: 'Rang', spoiler: 'Spoiler', rims: 'Disk' };
 
+    // SVG vizual
+    const svg = window.SVG_ILLUSTRATOR ? SVG_ILLUSTRATOR.carSvg(car, { size: 200 }) : `<div style="font-size:32px">${model.emoji || '🚗'}</div>`;
+
     return `
 <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:12px">
+  <div style="margin-bottom:10px;background:linear-gradient(180deg,#0a0a14,#1a1a26);border-radius:var(--br2);padding:6px;text-align:center">${svg}</div>
+
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-    <div style="width:48px;height:48px;border-radius:12px;background:rgba(123,104,238,.12);display:flex;align-items:center;justify-content:center;font-size:24px">${model.emoji || '🚗'}</div>
     <div style="flex:1;min-width:0">
       <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${_escapeHtml(model.name || car.name)}</div>
-      <div style="font-size:10px;color:var(--m)">Rang: ${car.carColor || 'white'} · Qiymat: <span style="color:var(--y);font-weight:700">${car.value} t</span></div>
+      <div style="font-size:10px;color:var(--m)">Rang: ${car.carColor || 'white'} · <span style="color:var(--y);font-weight:700">${car.value} t</span></div>
     </div>
     ${car.acquiredFrom !== 'starter' ? `<button onclick="FIKRA.ngListItem('${car._id}', ${car.value})" style="padding:5px 10px;background:var(--g);color:#000;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer">Sotish</button>` : ''}
+  </div>
+
+  <!-- Rang o'zgartirish tugmasi -->
+  <div style="display:flex;gap:4px;margin-bottom:8px;overflow-x:auto;padding-bottom:2px">
+    ${(_newGamesCatalog.carColors || ['white','black','red','blue','silver']).map(c => `
+      <button onclick="FIKRA.ngPaintCar('${car._id}', '${c}')" title="${c}" style="width:24px;height:24px;flex-shrink:0;border-radius:50%;border:2px solid ${car.carColor === c ? 'var(--g)' : 'var(--f)'};background:${({white:'#eeeaff',black:'#1a1a1f',red:'#ff5f7e',blue:'#4a7dcc',silver:'#c0c0c0',orange:'#ff9844',yellow:'#ffcc44'}[c]) || '#eee'};cursor:pointer;padding:0"></button>
+    `).join('')}
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
@@ -2494,33 +2529,45 @@ ${items.map(it => {
     const style = _newGamesCatalog.outfitStyles.find(s => s.id === outfit.outfitStyle) || {};
     const parts = outfit.outfitParts || {};
 
+    const svg = window.SVG_ILLUSTRATOR ? SVG_ILLUSTRATOR.outfitSvg(outfit, { size: 110 }) : `<div style="font-size:32px">${style.emoji || '👗'}</div>`;
+
     return `
 <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:12px">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-    <div style="width:48px;height:48px;border-radius:12px;background:rgba(255,111,163,.12);display:flex;align-items:center;justify-content:center;font-size:24px">${style.emoji || '👗'}</div>
-    <div style="flex:1;min-width:0">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${_escapeHtml(outfit.name || style.name)}</div>
-      <div style="font-size:10px;color:var(--m)">Qiymat: <span style="color:var(--y);font-weight:700">${outfit.value} t</span></div>
+  <div style="display:flex;gap:12px;margin-bottom:10px">
+    <div style="background:linear-gradient(180deg,#0a0a14,#1a1a26);border-radius:var(--br2);padding:6px;flex-shrink:0">${svg}</div>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:3px">${_escapeHtml(outfit.name || style.name)}</div>
+      <div style="font-size:10px;color:var(--m);margin-bottom:5px">${style.emoji} ${_escapeHtml(style.name || '-')}</div>
+      <div style="font-size:11px;color:var(--y);font-weight:700">${outfit.value} t</div>
+      ${outfit.acquiredFrom !== 'starter' ? `<button onclick="FIKRA.ngListItem('${outfit._id}', ${outfit.value})" style="margin-top:6px;padding:5px 10px;background:var(--g);color:#000;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;align-self:flex-start">Sotish</button>` : ''}
     </div>
-    ${outfit.acquiredFrom !== 'starter' ? `<button onclick="FIKRA.ngListItem('${outfit._id}', ${outfit.value})" style="padding:5px 10px;background:var(--g);color:#000;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer">Sotish</button>` : ''}
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
     <div style="background:var(--s3);border-radius:var(--br2);padding:7px;text-align:center">
       <div style="font-size:9px;color:var(--m);margin-bottom:3px">Ustki</div>
-      <div style="font-size:11px;font-weight:700">${parts.top?.color || '-'}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${({white:'#eeeaff',black:'#1a1a1f',red:'#ff5f7e',blue:'#4a7dcc',pink:'#ff6fa3',green:'#00d4aa',gold:'#d4af37',beige:'#e8d7b8',purple:'#7b68ee'}[parts.top?.color] || '#eee')};border:1px solid var(--f)"></span>
+        <span style="font-size:10px;font-weight:700">${parts.top?.color || '-'}</span>
+      </div>
     </div>
     <div style="background:var(--s3);border-radius:var(--br2);padding:7px;text-align:center">
       <div style="font-size:9px;color:var(--m);margin-bottom:3px">Pastki</div>
-      <div style="font-size:11px;font-weight:700">${parts.bottom?.color || '-'}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${({white:'#eeeaff',black:'#1a1a1f',red:'#ff5f7e',blue:'#4a7dcc',pink:'#ff6fa3',green:'#00d4aa',gold:'#d4af37',beige:'#e8d7b8',purple:'#7b68ee'}[parts.bottom?.color] || '#eee')};border:1px solid var(--f)"></span>
+        <span style="font-size:10px;font-weight:700">${parts.bottom?.color || '-'}</span>
+      </div>
     </div>
     <div style="background:var(--s3);border-radius:var(--br2);padding:7px;text-align:center">
       <div style="font-size:9px;color:var(--m);margin-bottom:3px">Oyoq</div>
-      <div style="font-size:11px;font-weight:700">${parts.shoes?.color || '-'}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${({white:'#eeeaff',black:'#1a1a1f',red:'#ff5f7e',blue:'#4a7dcc',pink:'#ff6fa3',green:'#00d4aa',gold:'#d4af37',beige:'#e8d7b8',purple:'#7b68ee'}[parts.shoes?.color] || '#eee')};border:1px solid var(--f)"></span>
+        <span style="font-size:10px;font-weight:700">${parts.shoes?.color || '-'}</span>
+      </div>
     </div>
   </div>
 
-  <button onclick="FIKRA.ngDesignOutfit('${outfit._id}')" style="width:100%;padding:8px;background:var(--acc);color:#fff;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">Dizayn qilish</button>
+  <button onclick="FIKRA.ngDesignOutfit('${outfit._id}')" style="width:100%;padding:8px;background:var(--acc);color:#fff;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">🎨 Dizayn qilish</button>
 </div>`;
   }
 
@@ -2666,6 +2713,124 @@ ${items.map(it => {
   }
 
   // ─── Actions ──────────────────────────────────────────────────────────────
+  async function ngPaintCar(carId, color) {
+    try {
+      await API.carPaint(carId, color);
+      showToast(`Rang o'zgartirildi (50t)`, 'success');
+      await updateTokenDisplay();
+      ngTab('my');
+    } catch (e) {
+      showToast(e.message || 'Xatolik');
+    }
+  }
+
+  // ─── Football match ─────────────────────────────────────────────────────
+  async function openFootballMatch() {
+    const betStr = await uiPrompt(
+      'Qancha token tikasiz? (50-5000)\n\n• G\'olib bo\'lsangiz: 1.8x\n• Durang: 0.5x\n• Mag\'lub: 0',
+      '100',
+      { title: '⚽ Bot bilan o\'yin', inputMode: 'numeric' }
+    );
+    if (!betStr) return;
+    const bet = parseInt(betStr);
+    if (isNaN(bet) || bet < 50) {
+      showToast('Yaroqsiz miqdor (min 50t)', 'error');
+      return;
+    }
+    if (bet > tokens) {
+      showToast('Token yetarli emas', 'error');
+      return;
+    }
+
+    // Match simulyatsiyasi
+    showToast('O\'yin boshlanmoqda...');
+
+    try {
+      const result = await API.footballMatch(bet);
+      _renderMatchResult(result);
+      await updateTokenDisplay();
+    } catch (e) {
+      showToast(e.message || 'Xatolik', 'error');
+    }
+  }
+
+  function _renderMatchResult(r) {
+    const overlay = document.createElement('div');
+    overlay.id = 'match-result';
+    overlay.className = 'ui-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10001;display:flex;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(10px);overflow-y:auto';
+
+    const resultColors = { win: 'var(--g)', draw: 'var(--y)', loss: 'var(--r)' };
+    const resultText = { win: 'G\'ALABA!', draw: 'DURANG', loss: 'MAG\'LUBIYAT' };
+    const resultEmoji = { win: '🏆', draw: '🤝', loss: '😔' };
+
+    // Eventlarni qisqartirish (gollar va kartochkalar)
+    const events = (r.events || []).map(e => {
+      const teamLabel = e.team === 'user' ? 'Sizning' : (e.team === 'bot' ? 'Bot' : (e.team === 'home' ? 'Uy' : 'Mehmon'));
+      const icon = e.type === 'goal' ? '⚽' : (e.type === 'yellow_card' ? '🟨' : '🟥');
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:5px 0;border-bottom:1px solid var(--f)">
+        <span style="color:var(--m);font-weight:700;width:28px">${e.minute}'</span>
+        <span style="font-size:14px">${icon}</span>
+        <span style="flex:1;color:${e.team === 'user' || e.team === 'home' ? 'var(--g)' : 'var(--r)'};font-weight:600">${teamLabel}: ${_escapeHtml(e.player || '-')}</span>
+      </div>`;
+    }).join('');
+
+    overlay.innerHTML = `
+<div style="max-width:380px;width:100%;background:var(--s1);border:1px solid var(--f);border-radius:20px;padding:20px;animation:scaleIn .35s cubic-bezier(.34,1.56,.64,1)">
+  <div style="text-align:center;margin-bottom:14px">
+    <div style="font-size:42px;margin-bottom:4px">${resultEmoji[r.result]}</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:${resultColors[r.result]}">${resultText[r.result]}</div>
+  </div>
+
+  <!-- Score -->
+  <div style="background:linear-gradient(135deg,rgba(0,212,170,.08),rgba(123,104,238,.08));border:1px solid var(--f);border-radius:14px;padding:14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-around">
+    <div style="text-align:center">
+      <div style="font-size:9px;color:var(--m);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Siz</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:32px;color:${r.userGoals >= r.botGoals ? 'var(--g)' : 'var(--m)'}">${r.userGoals}</div>
+      <div style="font-size:9px;color:var(--m);margin-top:2px">Reyting: ${r.userRating}</div>
+    </div>
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;color:var(--m)">VS</div>
+    <div style="text-align:center">
+      <div style="font-size:9px;color:var(--m);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Bot</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:32px;color:${r.botGoals > r.userGoals ? 'var(--r)' : 'var(--m)'}">${r.botGoals}</div>
+      <div style="font-size:9px;color:var(--m);margin-top:2px">Reyting: ${r.botRating}</div>
+    </div>
+  </div>
+
+  <!-- Reward -->
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <div style="flex:1;background:var(--s2);border:1px solid var(--f);border-radius:10px;padding:10px;text-align:center">
+      <div style="font-size:9px;color:var(--m);margin-bottom:2px">Tikilgan</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--m)">-${r.betAmount}t</div>
+    </div>
+    <div style="flex:1;background:var(--s2);border:1px solid var(--f);border-radius:10px;padding:10px;text-align:center">
+      <div style="font-size:9px;color:var(--m);margin-bottom:2px">Olindi</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:${r.reward > 0 ? 'var(--y)' : 'var(--m)'}">+${r.reward}t</div>
+    </div>
+    <div style="flex:1;background:var(--s2);border:1px solid var(--f);border-radius:10px;padding:10px;text-align:center">
+      <div style="font-size:9px;color:var(--m);margin-bottom:2px">XP</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--al)">+${r.xpEarned}</div>
+    </div>
+  </div>
+
+  <!-- Events -->
+  ${events ? `
+  <div style="background:var(--s2);border:1px solid var(--f);border-radius:10px;padding:10px 12px;max-height:200px;overflow-y:auto;margin-bottom:14px">
+    <div style="font-size:10px;color:var(--m);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">O'yin daqiqalari</div>
+    ${events}
+  </div>
+  ` : ''}
+
+  <div style="display:flex;gap:8px">
+    <button onclick="document.getElementById('match-result').remove();FIKRA.openFootballMatch()" style="flex:1;padding:11px;background:var(--acc);color:#fff;border:none;border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">Yana o'ynash</button>
+    <button onclick="document.getElementById('match-result').remove()" style="flex:1;padding:11px;background:var(--s3);color:var(--txt);border:1px solid var(--f);border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">Yopish</button>
+  </div>
+</div>`;
+
+    document.body.appendChild(overlay);
+    hapticNotify(r.result === 'win' ? 'success' : (r.result === 'loss' ? 'error' : 'warning'));
+  }
+
   async function ngBuyCar(carModel) {
     const car = _newGamesCatalog.cars.find(c => c.id === carModel);
     const ok = await uiConfirm(`${car.name} ni ${car.basePrice.toLocaleString()} token ga sotib olish?`, { title: 'Mashina harid', okLabel: 'Sotib olish' });
@@ -3150,8 +3315,9 @@ ${items.map(it => {
     openMusicPlayer, closeMusicPlayer, playTrack, togglePlay, setMusicVolume,
     openTournament,
     openNewGame, startFootballClub, ngTab,
-    ngBuyCar, ngBuyOutfit, ngTuning, ngUpgradePlayer, ngDesignOutfit,
+    ngBuyCar, ngBuyOutfit, ngTuning, ngUpgradePlayer, ngDesignOutfit, ngPaintCar,
     ngListItem, ngBuyFromMarket,
+    openFootballMatch,
     showStroopResult, stroopWatchAd, stroopRetry, stroopExit,
   };
 

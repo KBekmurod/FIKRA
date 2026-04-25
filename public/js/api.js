@@ -223,6 +223,8 @@ const API = {
     apiRequest('/api/newgames/fashion/design', { method: 'POST', body: { outfitId, updates } }),
   upgradePlayer: (playerId, stat) =>
     apiRequest('/api/newgames/football/upgrade', { method: 'POST', body: { playerId, stat } }),
+  footballMatch: (betAmount) =>
+    apiRequest('/api/newgames/football/match', { method: 'POST', body: { betAmount } }),
   getMarket: (gameType) =>
     apiRequest(`/api/newgames/market?gameType=${gameType || ''}`),
   listItem: (itemId, priceTokens) =>

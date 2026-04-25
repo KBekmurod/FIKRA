@@ -118,6 +118,16 @@ router.post('/football/upgrade', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /api/newgames/football/match — bot bilan o'yin
+router.post('/football/match', authMiddleware, async (req, res, next) => {
+  try {
+    const { betAmount } = req.body;
+    const sim = require('../services/footballSimulator');
+    const result = await sim.playMatchVsBot(req.user, parseInt(betAmount) || 100);
+    res.json({ success: true, ...result });
+  } catch (err) { next(err); }
+});
+
 // ─── BOZOR ───────────────────────────────────────────────────────────────────
 
 // GET /api/newgames/market?gameType=auto
