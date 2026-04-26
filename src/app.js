@@ -81,7 +81,19 @@ const { startSubscriptionCron } = require('./services/subscriptionCron');
 startSubscriptionCron();
 
 // ─── Health ───────────────────────────────────────────────────────────────────
-app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
+app.get('/health', (req, res) => {
+  const { isConnected } = require('./utils/db');
+  res.json({
+    status: 'ok',
+    ts: Date.now(),
+    db: isConnected() ? 'connected' : 'disconnected',
+    env: {
+      hasMongoUri: !!process.env.MONGODB_URI,
+      hasBotToken: !!process.env.BOT_TOKEN,
+      hasJwtSecret: !!process.env.JWT_SECRET,
+    },
+  });
+});
 
 // ─── Client config (public keys only) ────────────────────────────────────────
 app.get('/api/config', (req, res) => {
@@ -105,10 +117,23 @@ app.get('*', (req, res) => {
 app.use(errorHandler);
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-async function start() {
-  await connectDB();
-  app.listen(PORT, () => logger.info(`FIKRA server started on port ${PORT}`));
-}
+// MUHIM: server avval listen qiladi (Railway port detection uchun),
+// keyin DB ga ulanishga urinadi. DB xato bersa ham server ishlaydi.
+const server = app.listen(PORT, '0.0.0.0', () => {
+  logger.info(`✅ FIKRA server ${PORT} portda ishlamoqda`);
+});
 
-start().catch(err => { logger.error('Start error:', err); process.exit(1); });
-module.exports = app;
+// DB ga fonda ulanish — xato bersa ham server o'lmaydi
+connectDB().then(ok => {
+  if (!ok) {
+    logger.warn('⚠️  Server DB siz ishlamoqda. UI faqat ma\'lumotsiz ishlaydi.');
+  }
+}).catch(err => {
+  logger.error('DB initial connect error:', err.message);
+});
+
+// Crash bo'lsa ham bilamiz
+process.on('uncaughtException',  err => logger.error('Uncaught:', err));
+process.on('unhandledRejection', err => logger.error('UnhandledRejection:', err));
+
+module.exports = server;
