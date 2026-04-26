@@ -34,35 +34,56 @@
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
   async function login() {
-    const initData = tg?.initData || '';
-    const initUser = tg?.initDataUnsafe?.user;
-    const tid = initUser?.id || null;
-    const ref = new URLSearchParams(window.location.search).get('ref') || tg?.initDataUnsafe?.start_param || null;
-    window._loadSavedTokens(tid);
-    const owner = window.getTokenOwner();
-    if (owner && owner === tid) {
-      try {
-        const me = await API.me();
-        if (me && me.telegramId === tid) { user = me; _syncUser(); return; }
-      } catch { window.clearTokens(); }
-    } else if (owner && owner !== tid) { window.clearTokens(); }
-    if (!initData || !tid) {
-      user = { firstName:'Mehmon', plan:'free', streakDays:0, aiUsage:{},
-        aiLimits:{hints:5,chats:0,docs:0,images:0,calories:0,games:3}, _demo:true };
-      _syncUser(); return;
-    }
     try {
+      const initData = tg?.initData || '';
+      const initUser = tg?.initDataUnsafe?.user;
+      const tid = initUser?.id || null;
+      const ref = new URLSearchParams(window.location.search).get('ref')
+        || tg?.initDataUnsafe?.start_param || null;
+
+      // Saqlangan tokenni yuklaymiz
+      try { window._loadSavedTokens && window._loadSavedTokens(tid); } catch {}
+
+      // Avvalgi sessiya bor — tez kirish
+      const owner = window.getTokenOwner && window.getTokenOwner();
+      if (owner && owner === tid) {
+        try {
+          const me = await API.me();
+          if (me && me.telegramId === tid) { user = me; _syncUser(); return; }
+        } catch { try { window.clearTokens && window.clearTokens(); } catch {} }
+      } else if (owner && owner !== tid) {
+        try { window.clearTokens && window.clearTokens(); } catch {}
+      }
+
+      // Telegram initData yo'q — demo rejim (brauzerda test uchun)
+      if (!initData || !tid) {
+        user = { firstName:'Demo', plan:'free', streakDays:1, xp:50, aiUsage:{},
+          aiLimits:{hints:5,chats:0,docs:0,images:0,calories:0,games:3}, _demo:true };
+        _syncUser(); return;
+      }
+
+      // Yangi login
       const res = await API.login(initData, ref);
       if (res?.user) {
-        if (res.user.telegramId !== tid) throw new Error('ID mismatch');
-        window.setTokens(res.accessToken, res.refreshToken, tid);
+        window.setTokens && window.setTokens(res.accessToken, res.refreshToken, tid);
         user = res.user; _syncUser();
+      } else {
+        throw new Error('Login response invalid');
       }
     } catch(e) {
-      console.error('[Auth]', e.message);
-      user = { firstName: initUser?.first_name||'Xatolik', plan:'free',
-        aiUsage:{}, aiLimits:{hints:5,chats:0,docs:0,images:0,calories:0,games:3} };
-      _syncUser();
+      console.warn('[FIKRA] Login xato:', e.message);
+      // Server bilan bog'lanib bo'lmasa ham UI ko'rsatamiz
+      if (!user) {
+        const initUser = tg?.initDataUnsafe?.user;
+        user = {
+          firstName: initUser?.first_name || 'Abituriyent',
+          username: initUser?.username || '',
+          plan: 'free', streakDays: 0, xp: 0,
+          aiUsage: {}, aiLimits: { hints:5, chats:0, docs:0, images:0, calories:0, games:3 },
+          _serverError: true,
+        };
+        _syncUser();
+      }
     }
   }
 
@@ -1102,10 +1123,26 @@
   };
 
   // ─── BOOTSTRAP ────────────────────────────────────────────────────────────
-  try { await Promise.race([login(), new Promise(r=>setTimeout(r,3000))]); } catch(e) { console.warn('Login:',e); }
+  try {
+    await Promise.race([login(), new Promise(r=>setTimeout(r,3000))]);
+  } catch(e) {
+    console.warn('[FIKRA] Login xato:', e);
+    // Login xato bo'lsa ham demo user bilan davom etamiz
+    if (!user) {
+      user = { firstName:'Mehmon', plan:'free', streakDays:0, aiUsage:{},
+        aiLimits:{hints:5,chats:0,docs:0,images:0,calories:0,games:3}, _demo:true };
+    }
+  }
   const lel=document.getElementById('loading');
   if (lel) { lel.style.opacity='0'; lel.style.transition='opacity .3s'; setTimeout(()=>lel.remove(),350); }
-  buildUI();
+  try {
+    buildUI();
+  } catch(e) {
+    console.error('[FIKRA] buildUI xato:', e);
+    // Fallback: kamida loading ni olib tashlaymiz
+    const app=document.getElementById('app');
+    if (app) app.innerHTML='<div style="padding:30px;text-align:center;color:#eeeaff"><div style="font-size:48px;margin-bottom:16px">⚠️</div><div style="font-size:14px">Yuklashda xato. Ilovani qayta oching.</div><div style="font-size:11px;color:rgba(238,234,255,.4);margin-top:8px">'+e.message+'</div></div>';
+  }
   setInterval(verifyAuth,30000);
   document.addEventListener('keydown',e=>{ if(e.key!=='Escape')return; const ovs=document.getElementsByClassName('ov'); if(ovs.length)ovs[ovs.length-1].remove(); });
   if ('serviceWorker' in navigator&&location.protocol==='https:') {

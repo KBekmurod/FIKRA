@@ -172,7 +172,11 @@ html, body {
 #sa-chat.active,
 #sa-doc.active,
 #sa-image.active,
-#sa-kal.active {
+#sa-kal.active,
+#sg-chat.active,
+#sg-doc.active,
+#sg-img.active,
+#sg-kal.active {
   position: absolute;
   top: 60px; /* status bar + header */
   left: 0; right: 0; bottom: 60px; /* bottom nav uchun */
@@ -196,7 +200,11 @@ html, body {
 body:has(#sa-chat.active) .scroll,
 body:has(#sa-doc.active) .scroll,
 body:has(#sa-image.active) .scroll,
-body:has(#sa-kal.active) .scroll {
+body:has(#sa-kal.active) .scroll,
+body:has(#sg-chat.active) .scroll,
+body:has(#sg-doc.active) .scroll,
+body:has(#sg-img.active) .scroll,
+body:has(#sg-kal.active) .scroll {
   overflow: hidden !important;
 }
 
