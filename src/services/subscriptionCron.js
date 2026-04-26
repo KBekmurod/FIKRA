@@ -54,7 +54,7 @@ function startSubscriptionCron() {
       // 1. Muddati tugagan obunalarni free ga o'tkazish
       const expiredResult = await User.updateMany(
         {
-          plan: { $ne: 'free' },
+          plan: { $in: ['basic', 'pro', 'vip'] },
           planExpiresAt: { $lt: now },
         },
         {
@@ -71,6 +71,7 @@ function startSubscriptionCron() {
       const fourDaysAgo = new Date(now.getTime() - 4 * 86400000);
       const winBackUsers = await User.find({
         plan: 'free',
+        isActive: true,
         planExpiresAt: { $gte: fourDaysAgo, $lt: threeDaysAgo },
       }).select('telegramId firstName').limit(100);
 

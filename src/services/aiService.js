@@ -1,7 +1,7 @@
-const axios  = require('axios');
+const axios = require('axios');
 const { logger } = require('../utils/logger');
 
-// ─── Lazy clients — server key bo'lmasa ham crash bo'lmaydi ──────────────────
+// ─── Lazy DeepSeek client ──────────────────────────────────────────────────
 let _deepseek = null;
 function deepseek() {
   if (!_deepseek) {
@@ -16,7 +16,7 @@ function deepseek() {
   return _deepseek;
 }
 
-// ─── AI Chat stream ───────────────────────────────────────────────────────────
+// ─── AI Chat (SSE stream) ──────────────────────────────────────────────────
 async function streamChat(messages, res) {
   const stream = await deepseek().chat.completions.create({
     model: 'deepseek-chat',
@@ -36,12 +36,12 @@ async function streamChat(messages, res) {
   res.end();
 }
 
-// ─── Hujjat yaratish ──────────────────────────────────────────────────────────
+// ─── Hujjat yaratish ───────────────────────────────────────────────────────
 async function generateDocument(prompt, format, history = []) {
   const res = await deepseek().chat.completions.create({
     model: 'deepseek-chat',
     messages: [
-      { role: 'system', content: `Sen hujjat yaratish AI yordamchisisisan. ${format} formatida, markdown da, o'zbek tilida yoz.` },
+      { role: 'system', content: `Sen hujjat yaratish AI yordamchisisan. ${format} formatida, markdown da, o'zbek tilida yoz.` },
       ...history.slice(-10),
       { role: 'user', content: prompt },
     ],
@@ -50,20 +50,44 @@ async function generateDocument(prompt, format, history = []) {
   return res.choices[0].message.content;
 }
 
-// ─── Test AI hint ─────────────────────────────────────────────────────────────
+// ─── DTM test: maslahat (to'g'ri javob ochilmaydi) ─────────────────────────
 async function getTestHint(question, options, subject) {
+  const optsText = options.map((o, i) => `${['A','B','C','D'][i]}) ${o}`).join('\n');
   const res = await deepseek().chat.completions.create({
     model: 'deepseek-chat',
     messages: [{
       role: 'user',
-      content: `DTM ${subject} savoli: "${question}"\nVariantlar: ${options.map((o,i)=>`${['A','B','C','D'][i]}) ${o}`).join(', ')}\n\nTo'g'ri javobni ko'rsatmasdan, 2-3 jumlada maslahat ber (o'zbek tilida).`,
+      content: `DTM ${subject} fanidan savol:\n\n${question}\n\nVariantlar:\n${optsText}\n\nTo'g'ri javobni aytmasdan, abituriyent o'zi topishi uchun 2-3 jumlada yo'l ko'rsat (o'zbek tilida). Mavzuni esga sol, lekin javobni ochib yuborma.`,
     }],
-    max_tokens: 200,
+    max_tokens: 250,
+    temperature: 0.5,
   });
   return res.choices[0].message.content;
 }
 
-// ─── Rasm yaratish ────────────────────────────────────────────────────────────
+// ─── DTM test: to'liq tushuntirish (savol yechilgandan keyin) ─────────────
+// Bu loyihaning markaziy AI funksiyasi — abituriyent xato qilsa,
+// joyida AI orqali mavzuni tushunib olishi mumkin
+async function explainTestQuestion(question, options, subject) {
+  const optsText = options.map((o, i) => `${['A','B','C','D'][i]}) ${o}`).join('\n');
+  const res = await deepseek().chat.completions.create({
+    model: 'deepseek-chat',
+    messages: [{
+      role: 'system',
+      content: `Sen FIKRA — abituriyentlarga DTM testlariga tayyorlovchi AI o'qituvchisan.
+Vazifang: savolning mohiyatini, qoidalarni va to'g'ri yechim yo'lini O'ZBEK tilida, sodda va aniq tushuntirib berish.
+Tushuntirish 4-7 jumla, ortiqcha gap yo'q. Markdown ishlatma. Asosiy qoida nomini bold qilma — oddiy matn.`
+    }, {
+      role: 'user',
+      content: `${subject ? subject.toUpperCase() + ' fanidan' : ''} savol:\n\n"${question}"\n\nVariantlar:\n${optsText}\n\nTo'g'ri javobni va NIMA UCHUN aynan shu javob to'g'riligini batafsil tushuntir. Boshqa variantlarning xatosini ham qisqa ko'rsat.`,
+    }],
+    max_tokens: 500,
+    temperature: 0.4,
+  });
+  return res.choices[0].message.content;
+}
+
+// ─── Rasm yaratish (Gemini 2.0 Flash Exp) ──────────────────────────────────
 async function generateImage(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key || key === 'placeholder') throw new Error('GEMINI_API_KEY sozlanmagan');
@@ -78,7 +102,7 @@ async function generateImage(prompt) {
   return { base64: img.inlineData.data, mimeType: img.inlineData.mimeType };
 }
 
-// ─── Kaloriya tahlili ─────────────────────────────────────────────────────────
+// ─── Kaloriya tahlili (Gemini 2.5 Flash vision) ────────────────────────────
 async function analyzeCalorie(imageBase64, mimeType = 'image/jpeg') {
   const key = process.env.GEMINI_API_KEY;
   if (!key || key === 'placeholder') throw new Error('GEMINI_API_KEY sozlanmagan');
@@ -97,27 +121,11 @@ async function analyzeCalorie(imageBase64, mimeType = 'image/jpeg') {
   return JSON.parse(match[0]);
 }
 
-// ─── Video ────────────────────────────────────────────────────────────────────
-async function generateVideo(prompt) {
-  const key = process.env.FAL_API_KEY;
-  if (!key || key === 'placeholder') throw new Error('FAL_API_KEY sozlanmagan');
-  const headers = { 'Authorization': `Key ${key}` };
-  const submit = await axios.post(
-    'https://queue.fal.run/fal-ai/kling-video/v2.1/standard/text-to-video',
-    { prompt, duration: '5', aspect_ratio: '9:16' },
-    { headers }
-  );
-  const reqId = submit.data.request_id;
-  for (let i = 0; i < 30; i++) {
-    await new Promise(r => setTimeout(r, 3000));
-    const s = await axios.get(`https://queue.fal.run/fal-ai/kling-video/requests/${reqId}/status`, { headers });
-    if (s.data.status === 'COMPLETED') {
-      const r = await axios.get(`https://queue.fal.run/fal-ai/kling-video/requests/${reqId}`, { headers });
-      return r.data?.video?.url || null;
-    }
-    if (s.data.status === 'FAILED') throw new Error('Video yaratishda xatolik');
-  }
-  throw new Error('Video yaratish vaqti tugadi');
-}
-
-module.exports = { streamChat, generateDocument, getTestHint, generateImage, analyzeCalorie, generateVideo };
+module.exports = {
+  streamChat,
+  generateDocument,
+  getTestHint,
+  explainTestQuestion,
+  generateImage,
+  analyzeCalorie,
+};

@@ -2,7 +2,6 @@
 // 8 darajali lavozim tizimi. XP ga qarab avtomatik oshadi.
 
 const User = require('../models/User');
-const TokenTransaction = require('../models/TokenTransaction');
 const { logger } = require('../utils/logger');
 
 // ─── Lavozimlar ro'yxati ─────────────────────────────────────────────────────
@@ -80,8 +79,9 @@ async function addXp(userId, telegramId, amount, source, meta = {}) {
   let multiplier = 1;
   if (userBefore.streakDays >= 30) multiplier = 3;
   else if (userBefore.streakDays >= 7) multiplier = 2;
-  if (userBefore.plan === 'pro') multiplier *= 1.5;
-  else if (userBefore.plan === 'basic') multiplier *= 1.25;
+  // Plan multiplier
+  if (userBefore.effectivePlan && ['pro','vip'].includes(userBefore.effectivePlan())) multiplier *= 1.5;
+  else if (userBefore.effectivePlan && userBefore.effectivePlan() === 'basic') multiplier *= 1.25;
 
   const finalXp = Math.round(amount * multiplier);
   const xpBefore = userBefore.xp || 0;
@@ -110,22 +110,6 @@ async function addXp(userId, telegramId, amount, source, meta = {}) {
     ).catch(() => {});
   } catch (e) {
     // Tournament model hali yo'q bo'lsa — o'tkazib yuboramiz
-  }
-
-  // Tarixga yozish
-  try {
-    await TokenTransaction.create({
-      userId,
-      telegramId,
-      amount: 0, // Token emas, faqat XP
-      type: 'xp',
-      source: 'xp_' + source,
-      balanceBefore: xpBefore,
-      balanceAfter: xpAfter,
-      meta: { ...meta, xp: finalXp, baseXp: amount, multiplier, levelUp },
-    });
-  } catch (e) {
-    logger.warn('XP tarix yozilmadi:', e.message);
   }
 
   logger.info(`XP added: user=${telegramId} +${finalXp}xp (base ${amount} x${multiplier}) source=${source}${levelUp ? ' LEVEL UP to ' + rankAfter.id : ''}`);

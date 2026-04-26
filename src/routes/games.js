@@ -1,69 +1,63 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware } = require('../middleware/auth');
-const { earnTokens } = require('../services/tokenService');
+const { authMiddleware, requireAiAccess, incrementAiUsage } = require('../middleware/auth');
 const { addXp } = require('../services/rankService');
 const GameSession = require('../models/GameSession');
 const TestQuestion = require('../models/TestQuestion');
 const User = require('../models/User');
 
 // ─── STROOP ───────────────────────────────────────────────────────────────────
+// Free: kuniga 3 partiya, obuna bilan cheksiz
+router.post('/stroop/result',
+  authMiddleware,
+  requireAiAccess('games'),
+  async (req, res, next) => {
+    try {
+      const { gameType, score, correctAnswers, wrongAnswers, durationSec } = req.body;
+      const user = req.user;
 
-// POST /api/games/stroop/result
-router.post('/stroop/result', authMiddleware, async (req, res, next) => {
-  try {
-    const { gameType, score, correctAnswers, wrongAnswers, durationSec } = req.body;
-    const user = req.user;
+      if (!['stroop-color', 'stroop-tf'].includes(gameType)) {
+        return res.status(400).json({ error: 'Yaroqsiz o\'yin turi' });
+      }
 
-    if (!['stroop-color', 'stroop-tf'].includes(gameType)) {
-      return res.status(400).json({ error: 'Yaroqsiz o\'yin turi' });
-    }
+      // XP: ball/10, min 10, max 50
+      const xpEarned = Math.max(10, Math.min(Math.floor((score || 0) / 10), 50));
 
-    // Token hisoblash: har 10 ball = 1 token, max 20t
-    const tokensEarned = Math.min(Math.floor((score || 0) / 10), 20);
+      const session = await GameSession.create({
+        userId: user._id,
+        telegramId: user.telegramId,
+        gameType,
+        score,
+        correctAnswers,
+        wrongAnswers,
+        durationSec,
+        tokensEarned: 0, // tokensiz
+      });
 
-    // XP: ball/10, min 10, max 50
-    const xpEarned = Math.max(10, Math.min(Math.floor((score || 0) / 10), 50));
+      await User.findByIdAndUpdate(user._id, { $inc: { totalGamesPlayed: 1 } });
+      await incrementAiUsage(user._id, 'games');
 
-    const session = await GameSession.create({
-      userId: user._id,
-      telegramId: user.telegramId,
-      gameType,
-      score,
-      correctAnswers,
-      wrongAnswers,
-      durationSec,
-      tokensEarned,
-    });
+      const xpResult = await addXp(user._id, user.telegramId, xpEarned, 'stroop',
+        { gameType, score });
 
-    await User.findByIdAndUpdate(user._id, { $inc: { totalGamesPlayed: 1 } });
+      res.json({
+        success: true,
+        sessionId: session._id,
+        xp: xpResult ? {
+          added: xpResult.xpAdded,
+          total: xpResult.xpAfter,
+          levelUp: xpResult.levelUp,
+          newRank: xpResult.levelUp ? xpResult.rankAfter : null,
+        } : null,
+      });
+    } catch (err) { next(err); }
+  }
+);
 
-    let newBalance = user.tokens;
-    if (tokensEarned > 0) {
-      newBalance = await earnTokens(
-        user._id, user.telegramId, tokensEarned,
-        `game_stroop`, 'earn', { gameType, score }
-      );
-    }
+// ─── DTM TEST — bu loyihaning markazi ─────────────────────────────────────
+// Cheksiz — har kim, har vaqt yechishi mumkin
 
-    // XP qo'shish — rank oshishi ham qaytariladi
-    const xpResult = await addXp(user._id, user.telegramId, xpEarned, 'stroop', { gameType, score });
-
-    res.json({
-      success: true, tokensEarned, newBalance, sessionId: session._id,
-      xp: xpResult ? {
-        added: xpResult.xpAdded,
-        total: xpResult.xpAfter,
-        levelUp: xpResult.levelUp,
-        newRank: xpResult.levelUp ? xpResult.rankAfter : null,
-      } : null,
-    });
-  } catch (err) { next(err); }
-});
-
-// ─── TEST ─────────────────────────────────────────────────────────────────────
-
-// GET /api/games/test/questions?subject=math&limit=10
+// GET /api/games/test/questions?subject=math&block=majburiy&limit=10
 router.get('/test/questions', authMiddleware, async (req, res, next) => {
   try {
     const { subject, block, limit = 10 } = req.query;
@@ -71,30 +65,37 @@ router.get('/test/questions', authMiddleware, async (req, res, next) => {
     if (subject) query.subject = subject;
     if (block) query.block = block;
 
-    // Tasodifiy savollar
+    const lim = Math.min(Math.max(parseInt(limit) || 10, 1), 30);
+
     const questions = await TestQuestion.aggregate([
       { $match: query },
-      { $sample: { size: parseInt(limit) } },
-      { $project: { question: 1, options: 1, subject: 1, block: 1 } }, // answer yo'q!
+      { $sample: { size: lim } },
+      { $project: { question: 1, options: 1, subject: 1, block: 1 } }, // answer YASHIRIN
     ]);
 
     res.json(questions);
   } catch (err) { next(err); }
 });
 
-// POST /api/games/test/check-answer — bir savol javobini tekshirish
+// POST /api/games/test/check-answer
 router.post('/test/check-answer', authMiddleware, async (req, res, next) => {
   try {
     const { questionId, selectedIndex } = req.body;
-    const q = await TestQuestion.findById(questionId).select('answer explanation');
+    const q = await TestQuestion.findById(questionId).select('answer explanation question options subject');
     if (!q) return res.status(404).json({ error: 'Savol topilmadi' });
 
     const isCorrect = q.answer === selectedIndex;
-    res.json({ isCorrect, correctIndex: q.answer, explanation: q.explanation });
+    res.json({
+      isCorrect,
+      correctIndex: q.answer,
+      explanation: q.explanation,
+      // AI tugmasi bosilsa kerak bo'ladi:
+      questionContext: { question: q.question, options: q.options, subject: q.subject },
+    });
   } catch (err) { next(err); }
 });
 
-// POST /api/games/test/result — test tugagach natija saqlash
+// POST /api/games/test/result — test tugagach natija
 router.post('/test/result', authMiddleware, async (req, res, next) => {
   try {
     const {
@@ -103,12 +104,9 @@ router.post('/test/result', authMiddleware, async (req, res, next) => {
     } = req.body;
     const user = req.user;
 
-    // Token: har to'g'ri javob = 2t, max 30t
-    const tokensEarned = Math.min(correctCount * 2, 30);
-
     // XP: majburiy = correctCount×3, mutaxassislik = correctCount×4
     const xpPerCorrect = gameType === 'test-mut' ? 4 : 3;
-    const xpEarned = Math.max(20, correctCount * xpPerCorrect);
+    const xpEarned = Math.max(20, (correctCount || 0) * xpPerCorrect);
 
     await GameSession.create({
       userId: user._id,
@@ -120,23 +118,16 @@ router.post('/test/result', authMiddleware, async (req, res, next) => {
       maxBall,
       correctCount,
       totalQuestions,
-      tokensEarned,
+      tokensEarned: 0,
     });
 
     await User.findByIdAndUpdate(user._id, { $inc: { totalGamesPlayed: 1 } });
 
-    let newBalance = user.tokens;
-    if (tokensEarned > 0) {
-      newBalance = await earnTokens(
-        user._id, user.telegramId, tokensEarned,
-        'game_test', 'earn', { subject, ballAmount }
-      );
-    }
-
-    const xpResult = await addXp(user._id, user.telegramId, xpEarned, 'test', { gameType, correctCount });
+    const xpResult = await addXp(user._id, user.telegramId, xpEarned, 'test',
+      { gameType, correctCount });
 
     res.json({
-      success: true, tokensEarned, newBalance,
+      success: true,
       xp: xpResult ? {
         added: xpResult.xpAdded,
         total: xpResult.xpAfter,
@@ -147,9 +138,7 @@ router.post('/test/result', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── LEADERBOARD ──────────────────────────────────────────────────────────────
-
-// GET /api/games/leaderboard/:type?period=today|week|all
+// ─── LEADERBOARD ──────────────────────────────────────────────────────────
 router.get('/leaderboard/:type', async (req, res, next) => {
   try {
     const { type } = req.params;
@@ -160,14 +149,12 @@ router.get('/leaderboard/:type', async (req, res, next) => {
       return res.status(400).json({ error: 'Yaroqsiz reyting turi' });
     }
 
-    // XP leaderboard — alohida, User collection dan
     if (type === 'xp') {
       const { getTopByXp } = require('../services/rankService');
       const results = await getTopByXp(50);
       return res.json(results);
     }
 
-    // Vaqt filtri
     const dateFilter = {};
     if (period === 'today') {
       dateFilter.createdAt = { $gte: new Date(new Date().setHours(0, 0, 0, 0)) };
@@ -178,9 +165,7 @@ router.get('/leaderboard/:type', async (req, res, next) => {
     }
 
     let pipeline;
-
     if (type === 'stroop-avg') {
-      // Stroop o'rtachasi: ikkala turni birlashtirish
       pipeline = [
         { $match: { gameType: { $in: ['stroop-color', 'stroop-tf'] }, ...dateFilter } },
         { $group: { _id: '$telegramId', avgScore: { $avg: '$score' }, gamesPlayed: { $sum: 1 } } },
@@ -188,32 +173,27 @@ router.get('/leaderboard/:type', async (req, res, next) => {
         { $limit: 50 },
         { $lookup: { from: 'users', localField: '_id', foreignField: 'telegramId', as: 'user' } },
         { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-        {
-          $project: {
-            telegramId: '$_id',
-            score: { $round: ['$avgScore', 0] },
-            gamesPlayed: 1,
-            username: { $ifNull: ['$user.firstName', 'Anonim'] },
-          }
-        },
+        { $project: {
+          telegramId: '$_id',
+          score: { $round: ['$avgScore', 0] },
+          gamesPlayed: 1,
+          username: { $ifNull: ['$user.firstName', 'Anonim'] },
+        } },
       ];
     } else if (type.startsWith('test-')) {
-      const block = type === 'test-maj' ? 'majburiy' : 'mutaxassislik';
       pipeline = [
-        { $match: { gameType: type.replace('test-', 'test-'), ...dateFilter } },
+        { $match: { gameType: type, ...dateFilter } },
         { $sort: { ballAmount: -1 } },
         { $group: { _id: '$telegramId', bestBall: { $max: '$ballAmount' } } },
         { $sort: { bestBall: -1 } },
         { $limit: 50 },
         { $lookup: { from: 'users', localField: '_id', foreignField: 'telegramId', as: 'user' } },
         { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-        {
-          $project: {
-            telegramId: '$_id',
-            score: { $round: ['$bestBall', 1] },
-            username: { $ifNull: ['$user.firstName', 'Anonim'] },
-          }
-        },
+        { $project: {
+          telegramId: '$_id',
+          score: { $round: ['$bestBall', 1] },
+          username: { $ifNull: ['$user.firstName', 'Anonim'] },
+        } },
       ];
     } else {
       pipeline = [
@@ -224,13 +204,11 @@ router.get('/leaderboard/:type', async (req, res, next) => {
         { $limit: 50 },
         { $lookup: { from: 'users', localField: '_id', foreignField: 'telegramId', as: 'user' } },
         { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-        {
-          $project: {
-            telegramId: '$_id',
-            score: '$bestScore',
-            username: { $ifNull: ['$user.firstName', 'Anonim'] },
-          }
-        },
+        { $project: {
+          telegramId: '$_id',
+          score: '$bestScore',
+          username: { $ifNull: ['$user.firstName', 'Anonim'] },
+        } },
       ];
     }
 

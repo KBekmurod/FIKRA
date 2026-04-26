@@ -1,7 +1,7 @@
 // ─── FIKRA Service Worker ────────────────────────────────────────────────────
 // Offline cache + PWA install
 
-const CACHE_VERSION = 'fikra-v1.0.0';
+const CACHE_VERSION = 'fikra-v2.0.0';
 const STATIC_CACHE = 'fikra-static-' + CACHE_VERSION;
 const API_CACHE = 'fikra-api-' + CACHE_VERSION;
 
@@ -21,6 +21,8 @@ const STATIC_FILES = [
   '/js/ai/doc.js',
   '/js/ai/image.js',
   '/js/ai/calorie.js',
+  '/js/binaural.js',
+  '/js/svg_illustrator.js',
   '/icons/icon.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',

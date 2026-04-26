@@ -1,3514 +1,1114 @@
-// ─── FIKRA Main App ───────────────────────────────────────────────────────────
+// ─── FIKRA v2.0 — Abituriyent platformasi ────────────────────────────────────
+// Token tizimi yo'q. Reklama yo'q. Video yo'q.
+// Asosiy: DTM Test + AI tushuntirish (har savol yonida 💡)
+// Obuna: Telegram Stars orqali to'g'ridan-to'g'ri.
 
 (async function () {
-  // ─── Telegram WebApp init ─────────────────────────────────────────────────
   const tg = window.Telegram?.WebApp;
-  if (tg) {
-    tg.ready();
-    tg.expand();
-    tg.setHeaderColor('#07070e');
-    tg.setBackgroundColor('#07070e');
-  }
+  if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#07070e'); tg.setBackgroundColor('#07070e'); }
 
-  // ─── State ────────────────────────────────────────────────────────────────
+  // ─── State ──────────────────────────────────────────────────────────────
   let user = null;
-  let tokens = 0;
   let activePanel = 'home';
-  let adsTimer = null;
-  let adsResolve = null;
-  let adsPendingTokens = 0;
 
-  // User obyektini ADS moduliga sinxronlash (obuna tekshiruvi uchun)
-  function _syncUserToWindow() {
-    window.user = user;
+  function _e(t) {
+    return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+  function _syncUser() { window.user = user; }
+  function haptic(s) { try { tg?.HapticFeedback?.impactOccurred(s||'light'); } catch {} }
+  function hapticN(t) { try { tg?.HapticFeedback?.notificationOccurred(t||'success'); } catch {} }
 
-  // Haptic feedback — Telegram ichida tugma bosganda tebranish
-  function hapticTap(style) {
-    // style: 'light', 'medium', 'heavy', 'rigid', 'soft'
-    try {
-      if (tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
-        tg.HapticFeedback.impactOccurred(style || 'light');
-      }
-    } catch {}
+  // ─── AI limit helpers ─────────────────────────────────────────────────────
+  function aiLimit(k) { return user?.aiLimits?.[k] ?? 0; }   // null = cheksiz
+  function aiUsed(k)  { return user?.aiUsage?.[k]  ?? 0; }
+  function canAi(k) {
+    const l = aiLimit(k);
+    return l === null ? true : l > 0 && aiUsed(k) < l;
   }
-  function hapticNotify(type) {
-    // type: 'error', 'success', 'warning'
-    try {
-      if (tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
-        tg.HapticFeedback.notificationOccurred(type || 'success');
-      }
-    } catch {}
+  function aiText(k) {
+    const l = aiLimit(k);
+    if (l === null) return 'Cheksiz';
+    if (l <= 0) return 'Obuna kerak';
+    return aiUsed(k) + '/' + l + ' bugun';
   }
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
   async function login() {
     const initData = tg?.initData || '';
     const initUser = tg?.initDataUnsafe?.user;
-    const currentTgId = initUser?.id || null;
-    const refCode = new URLSearchParams(window.location.search).get('ref') ||
-                    tg?.initDataUnsafe?.start_param || null;
-
-    // MUHIM: Saqlangan tokenlarni faqat joriy Telegram ID ga tegishli bo'lsa ishlat
-    window._loadSavedTokens(currentTgId);
-
-    // Saqlangan token bor va joriy foydalanuvchiga tegishli — tekshirish
-    const savedOwner = window.getTokenOwner();
-    if (savedOwner && savedOwner === currentTgId) {
+    const tid = initUser?.id || null;
+    const ref = new URLSearchParams(window.location.search).get('ref') || tg?.initDataUnsafe?.start_param || null;
+    window._loadSavedTokens(tid);
+    const owner = window.getTokenOwner();
+    if (owner && owner === tid) {
       try {
         const me = await API.me();
-        if (me && me.telegramId === currentTgId) {
-          user = me;
-          _syncUserToWindow();
-          tokens = me.tokens;
-          console.log('[Auth] Saved token valid');
-          return;
-        }
-      } catch (e) {
-        console.warn('[Auth] Saved token invalid:', e.code);
-        window.clearTokens();
-      }
-    } else if (savedOwner && savedOwner !== currentTgId) {
-      // Boshqa foydalanuvchi tokeni — darhol o'chir
-      console.warn('[Auth] Different user detected, clearing tokens');
-      window.clearTokens();
+        if (me && me.telegramId === tid) { user = me; _syncUser(); return; }
+      } catch { window.clearTokens(); }
+    } else if (owner && owner !== tid) { window.clearTokens(); }
+    if (!initData || !tid) {
+      user = { firstName:'Mehmon', plan:'free', streakDays:0, aiUsage:{},
+        aiLimits:{hints:5,chats:0,docs:0,images:0,calories:0,games:3}, _demo:true };
+      _syncUser(); return;
     }
-
-    // Brauzerdan kirgan (Telegram WebApp emas) — demo rejim, lekin JWT bermaymiz
-    if (!initData || !currentTgId) {
-      console.log('[Auth] Brauzer rejimi (Telegram tashqarida)');
-      tokens = 0;
-      user = { firstName: 'Mehmon', username: 'guest', tokens: 0, streakDays: 0, _demo: true };
-      _syncUserToWindow();
-      return;
-    }
-
-    // Haqiqiy Telegram login — initData server da HMAC bilan tekshiriladi
     try {
-      const res = await API.login(initData, refCode);
-      if (res && res.user) {
-        // Serverdan qaytgan user ID joriy Telegram ID ga mos kelishi shart
-        if (res.user.telegramId !== currentTgId) {
-          console.error('[Auth] User ID mismatch!', res.user.telegramId, currentTgId);
-          throw new Error('Identifikatsiya xatoligi');
-        }
-        setTokens(res.accessToken, res.refreshToken, currentTgId);
-        user = res.user;
-        _syncUserToWindow();
-        tokens = res.user.tokens;
-        console.log('[Auth] Logged in as:', user.firstName, 'tgId:', currentTgId);
+      const res = await API.login(initData, ref);
+      if (res?.user) {
+        if (res.user.telegramId !== tid) throw new Error('ID mismatch');
+        window.setTokens(res.accessToken, res.refreshToken, tid);
+        user = res.user; _syncUser();
       }
-    } catch (e) {
-      console.error('[Auth] Login failed:', e.message);
-      // Brauzer-like demo rejimga tushmaymiz, chunki Telegram ichidamiz
-      tokens = 0;
-      user = { firstName: initUser?.first_name || 'Xatolik', username: initUser?.username || '', tokens: 0, streakDays: 0, _authError: e.message };
-      showToast && showToast('Kirish xatoligi: ' + e.message);
+    } catch(e) {
+      console.error('[Auth]', e.message);
+      user = { firstName: initUser?.first_name||'Xatolik', plan:'free',
+        aiUsage:{}, aiLimits:{hints:5,chats:0,docs:0,images:0,calories:0,games:3} };
+      _syncUser();
     }
   }
 
-  // Ilova boshqa hisobga o'tganligini aniqlash — har 30s bir tekshiramiz
   async function verifyAuth() {
     if (!user || user._demo) return;
-    const currentTgId = tg?.initDataUnsafe?.user?.id;
-    if (!currentTgId) return;
-    if (user.telegramId && user.telegramId !== currentTgId) {
-      console.warn('[Auth] Telegram account switched! Re-login required');
-      window.clearTokens();
-      await login();
-      buildUI(); // UI ni qayta qur
-    }
+    const tid = tg?.initDataUnsafe?.user?.id;
+    if (!tid || user.telegramId === tid) return;
+    window.clearTokens(); await login(); buildUI();
   }
 
-  // ─── Build UI ─────────────────────────────────────────────────────────────
+  function plan() {
+    if (!user) return 'free';
+    if (user.plan !== 'free' && user.planExpiresAt && new Date(user.planExpiresAt) <= new Date()) return 'free';
+    return user.effectivePlan || user.plan || 'free';
+  }
+  function isSub() { return plan() !== 'free'; }
+  function planBadge(p) { return {free:'',basic:'⭐ Basic',pro:'✨ Pro',vip:'💎 VIP'}[p]||''; }
+
+  // ─── Limit modal ──────────────────────────────────────────────────────────
+  function limitModal(k) {
+    const msgs = {
+      hints: 'Bugungi AI tushuntirish (5/5) tugadi.\nBasic obuna — cheksiz AI tushuntirish.',
+      chats: 'AI Chat Basic obunada ochiladi (50/kun).',
+      docs:  'AI Hujjat Pro obunada ochiladi (10/kun).',
+      images:'AI Rasm Pro obunada ochiladi (20/kun).',
+      calories:'Kaloriya AI VIP obunada ochiladi.',
+      games: 'Kunlik o\'yin limiti tugadi. Ertaga yoki obuna oling.',
+    };
+    uiConfirm(msgs[k]||'Bu xizmat obuna talab qiladi.', {ok:"Obuna ko'rish ⭐",cancel:'Keyinroq'})
+      .then(ok => { if (ok) openSubs(); });
+  }
+
+  // ─── BUILD UI ─────────────────────────────────────────────────────────────
   function buildUI() {
     document.getElementById('app').innerHTML = `
 <div class="main-wrap" id="main">
   <div class="status-bar">
-    <span class="status-time" id="clock"></span>
-    <div class="status-tokens" id="tok-pill" onclick="FIKRA.showAdsModal(5,'bonus')">
-      <div class="tok-dot"></div>
-      <span id="tok-val">${tokens.toLocaleString()}</span>
+    <span id="clock" class="status-time"></span>
+    <div class="status-plan" onclick="FIKRA.openSubs()">
+      ${isSub()
+        ? `<span style="color:var(--y);font-weight:700;font-size:10px">${planBadge(plan())}</span>`
+        : `<span style="font-size:10px;color:var(--m)">Bepul</span><span style="font-size:9px;color:var(--acc);margin-left:4px">Obuna ↗</span>`
+      }
     </div>
   </div>
-  <div class="app-header">
-    <div class="app-logo">FIKRA<span>.</span></div>
-  </div>
-
+  <div class="app-header"><div class="app-logo">FIKRA<span>.</span></div><div style="font-size:10px;color:var(--m);font-weight:600">DTM tayyorlik</div></div>
   <div class="scroll" id="scroll">
-    ${buildHome()}
-    ${buildGames()}
-    ${buildAI()}
-    ${buildProfile()}
+    ${buildHome()}${buildTest()}${buildGifts()}${buildProfile()}
   </div>
-
   <nav class="bottom-nav">
-    <button class="nav-item active" id="ni-home" onclick="FIKRA.switchPanel('home')">
-      <div class="nav-icon">⚡</div><div class="nav-label">Bosh</div>
-    </button>
-    <button class="nav-item" id="ni-games" onclick="FIKRA.switchPanel('games')">
-      <div class="nav-icon">🎮</div><div class="nav-label">O'yinlar</div>
-    </button>
-    <button class="nav-item" id="ni-ai" onclick="FIKRA.switchPanel('ai')">
-      <div class="nav-icon">🤖</div><div class="nav-label">AI</div>
-    </button>
-    <button class="nav-item" id="ni-profile" onclick="FIKRA.switchPanel('profile')">
-      <div class="nav-icon">👤</div><div class="nav-label">Profil</div>
-    </button>
+    <button class="nav-item active" id="ni-home"    onclick="FIKRA.sw('home')">   <div class="nav-icon">⚡</div><div class="nav-label">Bosh</div></button>
+    <button class="nav-item"        id="ni-test"    onclick="FIKRA.sw('test')">   <div class="nav-icon">📚</div><div class="nav-label">Test</div></button>
+    <button class="nav-item"        id="ni-gifts"   onclick="FIKRA.sw('gifts')">  <div class="nav-icon">🎁</div><div class="nav-label">Sovg'alar</div></button>
+    <button class="nav-item"        id="ni-profile" onclick="FIKRA.sw('profile')"><div class="nav-icon">👤</div><div class="nav-label">Profil</div></button>
   </nav>
 </div>
-
-<div id="toast"></div>
-
-<div id="ads-overlay">
-  <div class="ads-modal">
-    <div class="ads-modal-icon">📺</div>
-    <div class="ads-modal-title">Reklama</div>
-    <div class="ads-modal-sub" id="ads-sub">Ko'rib bo'lgach <strong>+5 token</strong></div>
-    <div class="ads-progress"><div class="ads-progress-fill" id="ads-fill"></div></div>
-    <div class="ads-skip" id="ads-skip">5 soniya...</div>
-  </div>
-</div>
-`;
-    updateClock();
-    setInterval(updateClock, 10000);
-    setTimeout(() => {
-      document.getElementById('main').classList.add('visible');
-    }, 50);
-    initGames();
+<div id="toast"></div>`;
+    updateClock(); setInterval(updateClock, 10000);
+    setTimeout(() => document.getElementById('main')?.classList.add('visible'), 40);
+    initApp();
   }
 
   function updateClock() {
-    const now = new Date();
-    const h = now.getHours().toString().padStart(2, '0');
-    const m = now.getMinutes().toString().padStart(2, '0');
-    const el = document.getElementById('clock');
-    if (el) el.textContent = `${h}:${m}`;
+    const n = new Date(), el = document.getElementById('clock');
+    if (el) el.textContent = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
   }
 
-  // ─── Panel builder helpers ────────────────────────────────────────────────
+  // ─── HOME PANEL ───────────────────────────────────────────────────────────
   function buildHome() {
+    const streak = user?.streakDays || 0;
+    const rankCur = user?.rank?.current;
     return `<div class="panel active" id="p-home">
-  <!-- SLIDER (obunasiz: reklama, obunali: musiqa/quotes) -->
-  <div style="overflow:hidden;position:relative;height:90px;margin-bottom:4px">
-    <div id="home-slides" style="display:flex;transition:transform .4s ease;height:90px">
-      <!-- Slide 1: Reklama banner -->
-      <div style="min-width:375px;height:90px;display:flex;align-items:center;padding:0 16px;background:linear-gradient(135deg,rgba(123,104,238,.1),rgba(0,212,170,.07));border-bottom:1px solid rgba(123,104,238,.1)">
-        <div style="width:40px;height:40px;background:var(--s2);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;margin-right:12px">🏪</div>
-        <div style="flex:1"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px">Texnomart — chegirmalar</div><div style="font-size:11px;color:var(--m)">Laptop va telefonlarda 30% chegirma</div></div>
-        <button class="btn btn-acc btn-sm" style="flex-shrink:0" onclick="FIKRA.showToast('Reklama ochildi')">Ko'rish</button>
+  <div style="margin:8px 14px 6px;background:linear-gradient(135deg,rgba(123,104,238,.12),rgba(0,212,170,.08));border:1px solid rgba(123,104,238,.2);border-radius:var(--br);padding:16px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="font-size:32px">🎓</div>
+      <div style="flex:1">
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px">Salom, ${_e(user?.firstName||'Abituriyent')}!</div>
+        <div style="font-size:11px;color:var(--m);margin-top:2px">${isSub() ? planBadge(plan())+' · AI imkoniyatlari ochiq' : 'Bugun '+aiText('hints')+' AI tushuntirish'}</div>
       </div>
-      <!-- Slide 2: Musiqa (Pro uchun) -->
-      <div style="min-width:375px;height:90px;display:flex;align-items:center;padding:0 16px;background:linear-gradient(135deg,rgba(0,212,170,.09),rgba(123,104,238,.09));border-bottom:1px solid rgba(0,212,170,.12)">
-        <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,var(--g),var(--acc));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;margin-right:12px">🧠</div>
-        <div style="flex:1;min-width:0"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px">Miya faolligi musiqasi</div><div style="font-size:11px;color:var(--m);line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Alpha · Binaural · Lofi · Focus</div></div>
-        <button id="home-music-btn" style="width:36px;height:36px;background:var(--g);border:none;border-radius:50%;font-size:14px;color:#000;cursor:pointer;flex-shrink:0;font-weight:700" onclick="FIKRA.openMusicPlayer()">▶</button>
-      </div>
-      <!-- Slide 3: Iqtibos -->
-      <div style="min-width:375px;height:90px;display:flex;align-items:center;padding:0 18px;border-bottom:1px solid var(--f)">
-        <div><div style="font-family:'Syne',sans-serif;font-size:24px;color:var(--acc);line-height:.8;margin-bottom:4px">"</div><div style="font-size:13px;font-weight:500;line-height:1.5">Muvaffaqiyat — bu har kuni bir oz yaxshilanishning natijasidir.</div><div style="font-size:11px;color:var(--m);margin-top:3px">— James Clear</div></div>
-      </div>
-    </div>
-    <div id="home-dots" style="display:flex;justify-content:center;gap:5px;position:absolute;bottom:6px;width:100%">
-      <div style="width:14px;height:4px;border-radius:2px;background:var(--acc);transition:all .3s"></div>
-      <div style="width:5px;height:4px;border-radius:50%;background:var(--f);transition:all .3s"></div>
-      <div style="width:5px;height:4px;border-radius:50%;background:var(--f);transition:all .3s"></div>
+      ${streak>0?`<div style="background:rgba(255,204,68,.15);border:1px solid rgba(255,204,68,.3);border-radius:10px;padding:6px 10px;text-align:center;flex-shrink:0"><div style="font-size:16px">🔥</div><div style="font-size:10px;font-weight:700;color:var(--y)">${streak} kun</div></div>`:''}
     </div>
   </div>
-  <div id="home-tournament-banner" style="margin:4px 14px 10px;background:var(--s2);border:1px solid rgba(123,104,238,.2);border-radius:var(--br);padding:16px;position:relative;overflow:hidden;cursor:pointer" onclick="FIKRA.openTournament()">
-    <div style="position:absolute;right:-20px;top:-20px;width:100px;height:100px;background:radial-gradient(circle,rgba(123,104,238,.2),transparent 70%);pointer-events:none"></div>
-    <div id="tourn-label" style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--al);margin-bottom:6px">Turnir · Yuklanmoqda...</div>
-    <div id="tourn-title" style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;line-height:1.3;margin-bottom:5px">Haftalik XP turniri</div>
-    <div id="tourn-sub" style="font-size:11px;color:var(--m);margin-bottom:14px">Eng ko'p XP to'plagan 500 token yutib oladi</div>
-    <button class="btn btn-acc btn-sm" onclick="event.stopPropagation();FIKRA.openTournament()">Reyting ↗</button>
+  <div class="sl" style="margin-top:8px">Tezkor kirish</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:0 14px 10px">
+    <div class="qi-btn" onclick="FIKRA.sw('test')">📚<span>DTM Test</span></div>
+    <div class="qi-btn" onclick="FIKRA.goStroop()">🧠<span>Stroop</span></div>
+    <div class="qi-btn" onclick="FIKRA.goAIChat()">💬<span>AI Chat</span></div>
   </div>
-  <div class="sl" style="margin-top:2px">Tezkor kirish</div>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:0 14px 10px">
-    <div class="qi-btn" onclick="FIKRA.openAIChat('general')">💬<span>AI Chat</span></div>
-    <div class="qi-btn" onclick="FIKRA.openAIChat('doc')">📄<span>Hujjat</span></div>
-    <div class="qi-btn" onclick="FIKRA.goGame('stroop')">🎮<span>O'yin</span></div>
-    <div class="qi-btn" style="position:relative" onclick="FIKRA.openKal()">🥗<span>Kaloriya</span>
-      <span style="position:absolute;top:-3px;right:-3px;background:var(--r);color:#fff;font-size:8px;font-weight:700;padding:1px 5px;border-radius:100px;border:1.5px solid var(--bg)">AI</span>
-    </div>
+  ${!isSub()?`<div style="margin:0 14px 10px;background:linear-gradient(135deg,rgba(123,104,238,.13),rgba(0,212,170,.07));border:1px solid rgba(123,104,238,.25);border-radius:var(--br);padding:14px;cursor:pointer" onclick="FIKRA.openSubs()">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="font-size:26px">⭐</div>
+      <div style="flex:1"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px">AI yordamchi — cheksiz</div>
+      <div style="font-size:11px;color:var(--m)">Basic: har savol uchun AI · Chat · va yana ko'p</div></div>
+      <div style="font-size:11px;font-weight:700;color:var(--acc);flex-shrink:0">149⭐ ↗</div>
+    </div></div>`:''}
+  <div id="tourn-banner" style="margin:0 14px 10px;background:var(--s2);border:1px solid rgba(123,104,238,.2);border-radius:var(--br);padding:14px;cursor:pointer" onclick="FIKRA.openTournament()">
+    <div id="tourn-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--al);margin-bottom:4px">Turnir · yuklanmoqda...</div>
+    <div id="tourn-title" style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:2px">Haftalik XP turniri</div>
+    <div id="tourn-sub" style="font-size:11px;color:var(--m)">Eng ko'p XP to'plagan g'olib</div>
   </div>
-  <div class="sl">Bugun</div>
-  <div class="stats-row" style="grid-template-columns:repeat(4,1fr)">
-    <div class="stat-card"><div class="stat-val" style="color:var(--y)" id="h-tok">${tokens.toLocaleString()}</div><div class="stat-key">Token</div></div>
-    <div class="stat-card" onclick="FIKRA.switchPanel('profile')" style="cursor:pointer">
-      <div class="stat-val" style="color:var(--al);display:flex;align-items:center;justify-content:center;gap:3px" id="h-xp">
-        ${user?.rank?.current?.emoji || '🌱'}<span style="font-size:14px">${(user?.xp || 0) > 999 ? ((user.xp/1000).toFixed(1) + 'k') : (user?.xp || 0)}</span>
-      </div>
-      <div class="stat-key">XP</div>
-    </div>
-    <div class="stat-card"><div class="stat-val" style="color:var(--al)" id="h-rank-pos">12</div><div class="stat-key">O'rin</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:var(--g)">${user?.streakDays || 0}🔥</div><div class="stat-key">Streak</div></div>
-  </div>
-  <div id="daily-bonus-banner" style="margin:0 14px 9px;display:none;background:linear-gradient(135deg,rgba(255,204,68,.09),rgba(0,212,170,.06));border:1px solid rgba(255,204,68,.22);border-radius:var(--br);padding:12px 14px;align-items:center;gap:11px">
-    <div style="width:38px;height:38px;border-radius:11px;background:rgba(255,204,68,.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🎁</div>
-    <div style="flex:1">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px" id="daily-bonus-title">Kunlik bonus</div>
-      <div style="font-size:11px;color:var(--m)" id="daily-bonus-sub">Har kuni token olish</div>
-    </div>
-    <button class="btn btn-sm" style="background:var(--y);color:#000;flex-shrink:0" onclick="FIKRA.claimDaily()">Olish</button>
-  </div>
-  <div class="ads-strip">
-    <div><div class="ads-strip-title">+5 token ol</div><div class="ads-strip-sub">Reklama ko'rib yig'</div></div>
-    <button class="watch-btn" onclick="FIKRA.showAdsModal(5,'daily_bonus')">Ko'rish</button>
-  </div>
-  <div class="sl">Liderlar</div>
+  <div class="sl">Liderlar (XP)</div>
   <div class="lb">
     <div class="lb-head"><span class="lb-title">⚡ Top XP — global</span><span class="live-dot">Jonli</span></div>
-    <div id="lb-home-rows"><div style="padding:12px 14px;font-size:12px;color:var(--m)">Yuklanmoqda...</div></div>
+    <div id="lb-rows"><div style="padding:12px 14px;font-size:12px;color:var(--m)">Yuklanmoqda...</div></div>
   </div>
 </div>`;
   }
 
-  function buildGames() {
-    return `<div class="panel" id="p-games">
-  <div class="subpanel active" id="sg-list">
-    <div class="sl" style="margin-top:6px">O'yinlar</div>
-    <div class="sl" style="margin-top:6px">🧠 Miya faolligi</div>
-    <div style="margin:0 14px 9px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br);overflow:hidden;cursor:pointer" onclick="FIKRA.goGame('stroop')">
-      <div style="height:82px;background:linear-gradient(135deg,#0a0820,#1a1060,#2a1890);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">Stroop Brain</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">2 tur · Rang / To'g'ri-Noto'g'ri</div></div>
-        <div style="display:flex;gap:5px"><div style="width:20px;height:20px;border-radius:50%;background:#ff5f7e;opacity:.7"></div><div style="width:20px;height:20px;border-radius:50%;background:#7b68ee;opacity:.7"></div><div style="width:20px;height:20px;border-radius:50%;background:#00d4aa;opacity:.7"></div></div>
+  // ─── TEST PANEL (LOYIHA MARKAZI) ──────────────────────────────────────────
+  function buildTest() {
+    return `<div class="panel" id="p-test">
+  <div class="subpanel active" id="st-home">
+    <div class="sl" style="margin-top:6px">DTM Test</div>
+    <div style="display:flex;align-items:center;gap:8px;background:${canAi('hints')?'rgba(0,212,170,.08)':'rgba(255,95,95,.07)'};border:1px solid ${canAi('hints')?'rgba(0,212,170,.2)':'rgba(255,95,95,.2)'};border-radius:var(--br2);padding:10px 14px;margin:0 14px 10px">
+      <div style="font-size:18px">💡</div>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:700">AI tushuntirish: <span id="hint-limit-display">${aiText('hints')}</span></div>
+        <div style="font-size:10px;color:var(--m);margin-top:1px">${canAi('hints')?'Savollar yonidagi 💡 tugmasini bosing':'Bugungi limit tugadi. Ertaga yoki obuna oling'}</div>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Stroop Challenge</div><div style="font-size:10px;color:var(--m);margin-top:2px">Rekord: 4,820 · Sening: <span id="my-stroop-score">0</span></div></div>
-        <button class="btn btn-acc btn-sm">O'yna</button>
-      </div>
+      ${!isSub()?`<button onclick="FIKRA.openSubs()" style="font-size:10px;font-weight:700;color:var(--acc);background:transparent;border:none;cursor:pointer;flex-shrink:0">Obuna ↗</button>`:''}
     </div>
+    <div class="sl">📌 Majburiy fanlar</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding:0 14px 10px">
+      <div class="fan-card" onclick="FIKRA.startFan('uztil','majburiy')">🔤<span>Ona tili</span></div>
+      <div class="fan-card" onclick="FIKRA.startFan('math','majburiy')">➕<span>Matematika</span></div>
+      <div class="fan-card" onclick="FIKRA.startFan('tarix','majburiy')">🏛️<span>Tarix</span></div>
+    </div>
+    <div class="sl">🎯 Mutaxassislik</div>
+    <div style="padding:0 14px 10px;display:flex;flex-direction:column;gap:8px">
+      <div class="dir-card" onclick="FIKRA.startDir('iqtisodiyot')"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">💰 Iqtisodiyot</div><div style="font-size:10px;color:var(--m);margin-top:2px">Matematika + Ingliz · 2.1+3.1 ball</div></div>
+      <div class="dir-card" onclick="FIKRA.startDir('tibbiyot')"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">⚕️ Tibbiyot</div><div style="font-size:10px;color:var(--m);margin-top:2px">Biologiya + Kimyo · 2.1+3.1 ball</div></div>
+      <div class="dir-card" onclick="FIKRA.startDir('huquq')"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">⚖️ Huquq</div><div style="font-size:10px;color:var(--m);margin-top:2px">Tarix + Ingliz · 2.1+3.1 ball</div></div>
+      <div class="dir-card" onclick="FIKRA.startDir('it')"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">💻 IT / Texnika</div><div style="font-size:10px;color:var(--m);margin-top:2px">Matematika + Fizika · 2.1+3.1 ball</div></div>
+    </div>
+  </div>
+  <div class="subpanel" id="st-quiz"></div>
+  <div class="subpanel" id="st-result"></div>
+</div>`;
+  }
 
-    <div class="sl">📚 O'rganish</div>
-    <div style="margin:0 14px 9px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br);overflow:hidden;cursor:pointer" onclick="FIKRA.goGame('test')">
-      <div style="height:82px;background:linear-gradient(135deg,#080f08,#0e200e,#144018);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">Abituriyent</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">Majburiy + Mutaxassislik fanlar</div></div>
-        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:rgba(0,212,170,.3)">DTM</div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">DTM Test</div><div style="font-size:10px;color:var(--m);margin-top:2px">9 fan · 155+ savol · Ballar</div></div>
-        <button class="btn btn-acc btn-sm">O'yna</button>
-      </div>
+  // ─── GIFTS PANEL ──────────────────────────────────────────────────────────
+  function buildGifts() {
+    return `<div class="panel" id="p-gifts">
+  <div class="subpanel active" id="sg-home">
+    <div class="sl" style="margin-top:6px">Sovg'alar</div>
+    ${!isSub()?`<div style="margin:0 14px 10px;background:rgba(123,104,238,.07);border:1px solid rgba(123,104,238,.18);border-radius:var(--br);padding:11px 14px;font-size:11px;color:var(--m);line-height:1.5">🎁 Obuna bilan barcha imkoniyatlar ochiladi. <span style="color:var(--acc);cursor:pointer" onclick="FIKRA.openSubs()">Obuna ↗</span></div>`:''}
+    <div class="sl">🤖 AI xizmatlar</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 10px">
+      <div class="ai-svc-card ${!canAi('chats')?'locked':''}" onclick="FIKRA.goAIChat()">💬<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:7px 0 2px">AI Chat</div><div style="font-size:10px;color:var(--m)">${aiText('chats')}</div>${!canAi('chats')?'<div style="font-size:9px;color:var(--acc);font-weight:700;margin-top:2px">Basic+</div>':''}</div>
+      <div class="ai-svc-card ${!canAi('docs')?'locked':''}" onclick="FIKRA.goAIDoc()">📄<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:7px 0 2px">Hujjat</div><div style="font-size:10px;color:var(--m)">${aiText('docs')}</div>${!canAi('docs')?'<div style="font-size:9px;color:var(--acc);font-weight:700;margin-top:2px">Pro+</div>':''}</div>
+      <div class="ai-svc-card ${!canAi('images')?'locked':''}" onclick="FIKRA.goAIImage()">🎨<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:7px 0 2px">Rasm</div><div style="font-size:10px;color:var(--m)">${aiText('images')}</div>${!canAi('images')?'<div style="font-size:9px;color:var(--acc);font-weight:700;margin-top:2px">Pro+</div>':''}</div>
+      <div class="ai-svc-card ${!canAi('calories')?'locked':''}" onclick="FIKRA.goKal()">🥗<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:7px 0 2px">Kaloriya</div><div style="font-size:10px;color:var(--m)">${aiText('calories')}</div>${!canAi('calories')?'<div style="font-size:9px;color:var(--acc);font-weight:700;margin-top:2px">VIP</div>':''}</div>
     </div>
-
-    <div class="sl">🎨 Dam olish</div>
-    <div style="margin:0 14px 9px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br);overflow:hidden;cursor:pointer" onclick="FIKRA.openNewGame('auto')">
-      <div style="height:82px;background:linear-gradient(135deg,#1a0510,#2e0e1d,#4a1830);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">Avto Tuning</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">Mashina yarating, sotib olsin</div></div>
-        <div style="font-size:26px">🏎️</div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Avto garaj</div><div style="font-size:10px;color:var(--m);margin-top:2px">8 model · Tuning · Bozor</div></div>
-        <button class="btn btn-acc btn-sm">Boshlash</button>
-      </div>
+    <div class="sl">🎮 O'yinlar</div>
+    <div style="padding:0 14px 10px;display:flex;flex-direction:column;gap:8px">
+      <div class="game-card" onclick="FIKRA.goStroop()"><div class="game-card-hdr" style="background:linear-gradient(135deg,#0a0820,#1a1060)"><span>🧠 Stroop Brain</span><span style="font-size:10px;opacity:.5">${aiText('games')}</span></div><div class="game-card-ftr"><span style="font-size:10px;color:var(--m)">Rekord: <b id="my-stroop-score">0</b></span><button class="btn btn-acc btn-sm">O'yna</button></div></div>
+      <div class="game-card" onclick="FIKRA.openNG('auto')"><div class="game-card-hdr" style="background:linear-gradient(135deg,#100820,#200c40)"><span>🚗 Avto Tuning</span><span style="font-size:10px;opacity:.5">Lada → Tesla</span></div><div class="game-card-ftr"><span style="font-size:10px;color:var(--m)">Tuning · Rang · Bozor</span><button class="btn btn-acc btn-sm">Ochish</button></div></div>
+      <div class="game-card" onclick="FIKRA.openNG('football')"><div class="game-card-hdr" style="background:linear-gradient(135deg,#081808,#0e300e)"><span>⚽ Master Liga</span><span style="font-size:10px;opacity:.5">Bunyodkor → Real</span></div><div class="game-card-ftr"><span style="font-size:10px;color:var(--m)">O'yinchilar · Stat · Match</span><button class="btn btn-acc btn-sm">Ochish</button></div></div>
+      <div class="game-card" onclick="FIKRA.openNG('fashion')"><div class="game-card-hdr" style="background:linear-gradient(135deg,#20081a,#400c30)"><span>👗 Fashion Design</span><span style="font-size:10px;opacity:.5">Uslub · Rang · Naqsh</span></div><div class="game-card-ftr"><span style="font-size:10px;color:var(--m)">Klassik · Formal · Sport</span><button class="btn btn-acc btn-sm">Ochish</button></div></div>
     </div>
-
-    <div style="margin:0 14px 9px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br);overflow:hidden;cursor:pointer" onclick="FIKRA.openNewGame('fashion')">
-      <div style="height:82px;background:linear-gradient(135deg,#200a0f,#400e20,#700a3a);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">Fashion Design</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">Dizaynlar yarating</div></div>
-        <div style="font-size:26px">👗</div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Moda studiyasi</div><div style="font-size:10px;color:var(--m);margin-top:2px">5 uslub · Rang · Naqsh · Bozor</div></div>
-        <button class="btn btn-acc btn-sm">Boshlash</button>
-      </div>
-    </div>
-
-    <div style="margin:0 14px 9px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br);overflow:hidden;cursor:pointer" onclick="FIKRA.openNewGame('football')">
-      <div style="height:82px;background:linear-gradient(135deg,#081810,#0e3018,#145028);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">Master Liga</div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">Klub tanlang, jamoa tuzing</div></div>
-        <div style="font-size:26px">⚽</div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px">
-        <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Futbol manager</div><div style="font-size:10px;color:var(--m);margin-top:2px">8 klub · Transfer · O'yin</div></div>
-        <button class="btn btn-acc btn-sm">Boshlash</button>
-      </div>
-    </div>
-    <div class="sl">Reyting</div>
-    <div class="lb" style="margin:0 14px 14px">
-      <div class="lb-head"><span class="lb-title">O'yinlar reytingi</span><span class="live-dot">Jonli</span></div>
-      <div style="display:flex;gap:5px;padding:8px 13px;border-bottom:1px solid var(--f);overflow-x:auto" id="lb-tabs">
-        <button class="lb-tab-btn active" onclick="FIKRA.switchLbTab(this,'xp')">⚡ XP</button>
-        <button class="lb-tab-btn" onclick="FIKRA.switchLbTab(this,'stroop-color')">Stroop rang</button>
-        <button class="lb-tab-btn" onclick="FIKRA.switchLbTab(this,'stroop-tf')">Stroop t/n</button>
-        <button class="lb-tab-btn" onclick="FIKRA.switchLbTab(this,'stroop-avg')">Stroop o'rt</button>
-        <button class="lb-tab-btn" onclick="FIKRA.switchLbTab(this,'test-maj')">Test maj.</button>
-        <button class="lb-tab-btn" onclick="FIKRA.switchLbTab(this,'test-mut')">Test mut.</button>
-      </div>
-      <div id="lb-game-rows"><div style="padding:12px 14px;font-size:12px;color:var(--m)">Yuklanmoqda...</div></div>
+    <div class="sl">🎵 Binaural musiqa</div>
+    <div style="margin:0 14px 20px;background:linear-gradient(135deg,rgba(0,212,170,.08),rgba(123,104,238,.06));border:1px solid rgba(0,212,170,.2);border-radius:var(--br);padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer" onclick="FIKRA.openMusic()">
+      <div style="width:38px;height:38px;border-radius:10px;background:rgba(0,212,170,.15);display:flex;align-items:center;justify-content:center;font-size:20px">🎧</div>
+      <div style="flex:1"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">Alpha · Theta · Beta · Gamma</div><div style="font-size:10px;color:var(--m);margin-top:2px">O'qish uchun miya faolligini oshiradi</div></div>
+      <div id="music-play-btn" style="width:34px;height:34px;background:var(--g);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;color:#000;font-weight:700;flex-shrink:0">▶</div>
     </div>
   </div>
   <div class="subpanel" id="sg-stroop"></div>
-  <div class="subpanel" id="sg-test"></div>
-  <div class="subpanel" id="sg-result"></div>
+  <div class="subpanel" id="sg-res"></div>
+  <div class="subpanel" id="sg-chat"></div>
+  <div class="subpanel" id="sg-doc"></div>
+  <div class="subpanel" id="sg-img"></div>
+  <div class="subpanel" id="sg-kal"></div>
 </div>`;
   }
 
-  function buildAI() {
-    return `<div class="panel" id="p-ai">
-  <div class="subpanel active" id="sa-home">
-    <div class="sl" style="margin-top:6px">AI xizmatlar</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 10px">
-      <div class="ai-svc-card" onclick="FIKRA.openAIChat('general')">💬<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:8px 0 2px">AI Chat</div><div style="font-size:10px;color:var(--m)">1 savol = <strong style="color:var(--y)">5t</strong></div></div>
-      <div class="ai-svc-card" onclick="FIKRA.openAIChat('doc')">📄<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:8px 0 2px">Hujjat yaratish</div><div style="font-size:10px;color:var(--m)">DOCX·PDF·PPTX · <strong style="color:var(--y)">10t</strong></div></div>
-      <div class="ai-svc-card" onclick="FIKRA.openImage()">🎨<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:8px 0 2px">Rasm yaratish</div><div style="font-size:10px;color:var(--m)">1 rasm = <strong style="color:var(--y)">30t</strong></div></div>
-      <div class="ai-svc-card" onclick="FIKRA.openKal()">🥗<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin:8px 0 2px">Kaloriya AI</div><div style="font-size:10px;color:var(--m)">1 skan = <strong style="color:var(--y)">15t</strong></div></div>
-    </div>
-    <div class="sl">Chatlar tarixi</div>
-    <div id="chat-history-list" style="padding:0 14px"></div>
-  </div>
-  <div class="subpanel" id="sa-chat"></div>
-  <div class="subpanel" id="sa-doc"></div>
-  <div class="subpanel" id="sa-image"></div>
-  <div class="subpanel" id="sa-kal"></div>
-</div>`;
-  }
-
+  // ─── PROFILE PANEL ────────────────────────────────────────────────────────
   function buildProfile() {
-    const name = user ? (user.firstName || user.username || 'Foydalanuvchi') : 'Foydalanuvchi';
-    const initials = name.slice(0, 2).toUpperCase();
-    const refLink = user?.telegramId
-      ? `https://t.me/${window.BOT_USERNAME || 'fikra_bot'}?start=ref_${user.telegramId}`
-      : '';
-    const rank = user?.rank || null;
-    const rankCurrent = rank?.current;
-    const rankNext = rank?.next;
-    const rankPct = rank?.percent || 0;
-
-    return `<div class="panel" id="p-profile">
-  <div style="height:5px"></div>
-
-  <!-- PROFILE + RANK BADGE -->
+    const nm  = _e(user?.firstName||user?.username||'Foydalanuvchi');
+    const ini = (user?.firstName||'F').slice(0,2).toUpperCase();
+    const p   = plan();
+    const rc  = user?.rank?.current;
+    const rn  = user?.rank?.next;
+    const rp  = user?.rank?.percent||0;
+    const ref = user?.telegramId ? `https://t.me/${window.BOT_USERNAME||'fikraai_bot'}?start=ref_${user.telegramId}` : '';
+    return `<div class="panel" id="p-profile"><div style="height:5px"></div>
   <div style="display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:13px;margin:0 14px 9px">
     <div style="position:relative;flex-shrink:0">
-      <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--acc),var(--r));display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:20px">${initials}</div>
-      ${rankCurrent ? `
-        <div style="position:absolute;right:-4px;bottom:-4px;width:24px;height:24px;border-radius:50%;background:${rankCurrent.color};display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid var(--bg);box-shadow:0 0 12px ${rankCurrent.glow}" title="${rankCurrent.name}">${rankCurrent.emoji}</div>
-      ` : ''}
+      <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--acc),var(--r));display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:20px">${ini}</div>
+      ${rc?`<div style="position:absolute;right:-4px;bottom:-4px;width:24px;height:24px;border-radius:50%;background:${rc.color};display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid var(--bg)">${rc.emoji}</div>`:''}
     </div>
     <div style="flex:1;min-width:0">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px">${name}</div>
-      <div style="font-size:11px;color:var(--m);margin-top:2px">@${user?.username || 'user'}</div>
-      ${rankCurrent ? `
-        <div style="display:flex;align-items:center;gap:5px;margin-top:4px;font-size:10px;font-weight:700">
-          <span style="color:${rankCurrent.color}">${rankCurrent.name}</span>
-          <span style="color:var(--m)">·</span>
-          <span style="color:var(--y)">${(user.xp || 0).toLocaleString()} XP</span>
-        </div>
-      ` : ''}
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px">${nm}</div>
+      <div style="font-size:11px;color:var(--m);margin-top:1px">@${_e(user?.username||'user')}</div>
+      ${rc?`<div style="display:flex;align-items:center;gap:5px;margin-top:3px;font-size:10px;font-weight:700"><span style="color:${rc.color}">${rc.name}</span><span style="color:var(--m)">·</span><span style="color:var(--y)">${(user.xp||0).toLocaleString()} XP</span></div>`:''}
     </div>
-    <button onclick="FIKRA.showRankDetail()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:1px solid var(--f);color:var(--m);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0" title="Barcha lavozimlar">ℹ</button>
+    <button onclick="FIKRA.rankDetail()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:1px solid var(--f);color:var(--m);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">ℹ</button>
   </div>
-
-  ${rankCurrent ? `
-  <!-- RANK PROGRESS BAR -->
-  <div style="background:var(--s2);border:1px solid ${rankCurrent.color}33;border-radius:var(--br);padding:12px 14px;margin:0 14px 9px">
+  ${rc?`<div style="background:var(--s2);border:1px solid ${rc.color}33;border-radius:var(--br);padding:12px 14px;margin:0 14px 9px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:${rankCurrent.color}">
-        ${rankCurrent.emoji} ${rankCurrent.name} · Daraja ${rankCurrent.level}
-      </div>
-      <div style="font-size:11px;color:var(--m);font-weight:700">${rankPct}%</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:${rc.color}">${rc.emoji} ${rc.name} · Daraja ${rc.level}</div>
+      <div style="font-size:11px;color:var(--m);font-weight:700">${rp}%</div>
     </div>
     <div style="height:8px;background:var(--s3);border-radius:100px;overflow:hidden;margin-bottom:6px">
-      <div style="height:100%;background:linear-gradient(90deg,${rankCurrent.color},${rankNext ? rankNext.color : rankCurrent.color});width:${rankPct}%;border-radius:100px;transition:width .5s ease;box-shadow:0 0 8px ${rankCurrent.glow}"></div>
+      <div style="height:100%;background:linear-gradient(90deg,${rc.color},${rn?rn.color:rc.color});width:${rp}%;border-radius:100px;box-shadow:0 0 8px ${rc.glow}"></div>
     </div>
-    ${rankNext ? `
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--m)">
-        <span>${(rank.xpInLevel || 0).toLocaleString()} / ${(rankNext.minXp - rankCurrent.minXp).toLocaleString()}</span>
-        <span>Keyingi: <span style="color:${rankNext.color};font-weight:700">${rankNext.emoji} ${rankNext.name}</span> · ${rank.xpToNext.toLocaleString()} XP qoldi</span>
-      </div>
-    ` : `
-      <div style="font-size:10px;color:var(--y);font-weight:700;text-align:center">🏆 Eng yuqori daraja!</div>
-    `}
-  </div>
-  ` : ''}
-
+    ${rn?`<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--m)"><span>${(user.rank.xpInLevel||0).toLocaleString()} / ${(rn.minXp-rc.minXp).toLocaleString()}</span><span>Keyingi: <span style="color:${rn.color};font-weight:700">${rn.emoji} ${rn.name}</span> · ${user.rank.xpToNext.toLocaleString()} XP</span></div>`:`<div style="font-size:10px;color:var(--y);font-weight:700;text-align:center">🏆 Eng yuqori daraja!</div>`}
+  </div>`:''}
   <div class="stats-row">
-    <div class="stat-card"><div class="stat-val" style="color:var(--y)" id="p-tok">${tokens.toLocaleString()}</div><div class="stat-key">Token</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:var(--al)" id="p-games">${user?.totalGamesPlayed || 0}</div><div class="stat-key">O'yin</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:var(--g)" id="p-ai">${user?.totalAiRequests || 0}</div><div class="stat-key">AI so'rov</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--al)">${user?.xp||0}</div><div class="stat-key">XP</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--g)">${user?.totalGamesPlayed||0}</div><div class="stat-key">O'yin</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--acc)">${user?.totalAiRequests||0}</div><div class="stat-key">AI</div></div>
   </div>
-
-  <!-- REFERRAL BO'LIMI -->
-  <div style="background:var(--s2);border:1px solid rgba(0,212,170,.22);border-radius:var(--br);padding:14px;margin:0 14px 9px">
+  <div style="background:var(--s2);border:1.5px solid ${isSub()?'rgba(0,212,170,.3)':'rgba(123,104,238,.22)'};border-radius:var(--br);padding:14px;margin:0 14px 9px;cursor:pointer" onclick="FIKRA.openSubs()">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="font-size:24px">${isSub()?(p==='vip'?'💎':p==='pro'?'✨':'⭐'):'🔓'}</div>
+      <div style="flex:1"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${isSub()?planBadge(p)+' faol':'Bepul rejim'}</div>
+      <div style="font-size:10px;color:var(--m);margin-top:2px">${isSub()&&user?.planExpiresAt?Math.max(0,Math.ceil((new Date(user.planExpiresAt)-new Date())/86400000))+' kun qoldi':'AI imkoniyatlarni ochish uchun obuna oling'}</div></div>
+      <div style="font-size:10px;font-weight:700;color:var(--acc);flex-shrink:0">${isSub()?'Uzaytirish ↗':'Obuna ↗'}</div>
+    </div>
+    ${isSub()?'':`<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;font-size:10px">
+      <div style="background:var(--s3);border-radius:6px;padding:5px;text-align:center">⭐ Basic<br><span style="color:var(--m)">149⭐/oy</span></div>
+      <div style="background:rgba(123,104,238,.1);border:1px solid rgba(123,104,238,.3);border-radius:6px;padding:5px;text-align:center">✨ Pro<br><span style="color:var(--acc)">299⭐/oy</span></div>
+      <div style="background:var(--s3);border-radius:6px;padding:5px;text-align:center">💎 VIP<br><span style="color:var(--m)">499⭐/oy</span></div>
+    </div>`}
+  </div>
+  <div style="background:var(--s2);border:1px solid rgba(0,212,170,.2);border-radius:var(--br);padding:14px;margin:0 14px 24px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <div style="width:34px;height:34px;border-radius:10px;background:rgba(0,212,170,.15);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">🎯</div>
-      <div>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Do'stni taklif qil</div>
-        <div style="font-size:10px;color:var(--m)">Har taklif = <strong style="color:var(--g)">+50t</strong> senga · +25t do'stga</div>
-      </div>
+      <div style="font-size:20px">🎯</div>
+      <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Do'stni taklif qil</div>
+      <div style="font-size:10px;color:var(--m)">${_e(user?.referralCount||0)} ta do'st</div></div>
     </div>
     <div style="display:flex;align-items:center;gap:6px;background:var(--s3);border:1px solid var(--f);border-radius:var(--br2);padding:8px 10px;margin-bottom:8px">
-      <input id="ref-link" value="${refLink}" readonly style="flex:1;background:transparent;border:none;color:var(--txt);font-size:11px;font-family:monospace;outline:none;overflow:hidden;text-overflow:ellipsis">
-      <button onclick="FIKRA.copyRef()" style="background:var(--acc);color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0">Nusxa</button>
+      <input id="ref-link" value="${ref}" readonly style="flex:1;background:transparent;border:none;color:var(--txt);font-size:11px;font-family:monospace;outline:none;overflow:hidden;text-overflow:ellipsis">
+      <button onclick="FIKRA.copyRef()" style="background:var(--acc);color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer">Nusxa</button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-      <button onclick="FIKRA.shareRef()" style="padding:8px;background:var(--g);color:#000;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">📤 Ulashish</button>
-      <div style="padding:8px;background:var(--s3);border:1px solid var(--f);border-radius:var(--br2);text-align:center">
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--g)">${user?.referralCount || 0}</div>
-        <div style="font-size:9px;color:var(--m);margin-top:1px;text-transform:uppercase;font-weight:700">Do'stlar</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TOKEN TARIXI -->
-  <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:12px 14px;margin:0 14px 9px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Token tarixi</div>
-      <button onclick="FIKRA.loadTokenHistory()" style="font-size:10px;color:var(--al);background:transparent;border:none;cursor:pointer;font-weight:700">Ko'rish ↓</button>
-    </div>
-    <div id="token-history-list"></div>
-  </div>
-
-  <!-- OBUNA VA TOKEN HARID -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 14px 9px">
-    <div onclick="FIKRA.openSubscriptions()" style="background:linear-gradient(135deg,rgba(123,104,238,.15),rgba(255,111,163,.08));border:1px solid rgba(123,104,238,.28);border-radius:var(--br);padding:14px;cursor:pointer;transition:all .15s">
-      <div style="font-size:22px;margin-bottom:6px">✨</div>
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px">Obuna</div>
-      <div style="font-size:10px;color:var(--m)">Basic · Pro · VIP</div>
-    </div>
-    <div onclick="FIKRA.openTokenShop()" style="background:linear-gradient(135deg,rgba(255,204,68,.15),rgba(0,212,170,.08));border:1px solid rgba(255,204,68,.28);border-radius:var(--br);padding:14px;cursor:pointer;transition:all .15s">
-      <div style="font-size:22px;margin-bottom:6px">🪙</div>
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px">Token harid</div>
-      <div style="font-size:10px;color:var(--m)">50t dan 1500t gacha</div>
-    </div>
-  </div>
-
-  <div class="ads-strip">
-    <div><div class="ads-strip-title">Token yig'</div><div class="ads-strip-sub">+5t reklama ko'rib</div></div>
-    <button class="watch-btn" onclick="FIKRA.showAdsModal(5,'profile_bonus')">Ko'rish</button>
+    <button onclick="FIKRA.shareRef()" style="width:100%;padding:8px;background:var(--g);color:#000;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">📤 Ulashish</button>
   </div>
 </div>`;
   }
 
-  // ─── Navigation ───────────────────────────────────────────────────────────
-  function switchPanel(name) {
+  // ─── NAVIGATSIYA ──────────────────────────────────────────────────────────
+  function sw(name) {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.getElementById('p-' + name)?.classList.add('active');
-    document.getElementById('ni-' + name)?.classList.add('active');
+    document.getElementById('p-'+name)?.classList.add('active');
+    document.getElementById('ni-'+name)?.classList.add('active');
     document.getElementById('scroll').scrollTop = 0;
     activePanel = name;
-    if (name === 'games') showSubpanel('games', 'sg-list');
-    if (name === 'ai') { showSubpanel('ai', 'sa-home'); renderChatHistory(); }
-    if (name === 'home') {
-      // Turnir banneri yangilansin
-      loadHomeTournament();
-      // Musiqa tugmasi holati
-      const homeBtn = document.getElementById('home-music-btn');
-      if (homeBtn && window.MUSIC) {
-        homeBtn.textContent = MUSIC.isPlaying() ? '❚❚' : '▶';
-      }
-    }
+    if (name==='home') loadHomeTournament();
   }
 
-  function showSubpanel(panel, subId) {
-    const target = document.getElementById(subId);
-    if (!target) return;
-    target.parentElement.querySelectorAll(':scope > .subpanel')
-      .forEach(s => s.classList.remove('active'));
-    target.classList.add('active');
+  function subpanel(panelId, subId) {
+    const par = document.getElementById('p-'+panelId);
+    if (!par) return;
+    par.querySelectorAll('.subpanel').forEach(s => s.classList.remove('active'));
+    document.getElementById(subId)?.classList.add('active');
   }
 
-  function goGame(game) {
-    switchPanel('games');
-    setTimeout(() => {
-      if (game === 'stroop') renderStroop();
-      else if (game === 'test') renderTest();
-    }, 20);
-  }
+  // ─── DTM TEST ─────────────────────────────────────────────────────────────
+  const FANS = { uztil:'Ona tili',math:'Matematika',tarix:'Tarix',bio:'Biologiya',
+    kimyo:'Kimyo',fizika:'Fizika',ingliz:'Ingliz',rus:'Rus tili',inform:'Informatika',iqtisod:'Iqtisodiyot' };
+  const DIRS = {
+    iqtisodiyot:{fans:['math','ingliz']},tibbiyot:{fans:['bio','kimyo']},
+    huquq:{fans:['tarix','ingliz']},it:{fans:['math','fizika']}
+  };
 
-  function openAIChat(type) {
-    switchPanel('ai');
-    setTimeout(() => {
-      // Chat tarixidan kirilganda mavjud chatni ochish
-      // Oddiy tugmadan kirilganda (general/doc) — yangi chat
-      if (type === 'doc' || type === 'doc_new') renderDocChat('doc_new');
-      else if (type === 'doc_continue') renderDocChat('doc');
-      else if (type === 'general_continue') renderGeneralChat('general');
-      else renderGeneralChat('general_new'); // default: yangi chat
-    }, 20);
-  }
+  let ts = { q:[],idx:0,sub:'',block:'majburiy',dir:null,stats:{},type:'maj' };
+  let _checked=false;
 
-  function openKal() {
-    switchPanel('ai');
-    setTimeout(() => renderKaloriya(), 20);
-  }
-
-  function openImage() {
-    switchPanel('ai');
-    setTimeout(() => renderImage(), 20);
-  }
-
-  function renderImage() {
-    IMG.loadHistory();
-    const history = IMG.getHistory();
-    document.getElementById('sa-image').innerHTML = `
-<div class="back-btn" onclick="FIKRA.backToAI()">← AI</div>
-<div style="padding:0 14px">
-  <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:14px;margin-bottom:10px">
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:8px">🎨 Rasm yaratish</div>
-    <textarea id="img-prompt" rows="3" placeholder="Masalan: futuristik shahar kechki payt, neon chiroqlar..." style="width:100%;background:var(--s3);border:1px solid var(--f);border-radius:var(--br2);padding:10px;color:var(--txt);font-family:'Nunito',sans-serif;font-size:13px;resize:none;outline:none;line-height:1.5"></textarea>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
-      <span style="font-size:10px;color:var(--y);background:rgba(255,204,68,.08);padding:3px 8px;border-radius:100px;border:1px solid rgba(255,204,68,.2);font-weight:700">−30t</span>
-      <button class="btn btn-acc btn-sm" style="flex:1" onclick="FIKRA.genImage()">Yaratish ✨</button>
-    </div>
-  </div>
-  <div id="img-result"></div>
-  ${history.length > 0 ? `
-    <div class="sl" style="margin:14px 0 6px">Oxirgi rasmlar</div>
-    <div id="img-history" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:14px">
-      ${history.slice(0,4).map((h, i) => `
-        <div onclick="FIKRA.showOldImage(${i})" style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:5px;cursor:pointer">
-          <img src="data:${h.mimeType};base64,${h.base64}" style="width:100%;height:90px;object-fit:cover;border-radius:6px;display:block">
-          <div style="font-size:10px;color:var(--m);margin-top:4px;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.prompt.slice(0,24)}</div>
-        </div>
-      `).join('')}
-    </div>
-  ` : ''}
-</div>`;
-    showSubpanel('ai', 'sa-image');
-  }
-
-  async function genImage() {
-    const inp = document.getElementById('img-prompt');
-    const prompt = inp.value.trim();
-    if (!prompt) {
-      showToast('Avval tavsif yozing');
-      return;
-    }
-
-    const resultDiv = document.getElementById('img-result');
-    resultDiv.innerHTML = `
-<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:22px;text-align:center;margin-bottom:10px">
-  <div style="display:inline-block;width:24px;height:24px;border:2.5px solid var(--acc);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;margin-bottom:10px"></div>
-  <div style="font-size:12px;color:var(--m)">Rasm yaratilmoqda... (15-30 soniya)</div>
-</div>`;
-
+  async function startFan(subject, block) {
+    haptic(); ts = {...ts,q:[],idx:0,sub:subject,block:block||'majburiy',type:'maj'};
+    sw('test'); subpanel('test','st-quiz');
+    document.getElementById('st-quiz').innerHTML = loading('Savollar yuklanmoqda...');
     try {
-      const res = await IMG.generate(prompt);
-      _showImageResult(res);
-      updateTokenDisplay();
-      showToast('Rasm tayyor!');
-      inp.value = '';
-      // History bo'limini yangilash uchun qayta render
-      setTimeout(() => renderImage(), 100);
-    } catch (e) {
-      resultDiv.innerHTML = `<div style="background:rgba(255,95,126,.07);border:1px solid rgba(255,95,126,.2);border-radius:var(--br);padding:14px;margin-bottom:10px"><div style="font-size:13px;color:var(--r);font-weight:600">❌ ${e.message || 'Xatolik'}</div></div>`;
-      if (e.code === 'INSUFFICIENT_TOKENS') {
-        showAdsModal(5, 'image_retry');
-      }
-    }
+      ts.q = await API.testQuestions(subject, ts.block, 10);
+      _checked=false; renderQ();
+    } catch(e) { document.getElementById('st-quiz').innerHTML=`<div style="padding:30px;text-align:center;color:var(--r)">${_e(e.message)}</div>`; }
   }
 
-  function _showImageResult(res) {
-    const resultDiv = document.getElementById('img-result');
-    if (!resultDiv) return;
-    const btnId = 'img-dl-' + Date.now();
-    const shareBtnId = 'img-sh-' + Date.now();
-    resultDiv.innerHTML = `
-<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:10px;margin-bottom:10px">
-  <img src="data:${res.mimeType};base64,${res.base64}" style="width:100%;border-radius:var(--br2);display:block;margin-bottom:10px">
-  <div style="font-size:11px;color:var(--m);padding:0 4px 10px;line-height:1.5">"${res.prompt}"</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-    <button id="${btnId}" style="padding:9px;background:var(--acc);color:#fff;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">⬇ Yuklab olish</button>
-    <button id="${shareBtnId}" style="padding:9px;background:var(--s3);color:var(--txt);border:1px solid var(--f);border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">↗ Ulashish</button>
-  </div>
-</div>`;
-
-    // Download
-    const dl = document.getElementById(btnId);
-    if (dl) {
-      dl.onclick = () => {
-        try {
-          const bytes = atob(res.base64);
-          const arr = new Uint8Array(bytes.length);
-          for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-          const blob = new Blob([arr], { type: res.mimeType });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'fikra_ai_' + Date.now() + '.png';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-          showToast('Yuklab olindi!');
-        } catch (e) {
-          showToast('Xatolik: ' + e.message);
-        }
-      };
-    }
-
-    // Share — Telegram orqali
-    const sh = document.getElementById(shareBtnId);
-    if (sh) {
-      sh.onclick = () => {
-        if (tg && tg.shareURL) {
-          tg.shareURL('Mening FIKRA AI rasmim', res.prompt);
-        } else {
-          showToast('Ulashish Telegram ichida ishlaydi');
-        }
-      };
-    }
+  async function startDir(dir) {
+    haptic();
+    const d = DIRS[dir]; if (!d) return;
+    ts = {...ts,dir,type:'dir',stats:{},sub:d.fans[0],block:'mutaxassislik',q:[],idx:0};
+    sw('test'); subpanel('test','st-quiz');
+    document.getElementById('st-quiz').innerHTML = loading('Savollar yuklanmoqda...');
+    try {
+      ts.q = await API.testQuestions(ts.sub,'mutaxassislik',30);
+      _checked=false; renderQ();
+    } catch(e) { document.getElementById('st-quiz').innerHTML=`<div style="padding:30px;text-align:center;color:var(--r)">${_e(e.message)}</div>`; }
   }
 
-  function showOldImage(idx) {
-    const history = IMG.getHistory();
-    const item = history[idx];
-    if (item) _showImageResult(item);
-  }
-
-  // ─── Stroop render ────────────────────────────────────────────────────────
-  function renderStroop() {
-    document.getElementById('sg-stroop').innerHTML = `
-<div class="back-btn" onclick="FIKRA.backToGames()">← O'yinlar</div>
-<div style="padding:13px">
-  <div style="display:flex;gap:8px;margin-bottom:13px" id="stroop-mode-sel">
-    <div id="sm0" class="mode-btn active" onclick="FIKRA.selectStroopMode(0)">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">Rang turi</div>
-      <div style="font-size:10px;color:var(--m);margin-top:2px">So'z rangini top</div>
-    </div>
-    <div id="sm1" class="mode-btn" onclick="FIKRA.selectStroopMode(1)">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">To'g'ri / Noto'g'ri</div>
-      <div style="font-size:10px;color:var(--m);margin-top:2px">Mos keladimi?</div>
-    </div>
+  function renderQ() {
+    const q = ts.q[ts.idx]; if (!q) { finishTest(); return; }
+    const ha = canAi('hints');
+    document.getElementById('st-quiz').innerHTML=`
+<div style="display:flex;flex-direction:column;height:100%;padding:12px 14px">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+    <button onclick="FIKRA.backTest()" style="background:var(--s2);border:1px solid var(--f);border-radius:8px;padding:6px 10px;color:var(--m);font-size:12px;cursor:pointer">← Orqaga</button>
+    <div style="flex:1;text-align:center;font-size:11px;color:var(--m);font-weight:600">${FANS[ts.sub]||ts.sub} · ${ts.idx+1}/${ts.q.length}</div>
+    <div style="font-size:10px;color:var(--m)" id="qlim">${aiText('hints')} 💡</div>
   </div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div class="stimer" id="stimer">12</div>
-    <div style="display:flex;gap:3px;font-size:14px" id="shearts">
-      <span>❤️</span><span>❤️</span><span>❤️</span>
-    </div>
-    <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--y)" id="sscore">0 ball</div>
+  <div style="height:4px;background:var(--s3);border-radius:100px;margin-bottom:14px">
+    <div style="height:100%;background:var(--acc);width:${(ts.idx/ts.q.length*100).toFixed(0)}%;border-radius:100px;transition:width .3s"></div>
   </div>
-  <div class="prog-bar" style="margin-bottom:14px"><div class="prog-fill" id="spf" style="width:100%"></div></div>
-
-  <div id="mode0-ui">
-    <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:20px 14px;text-align:center;margin-bottom:14px">
-      <div style="font-size:11px;color:var(--m);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:1px">Bu so'z qaysi RANGDA yozilgan?</div>
-      <div class="stroop-word" id="sw">KO'K</div>
-      <div style="font-size:11px;color:var(--m);margin-top:8px">Rangni bosing</div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-      <div class="stroop-ans" id="sa0" onclick="FIKRA.sAns(this)">Qizil</div>
-      <div class="stroop-ans" id="sa1" onclick="FIKRA.sAns(this)">Ko'k</div>
-      <div class="stroop-ans" id="sa2" onclick="FIKRA.sAns(this)">Yashil</div>
-      <div class="stroop-ans" id="sa3" onclick="FIKRA.sAns(this)">Sariq</div>
-    </div>
+  <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:14px;margin-bottom:12px;flex-shrink:0">
+    <div style="font-size:13px;line-height:1.6;font-weight:500">${_e(q.question)}</div>
   </div>
-
-  <div id="mode1-ui" style="display:none">
-    <div style="text-align:center;font-size:11px;color:var(--m);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">So'z va rang MOS keladimi?</div>
-    <div id="tf-circle" style="width:160px;height:160px;border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,.1);transition:border-color .2s">
-      <span id="tf-word" style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800">QIZIL</span>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div onclick="FIKRA.tfAns(true)" style="height:56px;border-radius:var(--br);background:rgba(0,212,170,.15);border:2px solid rgba(0,212,170,.3);color:var(--g);cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:18px;transition:all .15s" onmousedown="this.style.background='rgba(0,212,170,.3)'">✓ Ha</div>
-      <div onclick="FIKRA.tfAns(false)" style="height:56px;border-radius:var(--br);background:rgba(255,95,126,.12);border:2px solid rgba(255,95,126,.25);color:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:18px;transition:all .15s" onmousedown="this.style.background='rgba(255,95,126,.25)'">✗ Yo'q</div>
-    </div>
-  </div>
-</div>`;
-    showSubpanel('games', 'sg-stroop');
-    STROOP.init({
-      word: document.getElementById('sw'),
-      timerEl: document.getElementById('stimer'),
-      scoreEl: document.getElementById('sscore'),
-      prog: document.getElementById('spf'),
-      hearts: Array.from(document.getElementById('shearts').children),
-      answerBtns: [0,1,2,3].map(i => document.getElementById('sa'+i)),
-      tfCircle: document.getElementById('tf-circle'),
-      tfWord: document.getElementById('tf-word'),
-    });
-    STROOP.start(0);
-  }
-
-  function selectStroopMode(m) {
-    // Birinchi marta ochgan foydalanuvchi uchun qisqa tushuntirish
-    const key = 'fikra_stroop_tut_' + m;
-    const seen = (() => { try { return localStorage.getItem(key); } catch { return true; } })();
-    if (!seen) {
-      const explain = m === 0
-        ? "Ekranga so'z chiqadi. Lekin so'z o'qishingiz shart emas — uning RANGI qaysi, o'shani tanlang!\n\nMasalan: QIZIL so'zi ko'k rangda yozilgan bo'lsa — \"Ko'k\" ni tanlaysiz."
-        : "Ekranda so'z va rang chiqadi. Agar so'z matni o'z rangiga mos kelsa — \"To'g'ri\"; aks holda — \"Noto'g'ri\".\n\nMasalan: QIZIL so'zi qizil rangda — \"To'g'ri\".\nQIZIL so'zi ko'k rangda — \"Noto'g'ri\".";
-
-      uiConfirm(explain, {
-        title: m === 0 ? "Rang tanlash — qoida" : "To'g'ri/Noto'g'ri — qoida",
-        okLabel: "Tushundim, boshlash",
-        cancelLabel: "Orqaga",
-      }).then(ok => {
-        if (!ok) { backToGames(); return; }
-        try { localStorage.setItem(key, '1'); } catch {}
-        _startStroopWithMode(m);
-      });
-      return;
-    }
-    _startStroopWithMode(m);
-  }
-
-  function _startStroopWithMode(m) {
-    document.querySelectorAll('.mode-btn').forEach((b, i) => b.classList.toggle('active', i === m));
-    document.getElementById('mode0-ui').style.display = m === 0 ? 'block' : 'none';
-    document.getElementById('mode1-ui').style.display = m === 1 ? 'block' : 'none';
-    STROOP.start(m);
-  }
-
-  function sAns(btn) { STROOP.answerColor(btn); }
-  function tfAns(val) { STROOP.answerTF(val); }
-
-  // ─── Stroop natija ekrani ─────────────────────────────────────────────────
-  function showStroopResult(r) {
-    const accuracy = r.correctCount + r.wrongCount > 0
-      ? Math.round((r.correctCount / (r.correctCount + r.wrongCount)) * 100)
-      : 0;
-    const overlay = document.createElement('div');
-    overlay.id = 'stroop-result';
-    overlay.className = 'ui-modal-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9998;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(10px);animation:fadeIn .3s ease';
-
-    const reasonText = r.reason === 'no_lives'
-      ? "3 ta xatoga yo'l qo'ydingiz"
-      : "Vaqt tugadi";
-
-    overlay.innerHTML = `
-<div style="max-width:360px;width:100%;background:var(--s1);border:1px solid var(--f);border-radius:20px;padding:22px;animation:scaleIn .4s cubic-bezier(.34,1.56,.64,1);text-align:center">
-  <div style="font-size:38px;margin-bottom:6px">${r.isNewBest ? '🏆' : '🎯'}</div>
-  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px;margin-bottom:4px">${r.isNewBest ? 'Yangi rekord!' : 'O\'yin tugadi'}</div>
-  <div style="font-size:11px;color:var(--m);margin-bottom:16px">${reasonText}</div>
-
-  <div style="background:var(--s2);border:1px solid var(--f);border-radius:14px;padding:16px 12px;margin-bottom:14px">
-    <div style="font-size:10px;color:var(--m);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">Natijangiz</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:40px;color:var(--y);line-height:1">${r.score}</div>
-    <div style="font-size:11px;color:var(--m);margin-top:3px">ball</div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px">
-      <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--g)">${r.correctCount}</div><div style="font-size:9px;color:var(--m);margin-top:1px">To'g'ri</div></div>
-      <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--r)">${r.wrongCount}</div><div style="font-size:9px;color:var(--m);margin-top:1px">Xato</div></div>
-      <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--al)">${accuracy}%</div><div style="font-size:9px;color:var(--m);margin-top:1px">Aniqlik</div></div>
-    </div>
-  </div>
-
-  ${r.tokensEarned > 0 ? `
-    <div style="background:linear-gradient(135deg,rgba(255,204,68,.1),rgba(0,212,170,.08));border:1px solid rgba(255,204,68,.25);border-radius:10px;padding:10px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:12px;font-weight:700;color:var(--y);display:flex;align-items:center;gap:5px">🪙 Token</div>
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--y)">+${r.tokensEarned}</div>
-    </div>
-  ` : ''}
-
-  ${r.xp && r.xp.added ? `
-    <div style="background:linear-gradient(135deg,rgba(123,104,238,.1),rgba(0,212,170,.08));border:1px solid rgba(123,104,238,.25);border-radius:10px;padding:10px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:12px;font-weight:700;color:var(--al)">⚡ XP</div>
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--al)">+${r.xp.added}</div>
-    </div>
-  ` : ''}
-
-  ${r.bestScore > 0 && !r.isNewBest ? `
-    <div style="font-size:11px;color:var(--m);margin-bottom:14px">Sizning rekord: <span style="color:var(--y);font-weight:700">${r.bestScore}</span></div>
-  ` : ''}
-
-  <div style="display:flex;gap:8px">
-    <button onclick="FIKRA.stroopWatchAd()" style="flex:1;padding:12px 10px;background:var(--s3);color:var(--txt);border:1px solid var(--y);border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px">
-      <span>Reklama ko'rish</span>
-      <span style="font-size:9px;color:var(--y)">+5 token</span>
+  <div id="hint-area" style="margin-bottom:10px">
+    <button id="hbtn" onclick="FIKRA.getHint()" style="width:100%;padding:8px;background:${ha?'rgba(0,212,170,.1)':'rgba(255,255,255,.03)'};border:1px solid ${ha?'rgba(0,212,170,.3)':'rgba(255,255,255,.07)'};border-radius:var(--br2);color:${ha?'var(--g)':'var(--m)'};font-size:11px;font-weight:700;cursor:pointer">
+      💡 AI maslahat ${ha?'':'(limit tugadi)'}
     </button>
-    <button onclick="FIKRA.stroopRetry()" style="flex:1.3;padding:12px;background:var(--acc);color:#fff;border:none;border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">Qayta o'ynash</button>
+    <div id="htxt" style="display:none;background:rgba(0,212,170,.07);border:1px solid rgba(0,212,170,.2);border-radius:var(--br2);padding:10px;margin-top:6px;font-size:11px;line-height:1.6"></div>
   </div>
-  <button onclick="FIKRA.stroopExit()" style="width:100%;margin-top:8px;padding:11px;background:transparent;color:var(--m);border:1px solid var(--f);border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">Chiqish</button>
-</div>`;
-
-    document.body.appendChild(overlay);
-
-    // Haptic success agar yangi rekord
-    if (r.isNewBest) hapticNotify('success');
-  }
-
-  function stroopWatchAd() {
-    const overlay = document.getElementById('stroop-result');
-    if (overlay) overlay.remove();
-    if (window.ADS && window.ADS.showRewardedAd) {
-      window.ADS.showRewardedAd('stroop_bonus').then(() => {
-        updateTokenDisplay();
-      });
-    }
-  }
-
-  function stroopRetry() {
-    const overlay = document.getElementById('stroop-result');
-    if (overlay) overlay.remove();
-    // Joriy mode ni qayta boshlash
-    const activeMode = document.querySelector('.mode-btn.active');
-    const modeIdx = activeMode ? Array.from(document.querySelectorAll('.mode-btn')).indexOf(activeMode) : 0;
-    STROOP.start(modeIdx);
-  }
-
-  function stroopExit() {
-    const overlay = document.getElementById('stroop-result');
-    if (overlay) overlay.remove();
-    backToGames();
-  }
-
-  // ─── Test render ──────────────────────────────────────────────────────────
-  function renderTest() {
-    TEST.resetStats();
-    document.getElementById('sg-test').innerHTML = `
-<div class="back-btn" onclick="FIKRA.backToGames()">← O'yinlar</div>
-<div style="display:flex;gap:6px;padding:6px 14px 8px">
-  <button class="test-nav-btn active" id="tn-maj" onclick="FIKRA.switchTestNav('maj')">Majburiy fanlar</button>
-  <button class="test-nav-btn" id="tn-mut" onclick="FIKRA.switchTestNav('mut')">Mutaxassislik</button>
-</div>
-<div id="test-content"></div>`;
-    showSubpanel('games', 'sg-test');
-    renderMajSection();
-  }
-
-  function switchTestNav(type) {
-    ['maj','mut'].forEach(t => {
-      document.getElementById('tn-'+t)?.classList.toggle('active', t === type);
-    });
-    if (type === 'maj') renderMajSection();
-    else renderMutSection();
-  }
-
-  function renderMajSection() {
-    document.getElementById('test-content').innerHTML = `
-<div style="padding:0 14px">
-  <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:11px 13px;margin-bottom:10px">
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:3px">Majburiy fanlar bloki</div>
-    <div style="font-size:11px;color:var(--m)">3 fan · 10 ta savol · To'g'ri javob: 1.1 ball</div>
-  </div>
-  <div style="display:flex;gap:6px;margin-bottom:10px">
-    <button class="fan-tab active" id="ft-uztil" onclick="FIKRA.selMajFan('uztil',this)">Ona tili</button>
-    <button class="fan-tab" id="ft-math" onclick="FIKRA.selMajFan('math',this)">Matematika</button>
-    <button class="fan-tab" id="ft-tarix" onclick="FIKRA.selMajFan('tarix',this)">Tarix</button>
-  </div>
-  <div id="maj-q-wrap"></div>
-</div>`;
-    selMajFan('uztil', document.getElementById('ft-uztil'));
-  }
-
-  async function selMajFan(subject, btn) {
-    document.querySelectorAll('.fan-tab').forEach(b => b.classList.remove('active'));
-    btn && btn.classList.add('active');
-    const qs = await TEST.startMaj(subject);
-    renderMajQuestion(qs[0], 0, qs.length);
-  }
-
-  function renderMajQuestion(q, idx, total) {
-    const letters = ['A','B','C','D'];
-    document.getElementById('maj-q-wrap').innerHTML = `
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-  <span style="font-size:11px;color:var(--m);font-weight:600">${idx+1} / ${total} savol</span>
-  <span style="font-size:10px;font-weight:700;color:var(--y);background:rgba(255,204,68,.1);padding:2px 8px;border-radius:100px;border:1px solid rgba(255,204,68,.2)">1.1 ball</span>
-</div>
-<div class="prog-bar" style="margin-bottom:10px"><div class="prog-fill gradient" style="width:${((idx+1)/total)*100}%"></div></div>
-<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:15px">
-  <div style="font-size:14px;font-weight:600;line-height:1.5;margin-bottom:12px">${_escapeHtml(q.question)}</div>
-  <div id="maj-opts">${q.options.map((o,i) => `
-    <div class="test-opt" onclick="FIKRA.selMajOpt(this,${i},'${q._id}')" data-idx="${i}" data-qid="${q._id}">
-      <div class="opt-letter">${letters[i]}</div>
-      <div style="font-size:13px;font-weight:500">${_escapeHtml(o)}</div>
-    </div>`).join('')}
-  </div>
-  <div id="maj-explanation" style="display:none;margin-top:12px;padding:10px;background:rgba(123,104,238,.06);border:1px solid rgba(123,104,238,.15);border-radius:var(--br2)"></div>
-</div>
-<div style="display:flex;gap:7px;margin-top:10px">
-  <button style="flex:1;padding:10px;border-radius:var(--br2);background:var(--s3);border:1px solid var(--f);color:var(--m);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" onclick="FIKRA.getHint('${q._id}','${q.question.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
-    AI hint <span style="font-size:10px;color:var(--y);font-weight:700">−10t</span>
-  </button>
-  <button id="maj-next-btn" style="flex:2;padding:10px;border-radius:var(--br2);background:var(--acc);color:#fff;border:none;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer" onclick="FIKRA.nextMajQ()">Keyingisi →</button>
-</div>`;
-  }
-
-  let _majSelectedIdx = -1;
-  let _majSelectedQId = '';
-
-  let _majAnswered = false;
-
-  async function selMajOpt(el, idx, qId) {
-    if (_majAnswered) return; // Javob tanlangan, qayta tanlash yo'q
-    _majAnswered = true;
-    document.querySelectorAll('#maj-opts .test-opt').forEach(o => {
-      o.className = 'test-opt';
-      o.style.pointerEvents = 'none';
-    });
-    el.classList.add('sel');
-    _majSelectedIdx = idx;
-    _majSelectedQId = qId;
-
-    // Darhol javobni tekshirish
-    const res = await TEST.checkMajAnswer(qId, idx);
-    const opts = document.querySelectorAll('#maj-opts .test-opt');
-    if (res.isCorrect) {
-      opts[idx].classList.add('ok');
-      showToast('+2 token — to\'g\'ri!');
-      updateTokenDisplay();
-    } else {
-      opts[idx].classList.add('no');
-      if (opts[res.correctIndex]) opts[res.correctIndex].classList.add('ok');
-    }
-
-    // Tushuntirish ko'rsatish (agar bo'lsa)
-    if (res.explanation) {
-      const exp = document.getElementById('maj-explanation');
-      if (exp) {
-        exp.style.display = 'block';
-        exp.innerHTML = `<div style="font-size:10px;color:var(--al);font-weight:700;margin-bottom:4px">💡 Tushuntirish</div><div style="font-size:12px;line-height:1.5;color:var(--txt)">${_escapeHtml(res.explanation)}</div>`;
-      }
-    }
-
-    // "Keyingisi" tugmasini yoqish (pulse animatsiya bilan)
-    const nextBtn = document.getElementById('maj-next-btn');
-    if (nextBtn) {
-      nextBtn.style.background = res.isCorrect ? 'var(--g)' : 'var(--acc)';
-      nextBtn.style.animation = 'pulse 1.5s ease-in-out infinite';
-    }
-  }
-
-  async function nextMajQ() {
-    if (!_majAnswered) {
-      showToast('Avval javobni tanlang');
-      return;
-    }
-    _majAnswered = false;
-    _majSelectedIdx = -1;
-    const { done } = await TEST.nextMajQuestion();
-    if (done) {
-      setTimeout(async () => {
-        await ADS.showInterstitialAd('test_result');
-        const result = await TEST.finishAndSave('maj');
-        renderTestResult(result);
-      }, 300);
-      return;
-    }
-    const q = TEST.getCurrentQ();
-    renderMajQuestion(q, TEST.getQIdx(), TEST.getTotal());
-  }
-
-  function renderMutSection() {
-    const dirs = TEST.getDirections();
-    document.getElementById('test-content').innerHTML = `
-<div style="padding:0 14px">
-  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px;margin-bottom:4px">Yo'nalish tanlang</div>
-  <div style="font-size:12px;color:var(--m);margin-bottom:14px;line-height:1.5">Mutaxassislik fanlari yo'nalishingizga qarab belgilanadi</div>
-  ${Object.entries(dirs).map(([key, dir]) => `
-  <div class="dir-card" id="dc-${key}" onclick="FIKRA.selDir('${key}',this)">
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px">${dir.name}</div>
-    <div style="font-size:11px;color:var(--m);margin-bottom:3px">${dir.fans.map(f => TEST.getSubjectName(f)).join(' + ')}</div>
-    <div style="font-size:10px;color:var(--al);font-weight:600">${dir.balls[0]} + ${dir.balls[1]} ball/savol</div>
-  </div>`).join('')}
-  <button id="dir-start-btn" class="btn btn-acc btn-full" style="margin-top:8px;opacity:.4;pointer-events:none" onclick="FIKRA.startMut()">Yo'nalishni tanlang</button>
-</div>`;
-  }
-
-  let _selDir = null;
-  function selDir(key, el) {
-    _selDir = key;
-    document.querySelectorAll('.dir-card').forEach(c => c.classList.remove('sel'));
-    el.classList.add('sel');
-    const btn = document.getElementById('dir-start-btn');
-    btn.style.opacity = '1'; btn.style.pointerEvents = 'auto';
-    btn.textContent = TEST.getDirections()[key].name + ' yo\'nalishi →';
-  }
-
-  async function startMut() {
-    if (!_selDir) return;
-    const qs = await TEST.startMut(_selDir, 0);
-    renderMutTest(qs, 0);
-  }
-
-  function renderMutTest(qs, fanIdx) {
-    const dir = TEST.getDirections()[_selDir];
-    const letters = ['A','B','C','D'];
-    const q = qs[0];
-    document.getElementById('test-content').innerHTML = `
-<div style="display:flex;gap:7px;padding:0 0 8px">
-  <div style="flex:1;padding:9px 12px;border-radius:var(--br2);background:var(--s2);border:1px solid var(--f)">
-    <div style="font-size:10px;color:var(--m);font-weight:700;margin-bottom:2px">1-fan</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${TEST.getSubjectName(dir.fans[0])}</div>
-    <div style="font-size:10px;color:var(--y);font-weight:700;margin-top:2px">${dir.balls[0]} ball/savol</div>
-  </div>
-  <div style="flex:1;padding:9px 12px;border-radius:var(--br2);background:var(--s2);border:1px solid var(--f)">
-    <div style="font-size:10px;color:var(--m);font-weight:700;margin-bottom:2px">2-fan</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${TEST.getSubjectName(dir.fans[1])}</div>
-    <div style="font-size:10px;color:var(--al);font-weight:700;margin-top:2px">${dir.balls[1]} ball/savol</div>
-  </div>
-</div>
-<div style="display:flex;gap:6px;margin-bottom:8px">
-  <button class="fan-tab active" id="mt-f0" onclick="FIKRA.switchMutFan(0)">1-fan</button>
-  <button class="fan-tab" id="mt-f1" onclick="FIKRA.switchMutFan(1)">2-fan</button>
-</div>
-<div id="mut-q-wrap" style="padding:0 14px"></div>`;
-    renderMutQuestion(q, 0, qs.length);
-  }
-
-  async function switchMutFan(fi) {
-    ['mt-f0','mt-f1'].forEach((id,i) => document.getElementById(id)?.classList.toggle('active', i === fi));
-    const qs = await TEST.startMut(_selDir, fi);
-    renderMutQuestion(qs[0], 0, qs.length);
-  }
-
-  let _mutSelIdx = -1, _mutSelQId = '';
-  function renderMutQuestion(q, idx, total) {
-    const letters = ['A','B','C','D'];
-    _mutSelIdx = -1;
-    _mutAnswered = false;
-    document.getElementById('mut-q-wrap').innerHTML = `
-<div style="display:flex;justify-content:space-between;margin-bottom:6px">
-  <span style="font-size:11px;color:var(--m);font-weight:600">${idx+1} / ${total} savol</span>
-  <span style="font-size:10px;font-weight:700;color:var(--y);background:rgba(255,204,68,.1);padding:2px 8px;border-radius:100px;border:1px solid rgba(255,204,68,.2)" id="mut-ball-tag">ball</span>
-</div>
-<div class="prog-bar" style="margin-bottom:10px"><div class="prog-fill gradient" style="width:${((idx+1)/total)*100}%"></div></div>
-<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:15px">
-  <div style="font-size:14px;font-weight:600;line-height:1.5;margin-bottom:12px">${_escapeHtml(q.question)}</div>
-  <div id="mut-opts">${q.options.map((o,i) => `
-    <div class="test-opt" onclick="FIKRA.selMutOpt(this,${i},'${q._id}')" data-idx="${i}">
-      <div class="opt-letter">${letters[i]}</div>
-      <div style="font-size:13px;font-weight:500">${_escapeHtml(o)}</div>
-    </div>`).join('')}
-  </div>
-  <div id="mut-explanation" style="display:none;margin-top:12px;padding:10px;background:rgba(123,104,238,.06);border:1px solid rgba(123,104,238,.15);border-radius:var(--br2)"></div>
-</div>
-<div style="display:flex;gap:7px;margin-top:10px">
-  <button style="flex:1;padding:10px;border-radius:var(--br2);background:var(--s3);border:1px solid var(--f);color:var(--m);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" onclick="FIKRA.getHint('${q._id}','${q.question.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
-    AI hint <span style="font-size:10px;color:var(--y)">−10t</span>
-  </button>
-  <button id="mut-next-btn" style="flex:2;padding:10px;border-radius:var(--br2);background:var(--acc);color:#fff;border:none;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer" onclick="FIKRA.nextMutQ()">Keyingisi →</button>
-</div>`;
-  }
-
-  let _mutAnswered = false;
-
-  async function selMutOpt(el, idx, qId) {
-    if (_mutAnswered) return;
-    _mutAnswered = true;
-    document.querySelectorAll('#mut-opts .test-opt').forEach(o => {
-      o.className = 'test-opt';
-      o.style.pointerEvents = 'none';
-    });
-    el.classList.add('sel');
-    _mutSelIdx = idx; _mutSelQId = qId;
-
-    const res = await TEST.checkMutAnswer(qId, idx);
-    const opts = document.querySelectorAll('#mut-opts .test-opt');
-    if (res.isCorrect) {
-      opts[idx].classList.add('ok');
-      showToast('+2t · to\'g\'ri!');
-      updateTokenDisplay();
-    } else {
-      opts[idx].classList.add('no');
-      if (opts[res.correctIndex]) opts[res.correctIndex].classList.add('ok');
-    }
-
-    if (res.explanation) {
-      const exp = document.getElementById('mut-explanation');
-      if (exp) {
-        exp.style.display = 'block';
-        exp.innerHTML = `<div style="font-size:10px;color:var(--al);font-weight:700;margin-bottom:4px">💡 Tushuntirish</div><div style="font-size:12px;line-height:1.5;color:var(--txt)">${_escapeHtml(res.explanation)}</div>`;
-      }
-    }
-  }
-
-  async function nextMutQ() {
-    if (!_mutAnswered) {
-      showToast('Avval javobni tanlang');
-      return;
-    }
-    _mutAnswered = false;
-    _mutSelIdx = -1;
-    const { done } = await TEST.nextMajQuestion();
-    if (done) {
-      setTimeout(async () => {
-        await ADS.showInterstitialAd('test_result');
-        const result = await TEST.finishAndSave('mut');
-        renderTestResult(result);
-      }, 300);
-      return;
-    }
-    renderMutQuestion(TEST.getCurrentQ(), TEST.getQIdx(), TEST.getTotal());
-  }
-
-  function renderTestResult(result) {
-    const pct = result.maxBall > 0 ? Math.round((result.totalBall / result.maxBall) * 100) : 0;
-    const grade = pct >= 90 ? "A'lo" : pct >= 70 ? 'Yaxshi' : pct >= 50 ? "O'rta" : 'Qoniqarsiz';
-    const gc = pct >= 90 ? 'var(--g)' : pct >= 70 ? 'var(--y)' : pct >= 50 ? 'var(--al)' : 'var(--r)';
-    document.getElementById('sg-result').innerHTML = `
-<div class="back-btn" onclick="FIKRA.backToGames()">← O'yinlar</div>
-<div style="padding:14px;text-align:center">
-  <div style="background:linear-gradient(135deg,rgba(123,104,238,.1),rgba(0,212,170,.08));border:1px solid rgba(0,212,170,.2);border-radius:var(--br);padding:16px;margin-bottom:14px">
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--g);margin-bottom:5px">DTM umumiy bali</div>
-    <div style="font-family:'Syne',sans-serif;font-size:46px;font-weight:800;color:var(--y)">${result.totalBall}</div>
-    <div style="font-size:12px;color:var(--m);margin-top:2px">${result.maxBall} baldan</div>
-    <div class="prog-bar" style="margin:10px 0 4px"><div class="prog-fill gradient" style="width:${pct}%"></div></div>
-    <div style="font-size:11px;color:var(--m)">${pct}% — <span style="font-weight:700;color:${gc}">${grade}</span></div>
-  </div>
-  ${result.xp ? `
-    <div style="background:linear-gradient(135deg,rgba(123,104,238,.12),rgba(0,212,170,.08));border:1px solid rgba(123,104,238,.25);border-radius:var(--br);padding:12px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
-      <div style="text-align:left">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--al);margin-bottom:2px">Tajriba</div>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--txt)">+${result.xp.added} XP</div>
-        <div style="font-size:10px;color:var(--m);margin-top:1px">Jami: ${(result.xp.total || 0).toLocaleString()} XP</div>
-      </div>
-      ${result.xp.newRank ? `
-        <div style="text-align:center">
-          <div style="font-size:9px;font-weight:700;color:${result.xp.newRank.color};margin-bottom:2px">YANGI!</div>
-          <div style="font-size:24px">${result.xp.newRank.emoji}</div>
-          <div style="font-size:9px;color:${result.xp.newRank.color};font-weight:700">${result.xp.newRank.name}</div>
-        </div>
-      ` : `
-        <div style="font-size:22px">⚡</div>
-      `}
-    </div>
-  ` : ''}
-  <div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:14px;margin-bottom:14px;text-align:left">
-    ${result.breakdown.map(b => `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--f)">
-      <span style="font-size:12px;color:var(--m);font-weight:600">${b.name}</span>
-      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${b.correct}/${b.total} · <span style="color:var(--y)">${b.ball.toFixed(1)} ball</span></span>
-    </div>`).join('')}
-    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px">
-      <span style="font-weight:700;font-size:13px">Jami</span>
-      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--y)">${result.totalBall}</span>
-    </div>
-  </div>
-  <button class="btn btn-acc btn-full" onclick="FIKRA.goGame('test')">Qayta boshlash</button>
-  <button class="btn btn-full" style="background:var(--s3);color:var(--txt);margin-top:8px" onclick="FIKRA.backToGames()">O'yinlarga qaytish</button>
-</div>`;
-    showSubpanel('games', 'sg-result');
-
-    // Level up ko'rsatish
-    if (result.xp && result.xp.newRank) {
-      setTimeout(() => showLevelUp(result.xp.newRank), 500);
-    }
-  }
-
-  // ─── AI Chat render ───────────────────────────────────────────────────────
-  // openChatId=null → yangi chat | 'general' → davom etgan chat
-  function renderGeneralChat(openChatId) {
-    // Yangi chat — default
-    if (!openChatId || openChatId === 'general_new') {
-      CHAT.startNew();
-    } else {
-      CHAT.loadFromLocal(openChatId);
-    }
-    const history = CHAT.getHistory();
-    const limits = CHAT.limits;
-    const emptyGreeting = history.length === 0;
-
-    document.getElementById('sa-chat').innerHTML = `
-<div style="display:flex;flex-direction:column;height:100%;width:100%">
-  <div style="display:flex;align-items:center;gap:9px;padding:9px 14px;background:var(--bg);border-bottom:1px solid var(--f);flex-shrink:0">
-    <div class="back-btn" style="padding:0;cursor:pointer" onclick="FIKRA.backToAI()">←</div>
-    <div style="flex:1;min-width:0">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px">AI Chat</div>
-      <div style="font-size:10px;color:var(--m)">DeepSeek V3.2 · <span id="chat-count">${history.length}</span>/${limits.MAX_HISTORY}</div>
-    </div>
-    <button onclick="FIKRA.newChat()" title="Yangi chat" style="width:28px;height:28px;border-radius:50%;background:var(--s3);border:1px solid var(--f);color:var(--txt);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0" ${emptyGreeting?'style="display:none"':''}>+</button>
-    <div style="font-size:10px;color:var(--y);font-weight:700;background:rgba(255,204,68,.08);padding:3px 8px;border-radius:100px;border:1px solid rgba(255,204,68,.2);flex-shrink:0">−5t</div>
-  </div>
-  <div id="chat-msgs" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;display:flex;flex-direction:column;gap:9px">
-    ${emptyGreeting ? `<div class="msg-ai"><div class="msg-av-ai">🤖</div><div class="bbl-ai">Salom! Savolingizni yozing.</div></div>` : ''}
-    ${history.map(h => h.role === 'user'
-      ? `<div class="msg-me"><div class="bbl-me">${_escapeHtml(h.content)}</div><div class="msg-av-u">😊</div></div>`
-      : `<div class="msg-ai"><div class="msg-av-ai">🤖</div><div class="bbl-ai">${_escapeHtml(h.content)}</div></div>`
-    ).join('')}
-  </div>
-  <div style="flex-shrink:0">
-    <div id="chat-input-warn" style="display:none;padding:6px 14px;font-size:11px;color:var(--r);background:rgba(255,95,126,.07);border-top:1px solid rgba(255,95,126,.15)"></div>
-    <div class="chat-input-row">
-      <input class="chat-input" id="chat-inp" maxlength="${limits.MAX_MSG_CHARS}" inputmode="text" autocomplete="off" placeholder="Xabar yozing..." oninput="FIKRA._chatInputChange(this)" onkeydown="if(event.key==='Enter')FIKRA.sendChat()">
-      <button class="send-btn" id="chat-send-btn" onclick="FIKRA.sendChat()">↑</button>
-    </div>
+  <div style="display:flex;flex-direction:column;gap:8px" id="opts">
+    ${q.options.map((o,i)=>`<button class="opt-btn" id="opt-${i}" onclick="FIKRA.pick(${i},'${q._id}')" style="padding:11px 14px;background:var(--s2);border:1.5px solid var(--f);border-radius:var(--br2);text-align:left;cursor:pointer;font-size:12px;line-height:1.45;color:var(--txt);width:100%"><span style="font-weight:700;color:var(--m);margin-right:8px">${['A','B','C','D'][i]}</span>${_e(o)}</button>`).join('')}
   </div>
 </div>`;
-    showSubpanel('ai', 'sa-chat');
-    const msgs = document.getElementById('chat-msgs');
-    if (msgs) msgs.scrollTop = msgs.scrollHeight;
-
-    // Telegram BackButton
-    if (tg && tg.BackButton) {
-      tg.BackButton.show();
-      tg.BackButton.onClick(() => backToAI());
-    }
   }
 
-  function newChat() {
-    uiConfirm('Joriy suhbat tarixga saqlanadi. Yangi chat boshlaysizmi?', {
-      title: 'Yangi chat', okLabel: 'Ha', cancelLabel: 'Bekor'
-    }).then(ok => {
-      if (ok) {
-        CHAT.startNew();
-        renderGeneralChat();
-        showToast('Yangi chat boshlandi');
-      }
-    });
-  }
-
-  function _chatInputChange(el) {
-    const len = el.value.length;
-    const max = CHAT.limits.MAX_MSG_CHARS;
-    const warn = document.getElementById('chat-input-warn');
-    if (warn) {
-      if (len > max * 0.9) {
-        warn.style.display = 'block';
-        warn.textContent = `${len}/${max} belgi`;
+  async function pick(idx, qId) {
+    if (_checked) return; _checked=true; haptic('medium');
+    document.querySelectorAll('.opt-btn').forEach(b=>b.style.pointerEvents='none');
+    const selBtn = document.getElementById('opt-'+idx);
+    if (selBtn) selBtn.style.borderColor='var(--acc)';
+    try {
+      const r = await API.checkAnswer(qId, idx);
+      const { isCorrect, correctIndex, explanation } = r;
+      if (isCorrect) {
+        selBtn.style.borderColor='var(--g)'; selBtn.style.background='rgba(0,212,170,.1)'; hapticN('success');
       } else {
-        warn.style.display = 'none';
+        selBtn.style.borderColor='var(--r)'; selBtn.style.background='rgba(255,95,95,.08)'; hapticN('error');
+        const cb = document.getElementById('opt-'+correctIndex);
+        if (cb) { cb.style.borderColor='var(--g)'; cb.style.background='rgba(0,212,170,.1)'; }
+        if (explanation) {
+          setTimeout(()=>{
+            const ht=document.getElementById('htxt');
+            if (ht) { ht.textContent=explanation; ht.style.display='block'; }
+          }, 400);
+        }
       }
+      setTimeout(()=>{
+        const o=document.getElementById('opts');
+        if (o) o.insertAdjacentHTML('afterend',`<div style="padding-top:10px"><button onclick="FIKRA.nextQ()" style="width:100%;padding:12px;background:var(--acc);color:#fff;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer">${ts.idx+1>=ts.q.length?'Natijani ko\'rish':'Keyingi savol →'}</button></div>`);
+      }, 600);
+      const s=ts.sub; if (!ts.stats[s]) ts.stats[s]={correct:0,wrong:0,ball:0};
+      if (isCorrect) { ts.stats[s].correct++; ts.stats[s].ball+=1.1; } else ts.stats[s].wrong++;
+    } catch(e) { toast(e.message||'Xatolik'); }
+  }
+
+  async function getHint() {
+    if (!canAi('hints')) { limitModal('hints'); return; }
+    const q = ts.q[ts.idx]; if (!q) return;
+    const hb = document.getElementById('hbtn');
+    if (hb) { hb.textContent='💡 Yuklanmoqda...'; hb.disabled=true; }
+    try {
+      const r = await API.hint(q.question, q.options, FANS[ts.sub]||ts.sub, 'hint');
+      const ht=document.getElementById('htxt');
+      if (ht) { ht.textContent=r.hint; ht.style.display='block'; }
+      if (hb) hb.style.display='none';
+      if (r.used!==undefined && r.limit!==null) {
+        if (user.aiUsage) user.aiUsage.hints=r.used;
+        const el=document.getElementById('qlim');
+        if (el) el.textContent=r.used+'/'+r.limit+' bugun 💡';
+        const eld=document.getElementById('hint-limit-display');
+        if (eld) eld.textContent=r.used+'/'+r.limit+' bugun';
+      }
+    } catch(e) {
+      if (e.code==='DAILY_LIMIT_REACHED') limitModal('hints');
+      else toast(e.message||'AI xatolik');
+      if (hb) { hb.textContent='💡 AI maslahat'; hb.disabled=false; }
     }
   }
 
-  function _escapeHtml(text) {
-    if (!text) return '';
-    return String(text)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+  function nextQ() {
+    ts.idx++; _checked=false;
+    if (ts.idx>=ts.q.length) finishTest(); else renderQ();
   }
+  function backTest() { _checked=false; subpanel('test','st-home'); }
+
+  async function finishTest() {
+    subpanel('test','st-result');
+    document.getElementById('st-result').innerHTML=loading('Natija saqlanmoqda...');
+    const stats=ts.stats;
+    const subs=Object.keys(stats).filter(s=>stats[s].correct+stats[s].wrong>0);
+    let ball=0,maxBall=0,correct=0,total=0;
+    subs.forEach(s=>{ ball+=stats[s].ball; correct+=stats[s].correct; total+=stats[s].correct+stats[s].wrong; maxBall+=(stats[s].correct+stats[s].wrong)*1.1; });
+    let xp=null;
+    try {
+      const r=await API.testResult({gameType:ts.type==='maj'?'test-maj':'test-mut',subject:ts.sub,direction:ts.dir,ballAmount:+ball.toFixed(1),maxBall:+maxBall.toFixed(1),correctCount:correct,totalQuestions:total});
+      xp=r?.xp||null;
+    } catch {}
+    const pct=maxBall>0?Math.round(ball/maxBall*100):0;
+    const em=pct>=80?'🏆':pct>=60?'👏':pct>=40?'💪':'📖';
+    document.getElementById('st-result').innerHTML=`
+<div style="padding:20px 14px">
+  <div style="text-align:center;margin-bottom:20px">
+    <div style="font-size:48px;margin-bottom:8px">${em}</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:28px;color:var(--acc)">${ball.toFixed(1)}</div>
+    <div style="font-size:12px;color:var(--m)">ball (${pct}%)</div>
+  </div>
+  ${subs.map(s=>`<div style="display:flex;justify-content:space-between;align-items:center;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:10px 12px;margin-bottom:6px"><div style="font-size:12px;font-weight:600">${FANS[s]||s}</div><div style="text-align:right"><div style="font-size:12px;font-weight:700;color:var(--g)">${stats[s].ball.toFixed(1)} ball</div><div style="font-size:10px;color:var(--m)">${stats[s].correct}✓ ${stats[s].wrong}✗</div></div></div>`).join('')}
+  ${xp?`<div style="background:rgba(123,104,238,.1);border:1px solid rgba(123,104,238,.3);border-radius:var(--br2);padding:10px 12px;margin-top:6px;text-align:center"><div style="font-size:11px;color:var(--acc);font-weight:700">+${xp.added} XP${xp.levelUp?' · Yangi daraja! 🎉':''}</div></div>`:''}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px">
+    <button onclick="FIKRA.backTest()" style="padding:12px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);color:var(--txt);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">← Orqaga</button>
+    <button onclick="FIKRA.startFan('${ts.sub}','${ts.block}')" style="padding:12px;background:var(--acc);color:#fff;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">🔄 Qayta</button>
+  </div>
+</div>`;
+    if (xp?.levelUp&&xp?.newRank) setTimeout(()=>levelUp(xp.newRank),600);
+  }
+
+  // ─── STROOP ────────────────────────────────────────────────────────────────
+  let _sm=-1;
+  function goStroop() { sw('gifts'); subpanel('gifts','sg-stroop'); renderStroop(); }
+
+  function renderStroop() {
+    const sub=document.getElementById('sg-stroop'); if (!sub) return;
+    sub.innerHTML=`
+<div style="padding:14px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+    <button onclick="FIKRA.backGifts()" style="background:var(--s2);border:1px solid var(--f);border-radius:8px;padding:6px 10px;color:var(--m);font-size:12px;cursor:pointer">← Orqaga</button>
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">🧠 Stroop Brain</div>
+  </div>
+  <div style="font-size:11px;color:var(--m);margin-bottom:16px;text-align:center">Miya tezligini sinang!</div>
+  <div style="display:flex;gap:8px">
+    <div class="mode-btn" id="mb-0" onclick="FIKRA.setSm(0)"><div style="font-size:18px;margin-bottom:4px">🎨</div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">Rang</div><div style="font-size:10px;color:var(--m);margin-top:2px">To'g'ri rangni tanla</div></div>
+    <div class="mode-btn" id="mb-1" onclick="FIKRA.setSm(1)"><div style="font-size:18px;margin-bottom:4px">✅</div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">Ha/Yo'q</div><div style="font-size:10px;color:var(--m);margin-top:2px">Mos kelishini tekshir</div></div>
+  </div>
+  <button id="sb-start" disabled onclick="FIKRA.doStroop()" style="width:100%;margin-top:14px;padding:14px;background:var(--s3);color:var(--m);border:1px solid var(--f);border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:not-allowed">Rejim tanlang</button>
+</div>`;
+  }
+
+  function setSm(m) {
+    _sm=m;
+    document.querySelectorAll('.mode-btn').forEach((b,i)=>b.classList.toggle('active',i===m));
+    const btn=document.getElementById('sb-start');
+    if (btn) { btn.disabled=false; btn.style.background='var(--acc)'; btn.style.color='#fff'; btn.style.borderColor='var(--acc)'; btn.style.cursor='pointer'; btn.textContent="O'yinni boshlash"; }
+    haptic('light');
+  }
+
+  function doStroop() {
+    if (_sm<0) return; haptic('medium');
+    const sub=document.getElementById('sg-stroop'); if (!sub) return;
+    const isColor=_sm===0;
+    sub.innerHTML=`
+<div style="display:flex;flex-direction:column;align-items:center;padding:20px 14px;height:100%">
+  <div style="display:flex;justify-content:space-between;width:100%;margin-bottom:20px">
+    <div><div class="stimer" id="s-timer">15</div><div style="font-size:10px;color:var(--m)">sekund</div></div>
+    <div style="text-align:center"><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--acc)" id="s-score">0 ball</div></div>
+    <div style="display:flex;gap:5px;align-items:center" id="s-hearts"><span class="heart">❤️</span><span class="heart">❤️</span><span class="heart">❤️</span></div>
+  </div>
+  <div style="width:100%;height:4px;background:var(--s3);border-radius:100px;margin-bottom:28px"><div id="s-prog" style="height:100%;background:var(--acc);width:100%;border-radius:100px;transition:width .2s linear"></div></div>
+  ${isColor?`<div id="s-word" style="font-size:42px;font-weight:800;letter-spacing:4px;margin-bottom:32px;font-family:'Syne',sans-serif;min-height:60px;display:flex;align-items:center;justify-content:center">...</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
+    <button class="stroop-ans" id="sa0" onclick="FIKRA._sa(this)" style="padding:14px;border-radius:var(--br2);border:1.5px solid var(--f);background:var(--s2);font-size:13px;font-weight:700;cursor:pointer;color:var(--txt)">...</button>
+    <button class="stroop-ans" id="sa1" onclick="FIKRA._sa(this)" style="padding:14px;border-radius:var(--br2);border:1.5px solid var(--f);background:var(--s2);font-size:13px;font-weight:700;cursor:pointer;color:var(--txt)">...</button>
+    <button class="stroop-ans" id="sa2" onclick="FIKRA._sa(this)" style="padding:14px;border-radius:var(--br2);border:1.5px solid var(--f);background:var(--s2);font-size:13px;font-weight:700;cursor:pointer;color:var(--txt)">...</button>
+    <button class="stroop-ans" id="sa3" onclick="FIKRA._sa(this)" style="padding:14px;border-radius:var(--br2);border:1.5px solid var(--f);background:var(--s2);font-size:13px;font-weight:700;cursor:pointer;color:var(--txt)">...</button>
+  </div>`:`<div id="s-tfc" style="width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:4px solid var(--f);margin-bottom:28px"><div style="font-size:32px;font-weight:800;font-family:'Syne',sans-serif" id="s-tfw">...</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
+    <button onclick="FIKRA._tf(true)" style="padding:16px;border-radius:var(--br2);background:rgba(0,212,170,.15);border:1.5px solid rgba(0,212,170,.4);font-size:14px;font-weight:800;cursor:pointer;color:var(--g);font-family:'Syne',sans-serif">✅ Ha</button>
+    <button onclick="FIKRA._tf(false)" style="padding:16px;border-radius:var(--br2);background:rgba(255,95,95,.12);border:1.5px solid rgba(255,95,95,.35);font-size:14px;font-weight:800;cursor:pointer;color:var(--r);font-family:'Syne',sans-serif">❌ Yo'q</button>
+  </div>`}
+</div>`;
+    const els = {
+      scoreEl:document.getElementById('s-score'), timerEl:document.getElementById('s-timer'),
+      prog:document.getElementById('s-prog'), hearts:Array.from(document.querySelectorAll('.heart')),
+      ...(isColor?{word:document.getElementById('s-word'),answerBtns:[0,1,2,3].map(i=>document.getElementById('sa'+i))}
+        :{tfCircle:document.getElementById('s-tfc'),tfWord:document.getElementById('s-tfw')}),
+    };
+    if (window.STROOP) { STROOP.init(els); STROOP.start(_sm); }
+  }
+
+  function _sa(btn) { if (window.STROOP) STROOP.answerColor(btn); }
+  function _tf(v)   { if (window.STROOP) STROOP.answerTF(v); }
+
+  function showStroopResult(r) {
+    const sub=document.getElementById('sg-stroop'); if (!sub) return;
+    sub.innerHTML=`
+<div style="padding:20px 14px;text-align:center">
+  <div style="font-size:48px;margin-bottom:8px">${r.isNewBest?'🏆':r.score>100?'🎉':'🎮'}</div>
+  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:32px;color:var(--acc)">${r.score}</div>
+  <div style="font-size:12px;color:var(--m);margin-bottom:4px">ball</div>
+  ${r.isNewBest?'<div style="font-size:11px;color:var(--y);font-weight:700;margin-bottom:12px">🏆 Yangi rekord!</div>':`<div style="font-size:11px;color:var(--m);margin-bottom:12px">Rekord: ${r.bestScore}</div>`}
+  <div style="display:flex;justify-content:center;gap:20px;margin-bottom:16px">
+    <div><div style="font-size:18px;font-weight:800;color:var(--g)">${r.correctCount}</div><div style="font-size:10px;color:var(--m)">To'g'ri</div></div>
+    <div><div style="font-size:18px;font-weight:800;color:var(--r)">${r.wrongCount}</div><div style="font-size:10px;color:var(--m)">Xato</div></div>
+    <div><div style="font-size:18px;font-weight:800;color:var(--y)">${r.durationSec}s</div><div style="font-size:10px;color:var(--m)">Vaqt</div></div>
+  </div>
+  ${r.xp?`<div style="background:rgba(123,104,238,.1);border:1px solid rgba(123,104,238,.2);border-radius:var(--br2);padding:8px;margin-bottom:14px;font-size:11px;color:var(--acc);font-weight:700">+${r.xp.added} XP${r.xp.levelUp?' · Yangi daraja! 🎉':''}</div>`:''}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <button onclick="FIKRA.backGifts()" style="padding:12px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);color:var(--txt);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">← Orqaga</button>
+    <button onclick="FIKRA.goStroop()" style="padding:12px;background:var(--acc);color:#fff;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">🔄 Qayta</button>
+  </div>
+</div>`;
+    if (r.xp?.levelUp) setTimeout(()=>levelUp(r.xp.newRank),500);
+  }
+
+  function backGifts() { if(window.STROOP)STROOP.stop(); subpanel('gifts','sg-home'); }
+
+  // ─── AI CHAT ──────────────────────────────────────────────────────────────
+  function goAIChat() { if (!canAi('chats')) { limitModal('chats'); return; } sw('gifts'); subpanel('gifts','sg-chat'); renderChat(); }
+  function goAIDoc()  { if (!canAi('docs'))  { limitModal('docs');  return; } sw('gifts'); subpanel('gifts','sg-doc');  renderDoc();  }
+  function goAIImage(){ if (!canAi('images')){ limitModal('images');return; } sw('gifts'); subpanel('gifts','sg-img');  renderImg();  }
+  function goKal()    { if (!canAi('calories')){ limitModal('calories');return; } sw('gifts'); subpanel('gifts','sg-kal'); renderKal(); }
+
+  function renderChat() {
+    if (window.CHAT) CHAT.loadFromLocal('general');
+    const sub=document.getElementById('sg-chat'); if (!sub) return;
+    sub.innerHTML=`
+<div style="display:flex;flex-direction:column;height:100%">
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--f);flex-shrink:0">
+    <button onclick="FIKRA.backGiftsAI()" style="background:var(--s2);border:1px solid var(--f);border-radius:8px;padding:6px 10px;color:var(--m);font-size:12px;cursor:pointer">←</button>
+    <div style="flex:1;font-family:'Syne',sans-serif;font-weight:700;font-size:14px">💬 AI Chat</div>
+    <div style="font-size:10px;color:var(--m)">${aiText('chats')}</div>
+    <button onclick="FIKRA.newChat()" style="background:var(--s2);border:1px solid var(--f);border-radius:8px;padding:5px 8px;color:var(--m);font-size:11px;cursor:pointer;font-weight:600">Yangi</button>
+  </div>
+  <div id="chat-msgs" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px">${chatHTML()}</div>
+  <div style="padding:10px 14px;border-top:1px solid var(--f);flex-shrink:0">
+    <div style="display:flex;gap:7px;align-items:flex-end">
+      <textarea id="cinp" placeholder="Savol yozing..." rows="1" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'" style="flex:1;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:9px 11px;color:var(--txt);font-size:12px;resize:none;outline:none;font-family:'Nunito',sans-serif;max-height:100px"></textarea>
+      <button onclick="FIKRA.sendChat()" style="width:38px;height:38px;background:var(--acc);border:none;border-radius:50%;color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">↑</button>
+    </div>
+  </div>
+</div>`;
+  }
+
+  function chatHTML() {
+    const hist=window.CHAT?CHAT.getHistory():[];
+    if (!hist.length) return `<div style="text-align:center;color:var(--m);font-size:12px;padding:20px">Savol bering...</div>`;
+    return hist.map(m=>m.role==='user'
+      ?`<div class="msg-me"><div class="msg-av-u">👤</div><div class="bbl-me">${_e(m.content)}</div></div>`
+      :`<div class="msg-ai"><div class="msg-av-ai">🤖</div><div class="bbl-ai">${_e(m.content)}</div></div>`
+    ).join('');
+  }
+
+  function newChat() { if(window.CHAT)CHAT.startNew(); renderChat(); }
+  function backGiftsAI() { subpanel('gifts','sg-home'); }
 
   async function sendChat() {
-    const inp = document.getElementById('chat-inp');
-    const sendBtn = document.getElementById('chat-send-btn');
-    const text = inp.value.trim();
-
-    // Validatsiya
-    const validation = CHAT.validateMessage(text);
-    if (!validation.ok) {
-      showToast(validation.reason);
-      return;
+    const inp=document.getElementById('cinp'); const msg=inp?.value?.trim(); if (!msg) return;
+    if (window.CHAT) { const c=CHAT.canSend(); if(!c.ok){toast(c.reason);return;} const v=CHAT.validateMessage(msg); if(!v.ok){toast(v.reason);return;} }
+    inp.value=''; inp.style.height='auto';
+    if (window.CHAT) { CHAT.addMessage('user',msg); CHAT.markSent(); }
+    const msgs=document.getElementById('chat-msgs');
+    if (msgs) {
+      msgs.innerHTML=chatHTML();
+      const tp=document.createElement('div'); tp.className='msg-ai'; tp.id='typing';
+      tp.innerHTML='<div class="msg-av-ai">🤖</div><div class="bbl-ai" style="color:var(--m)">...</div>';
+      msgs.appendChild(tp); msgs.scrollTop=msgs.scrollHeight;
     }
-
-    // Spam/limit tekshiruvi
-    const check = CHAT.canSend();
-    if (!check.ok) {
-      if (check.code === 'CHAT_FULL') {
-        uiConfirm(check.reason, { title: 'Chat to\'ldi', okLabel: 'Yangi chat', cancelLabel: 'Bekor' }).then(ok => {
-          if (ok) { CHAT.startNew(); renderGeneralChat(); }
-        });
-      } else {
-        showToast(check.reason);
-      }
-      return;
-    }
-    CHAT.markSent();
-
-    inp.value = '';
-    inp.disabled = true;
-    if (sendBtn) sendBtn.disabled = true;
-
-    const msgs = document.getElementById('chat-msgs');
-    // Greeting ni olib tashlash agar birinchi xabar bo'lsa
-    if (CHAT.getHistory().length === 0) {
-      msgs.innerHTML = '';
-    }
-    msgs.innerHTML += `<div class="msg-me"><div class="bbl-me">${_escapeHtml(text)}</div><div class="msg-av-u">😊</div></div>`;
-    CHAT.addMessage('user', text);
-    _updateChatCount();
-
-    const typingId = 'typing-' + Date.now();
-    msgs.innerHTML += `<div id="${typingId}" class="msg-ai"><div class="msg-av-ai">🤖</div><div class="bbl-ai" style="display:flex;gap:4px;align-items:center"><span style="width:6px;height:6px;background:var(--m);border-radius:50%;animation:td .8s ease-in-out infinite"></span><span style="width:6px;height:6px;background:var(--m);border-radius:50%;animation:td .8s ease-in-out .15s infinite"></span><span style="width:6px;height:6px;background:var(--m);border-radius:50%;animation:td .8s ease-in-out .3s infinite"></span></div></div>`;
-    msgs.scrollTop = msgs.scrollHeight;
-
-    let reply = '';
-    const replyDiv = document.createElement('div');
-    replyDiv.className = 'msg-ai';
-    replyDiv.innerHTML = '<div class="msg-av-ai">🤖</div><div class="bbl-ai" id="streaming-reply"></div>';
-
     try {
-      await API.chat(text, CHAT.getContext().slice(0, -1), // oxirgisi yangi xabar
-        (chunk) => {
-          const tw = document.getElementById(typingId);
-          if (tw) { tw.replaceWith(replyDiv); }
-          reply += chunk;
-          const el = document.getElementById('streaming-reply');
-          if (el) el.textContent = reply;
-          msgs.scrollTop = msgs.scrollHeight;
-        },
-        () => {
-          if (reply) {
-            CHAT.addMessage('assistant', reply);
-            _updateChatCount();
-          }
-          updateTokenDisplay();
-        }
+      let full=''; const tp=document.getElementById('typing'); const bbl=tp?.querySelector('.bbl-ai');
+      await API.chat(msg, window.CHAT?CHAT.getContext().slice(-10).map(m=>({role:m.role,content:m.content})):[],
+        chunk=>{ full+=chunk; if(bbl)bbl.textContent=full; if(msgs)msgs.scrollTop=msgs.scrollHeight; },
+        ()=>{ if(window.CHAT)CHAT.addMessage('assistant',full); if(msgs){msgs.innerHTML=chatHTML();msgs.scrollTop=msgs.scrollHeight;} if(user.aiUsage)user.aiUsage.chats=(user.aiUsage.chats||0)+1; }
       );
-    } catch (e) {
-      const tw = document.getElementById(typingId);
-      if (tw) tw.remove();
-      if (e.code === 'INSUFFICIENT_TOKENS') {
-        msgs.innerHTML += `<div class="msg-ai"><div class="msg-av-ai">⚠️</div><div class="bbl-ai">Token yetarli emas (−5t kerak). Reklama ko'rib bepul token oling!</div></div>`;
-        showAdsModal(5, 'chat_retry');
-      } else {
-        msgs.innerHTML += `<div class="msg-ai"><div class="msg-av-ai">⚠️</div><div class="bbl-ai">Xatolik: ${_escapeHtml(e.message || 'Noma\'lum')}</div></div>`;
-      }
-    } finally {
-      inp.disabled = false;
-      if (sendBtn) sendBtn.disabled = false;
-      inp.focus();
+    } catch(e) {
+      document.getElementById('typing')?.remove();
+      if(e.code==='DAILY_LIMIT_REACHED') limitModal('chats'); else toast(e.message||'Chat xatosi');
     }
   }
 
-  function _updateChatCount() {
-    const c = document.getElementById('chat-count');
-    if (c) c.textContent = CHAT.getHistory().length;
-    const warn = document.getElementById('chat-input-warn');
-    const remaining = CHAT.limits.MAX_HISTORY - CHAT.getHistory().length;
-    if (remaining <= 3 && warn) {
-      warn.style.display = 'block';
-      warn.style.color = 'var(--y)';
-      warn.textContent = `Chat to'lishga yaqin (${remaining} xabar qoldi). Yangi chat boshlang.`;
-    }
-  }
-
-  function renderDocChat(openChatId) {
-    // Yangi hujjat chati — default
-    if (!openChatId || openChatId === 'doc_new') {
-      DOC.clear();
-    } else {
-      DOC.loadHistory();
-    }
-    const fmt = DOC.getFormat();
-    const history = DOC.getHistory();
-    const emptyState = history.length === 0;
-
-    document.getElementById('sa-doc').innerHTML = `
-<div style="display:flex;flex-direction:column;height:100%;width:100%">
-  <div style="display:flex;align-items:center;gap:9px;padding:9px 14px;background:var(--bg);border-bottom:1px solid var(--f);flex-shrink:0">
-    <div class="back-btn" style="padding:0;cursor:pointer" onclick="FIKRA.backToAI()">←</div>
-    <div style="flex:1;min-width:0">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Hujjat yaratish</div>
-      <div style="font-size:10px;color:var(--m)">AI bilan suhbatlashib fayl yarating</div>
-    </div>
-    <button onclick="FIKRA.newDocChat()" title="Yangi hujjat" style="width:28px;height:28px;border-radius:50%;background:var(--s3);border:1px solid var(--f);color:var(--txt);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">+</button>
-    <div style="font-size:10px;color:var(--y);font-weight:700;background:rgba(255,204,68,.08);padding:3px 8px;border-radius:100px;border:1px solid rgba(255,204,68,.2);flex-shrink:0">−10t</div>
+  // ─── AI DOC ───────────────────────────────────────────────────────────────
+  let _fmt='DOCX';
+  function renderDoc() {
+    if (window.DOC) DOC.loadHistory(); _fmt=window.DOC?DOC.getFormat():'DOCX';
+    const sub=document.getElementById('sg-doc'); if (!sub) return;
+    sub.innerHTML=`
+<div style="display:flex;flex-direction:column;height:100%">
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--f);flex-shrink:0">
+    <button onclick="FIKRA.backGiftsAI()" style="background:var(--s2);border:1px solid var(--f);border-radius:8px;padding:6px 10px;color:var(--m);font-size:12px;cursor:pointer">←</button>
+    <div style="flex:1;font-family:'Syne',sans-serif;font-weight:700;font-size:14px">📄 Hujjat</div>
+    <div style="font-size:10px;color:var(--m)">${aiText('docs')}</div>
   </div>
-  <div style="padding:8px 14px;border-bottom:1px solid var(--f);background:var(--s1);flex-shrink:0">
-    <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--m);margin-bottom:6px">Format tanlang</div>
-    <div style="display:flex;gap:5px">
-      ${['DOCX','PDF','PPTX'].map(f => `<button class="fmt-btn ${f===fmt?'active':''}" onclick="FIKRA.setDocFmt('${f}',this)">${f}</button>`).join('')}
-    </div>
+  <div style="padding:8px 14px;border-bottom:1px solid var(--f);flex-shrink:0;display:flex;gap:6px">
+    ${['DOCX','PDF','PPTX'].map(f=>`<button class="fmt-btn ${f===_fmt?'active':''}" onclick="FIKRA.setFmt('${f}',this)">${f}</button>`).join('')}
   </div>
-  <div id="doc-msgs" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;display:flex;flex-direction:column;gap:9px">
-    ${emptyState ? `<div class="msg-ai"><div class="msg-av-ai">📄</div><div class="bbl-ai">Qanday hujjat yaratishni xohlaysiz? Mavzu va tarkibini ayting.</div></div>` : ''}
-    ${history.map(h => h.role === 'user'
-      ? `<div class="msg-me"><div class="bbl-me">${_escapeHtml(h.content)}</div><div class="msg-av-u">😊</div></div>`
-      : `<div class="msg-ai"><div class="msg-av-ai">📄</div><div class="bbl-ai">${_escapeHtml(h.content)}</div></div>`
-    ).join('')}
-  </div>
-  <div style="flex-shrink:0">
-    <div class="chat-input-row">
-      <input class="chat-input" id="doc-inp" maxlength="2000" inputmode="text" autocomplete="off" placeholder="Hujjat haqida yozing..." onkeydown="if(event.key==='Enter')FIKRA.sendDoc()">
-      <button class="send-btn" id="doc-send-btn" onclick="FIKRA.sendDoc()">↑</button>
-    </div>
+  <div id="doc-msgs" style="flex:1;overflow-y:auto;padding:12px 14px"></div>
+  <div style="padding:10px 14px;border-top:1px solid var(--f);flex-shrink:0;display:flex;gap:7px;align-items:flex-end">
+    <textarea id="dinp" placeholder="Hujjat mavzusini yozing..." rows="2" style="flex:1;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:9px 11px;color:var(--txt);font-size:12px;resize:none;outline:none;font-family:'Nunito',sans-serif"></textarea>
+    <button onclick="FIKRA.sendDoc()" style="width:38px;height:38px;background:var(--acc);border:none;border-radius:50%;color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">↑</button>
   </div>
 </div>`;
-    showSubpanel('ai', 'sa-doc');
-    if (tg && tg.BackButton) {
-      tg.BackButton.show();
-      tg.BackButton.onClick(() => backToAI());
-    }
   }
 
-  function newDocChat() {
-    uiConfirm('Joriy hujjat tarixi tozalanadi.', {
-      title: 'Yangi hujjat chati', okLabel: 'Ha', cancelLabel: 'Bekor'
-    }).then(ok => {
-      if (ok) {
-        DOC.clear();
-        renderDocChat();
-        showToast('Yangi hujjat chati');
-      }
-    });
-  }
-
-  function setDocFmt(fmt, btn) {
-    DOC.setFormat(fmt);
-    document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-  }
+  function setFmt(f,btn) { _fmt=f; if(window.DOC)DOC.setFormat(f); document.querySelectorAll('.fmt-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
 
   async function sendDoc() {
-    const inp = document.getElementById('doc-inp');
-    const text = inp.value.trim();
-    if (!text) return;
-    inp.value = '';
-
-    const msgs = document.getElementById('doc-msgs');
-    msgs.innerHTML += `<div class="msg-me"><div class="bbl-me">${text}</div><div class="msg-av-u">😊</div></div>`;
-    DOC.addMessage('user', text);
-
-    const loadId = 'dl-' + Date.now();
-    const fmt = DOC.getFormat();
-    msgs.innerHTML += `<div id="${loadId}" class="msg-ai"><div class="msg-av-ai">📄</div><div class="bbl-ai">
-      <span style="display:inline-flex;align-items:center;gap:6px">
-        <span style="width:14px;height:14px;border:2px solid var(--acc);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;display:inline-block"></span>
-        ${fmt} fayl tayyorlanmoqda...
-      </span>
-    </div></div>`;
-    msgs.scrollTop = msgs.scrollHeight;
-
+    const inp=document.getElementById('dinp'); const prompt=inp?.value?.trim(); if (!prompt) return;
+    inp.value='';
+    const msgs=document.getElementById('doc-msgs');
+    if (msgs) msgs.innerHTML=`<div style="padding:20px;text-align:center;color:var(--m)">🤖 Hujjat yaratilmoqda...</div>`;
     try {
-      const res = await API.document(text, fmt, DOC.getHistory());
-      const tw = document.getElementById(loadId);
-      if (!tw) return;
-
-      // Download handler
-      const downloadId = 'dl-btn-' + Date.now();
-      tw.innerHTML = `<div class="msg-av-ai">📄</div><div class="bbl-ai" style="max-width:260px">
-        <div style="font-weight:600;margin-bottom:6px;color:var(--txt)">${res.title}</div>
-        <div style="font-size:11px;color:var(--m);margin-bottom:10px;line-height:1.5">${(res.preview || '').slice(0, 140)}...</div>
-        <div style="display:flex;align-items:center;gap:9px;padding:9px 11px;background:var(--s1);border:1px solid var(--f);border-radius:9px;margin-bottom:8px">
-          <div style="width:34px;height:34px;border-radius:8px;background:${fmt==='PDF'?'rgba(255,95,126,.15)':fmt==='PPTX'?'rgba(255,204,68,.15)':'rgba(123,104,238,.15)'};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">📄</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)">${res.fileName}</div>
-            <div style="font-size:10px;color:var(--m)">${res.format} · ${res.sizeKb} KB</div>
-          </div>
-        </div>
-        <button id="${downloadId}" style="width:100%;padding:8px;background:var(--acc);color:#fff;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">⬇ Yuklab olish</button>
-      </div>`;
-
-      // Download tugmasi
-      const btn = document.getElementById(downloadId);
-      if (btn) {
-        btn.onclick = () => {
-          try {
-            // base64 → Blob → download link
-            const byteString = atob(res.base64);
-            const arr = new Uint8Array(byteString.length);
-            for (let i = 0; i < byteString.length; i++) arr[i] = byteString.charCodeAt(i);
-            const blob = new Blob([arr], { type: res.mimeType });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = res.fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-            showToast('Yuklab olindi!');
-          } catch (err) {
-            showToast('Yuklab olish xatosi');
-            console.error(err);
-          }
-        };
-      }
-
-      DOC.addMessage('assistant', `[${res.format}] ${res.title} — ${res.sizeKb} KB`);
-      updateTokenDisplay();
-    } catch (e) {
-      const tw = document.getElementById(loadId);
-      if (tw) tw.innerHTML = `<div class="msg-av-ai">⚠️</div><div class="bbl-ai">${e.message || 'Xatolik'}</div>`;
+      const hist=window.DOC?DOC.getHistory().slice(-6).map(m=>({role:m.role,content:m.content})):[];
+      if (window.DOC) DOC.addMessage('user',prompt);
+      const res=await API.document(prompt,_fmt,hist);
+      if (window.DOC) DOC.addMessage('assistant',res.preview||'');
+      if (msgs) msgs.innerHTML=`<div style="padding:14px"><div style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.2);border-radius:var(--br2);padding:12px"><div style="font-weight:700;font-size:12px;margin-bottom:4px">✅ ${_e(res.fileName)} (${res.sizeKb} KB)</div><div style="font-size:11px;color:var(--m);margin-bottom:8px">${_e((res.preview||'').slice(0,120))}...</div><button onclick="FIKRA._dlDoc(this,'${res.mimeType}','${_e(res.fileName)}')" data-b64="${res.base64||''}" style="padding:7px 14px;background:var(--g);color:#000;border:none;border-radius:var(--br2);font-weight:700;font-size:11px;cursor:pointer">⬇ Yuklab olish</button></div></div>`;
+      if (user.aiUsage) user.aiUsage.docs=(user.aiUsage.docs||0)+1;
+    } catch(e) {
+      if (msgs) msgs.innerHTML=`<div style="padding:20px;text-align:center;color:var(--r)">${_e(e.message)}</div>`;
     }
-    msgs.scrollTop = msgs.scrollHeight;
   }
 
-  function renderKaloriya() {
-    document.getElementById('sa-kal').innerHTML = `
-<div class="back-btn" onclick="FIKRA.backToAI()">← AI</div>
-<div style="padding:0 14px">
-  <div id="kal-upload" style="background:var(--s2);border:1.5px dashed rgba(255,95,126,.3);border-radius:var(--br);padding:26px 16px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:10px" onclick="document.getElementById('kal-file').click()">
-    <div style="font-size:36px;margin-bottom:8px">📸</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:3px">Taom rasmini yuklang</div>
-    <div style="font-size:11px;color:var(--m)">AI tahlil qiladi</div>
-    <div style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,204,68,.07);border:1px solid rgba(255,204,68,.18);border-radius:100px;padding:3px 10px;font-size:10px;color:var(--y);font-weight:700;margin-top:8px">15t sarflanadi</div>
-    <input type="file" id="kal-file" accept="image/*" style="display:none" onchange="FIKRA.doScan(this.files[0])">
+  function _dlDoc(btn,mime,name) {
+    try {
+      const b64=btn.dataset.b64; const bin=atob(b64); const arr=new Uint8Array(bin.length);
+      for (let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+      const blob=new Blob([arr],{type:mime}); const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
+    } catch { toast('Yuklab olishda xatolik'); }
+  }
+
+  // ─── AI IMAGE ─────────────────────────────────────────────────────────────
+  function renderImg() {
+    const sub=document.getElementById('sg-img'); if (!sub) return;
+    const saved=window.IMG?IMG.loadHistory():[];
+    sub.innerHTML=`
+<div style="display:flex;flex-direction:column;height:100%">
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--f);flex-shrink:0">
+    <button onclick="FIKRA.backGiftsAI()" style="background:var(--s2);border:1px solid var(--f);border-radius:8px;padding:6px 10px;color:var(--m);font-size:12px;cursor:pointer">←</button>
+    <div style="flex:1;font-family:'Syne',sans-serif;font-weight:700;font-size:14px">🎨 Rasm yaratish</div>
+    <div style="font-size:10px;color:var(--m)">${aiText('images')}</div>
   </div>
-  <div id="kal-result" style="display:none;background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:14px;margin-bottom:10px"></div>
-  <button class="btn btn-acc btn-full" onclick="FIKRA.showAdsModal(3,'calorie_weekly')">Haftalik ratsion (+3t)</button>
+  <div id="img-res" style="flex:1;overflow-y:auto;padding:12px 14px">${saved.length?`<img src="data:${saved[0].mimeType};base64,${saved[0].base64}" style="width:100%;border-radius:var(--br)">`:''}</div>
+  <div style="padding:10px 14px;border-top:1px solid var(--f);flex-shrink:0;display:flex;gap:7px">
+    <input id="iinp" placeholder="Rasm tavsifi..." style="flex:1;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:9px 11px;color:var(--txt);font-size:12px;outline:none">
+    <button onclick="FIKRA.genImg()" style="padding:9px 14px;background:var(--acc);border:none;border-radius:var(--br2);color:#fff;font-weight:700;font-size:12px;cursor:pointer">Yaratish</button>
+  </div>
 </div>`;
-    showSubpanel('ai', 'sa-kal');
+  }
+
+  async function genImg() {
+    const inp=document.getElementById('iinp'); const p=inp?.value?.trim(); if (!p||p.length<3){toast('Kamida 3 ta belgi');return;} inp.value='';
+    const res=document.getElementById('img-res');
+    if (res) res.innerHTML=`<div style="text-align:center;padding:30px;color:var(--m)">🎨 Yaratilmoqda...</div>`;
+    try {
+      const d=window.IMG?await IMG.generate(p):await API.image(p);
+      if (res) res.innerHTML=`<img src="data:${d.mimeType};base64,${d.base64}" style="width:100%;border-radius:var(--br)">`;
+      if (user.aiUsage) user.aiUsage.images=(user.aiUsage.images||0)+1;
+    } catch(e) {
+      if (e.code==='DAILY_LIMIT_REACHED') limitModal('images');
+      else if (res) res.innerHTML=`<div style="padding:20px;text-align:center;color:var(--r)">${_e(e.message)}</div>`;
+    }
+  }
+
+  // ─── KALORIYA ─────────────────────────────────────────────────────────────
+  function renderKal() {
+    const sub=document.getElementById('sg-kal'); if (!sub) return;
+    sub.innerHTML=`
+<div style="padding:14px">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+    <button onclick="FIKRA.backGiftsAI()" style="background:var(--s2);border:1px solid var(--f);border-radius:8px;padding:6px 10px;color:var(--m);font-size:12px;cursor:pointer">←</button>
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px">🥗 Kaloriya AI</div>
+    <div style="font-size:10px;color:var(--m);margin-left:auto">${aiText('calories')}</div>
+  </div>
+  <div id="kal-res"></div>
+  <label style="display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--s2);border:2px dashed var(--f);border-radius:var(--br);padding:24px;cursor:pointer">
+    <div style="font-size:36px">📷</div><div style="font-size:12px;color:var(--m);text-align:center">Ovqat rasmini yuklang<br>AI kaloriyani hisoblab beradi</div>
+    <input type="file" accept="image/*" onchange="FIKRA.doScan(this.files[0])" style="display:none">
+  </label>
+</div>`;
   }
 
   async function doScan(file) {
     if (!file) return;
-    showToast('Skanerlash...');
+    const res=document.getElementById('kal-res');
+    if (res) res.innerHTML=`<div style="padding:12px;text-align:center;color:var(--m)">🔍 Tahlil qilinmoqda...</div>`;
     try {
-      const res = await CALORIE.scanFile(file);
-      document.getElementById('kal-result').style.display = 'block';
-      document.getElementById('kal-result').innerHTML = `
-<div style="font-family:'Syne',sans-serif;font-weight:800;font-size:19px;margin-bottom:12px">${res.foodName}</div>
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">
-  <div style="background:var(--s3);border-radius:var(--br2);padding:8px 4px;text-align:center"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--rl)">${res.calories}</div><div style="font-size:9px;color:var(--m);margin-top:2px;text-transform:uppercase">kal</div></div>
-  <div style="background:var(--s3);border-radius:var(--br2);padding:8px 4px;text-align:center"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--g)">${res.protein}g</div><div style="font-size:9px;color:var(--m);margin-top:2px;text-transform:uppercase">oqsil</div></div>
-  <div style="background:var(--s3);border-radius:var(--br2);padding:8px 4px;text-align:center"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--y)">${res.fat}g</div><div style="font-size:9px;color:var(--m);margin-top:2px;text-transform:uppercase">yog'</div></div>
-  <div style="background:var(--s3);border-radius:var(--br2);padding:8px 4px;text-align:center"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--al)">${res.carbs}g</div><div style="font-size:9px;color:var(--m);margin-top:2px;text-transform:uppercase">uglevod</div></div>
-</div>
-<div style="font-size:12px;color:var(--m);line-height:1.5">${res.tips || ''}</div>`;
-      updateTokenDisplay();
-      showToast('Tahlil tayyor!');
-    } catch (e) {
-      showToast(e.message || 'Xatolik');
+      const d=window.CALORIE?await CALORIE.scanFile(file):await API.calorie(file);
+      if (res) res.innerHTML=`<div style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.2);border-radius:var(--br);padding:14px;margin-bottom:14px"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:8px">${_e(d.foodName||'Ovqat')}</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px"><div style="text-align:center"><div style="font-size:16px;font-weight:800;color:var(--y)">${d.calories}</div><div style="font-size:9px;color:var(--m)">kcal</div></div><div style="text-align:center"><div style="font-size:16px;font-weight:800;color:var(--g)">${d.protein}g</div><div style="font-size:9px;color:var(--m)">Oqsil</div></div><div style="text-align:center"><div style="font-size:16px;font-weight:800;color:var(--r)">${d.fat}g</div><div style="font-size:9px;color:var(--m)">Yog'</div></div><div style="text-align:center"><div style="font-size:16px;font-weight:800;color:var(--acc)">${d.carbs}g</div><div style="font-size:9px;color:var(--m)">Uglerod</div></div></div><div style="font-size:11px;color:var(--m);line-height:1.5">${_e(d.tips||'')}</div></div>`;
+      if (user.aiUsage) user.aiUsage.calories=(user.aiUsage.calories||0)+1;
+    } catch(e) {
+      if (e.code==='DAILY_LIMIT_REACHED') limitModal('calories');
+      else if (res) res.innerHTML=`<div style="padding:12px;text-align:center;color:var(--r)">${_e(e.message)}</div>`;
     }
   }
 
-  // ─── Leaderboard ──────────────────────────────────────────────────────────
-  let _lbPollingTimer = null;
-  let _currentLbType = 'xp';
-  let _lbPanelVisible = false;
-
-  async function loadHomeLeaderboard() {
-    try {
-      const data = await API.leaderboard('xp');
-      renderLbRows('lb-home-rows', data, user?.telegramId);
-    } catch {}
-  }
-
-  async function loadGameLeaderboard(type) {
-    _currentLbType = type;
-    try {
-      const data = await API.leaderboard(type, 'week');
-      renderLbRows('lb-game-rows', data, user?.telegramId);
-    } catch {}
-  }
-
-  async function switchLbTab(btn, type) {
-    document.querySelectorAll('.lb-tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('lb-game-rows').innerHTML =
-      '<div style="padding:12px 14px;font-size:12px;color:var(--m)">Yuklanmoqda...</div>';
-    await loadGameLeaderboard(type);
-  }
-
-  // Real vaqt polling — faqat leaderboard ko'rinib turganda
-  function startLbPolling() {
-    stopLbPolling();
-    _lbPanelVisible = true;
-    _lbPollingTimer = setInterval(() => {
-      if (!_lbPanelVisible || document.hidden) return;
-      if (activePanel === 'home') {
-        loadHomeLeaderboard();
-      } else if (activePanel === 'games') {
-        const gameRows = document.getElementById('lb-game-rows');
-        if (gameRows && gameRows.offsetParent !== null) {
-          loadGameLeaderboard(_currentLbType);
-        }
-      }
-    }, 30000); // 30 soniya
-  }
-
-  function stopLbPolling() {
-    if (_lbPollingTimer) {
-      clearInterval(_lbPollingTimer);
-      _lbPollingTimer = null;
-    }
-    _lbPanelVisible = false;
-  }
-
-  function renderLbRows(containerId, data, myTid) {
-    const ranks = ['rank-gold','rank-silver','rank-bronze'];
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    if (!data || data.length === 0) {
-      container.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--m);text-align:center">Hali natijalar yo\'q — birinchi bo\'l!</div>';
-      return;
-    }
-    container.innerHTML = data.slice(0, 10).map((r, i) => {
-      // XP leaderboard uchun — rank emoji va score XP
-      const rankEmoji = r.emoji || '';
-      const isMe = r.telegramId === myTid;
-      const scoreDisplay = typeof r.score === 'number' && r.score % 1 !== 0 ? r.score.toFixed(1) : (r.score || 0).toLocaleString();
-      return `
-<div class="lb-row ${isMe ? 'me' : ''}">
-  <div class="lb-rank ${ranks[i] || ''}" style="${isMe ? 'color:var(--al)' : ''}">${r.rank}</div>
-  <div class="lb-av">${rankEmoji || '😊'}</div>
-  <div class="lb-name" style="${isMe ? 'color:var(--al)' : ''}">${_escapeHtml(r.username)}</div>
-  <div class="lb-score">${scoreDisplay}</div>
-</div>`;
-    }).join('');
-  }
-
-  // ─── Chat history ─────────────────────────────────────────────────────────
-  function renderChatHistory() {
-    const list = CHAT.getChatList();
-    const container = document.getElementById('chat-history-list');
-    if (!container) return;
-    if (!list.length) {
-      container.innerHTML = '<div style="padding:10px 0;font-size:12px;color:var(--m)">Hali chatlar yo\'q</div>';
-      return;
-    }
-    container.innerHTML = list.map(c => {
-      const openArg = c.type === 'doc' ? 'doc_continue' : 'general_continue';
-      return `
-<div style="display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--f);border-radius:var(--br2);padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all .15s" onclick="FIKRA.openAIChat('${openArg}')">
-  <div style="width:34px;height:34px;border-radius:9px;background:${c.type==='doc'?'rgba(0,212,170,.1)':'rgba(123,104,238,.14)'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${c.icon}</div>
-  <div style="flex:1;min-width:0">
-    <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">
-      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${c.name}</span>
-      ${c.format ? `<span style="font-size:8px;font-weight:700;padding:2px 5px;border-radius:3px;background:rgba(0,212,170,.12);color:var(--g)">${c.format}</span>` : ''}
-      ${c.count ? `<span style="font-size:9px;font-weight:700;color:var(--al)">· ${c.count} xabar</span>` : ''}
-      <span style="font-size:10px;color:var(--m);margin-left:auto">${c.time}</span>
-    </div>
-    <div style="font-size:11px;color:var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escapeHtml(c.lastMsg || 'Yangi chat')}</div>
+  // ─── OBUNA MODALI ─────────────────────────────────────────────────────────
+  async function openSubs() {
+    haptic('light'); let plans=[];
+    try { plans=await API.plans(); } catch {}
+    const tc={basic:'var(--y)',pro:'var(--acc)',vip:'var(--g)'};
+    const te={basic:'⭐',pro:'✨',vip:'💎'};
+    uiOverlay(`
+<div style="width:100%;max-width:480px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;max-height:85vh;overflow-y:auto">
+  <div style="padding:16px 14px;border-bottom:1px solid var(--f);display:flex;align-items:center;justify-content:space-between">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px">⭐ Obuna rejalari</div>
+    <button onclick="this.closest('.ov').remove()" style="width:30px;height:30px;border-radius:50%;background:var(--s2);border:1px solid var(--f);color:var(--m);cursor:pointer;font-size:16px">×</button>
   </div>
-</div>`;
-    }).join('');
+  <div style="padding:14px">
+    <div style="font-size:11px;color:var(--m);margin-bottom:12px">Telegram Stars orqali to'g'ridan-to'g'ri. Darhol faollanadi.</div>
+    ${plans.map(p=>`
+    <div style="background:var(--s2);border:1.5px solid ${p.tier==='pro'?'var(--acc)':'var(--f)'};border-radius:var(--br);padding:14px;margin-bottom:10px;cursor:pointer;position:relative" onclick="FIKRA._buyPlan('${p.id}')">
+      ${p.badge?`<div style="position:absolute;top:-8px;right:12px;background:${tc[p.tier]};color:#000;font-size:9px;font-weight:800;padding:2px 8px;border-radius:100px">${p.badge}</div>`:''}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:6px"><span style="font-size:18px">${te[p.tier]}</span><span style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:${tc[p.tier]}">${p.name}</span><span style="font-size:11px;color:var(--m)">${p.period}</span></div>
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px">${p.priceStars}⭐</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${p.features.map(f=>`<div style="font-size:10px;color:var(--m);background:var(--s3);border-radius:6px;padding:3px 7px">${_e(f)}</div>`).join('')}</div>
+    </div>`).join('')}
+    <div style="font-size:10px;color:var(--m);text-align:center;padding:4px 0 8px">Telegram Stars to'lovlari qaytarilmaydi</div>
+  </div>
+</div>`);
   }
 
-  // ─── AI Hint ──────────────────────────────────────────────────────────────
-  async function getHint(qId, question) {
-    showToast('AI tushuntirish tayyorlanmoqda...');
+  async function _buyPlan(planId) {
+    if (!user||user._demo) { toast('Telegram ichida kiring'); return; }
+    haptic('medium');
     try {
-      const res = await API.hint(question, [], '');
-      showToast('Hint tayyor!');
-      alert(res.hint); // Keyinchalik modal bilan
-      updateTokenDisplay();
-    } catch (e) {
-      if (e.code === 'INSUFFICIENT_TOKENS') showAdsModal(10, 'hint');
-      else showToast(e.message);
-    }
-  }
-
-  // ─── Ads modal ────────────────────────────────────────────────────────────
-  async function showAdsModal(tokensToGive, context, resolve) {
-    // Obuna tekshiruvi — Pro/VIP/Business uchun reklamasiz bonus
-    const isPremium = user && ['pro', 'vip', 'business'].includes(user.plan);
-    if (isPremium) {
-      try {
-        const res = await API.adsReward ? API.adsReward('rewarded_premium', context) : null;
-        if (res) {
-          const r = await res;
-          if (r && r.tokensGiven > 0) {
-            tokens = r.newBalance;
-            updateTokenDisplay();
-            showToast(`✨ Premium bonus: +${r.tokensGiven} token`);
-            resolve && resolve({ success: true, tokensGiven: r.tokensGiven });
-            return;
-          } else if (r && r.limit === 'daily_max') {
-            showToast('Bugungi premium bonus limitiga yetdingiz (5/kun)');
-            resolve && resolve({ success: false, reason: 'daily_limit' });
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn('[Ads] Premium bonus error:', e);
-      }
-    }
-
-    adsPendingTokens = tokensToGive;
-    adsResolve = resolve;
-    document.getElementById('ads-sub').innerHTML =
-      `Ko'rib bo'lgach <strong>+${tokensToGive} token</strong>`;
-    document.getElementById('ads-overlay').classList.add('show');
-    document.getElementById('ads-fill').style.width = '0%';
-    document.getElementById('ads-skip').textContent = '5 soniya...';
-
-    let p = 0;
-    clearInterval(adsTimer);
-    adsTimer = setInterval(() => {
-      p += 2;
-      document.getElementById('ads-fill').style.width = p + '%';
-      const left = Math.ceil((100 - p) / 20);
-      document.getElementById('ads-skip').textContent = left > 0 ? `${left} soniya...` : 'Yopish ✕';
-      if (p >= 100) { clearInterval(adsTimer); _closeAds(); }
-    }, 100);
-
-    document.getElementById('ads-skip').onclick = () => {
-      if (p >= 100) { clearInterval(adsTimer); _closeAds(); }
-    };
-  }
-
-  async function _closeAds() {
-    document.getElementById('ads-overlay').classList.remove('show');
-    try {
-      const res = await API.adsReward('rewarded', 'modal');
-      tokens = res.newBalance;
-      updateTokenDisplay();
-      showToast(`+${res.tokensGiven} token qo'shildi!`);
-    } catch {}
-    adsResolve && adsResolve({ success: true, tokensGiven: adsPendingTokens });
-    adsResolve = null;
-  }
-
-  // ─── Token display ────────────────────────────────────────────────────────
-  async function updateTokenDisplay() {
-    try {
-      const b = await API.balance();
-      tokens = b.tokens;
-      ['tok-val','h-tok','p-tok'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = tokens.toLocaleString();
-      });
-    } catch {}
-  }
-
-  // ─── Toast ────────────────────────────────────────────────────────────────
-  function showToast(msg, hapticType) {
-    const t = document.getElementById('toast');
-    if (!t) return;
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2400);
-    // Haptic feedback (agar Telegram ichida)
-    if (hapticType === 'success' || hapticType === 'error' || hapticType === 'warning') {
-      hapticNotify(hapticType);
-    } else {
-      hapticTap('light');
-    }
-  }
-
-  // ─── Nice confirm (native confirm o'rniga) ────────────────────────────────
-  function uiConfirm(message, opts) {
-    opts = opts || {};
-    return new Promise(resolve => {
-      const overlay = document.createElement('div');
-      overlay.className = 'ui-modal-overlay';
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);animation:fadeIn .2s ease';
-      overlay.innerHTML = `
-        <div style="background:var(--s1);border:1px solid var(--f);border-radius:16px;max-width:340px;width:100%;padding:20px;animation:scaleIn .25s cubic-bezier(.34,1.56,.64,1)">
-          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:10px">${opts.title || 'Tasdiqlash'}</div>
-          <div style="font-size:13px;color:var(--m);line-height:1.5;margin-bottom:18px">${_escapeHtml(message)}</div>
-          <div style="display:flex;gap:8px">
-            <button id="ui-confirm-no" style="flex:1;padding:11px;background:var(--s3);color:var(--txt);border:1px solid var(--f);border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">${opts.cancelLabel || 'Bekor'}</button>
-            <button id="ui-confirm-yes" style="flex:1;padding:11px;background:${opts.danger ? 'var(--r)' : 'var(--acc)'};color:#fff;border:none;border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">${opts.okLabel || 'Ha'}</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(overlay);
-      const close = (result) => {
-        hapticTap('light');
-        overlay.style.animation = 'fadeIn .15s ease reverse';
-        setTimeout(() => overlay.remove(), 150);
-        resolve(result);
-      };
-      document.getElementById('ui-confirm-yes').onclick = () => close(true);
-      document.getElementById('ui-confirm-no').onclick = () => close(false);
-      overlay.onclick = (e) => { if (e.target === overlay) close(false); };
-      // Escape tugmasi
-      const escHandler = (e) => {
-        if (e.key === 'Escape') { close(false); document.removeEventListener('keydown', escHandler); }
-      };
-      document.addEventListener('keydown', escHandler);
-    });
-  }
-
-  // ─── Nice prompt (native prompt o'rniga) ──────────────────────────────────
-  function uiPrompt(message, defaultValue, opts) {
-    opts = opts || {};
-    return new Promise(resolve => {
-      const overlay = document.createElement('div');
-      overlay.className = 'ui-modal-overlay';
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);animation:fadeIn .2s ease';
-      overlay.innerHTML = `
-        <div style="background:var(--s1);border:1px solid var(--f);border-radius:16px;max-width:340px;width:100%;padding:20px;animation:scaleIn .25s cubic-bezier(.34,1.56,.64,1)">
-          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:8px">${opts.title || 'Kiritish'}</div>
-          <div style="font-size:12px;color:var(--m);line-height:1.5;margin-bottom:12px">${_escapeHtml(message)}</div>
-          <input id="ui-prompt-input" type="${opts.type || 'text'}" inputmode="${opts.inputMode || 'text'}" value="${_escapeHtml(defaultValue || '')}" placeholder="${opts.placeholder || ''}" style="width:100%;box-sizing:border-box;padding:12px 14px;background:var(--s2);border:1px solid var(--f);border-radius:10px;color:var(--txt);font-family:'Nunito',sans-serif;font-size:14px;margin-bottom:14px">
-          <div style="display:flex;gap:8px">
-            <button id="ui-prompt-cancel" style="flex:1;padding:11px;background:var(--s3);color:var(--txt);border:1px solid var(--f);border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">Bekor</button>
-            <button id="ui-prompt-ok" style="flex:1;padding:11px;background:var(--acc);color:#fff;border:none;border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">Davom</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(overlay);
-      const input = document.getElementById('ui-prompt-input');
-      setTimeout(() => input.focus(), 100);
-      input.select && input.select();
-
-      const close = (value) => {
-        hapticTap('light');
-        overlay.style.animation = 'fadeIn .15s ease reverse';
-        setTimeout(() => overlay.remove(), 150);
-        resolve(value);
-      };
-      document.getElementById('ui-prompt-ok').onclick = () => close(input.value);
-      document.getElementById('ui-prompt-cancel').onclick = () => close(null);
-      overlay.onclick = (e) => { if (e.target === overlay) close(null); };
-      input.onkeydown = (e) => {
-        if (e.key === 'Enter') close(input.value);
-        if (e.key === 'Escape') close(null);
-      };
-    });
-  }
-
-  // ─── Back buttons ─────────────────────────────────────────────────────────
-  function backToGames() {
-    STROOP.stop();
-    showSubpanel('games', 'sg-list');
-    if (tg && tg.BackButton) tg.BackButton.hide();
-  }
-  function backToAI() {
-    showSubpanel('ai', 'sa-home');
-    renderChatHistory();
-    if (tg && tg.BackButton) tg.BackButton.hide();
-  }
-
-  // ─── Init games ───────────────────────────────────────────────────────────
-  async function initGames() {
-    // Config yuklash — Adsgram Block ID va Bot username ni olish
-    try {
-      const resp = await fetch('/api/config');
-      const config = await resp.json();
-      if (config.adsgramBlockId) {
-        window.ADSGRAM_BLOCK_ID = config.adsgramBlockId;
-      }
-      if (config.botUsername) {
-        window.BOT_USERNAME = config.botUsername;
-      }
-    } catch (e) { console.warn('Config yuklanmadi'); }
-
-    ADS.initAdsgram();
-    loadHomeLeaderboard();
-    loadHomeTournament(); // Turnir banneri
-    startLbPolling();
-
-    // Background ga o'tganda polling to'xtaydi
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) stopLbPolling();
-      else startLbPolling();
-    });
-
-    // Kunlik bonus — login qilingan bo'lsa
-    setTimeout(() => checkDailyBonus(), 500);
-    // Stats
-    API.myStats().then(s => {
-      const el = document.getElementById('p-games');
-      if (el && s.stroopBestScore) {
-        const sc = document.getElementById('my-stroop-score');
-        if (sc) sc.textContent = s.stroopBestScore;
-      }
-      const pgames = document.getElementById('p-games');
-      const pai = document.getElementById('p-ai');
-    }).catch(() => {});
-
-    API.me().then(u => {
-      if (!u) return;
-      user = u;
-      tokens = u.tokens;
-      updateTokenDisplay();
-      const pg = document.getElementById('p-games');
-      const pai = document.getElementById('p-ai');
-      document.getElementById('p-games') && document.getElementById('my-stroop-score');
-    }).catch(() => {});
-
-    // Slider avtomatik aylanish
-    let _slideIdx = 0;
-    const _totalSlides = 3;
-    setInterval(() => {
-      _slideIdx = (_slideIdx + 1) % _totalSlides;
-      const sl = document.getElementById('home-slides');
-      if (sl) sl.style.transform = 'translateX(-' + (_slideIdx * 375) + 'px)';
-      const dots = document.getElementById('home-dots');
-      if (dots) {
-        Array.from(dots.children).forEach((d, i) => {
-          d.style.width = i === _slideIdx ? '14px' : '5px';
-          d.style.borderRadius = i === _slideIdx ? '2px' : '50%';
-          d.style.background = i === _slideIdx ? 'var(--acc)' : 'var(--f)';
+      const res=await API.createInvoice(planId);
+      if (res?.invoiceUrl&&tg) {
+        tg.openInvoice(res.invoiceUrl, async (status) => {
+          if (status==='paid') {
+            toast('✅ Obuna faollashtirildi!');
+            document.querySelector('.ov')?.remove();
+            setTimeout(async()=>{ const me=await API.me().catch(()=>null); if(me){user=me;_syncUser();} }, 1500);
+          } else if (status==='cancelled') toast("To'lov bekor qilindi");
         });
-      }
-    }, 3500);
+      } else toast('Invoice yaratilmadi');
+    } catch(e) { toast(e.message||'Xatolik'); }
+  }
 
-    // Inline styles for dynamic elements
-    const style = document.createElement('style');
-    style.textContent = `
-.qi-btn{display:flex;flex-direction:column;align-items:center;gap:5px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:11px 4px;cursor:pointer;transition:all .15s;font-size:19px}
+  // ─── LEADERBOARD ──────────────────────────────────────────────────────────
+  async function loadLB() {
+    try {
+      const data=await API.leaderboard('xp','week');
+      const el=document.getElementById('lb-rows'); if (!el) return;
+      if (!data?.length) { el.innerHTML=`<div style="padding:12px 14px;font-size:12px;color:var(--m)">Hali yozuvlar yo'q</div>`; return; }
+      const myTid=user?.telegramId;
+      el.innerHTML=data.slice(0,10).map((r,i)=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;${String(r.telegramId)===String(myTid)?'background:rgba(123,104,238,.07);':''}${i<9?'border-bottom:1px solid var(--f)':''}">
+          <div style="width:22px;text-align:center;font-size:11px;font-weight:700;color:${i<3?'var(--y)':'var(--m)'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':r.rank}</div>
+          <div style="flex:1;font-size:12px;font-weight:${String(r.telegramId)===String(myTid)?'700':'500'}">${_e(r.username||'Anonim')}</div>
+          <div style="font-size:11px;font-weight:700;color:var(--y)">${(r.score||0).toLocaleString()} XP</div>
+        </div>`).join('');
+    } catch {}
+  }
+
+  let _lbt=null;
+  function startLB() { loadLB(); _lbt=setInterval(loadLB,15000); }
+  function stopLB()  { clearInterval(_lbt); }
+
+  // ─── TURNIR ───────────────────────────────────────────────────────────────
+  async function loadHomeTournament() {
+    try {
+      const d=await API.weeklyTournament(); if (!d?.tournament) return;
+      const t=d.tournament; const now=new Date(); const end=new Date(t.endAt);
+      const diff=end-now; let ts='';
+      if (diff>0) { const d2=Math.floor(diff/86400000); const h=Math.floor((diff%86400000)/3600000); ts=d2>0?`${d2} kun ${h}s`:`${h} soat`; }
+      const label=document.getElementById('tourn-label'); const title=document.getElementById('tourn-title'); const sub=document.getElementById('tourn-sub');
+      if (label) label.textContent=`Haftalik turnir · ${d.tournament.totalParticipants||0} ishtirokchi · ${ts} qoldi`;
+      if (title) title.textContent=t.title||'Haftalik XP turniri';
+      if (sub)   sub.textContent="Eng ko'p XP to'plagan g'olib bo'ladi";
+    } catch {}
+  }
+
+  async function openTournament() {
+    haptic('light'); let d=null;
+    try { d=await API.weeklyTournament(); } catch {}
+    if (!d) { toast("Turnir ma'lumotlari yuklanmadi"); return; }
+    const ranking=d.ranking||[]; const myTid=user?.telegramId;
+    uiOverlay(`
+<div style="width:100%;max-width:480px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;max-height:80vh;overflow-y:auto">
+  <div style="padding:16px 14px;border-bottom:1px solid var(--f);display:flex;align-items:center;justify-content:space-between">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">🏆 ${_e(d.tournament?.title||'Turnir')}</div>
+    <button onclick="this.closest('.ov').remove()" style="width:28px;height:28px;border-radius:50%;background:var(--s2);border:1px solid var(--f);color:var(--m);cursor:pointer;font-size:15px">×</button>
+  </div>
+  <div style="padding:10px 14px">
+    ${ranking.length?ranking.map((r,i)=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 0;${i<ranking.length-1?'border-bottom:1px solid var(--f)':''}${String(r.telegramId)===String(myTid)?';background:rgba(123,104,238,.07);padding:9px 10px;border-radius:var(--br2);margin:2px -10px':''}">
+        <div style="width:24px;text-align:center;font-weight:700;font-size:12px;color:${i<3?'var(--y)':'var(--m)'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':r.rank}</div>
+        <div style="flex:1;font-size:12px;font-weight:${String(r.telegramId)===String(myTid)?'700':'500'}">${_e(r.username||'Anonim')}</div>
+        <div style="font-size:11px;font-weight:700;color:var(--y)">${(r.score||0).toLocaleString()} XP</div>
+        ${r.prize?.vipDays>0?`<div style="font-size:10px;color:var(--g)">${r.prize.vipDays}d VIP</div>`:''}
+      </div>`).join(''):`<div style="padding:20px;text-align:center;color:var(--m);font-size:12px">Hali ishtirokchilar yo'q</div>`}
+  </div>
+</div>`);
+  }
+
+  // ─── RANK ─────────────────────────────────────────────────────────────────
+  async function rankDetail() {
+    haptic('light'); let allRanks=[],prog=null;
+    try { const r=await API.rankInfo(); allRanks=r.allRanks||[]; prog=r.progress||null; } catch {}
+    uiOverlay(`
+<div style="width:100%;max-width:480px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;max-height:80vh;overflow-y:auto">
+  <div style="padding:16px 14px;border-bottom:1px solid var(--f);display:flex;align-items:center;justify-content:space-between">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">🏅 Lavozimlar</div>
+    <button onclick="this.closest('.ov').remove()" style="width:28px;height:28px;border-radius:50%;background:var(--s2);border:1px solid var(--f);color:var(--m);cursor:pointer;font-size:15px">×</button>
+  </div>
+  <div style="padding:12px 14px">
+    ${allRanks.map(r=>{ const isA=prog?.current?.id===r.id; return `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--br2);margin-bottom:4px;${isA?`background:${r.color}18;border:1px solid ${r.color}44`:'border:1px solid transparent'}"><div style="width:32px;height:32px;border-radius:50%;background:${r.color}22;display:flex;align-items:center;justify-content:center;font-size:16px">${r.emoji}</div><div style="flex:1"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:${r.color}">${_e(r.name)}</div><div style="font-size:10px;color:var(--m)">${r.minXp.toLocaleString()} XP</div></div>${isA?`<div style="font-size:10px;font-weight:700;color:${r.color}">Hozir ✓</div>`:''}</div>`; }).join('')}
+  </div>
+</div>`);
+  }
+
+  function levelUp(rank) {
+    if (!rank) return;
+    const el=document.createElement('div');
+    el.style.cssText='position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);backdrop-filter:blur(8px)';
+    el.innerHTML=`<div style="text-align:center;padding:32px 24px;animation:luA .4s ease"><div style="font-size:64px;margin-bottom:8px">${rank.emoji}</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:24px;color:${rank.color};margin-bottom:8px">Yangi daraja!</div><div style="font-size:18px;font-weight:700;margin-bottom:16px">${_e(rank.name)}</div><button onclick="this.closest('div[style]').remove()" style="padding:12px 28px;background:${rank.color};color:#000;border:none;border-radius:100px;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer">🎉 Zo'r!</button></div>`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),4000);
+  }
+
+  function xpGain(xp,lu) {
+    const el=document.createElement('div');
+    el.style.cssText='position:fixed;bottom:80px;right:16px;background:rgba(123,104,238,.9);color:#fff;padding:6px 14px;border-radius:100px;font-size:11px;font-weight:700;z-index:9999;pointer-events:none;animation:fuA .3s ease';
+    el.textContent=`+${xp} XP${lu?' 🎉':''}`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),2500);
+  }
+
+  // ─── MUSIQA ───────────────────────────────────────────────────────────────
+  async function openMusic() {
+    haptic('light'); let tracks=[];
+    try { const r=await API.music(); tracks=r.tracks||[]; } catch {}
+    if (window.MUSIC&&tracks.length) MUSIC.setPlaylist(tracks.filter(t=>!t.isLocked));
+    uiOverlay(`
+<div style="width:100%;max-width:480px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;max-height:75vh;overflow-y:auto">
+  <div style="padding:16px 14px;border-bottom:1px solid var(--f);display:flex;align-items:center;justify-content:space-between">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">🎵 Binaural musiqa</div>
+    <button onclick="this.closest('.ov').remove()" style="width:28px;height:28px;border-radius:50%;background:var(--s2);border:1px solid var(--f);color:var(--m);cursor:pointer;font-size:15px">×</button>
+  </div>
+  <div style="padding:12px 14px">
+    ${tracks.map(t=>`<div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--br2);margin-bottom:6px;background:var(--s2);border:1px solid ${t.isLocked?'var(--f)':'rgba(0,212,170,.15)'};cursor:${t.isLocked?'default':'pointer'};opacity:${t.isLocked?.6:1}" ${!t.isLocked?`onclick="FIKRA.playTrack('${t.id}')"`:''}><div style="width:36px;height:36px;border-radius:10px;background:rgba(0,212,170,.12);display:flex;align-items:center;justify-content:center;font-size:18px">${t.coverEmoji||'🎵'}</div><div style="flex:1"><div style="font-size:12px;font-weight:700">${_e(t.title)}</div><div style="font-size:10px;color:var(--m)">${_e(t.description||'')}</div></div>${t.isLocked?`<div style="font-size:10px;color:var(--acc);font-weight:700">${t.tier.toUpperCase()}</div>`:`<button style="width:32px;height:32px;border-radius:50%;background:var(--g);border:none;color:#000;font-size:12px;cursor:pointer;font-weight:700">▶</button>`}</div>`).join('')}
+  </div>
+</div>`);
+  }
+
+  async function playTrack(trackId) {
+    try {
+      const r=await API.music(); const t=(r.tracks||[]).find(t=>t.id===trackId); if (!t) return;
+      if (window.MUSIC) { await MUSIC.play(t); toast('▶ '+t.title); const b=document.getElementById('music-play-btn'); if(b)b.textContent='❚❚'; }
+    } catch(e) { toast(e.message); }
+  }
+
+  // ─── YANGI O'YINLAR ────────────────────────────────────────────────────────
+  async function openNG(gameType) {
+    haptic('light');
+    if (gameType==='football') {
+      const inv=await API.inventory('football').catch(()=>null);
+      if (!inv?.items?.length) { _fbClubs(); return; }
+    }
+    const inv=await API.inventory(gameType).catch(()=>({items:[]}));
+    _ngModal(gameType,inv?.items||[]);
+  }
+
+  async function _fbClubs() {
+    const cat=await API.newGamesCatalog().catch(()=>({})); const clubs=cat?.clubs||[];
+    uiOverlay(`
+<div style="width:100%;max-width:480px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;max-height:80vh;overflow-y:auto">
+  <div style="padding:16px 14px;border-bottom:1px solid var(--f);display:flex;align-items:center;justify-content:space-between">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">⚽ Klub tanlang</div>
+    <button onclick="this.closest('.ov').remove()" style="width:28px;height:28px;border-radius:50%;background:var(--s2);border:1px solid var(--f);color:var(--m);cursor:pointer;font-size:15px">×</button>
+  </div>
+  <div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    ${clubs.map(c=>`<button onclick="FIKRA._fbStart('${c.id}')" style="padding:12px;background:var(--s2);border:1.5px solid var(--f);border-radius:var(--br2);cursor:pointer;text-align:center;font-size:11px;font-weight:700;color:var(--txt)"><div style="font-size:20px;margin-bottom:4px">${c.emoji||'⚽'}</div>${_e(c.name)}</button>`).join('')}
+  </div>
+</div>`);
+  }
+
+  async function _fbStart(clubId) {
+    try { await API.footballStart(clubId); document.querySelector('.ov')?.remove(); toast('Jamoa tuzildi!'); const inv=await API.inventory('football'); _ngModal('football',inv?.items||[]); } catch(e) { toast(e.message); }
+  }
+
+  function _ngModal(gameType,items) {
+    const titles={auto:'🚗 Avto Tuning',fashion:'👗 Fashion',football:'⚽ Master Liga'};
+    uiOverlay(`
+<div style="width:100%;max-width:480px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;max-height:82vh;overflow-y:auto">
+  <div style="padding:16px 14px;border-bottom:1px solid var(--f);display:flex;align-items:center;justify-content:space-between">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">${titles[gameType]||gameType}</div>
+    <button onclick="this.closest('.ov').remove()" style="width:28px;height:28px;border-radius:50%;background:var(--s2);border:1px solid var(--f);color:var(--m);cursor:pointer;font-size:15px">×</button>
+  </div>
+  <div id="ng-body" style="padding:12px 14px">
+    ${items.map(it=>{
+      if (gameType==='auto') return `<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:12px;margin-bottom:8px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">${_e(it.name||it.carModel||'Mashina')}</div><div style="display:flex;gap:5px;flex-wrap:wrap">${['engine','suspension','tires','paint'].map(p=>`<div style="font-size:10px;background:var(--s3);padding:2px 6px;border-radius:4px;color:var(--m)">${p} Lv${it.tuning?.[p]||0}</div>`).join('')}<button onclick="FIKRA._ngt('${it._id}')" style="font-size:10px;background:var(--acc);color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer">Tuning +</button></div></div>`;
+      if (gameType==='fashion') return `<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:12px;margin-bottom:8px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">${_e(it.name||'Libos')}</div><div style="font-size:10px;color:var(--m)">Uslub: ${it.outfitStyle||'—'}</div></div>`;
+      if (gameType==='football') return `<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:10px;margin-bottom:6px;display:flex;align-items:center;gap:8px"><div style="flex:1"><div style="font-size:11px;font-weight:700">${_e(it.playerPosition)} · ${_e(it.clubId||'')}</div><div style="font-size:10px;color:var(--m)">${Object.entries(it.playerStats||{}).map(([k,v])=>k.slice(0,3)+':'+v).join(' ')}</div></div><button onclick="FIKRA._ngu('${it._id}')" style="font-size:10px;background:var(--acc);color:#fff;border:none;padding:4px 8px;border-radius:6px;cursor:pointer">+Stat</button></div>`;
+      return '';
+    }).join('')}
+    ${gameType==='football'&&items.length?`<button onclick="FIKRA._fbMatch()" style="width:100%;padding:12px;background:var(--g);color:#000;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;margin-top:4px">⚽ Bot bilan o'yna (XP uchun)</button>`:''}
+  </div>
+</div>`);
+  }
+
+  async function _ngt(carId) {
+    const part=await uiPrompt('Tuning qismi?','engine',{hint:'engine, suspension, tires, paint, spoiler, rims'});
+    if (!part) return;
+    try { const r=await API.carTuning(carId,part); toast('✅ Tuning! Qiymat: '+r.newValue); } catch(e) { toast(e.message); }
+  }
+  async function _ngu(playerId) {
+    const stat=await uiPrompt('Stat?','speed',{hint:'speed, skill, shot, defense'});
+    if (!stat) return;
+    try { await API.upgradePlayer(playerId,stat); toast('✅ '+stat+' oshdi!'); xpGain(5,false); } catch(e) { toast(e.message); }
+  }
+  async function _fbMatch() {
+    try { const r=await API.footballMatch(); const em=r.result==='win'?'🏆':r.result==='draw'?'🤝':'😔'; toast(`${em} ${r.userGoals}-${r.botGoals} | +${r.xpEarned} XP`); if(r.xp?.levelUp)setTimeout(()=>levelUp(r.xp.newRank),500); } catch(e) { toast(e.message); }
+  }
+
+  // ─── PROFIL QOLGAN FUNKSIYALAR ────────────────────────────────────────────
+  function copyRef() {
+    const inp=document.getElementById('ref-link'); const link=inp?.value; if (!link) return;
+    navigator.clipboard?.writeText(link).then(()=>toast('Havola nusxalandi!')).catch(()=>{inp.select();document.execCommand('copy');toast('Nusxalandi!');});
+    haptic('medium');
+  }
+  function shareRef() {
+    const link=document.getElementById('ref-link')?.value; if (!link) return;
+    const text=`FIKRA — DTM testlarga AI bilan tayyorlanish!\n${link}`;
+    if (tg) tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`);
+    else if (navigator.share) navigator.share({text,url:link}).catch(()=>{});
+    haptic('light');
+  }
+
+  // ─── UI HELPERS ───────────────────────────────────────────────────────────
+  function uiOverlay(html) {
+    const el=document.createElement('div');
+    el.className='ov';
+    el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:flex-end;backdrop-filter:blur(4px)';
+    el.onclick=e=>{ if(e.target===el)el.remove(); };
+    el.innerHTML=html;
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function uiConfirm(msg,opts={}) {
+    return new Promise(resolve=>{
+      const el=uiOverlay(`<div style="width:100%;max-width:480px;margin:0 auto;background:var(--s2);border-radius:20px 20px 0 0;padding:20px">`+
+        `<div style="font-size:13px;line-height:1.5;margin-bottom:16px">${_e(msg)}</div>`+
+        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">`+
+        `<button id="uc-no" style="padding:10px;background:var(--s3);border:1px solid var(--f);border-radius:var(--br2);cursor:pointer;font-size:12px;color:var(--txt)">${opts.cancel||'Bekor'}</button>`+
+        `<button id="uc-ok" style="padding:10px;background:var(--acc);color:#fff;border:none;border-radius:var(--br2);cursor:pointer;font-size:12px;font-weight:700">${opts.ok||'OK'}</button>`+
+        `</div></div>`);
+      el.querySelector('#uc-no').onclick=()=>{el.remove();resolve(false);};
+      el.querySelector('#uc-ok').onclick=()=>{el.remove();resolve(true);};
+    });
+  }
+
+  function uiPrompt(msg,def='',opts={}) {
+    return new Promise(resolve=>{
+      const el=uiOverlay(`<div style="width:100%;max-width:480px;margin:0 auto;background:var(--s2);border-radius:20px 20px 0 0;padding:20px">`+
+        `<div style="font-size:13px;font-weight:600;margin-bottom:${opts.hint?'4px':'12px'}">${_e(msg)}</div>`+
+        (opts.hint?`<div style="font-size:10px;color:var(--m);margin-bottom:8px">${_e(opts.hint)}</div>`:'')+
+        `<input id="up-inp" value="${_e(def)}" style="width:100%;background:var(--s3);border:1px solid var(--f);border-radius:var(--br2);padding:9px 11px;color:var(--txt);font-size:12px;outline:none;margin-bottom:12px;box-sizing:border-box">`+
+        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">`+
+        `<button id="up-no" style="padding:10px;background:var(--s3);border:1px solid var(--f);border-radius:var(--br2);cursor:pointer;font-size:12px;color:var(--txt)">Bekor</button>`+
+        `<button id="up-ok" style="padding:10px;background:var(--acc);color:#fff;border:none;border-radius:var(--br2);cursor:pointer;font-size:12px;font-weight:700">OK</button>`+
+        `</div></div>`);
+      el.querySelector('#up-no').onclick=()=>{el.remove();resolve(null);};
+      el.querySelector('#up-ok').onclick=()=>{const v=el.querySelector('#up-inp')?.value?.trim();el.remove();resolve(v||null);};
+      el.querySelector('#up-inp')?.focus();
+    });
+  }
+
+  function toast(msg) {
+    const t=document.getElementById('toast'); if (!t) return;
+    t.textContent=msg; t.className='show';
+    clearTimeout(t._t); t._t=setTimeout(()=>t.className='',2500);
+  }
+
+  function loading(msg) {
+    return `<div style="padding:30px;text-align:center;color:var(--m);font-size:12px">${_e(msg||'Yuklanmoqda...')}</div>`;
+  }
+
+  // ─── INIT APP ─────────────────────────────────────────────────────────────
+  function initApp() {
+    fetch('/api/config').then(r=>r.json()).then(c=>{if(c.botUsername)window.BOT_USERNAME=c.botUsername;}).catch(()=>{});
+    startLB();
+    loadHomeTournament();
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)stopLB();else startLB();});
+    API.myStats().then(s=>{const el=document.getElementById('my-stroop-score');if(el&&s?.stroopBestScore)el.textContent=s.stroopBestScore;}).catch(()=>{});
+    API.me().then(u=>{if(u){user=u;_syncUser();}}).catch(()=>{});
+
+    const style=document.createElement('style');
+    style.textContent=`
+.qi-btn{display:flex;flex-direction:column;align-items:center;gap:5px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:11px 4px;cursor:pointer;transition:all .15s;font-size:19px;-webkit-tap-highlight-color:transparent}
 .qi-btn span{font-size:9px;font-weight:700;color:var(--m);text-align:center;letter-spacing:.3px}
 .qi-btn:active{transform:scale(.91)}
+.fan-card{display:flex;flex-direction:column;align-items:center;gap:5px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:11px 4px;cursor:pointer;transition:all .15s;font-size:22px;text-align:center}
+.fan-card span{font-size:10px;font-weight:700;color:var(--m)}
+.fan-card:active{transform:scale(.92);border-color:var(--acc)}
+.dir-card{background:var(--s2);border:1.5px solid var(--f);border-radius:var(--br2);padding:12px 14px;cursor:pointer;transition:all .15s}
+.dir-card:active{transform:scale(.97);border-color:var(--acc)}
 .ai-svc-card{background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:13px;cursor:pointer;transition:all .15s;font-size:22px}
+.ai-svc-card.locked{opacity:.6}
 .ai-svc-card:active{transform:scale(.95)}
-.stimer{font-family:'Syne',sans-serif;font-size:28px;font-weight:800}
-.stimer.warn{color:var(--r)}
-.heart.lost{opacity:.18}
-.mode-btn{flex:1;padding:10px;border-radius:var(--br2);border:1.5px solid var(--f);background:var(--s2);text-align:center;cursor:pointer;transition:all .15s}
+.game-card{background:var(--s1);border:1px solid var(--f);border-radius:var(--br);overflow:hidden;cursor:pointer}
+.game-card-hdr{height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:#fff;font-family:'Syne',sans-serif;font-weight:800;font-size:14px}
+.game-card-ftr{display:flex;align-items:center;justify-content:space-between;padding:8px 14px}
+.mode-btn{flex:1;padding:12px;border-radius:var(--br2);border:1.5px solid var(--f);background:var(--s2);text-align:center;cursor:pointer;transition:all .15s}
 .mode-btn.active{border-color:var(--acc);background:rgba(123,104,238,.1)}
 .mode-btn:active{transform:scale(.95)}
-.fan-tab{padding:5px 12px;border-radius:100px;font-size:11px;font-weight:700;border:1px solid var(--f);background:transparent;color:var(--m);cursor:pointer;transition:all .15s;font-family:'Syne',sans-serif;white-space:nowrap}
-.fan-tab.active{background:var(--acc);border-color:var(--acc);color:#fff}
-.fan-tab:active{transform:scale(.92)}
-.test-nav-btn{padding:5px 12px;border-radius:100px;font-size:11px;font-weight:700;border:1px solid var(--f);background:transparent;color:var(--m);cursor:pointer;font-family:'Syne',sans-serif;transition:all .15s}
-.test-nav-btn.active{background:var(--acc);border-color:var(--acc);color:#fff}
-.lb-tab-btn{padding:4px 11px;border-radius:100px;font-size:10px;font-weight:700;border:1px solid var(--f);background:transparent;color:var(--m);cursor:pointer;white-space:nowrap;transition:all .15s;font-family:'Syne',sans-serif;flex-shrink:0}
-.lb-tab-btn.active{background:var(--acc);border-color:var(--acc);color:#fff}
-.lb-tab-btn:active{transform:scale(.93)}
 .fmt-btn{padding:5px 12px;border-radius:100px;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;border:1px solid var(--f);background:transparent;color:var(--m);cursor:pointer;transition:all .15s}
 .fmt-btn.active{background:var(--g);color:#000;border-color:var(--g)}
-.dir-card{background:var(--s2);border:1.5px solid var(--f);border-radius:var(--br2);padding:13px 14px;margin-bottom:8px;cursor:pointer;transition:all .15s}
-.dir-card:active{transform:scale(.97)}
-.dir-card.sel{border-color:var(--acc);background:rgba(123,104,238,.08)}
+.status-plan{display:flex;align-items:center;gap:4px;background:var(--s2);border:1px solid var(--f);border-radius:100px;padding:4px 10px;cursor:pointer}
+.stimer{font-family:'Syne',sans-serif;font-size:28px;font-weight:800}
+.stimer.warn{color:var(--r)}
+.heart{font-size:18px;transition:opacity .2s}
+.heart.lost{opacity:.18}
 .msg-ai{display:flex;gap:7px;align-items:flex-end}
 .msg-me{display:flex;gap:7px;align-items:flex-end;flex-direction:row-reverse}
 .msg-av-ai{width:26px;height:26px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
 .msg-av-u{width:26px;height:26px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
-.bbl-ai{max-width:222px;padding:9px 12px;border-radius:12px;font-size:12px;line-height:1.55;background:var(--s2);border:1px solid var(--f);border-bottom-left-radius:3px}
-.bbl-me{max-width:222px;padding:9px 12px;border-radius:12px;font-size:12px;line-height:1.55;background:var(--acc);color:#fff;border-bottom-right-radius:3px}
-@keyframes td{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+.bbl-ai{max-width:240px;padding:9px 12px;border-radius:12px 12px 12px 3px;font-size:12px;line-height:1.55;background:var(--s2);border:1px solid var(--f)}
+.bbl-me{max-width:240px;padding:9px 12px;border-radius:12px 12px 3px 12px;font-size:12px;line-height:1.55;background:var(--acc);color:#fff}
+@keyframes luA{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}
+@keyframes fuA{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
 `;
     document.head.appendChild(style);
   }
 
-  // ─── Kunlik bonus ─────────────────────────────────────────────────────────
-  async function checkDailyBonus() {
-    // user ma'lumotlarida lastLoginDate bo'lsa — bugun olinganmi tekshirish
-    if (!user) return;
-    try {
-      const today = new Date().toDateString();
-      const last = user.lastLoginDate ? new Date(user.lastLoginDate).toDateString() : null;
-      const banner = document.getElementById('daily-bonus-banner');
-      if (!banner) return;
-
-      if (last === today) {
-        banner.style.display = 'none';
-      } else {
-        banner.style.display = 'flex';
-        const streak = user.streakDays || 0;
-        const bonus = streak >= 7 ? 6 : 3;
-        const title = document.getElementById('daily-bonus-title');
-        const sub = document.getElementById('daily-bonus-sub');
-        if (title) title.textContent = `Kunlik bonus +${bonus}t`;
-        if (sub) sub.textContent = streak >= 7
-          ? `🔥 ${streak} kunlik streak — 2x bonus!`
-          : `Har kuni kiring — ${7 - streak} kun qoldi 2x gacha`;
-      }
-    } catch (e) { console.warn(e); }
-  }
-
-  async function claimDaily() {
-    try {
-      const res = await API.dailyBonus();
-      showToast(`+${res.bonus} token olindi! 🎁`);
-      const banner = document.getElementById('daily-bonus-banner');
-      if (banner) banner.style.display = 'none';
-      updateTokenDisplay();
-
-      // XP gain + level up
-      if (res.xp && res.xp.added) {
-        setTimeout(() => showXpGain(res.xp.added, res.xp.newRank), 500);
-      }
-
-      // user ma'lumotini yangilash
-      try {
-        const me = await API.me();
-        if (me) user = me;
-          _syncUserToWindow();
-      } catch {}
-    } catch (e) {
-      if (e.code === 'ALREADY_CLAIMED') {
-        showToast('Bugungi bonus allaqachon olindi');
-        const banner = document.getElementById('daily-bonus-banner');
-        if (banner) banner.style.display = 'none';
-      } else {
-        showToast(e.message || 'Xatolik');
-      }
-    }
-  }
-
-  // ─── Referral ─────────────────────────────────────────────────────────────
-  function copyRef() {
-    const inp = document.getElementById('ref-link');
-    if (!inp) return;
-    const link = inp.value;
-    if (!link) {
-      showToast('Referral link mavjud emas');
-      return;
-    }
-    try {
-      // Telegram ichida navigator.clipboard ishlamasligi mumkin
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(link)
-          .then(() => showToast('Link nusxalandi!'))
-          .catch(() => _fallbackCopy(inp));
-      } else {
-        _fallbackCopy(inp);
-      }
-    } catch {
-      _fallbackCopy(inp);
-    }
-  }
-
-  function _fallbackCopy(inp) {
-    try {
-      inp.select();
-      inp.setSelectionRange(0, 99999);
-      document.execCommand('copy');
-      showToast('Link nusxalandi!');
-    } catch {
-      showToast('Linkni qo\'lda belgilab oling');
-    }
-  }
-
-  function shareRef() {
-    const inp = document.getElementById('ref-link');
-    if (!inp || !inp.value) {
-      showToast('Link tayyor emas');
-      return;
-    }
-    const link = inp.value;
-    const text = `🧠 FIKRA — miya faolligi platformasiga qo'shil!\nBepul token olish uchun:`;
-
-    if (tg && typeof tg.openTelegramLink === 'function') {
-      // Telegram'da share oynasi
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
-      tg.openTelegramLink(shareUrl);
-    } else {
-      // Fallback — nusxalash
-      copyRef();
-    }
-  }
-
-  // ─── Token tarixi ─────────────────────────────────────────────────────────
-  async function loadTokenHistory() {
-    const container = document.getElementById('token-history-list');
-    if (!container) return;
-    container.innerHTML = '<div style="padding:8px 0;font-size:11px;color:var(--m)">Yuklanmoqda...</div>';
-    try {
-      const history = await API.tokenHistory();
-      if (!history || history.length === 0) {
-        container.innerHTML = '<div style="padding:8px 0;font-size:11px;color:var(--m);text-align:center">Tarix bo\'sh</div>';
-        return;
-      }
-      const sourceNames = {
-        ai_chat: '💬 AI Chat',
-        ai_document: '📄 Hujjat',
-        ai_image: '🎨 Rasm',
-        ai_calorie: '🥗 Kaloriya',
-        ai_video: '🎬 Video',
-        game_stroop: '🎮 Stroop',
-        game_test: '📝 DTM Test',
-        daily_bonus: '🎁 Kunlik bonus',
-        ads_rewarded: '📺 Reklama',
-        referral_bonus: '🎯 Referral',
-      };
-      container.innerHTML = history.slice(0, 15).map(h => {
-        const date = new Date(h.createdAt);
-        const dateStr = date.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' })
-          + ' ' + date.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
-        const isPlus = h.amount > 0;
-        return `
-<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--f);font-size:11px">
-  <div style="flex:1;overflow:hidden">
-    <div style="color:var(--txt);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sourceNames[h.source] || h.source}</div>
-    <div style="color:var(--m);font-size:10px;margin-top:1px">${dateStr}</div>
-  </div>
-  <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:${isPlus ? 'var(--g)' : 'var(--r)'}">${isPlus ? '+' : ''}${h.amount}t</div>
-</div>`;
-      }).join('');
-    } catch (e) {
-      container.innerHTML = `<div style="padding:8px 0;font-size:11px;color:var(--r)">Xatolik: ${e.message}</div>`;
-    }
-  }
-
-  // ─── Lavozim (Rank) ───────────────────────────────────────────────────────
-  async function showRankDetail() {
-    try {
-      const data = await API.rankInfo();
-      const modal = document.createElement('div');
-      modal.id = 'rank-modal';
-      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(6px)';
-      const currentId = data.progress?.current?.id;
-      modal.innerHTML = `
-<div style="background:var(--s1);border:1px solid var(--f);border-radius:var(--br);max-width:360px;width:100%;max-height:80vh;overflow-y:auto;padding:18px">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px">Lavozimlar</div>
-    <button onclick="document.getElementById('rank-modal').remove()" style="width:28px;height:28px;border-radius:50%;background:var(--s3);border:none;color:var(--txt);font-size:16px;cursor:pointer;padding:0">×</button>
-  </div>
-  <div style="display:flex;flex-direction:column;gap:8px">
-    ${data.allRanks.map(r => {
-      const active = r.id === currentId;
-      const isNext = data.progress?.next?.id === r.id;
-      const isLocked = !active && !data.allRanks.slice(0, data.allRanks.findIndex(x => x.id === currentId) + 1).some(x => x.id === r.id);
-      return `
-      <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;background:${active ? r.color + '1A' : 'var(--s2)'};border:1.5px solid ${active ? r.color : 'var(--f)'};border-radius:var(--br2);${active ? 'box-shadow:0 0 14px ' + r.glow : ''}${isLocked ? 'opacity:.45' : ''}">
-        <div style="width:36px;height:36px;border-radius:10px;background:${r.color}1A;border:1px solid ${r.color}33;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${r.emoji}</div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-            <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:${r.color}">${r.name}</span>
-            ${active ? `<span style="font-size:8px;font-weight:700;color:#fff;background:${r.color};padding:1px 5px;border-radius:3px">SIZDA</span>` : ''}
-            ${isNext ? `<span style="font-size:8px;font-weight:700;color:var(--y);background:rgba(255,204,68,.15);padding:1px 5px;border-radius:3px">KEYINGI</span>` : ''}
-          </div>
-          <div style="font-size:10px;color:var(--m)">Daraja ${r.level} · ${r.minXp.toLocaleString()}+ XP</div>
-        </div>
-      </div>`;
-    }).join('')}
-  </div>
-</div>`;
-      document.body.appendChild(modal);
-      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-    } catch (e) {
-      showToast('Ma\'lumot yuklanmadi');
-    }
-  }
-
-  // Level up toast — katta, diqqatni tortadigan
-  function showLevelUp(newRank) {
-    if (!newRank) return;
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadeIn .3s ease;backdrop-filter:blur(8px)';
-    overlay.innerHTML = `
-<div style="text-align:center;padding:32px;animation:scaleIn .5s cubic-bezier(.34,1.56,.64,1)">
-  <div style="font-size:12px;font-weight:700;letter-spacing:3px;color:${newRank.color};margin-bottom:12px;text-transform:uppercase">Yangi daraja!</div>
-  <div style="width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,${newRank.color}33,transparent 70%);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:70px;filter:drop-shadow(0 0 30px ${newRank.glow});animation:pulse 2s ease-in-out infinite">${newRank.emoji}</div>
-  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:26px;color:${newRank.color};margin-bottom:6px">${newRank.name}</div>
-  <div style="font-size:12px;color:var(--m);margin-bottom:20px">Daraja ${newRank.level} · ${newRank.minXp.toLocaleString()} XP</div>
-  <button onclick="this.closest('div[style*=\\"fixed\\"]').remove()" style="padding:11px 26px;background:${newRank.color};color:#fff;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer">Ajoyib! 🎉</button>
-</div>`;
-    document.body.appendChild(overlay);
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-    // Avtomatik yopilish 6 soniyadan keyin
-    setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 6000);
-  }
-
-  // XP toast — kichik, o'yin natijalarida
-  function showXpGain(xp, levelUp) {
-    const toast = document.createElement('div');
-    toast.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:9998;background:linear-gradient(135deg,rgba(123,104,238,.95),rgba(0,212,170,.9));color:#fff;padding:10px 18px;border-radius:100px;font-family:\'Syne\',sans-serif;font-weight:700;font-size:13px;box-shadow:0 4px 20px rgba(123,104,238,.4);animation:slideDown .4s ease';
-    toast.innerHTML = `⚡ +${xp} XP`;
-    document.body.appendChild(toast);
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transition = 'opacity .4s';
-      setTimeout(() => toast.remove(), 400);
-    }, 2500);
-    if (levelUp) {
-      setTimeout(() => showLevelUp(levelUp), 800);
-    }
-  }
-
-  // ─── Obuna sahifasi (modal) ───────────────────────────────────────────────
-  let _currentPlanPeriod = '1m'; // '1m' yoki '3m'
-
-  async function openSubscriptions() {
-    try {
-      const plans = await API.plans();
-      const current = user?.plan || 'free';
-      _currentPlanPeriod = '1m';
-      _renderSubscriptionsModal(plans, current);
-    } catch (e) {
-      showToast('Ma\'lumot yuklanmadi');
-    }
-  }
-
-  function _renderSubscriptionsModal(plans, currentPlan) {
-    const existing = document.getElementById('sub-modal');
-    if (existing) existing.remove();
-
-    const modal = document.createElement('div');
-    modal.id = 'sub-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;overflow-y:auto;backdrop-filter:blur(6px);padding:14px 0';
-
-    const filterPlans = (period) => plans.filter(p => p.id.endsWith('_' + period));
-
-    function renderList(period) {
-      const list = filterPlans(period);
-      return list.map(p => {
-        const isCurrent = p.tier === currentPlan;
-        const tierColors = {
-          basic: 'rgba(0,212,170,.2)',
-          pro: 'rgba(123,104,238,.28)',
-          vip: 'rgba(255,204,68,.28)',
-          business: 'rgba(255,95,126,.28)',
-        };
-        const tierAccent = {
-          basic: 'var(--g)', pro: 'var(--al)', vip: 'var(--y)', business: 'var(--r)',
-        };
-        const color = tierColors[p.tier] || 'var(--f)';
-        const accent = tierAccent[p.tier] || 'var(--acc)';
-
-        return `
-<div style="background:var(--s2);border:1.5px solid ${color};border-radius:var(--br);padding:14px;margin-bottom:10px;position:relative">
-  ${p.badge ? `<div style="position:absolute;top:-7px;right:10px;background:${accent};color:#000;padding:2px 8px;border-radius:100px;font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase">${p.badge}</div>` : ''}
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-    <div>
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:${accent}">${p.name}</div>
-      <div style="font-size:10px;color:var(--m);margin-top:1px">${p.durationDays} kun</div>
-    </div>
-    <div style="text-align:right">
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px">${p.priceUzs.toLocaleString()} <span style="font-size:11px;color:var(--m);font-weight:500">so'm</span></div>
-      <div style="font-size:10px;color:var(--y);font-weight:700;margin-top:1px">⭐ ${p.priceStars} Stars</div>
-    </div>
-  </div>
-  <ul style="list-style:none;padding:0;margin:0 0 10px">
-    ${p.features.map(f => `<li style="font-size:11px;color:var(--txt);padding:3px 0;display:flex;align-items:center;gap:6px"><span style="color:${accent};font-weight:700">✓</span>${_escapeHtml(f)}</li>`).join('')}
-  </ul>
-  <button onclick="FIKRA.buyPlan('${p.id}')" ${isCurrent ? 'disabled' : ''} style="width:100%;padding:10px;background:${isCurrent ? 'var(--s3)' : accent};color:${isCurrent ? 'var(--m)' : (p.tier === 'vip' ? '#000' : '#fff')};border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:${isCurrent ? 'default' : 'pointer'}">${isCurrent ? 'Joriy obuna' : 'Tanlash'}</button>
-</div>`;
-      }).join('');
-    }
-
-    modal.innerHTML = `
-<div style="max-width:420px;margin:0 auto;background:var(--s1);border-radius:var(--br);padding:16px;min-height:calc(100vh - 28px)">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px">Obuna tariflari</div>
-    <button onclick="document.getElementById('sub-modal').remove()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:none;color:var(--txt);font-size:17px;cursor:pointer;padding:0">×</button>
-  </div>
-
-  <div style="display:flex;gap:6px;background:var(--s3);border-radius:var(--br2);padding:4px;margin-bottom:14px">
-    <button id="per-1m" onclick="FIKRA.switchPlanPeriod('1m')" style="flex:1;padding:8px;border:none;border-radius:var(--br2);background:var(--acc);color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">1 oy</button>
-    <button id="per-3m" onclick="FIKRA.switchPlanPeriod('3m')" style="flex:1;padding:8px;border:none;border-radius:var(--br2);background:transparent;color:var(--m);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">3 oy · chegirma</button>
-  </div>
-
-  <div id="sub-list">${renderList('1m')}</div>
-
-  <div style="padding:12px;background:rgba(123,104,238,.06);border:1px solid rgba(123,104,238,.15);border-radius:var(--br2);font-size:10px;color:var(--m);line-height:1.6;margin-top:10px">
-    💡 Obuna har oy avtomatik yangilanmaydi. Muddati tugagach qaytadan sotib olasiz.
-  </div>
-</div>`;
-
-    document.body.appendChild(modal);
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
-    // "1 oy" va "3 oy" tablarni ishlatish uchun plans global saqlaymiz
-    window._currentPlansList = plans;
-  }
-
-  function switchPlanPeriod(period) {
-    _currentPlanPeriod = period;
-    const plans = window._currentPlansList || [];
-    const list = plans.filter(p => p.id.endsWith('_' + period));
-    const currentPlan = user?.plan || 'free';
-    document.getElementById('per-1m').style.background = period === '1m' ? 'var(--acc)' : 'transparent';
-    document.getElementById('per-1m').style.color = period === '1m' ? '#fff' : 'var(--m)';
-    document.getElementById('per-3m').style.background = period === '3m' ? 'var(--acc)' : 'transparent';
-    document.getElementById('per-3m').style.color = period === '3m' ? '#fff' : 'var(--m)';
-    // Re-render
-    _renderSubscriptionsModal(plans, currentPlan);
-  }
-
-  // ─── Token shop (modal) ───────────────────────────────────────────────────
-  async function openTokenShop() {
-    try {
-      const packs = await API.packs();
-      _renderTokenShopModal(packs);
-    } catch (e) {
-      showToast('Ma\'lumot yuklanmadi');
-    }
-  }
-
-  function _renderTokenShopModal(packs) {
-    const existing = document.getElementById('shop-modal');
-    if (existing) existing.remove();
-
-    const modal = document.createElement('div');
-    modal.id = 'shop-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;overflow-y:auto;backdrop-filter:blur(6px);padding:14px 0';
-
-    modal.innerHTML = `
-<div style="max-width:420px;margin:0 auto;background:var(--s1);border-radius:var(--br);padding:16px">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px">🪙 Token do'kon</div>
-    <button onclick="document.getElementById('shop-modal').remove()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:none;color:var(--txt);font-size:17px;cursor:pointer;padding:0">×</button>
-  </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-    ${packs.map(p => {
-      const total = p.tokens + (p.bonus || 0);
-      return `
-      <div onclick="FIKRA.buyPack('${p.id}')" style="background:var(--s2);border:1.5px solid ${p.badge ? 'rgba(255,204,68,.3)' : 'var(--f)'};border-radius:var(--br);padding:12px;cursor:pointer;position:relative;transition:all .15s;text-align:center">
-        ${p.badge ? `<div style="position:absolute;top:-7px;right:8px;background:var(--y);color:#000;padding:2px 7px;border-radius:100px;font-size:8px;font-weight:800;letter-spacing:.5px;text-transform:uppercase">${p.badge}</div>` : ''}
-        <div style="font-size:28px;margin-bottom:4px">🪙</div>
-        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--y);margin-bottom:2px">${total}</div>
-        <div style="font-size:10px;color:var(--m);margin-bottom:8px">token${p.bonus > 0 ? ` (+${p.bonus} bonus)` : ''}</div>
-        <div style="border-top:1px solid var(--f);padding-top:8px">
-          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${p.priceUzs.toLocaleString()} <span style="font-size:9px;color:var(--m);font-weight:500">so'm</span></div>
-          <div style="font-size:9px;color:var(--y);margin-top:1px">⭐ ${p.priceStars}</div>
-        </div>
-      </div>`;
-    }).join('')}
-  </div>
-
-  <div style="padding:12px;background:rgba(0,212,170,.07);border:1px solid rgba(0,212,170,.15);border-radius:var(--br2);font-size:10px;color:var(--m);line-height:1.6;margin-top:12px">
-    💡 Yoki reklama ko'rib bepul token yig'ing. Profildan "Token yig'" tugmasini bosing.
-  </div>
-</div>`;
-
-    document.body.appendChild(modal);
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-  }
-
-  // ─── Yangi o'yinlar (Avto, Fashion, Football) ─────────────────────────────
-  let _newGamesCatalog = null;
-  let _currentNewGameType = null;
-
-  async function openNewGame(gameType) {
-    try {
-      if (!_newGamesCatalog) {
-        _newGamesCatalog = await API.newGamesCatalog();
-      }
-      _currentNewGameType = gameType;
-
-      // Football uchun alohida — avval klub tanlash
-      if (gameType === 'football') {
-        const inv = await API.inventory('football');
-        if (!inv.items || inv.items.length === 0) {
-          return _renderFootballClubSelect();
-        }
-        return _renderNewGameModal(gameType, inv.items);
-      }
-
-      const inv = await API.inventory(gameType);
-      _renderNewGameModal(gameType, inv.items);
-    } catch (e) {
-      showToast('Yuklanmadi: ' + (e.message || ''));
-    }
-  }
-
-  function _renderFootballClubSelect() {
-    const existing = document.getElementById('ng-modal');
-    if (existing) existing.remove();
-
-    const modal = document.createElement('div');
-    modal.id = 'ng-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;overflow-y:auto;backdrop-filter:blur(8px);padding:14px 0';
-
-    const clubs = _newGamesCatalog.clubs || [];
-    const tierColors = {
-      common: 'var(--g)', rare: 'var(--al)', epic: 'var(--y)', legendary: 'var(--r)',
-    };
-
-    modal.innerHTML = `
-<div style="max-width:420px;margin:0 auto;background:var(--s1);border-radius:var(--br);padding:16px;min-height:calc(100vh - 28px)">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-    <div>
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px">⚽ Master Liga</div>
-      <div style="font-size:10px;color:var(--m);margin-top:2px">Klub tanlang va jamoa tuzing</div>
-    </div>
-    <button onclick="document.getElementById('ng-modal').remove()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:none;color:var(--txt);font-size:17px;cursor:pointer;padding:0">×</button>
-  </div>
-  <div style="padding:12px;background:rgba(123,104,238,.08);border:1px solid rgba(123,104,238,.2);border-radius:var(--br2);font-size:11px;color:var(--m);line-height:1.5;margin-bottom:14px">
-    💡 Klub tanlagandan so'ng 4 ta boshlang'ich futbolchi (GK + DEF + MID + FWD) beriladi.
-  </div>
-  <div style="display:flex;flex-direction:column;gap:8px">
-    ${clubs.map(c => `
-    <div onclick="FIKRA.startFootballClub('${c.id}')" style="display:flex;align-items:center;gap:11px;padding:11px 12px;background:var(--s2);border:1.5px solid ${tierColors[c.tier]}33;border-radius:var(--br2);cursor:pointer;transition:all .15s">
-      <div style="width:36px;height:36px;border-radius:9px;background:${tierColors[c.tier]}1A;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${c.emoji}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:${tierColors[c.tier]}">${_escapeHtml(c.name)}</div>
-        <div style="font-size:10px;color:var(--m)">${c.country} · ${c.tier}</div>
-      </div>
-      <div style="font-size:18px">➔</div>
-    </div>`).join('')}
-  </div>
-</div>`;
-
-    document.body.appendChild(modal);
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-  }
-
-  async function startFootballClub(clubId) {
-    try {
-      await API.footballStart(clubId);
-      showToast('Jamoa yaratildi! 🎉');
-      // Qayta ochish
-      setTimeout(() => openNewGame('football'), 500);
-    } catch (e) {
-      showToast(e.message || 'Xatolik');
-    }
-  }
-
-  function _renderNewGameModal(gameType, items) {
-    const existing = document.getElementById('ng-modal');
-    if (existing) existing.remove();
-
-    const modal = document.createElement('div');
-    modal.id = 'ng-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;overflow-y:auto;backdrop-filter:blur(8px);padding:14px 0';
-
-    const titles = {
-      auto: { emoji: '🏎️', name: 'Avto garaj', tab1: 'Mashinalarim', tab2: 'Do\'kon', tab3: 'Bozor' },
-      fashion: { emoji: '👗', name: 'Moda studiyasi', tab1: 'Liboslarim', tab2: 'Uslublar', tab3: 'Bozor' },
-      football: { emoji: '⚽', name: 'Master Liga', tab1: 'Jamoam', tab2: 'Transfer', tab3: 'Bozor' },
-    };
-    const info = titles[gameType];
-
-    modal.innerHTML = `
-<div style="max-width:420px;margin:0 auto;background:var(--s1);border-radius:var(--br);padding:16px;min-height:calc(100vh - 28px)">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-    <div>
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px">${info.emoji} ${info.name}</div>
-      <div style="font-size:10px;color:var(--m);margin-top:2px">Token: <span style="color:var(--y);font-weight:700">${tokens.toLocaleString()}</span></div>
-    </div>
-    <button onclick="document.getElementById('ng-modal').remove()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:none;color:var(--txt);font-size:17px;cursor:pointer;padding:0">×</button>
-  </div>
-
-  <div style="display:flex;gap:4px;background:var(--s3);border-radius:var(--br2);padding:3px;margin-bottom:14px">
-    <button class="ng-tab active" data-tab="my" onclick="FIKRA.ngTab('my')" style="flex:1;padding:7px;border:none;border-radius:6px;background:var(--acc);color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">${info.tab1}</button>
-    <button class="ng-tab" data-tab="shop" onclick="FIKRA.ngTab('shop')" style="flex:1;padding:7px;border:none;border-radius:6px;background:transparent;color:var(--m);font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">${info.tab2}</button>
-    <button class="ng-tab" data-tab="market" onclick="FIKRA.ngTab('market')" style="flex:1;padding:7px;border:none;border-radius:6px;background:transparent;color:var(--m);font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">${info.tab3}</button>
-  </div>
-
-  <div id="ng-content">${_renderMyItems(gameType, items)}</div>
-</div>`;
-
-    document.body.appendChild(modal);
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
-    window._currentNewGameItems = items;
-  }
-
-  function _renderMyItems(gameType, items) {
-    if (!items || items.length === 0) {
-      const shopName = gameType === 'auto' ? "Do'kon" : 'Uslublar';
-      return `<div style="padding:24px;text-align:center;color:var(--m);font-size:12px">Hali obyektlaringiz yo'q. "${shopName}" tabida tanlang.</div>`;
-    }
-
-    let header = '';
-    if (gameType === 'football' && items.length >= 4) {
-      // Jamoa rating va o'yin tugmasi
-      const totalStat = items.reduce((sum, p) => {
-        const s = p.playerStats || {};
-        return sum + (s.speed || 0) + (s.skill || 0) + (s.shot || 0) + (s.defense || 0);
-      }, 0);
-      const avgRating = Math.round(totalStat / (items.length * 4));
-      header = `
-<div style="background:linear-gradient(135deg,rgba(0,212,170,.1),rgba(123,104,238,.1));border:1px solid rgba(0,212,170,.25);border-radius:var(--br);padding:14px;margin-bottom:12px">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-    <div>
-      <div style="font-size:10px;color:var(--m);font-weight:700;letter-spacing:1.2px;text-transform:uppercase">Jamoa reytingi</div>
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:24px;color:var(--g)">${avgRating}</div>
-    </div>
-    <div style="text-align:right">
-      <div style="font-size:10px;color:var(--m)">Jamoa a'zolari</div>
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px">${items.length}</div>
-    </div>
-  </div>
-  <button onclick="FIKRA.openFootballMatch()" style="width:100%;padding:11px;background:linear-gradient(135deg,var(--g),var(--acc));color:#000;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:800;font-size:13px;cursor:pointer">⚽ Bot bilan o'ynash</button>
-</div>`;
-    }
-
-    return header + `<div style="display:flex;flex-direction:column;gap:10px">
-${items.map(it => {
-  if (gameType === 'auto') return _renderCarCard(it);
-  if (gameType === 'fashion') return _renderOutfitCard(it);
-  if (gameType === 'football') return _renderPlayerCard(it);
-  return '';
-}).join('')}
-</div>`;
-  }
-
-  function _renderCarCard(car) {
-    const model = _newGamesCatalog.cars.find(c => c.id === car.carModel) || {};
-    const tuning = car.tuning || {};
-    const parts = ['engine', 'suspension', 'tires', 'paint', 'spoiler', 'rims'];
-    const partNames = { engine: 'Dvigatel', suspension: 'Amortizator', tires: 'Shina', paint: 'Rang', spoiler: 'Spoiler', rims: 'Disk' };
-
-    // SVG vizual
-    const svg = window.SVG_ILLUSTRATOR ? SVG_ILLUSTRATOR.carSvg(car, { size: 200 }) : `<div style="font-size:32px">${model.emoji || '🚗'}</div>`;
-
-    return `
-<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:12px">
-  <div style="margin-bottom:10px;background:linear-gradient(180deg,#0a0a14,#1a1a26);border-radius:var(--br2);padding:6px;text-align:center">${svg}</div>
-
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-    <div style="flex:1;min-width:0">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${_escapeHtml(model.name || car.name)}</div>
-      <div style="font-size:10px;color:var(--m)">Rang: ${car.carColor || 'white'} · <span style="color:var(--y);font-weight:700">${car.value} t</span></div>
-    </div>
-    ${car.acquiredFrom !== 'starter' ? `<button onclick="FIKRA.ngListItem('${car._id}', ${car.value})" style="padding:5px 10px;background:var(--g);color:#000;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer">Sotish</button>` : ''}
-  </div>
-
-  <!-- Rang o'zgartirish tugmasi -->
-  <div style="display:flex;gap:4px;margin-bottom:8px;overflow-x:auto;padding-bottom:2px">
-    ${(_newGamesCatalog.carColors || ['white','black','red','blue','silver']).map(c => `
-      <button onclick="FIKRA.ngPaintCar('${car._id}', '${c}')" title="${c}" style="width:24px;height:24px;flex-shrink:0;border-radius:50%;border:2px solid ${car.carColor === c ? 'var(--g)' : 'var(--f)'};background:${({white:'#eeeaff',black:'#1a1a1f',red:'#ff5f7e',blue:'#4a7dcc',silver:'#c0c0c0',orange:'#ff9844',yellow:'#ffcc44'}[c]) || '#eee'};cursor:pointer;padding:0"></button>
-    `).join('')}
-  </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-    ${parts.map(p => {
-      const level = tuning[p] || 0;
-      const nextCost = level < 5 ? _newGamesCatalog.tuningCosts[p][level + 1] : null;
-      return `
-      <div style="background:var(--s3);border:1px solid var(--f);border-radius:var(--br2);padding:8px 10px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-size:10px;font-weight:700;color:var(--m)">${partNames[p]}</span>
-          <span style="font-size:10px;color:var(--y);font-weight:700">${level}/5</span>
-        </div>
-        <div style="height:4px;background:var(--s2);border-radius:3px;margin-bottom:6px;overflow:hidden">
-          <div style="width:${level * 20}%;height:100%;background:var(--acc);border-radius:3px"></div>
-        </div>
-        ${level < 5 ? `
-          <button onclick="FIKRA.ngTuning('${car._id}', '${p}')" style="width:100%;padding:4px;background:var(--acc);color:#fff;border:none;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer">+1 · ${nextCost}t</button>
-        ` : `
-          <div style="text-align:center;font-size:9px;color:var(--g);font-weight:700;padding:3px">✓ MAX</div>
-        `}
-      </div>`;
-    }).join('')}
-  </div>
-</div>`;
-  }
-
-  function _renderOutfitCard(outfit) {
-    const style = _newGamesCatalog.outfitStyles.find(s => s.id === outfit.outfitStyle) || {};
-    const parts = outfit.outfitParts || {};
-
-    const svg = window.SVG_ILLUSTRATOR ? SVG_ILLUSTRATOR.outfitSvg(outfit, { size: 110 }) : `<div style="font-size:32px">${style.emoji || '👗'}</div>`;
-
-    return `
-<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:12px">
-  <div style="display:flex;gap:12px;margin-bottom:10px">
-    <div style="background:linear-gradient(180deg,#0a0a14,#1a1a26);border-radius:var(--br2);padding:6px;flex-shrink:0">${svg}</div>
-    <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:3px">${_escapeHtml(outfit.name || style.name)}</div>
-      <div style="font-size:10px;color:var(--m);margin-bottom:5px">${style.emoji} ${_escapeHtml(style.name || '-')}</div>
-      <div style="font-size:11px;color:var(--y);font-weight:700">${outfit.value} t</div>
-      ${outfit.acquiredFrom !== 'starter' ? `<button onclick="FIKRA.ngListItem('${outfit._id}', ${outfit.value})" style="margin-top:6px;padding:5px 10px;background:var(--g);color:#000;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;align-self:flex-start">Sotish</button>` : ''}
-    </div>
-  </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
-    <div style="background:var(--s3);border-radius:var(--br2);padding:7px;text-align:center">
-      <div style="font-size:9px;color:var(--m);margin-bottom:3px">Ustki</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:4px">
-        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${({white:'#eeeaff',black:'#1a1a1f',red:'#ff5f7e',blue:'#4a7dcc',pink:'#ff6fa3',green:'#00d4aa',gold:'#d4af37',beige:'#e8d7b8',purple:'#7b68ee'}[parts.top?.color] || '#eee')};border:1px solid var(--f)"></span>
-        <span style="font-size:10px;font-weight:700">${parts.top?.color || '-'}</span>
-      </div>
-    </div>
-    <div style="background:var(--s3);border-radius:var(--br2);padding:7px;text-align:center">
-      <div style="font-size:9px;color:var(--m);margin-bottom:3px">Pastki</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:4px">
-        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${({white:'#eeeaff',black:'#1a1a1f',red:'#ff5f7e',blue:'#4a7dcc',pink:'#ff6fa3',green:'#00d4aa',gold:'#d4af37',beige:'#e8d7b8',purple:'#7b68ee'}[parts.bottom?.color] || '#eee')};border:1px solid var(--f)"></span>
-        <span style="font-size:10px;font-weight:700">${parts.bottom?.color || '-'}</span>
-      </div>
-    </div>
-    <div style="background:var(--s3);border-radius:var(--br2);padding:7px;text-align:center">
-      <div style="font-size:9px;color:var(--m);margin-bottom:3px">Oyoq</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:4px">
-        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${({white:'#eeeaff',black:'#1a1a1f',red:'#ff5f7e',blue:'#4a7dcc',pink:'#ff6fa3',green:'#00d4aa',gold:'#d4af37',beige:'#e8d7b8',purple:'#7b68ee'}[parts.shoes?.color] || '#eee')};border:1px solid var(--f)"></span>
-        <span style="font-size:10px;font-weight:700">${parts.shoes?.color || '-'}</span>
-      </div>
-    </div>
-  </div>
-
-  <button onclick="FIKRA.ngDesignOutfit('${outfit._id}')" style="width:100%;padding:8px;background:var(--acc);color:#fff;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer">🎨 Dizayn qilish</button>
-</div>`;
-  }
-
-  function _renderPlayerCard(player) {
-    const stats = player.playerStats || {};
-    const posColors = { GK: 'var(--y)', DEF: 'var(--g)', MID: 'var(--al)', FWD: 'var(--r)' };
-    const posColor = posColors[player.playerPosition] || 'var(--acc)';
-    const totalStats = (stats.speed || 0) + (stats.skill || 0) + (stats.shot || 0) + (stats.defense || 0);
-
-    return `
-<div style="background:var(--s2);border:1px solid var(--f);border-radius:var(--br);padding:12px">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-    <div style="width:48px;height:48px;border-radius:12px;background:${posColor}1A;border:1px solid ${posColor}33;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:${posColor}">${player.playerPosition}</div>
-    <div style="flex:1;min-width:0">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${_escapeHtml(player.name || 'Futbolchi')}</div>
-      <div style="font-size:10px;color:var(--m)">Jami: ${totalStats} · Qiymat: <span style="color:var(--y);font-weight:700">${player.value} t</span></div>
-    </div>
-    ${player.acquiredFrom !== 'starter' ? `<button onclick="FIKRA.ngListItem('${player._id}', ${player.value})" style="padding:5px 10px;background:var(--g);color:#000;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer">Sotish</button>` : ''}
-  </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-    ${['speed', 'skill', 'shot', 'defense'].map(s => {
-      const val = stats[s] || 0;
-      const labels = { speed: 'Tezlik', skill: 'Mahorat', shot: 'Zarba', defense: 'Himoya' };
-      return `
-      <div style="background:var(--s3);border-radius:var(--br2);padding:7px 10px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-          <span style="font-size:10px;font-weight:700;color:var(--m)">${labels[s]}</span>
-          <span style="font-size:11px;color:${posColor};font-weight:700">${val}</span>
-        </div>
-        <div style="height:3px;background:var(--s2);border-radius:2px;margin-bottom:5px;overflow:hidden">
-          <div style="width:${val}%;height:100%;background:${posColor};border-radius:2px"></div>
-        </div>
-        ${val < 99 ? `
-          <button onclick="FIKRA.ngUpgradePlayer('${player._id}', '${s}')" style="width:100%;padding:3px;background:var(--acc);color:#fff;border:none;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer">+1 · ${_newGamesCatalog.statUpgradeCost}t</button>
-        ` : `<div style="text-align:center;font-size:9px;color:var(--g);padding:2px">MAX</div>`}
-      </div>`;
-    }).join('')}
-  </div>
-</div>`;
-  }
-
-  // ─── Tab o'zgartirish ─────────────────────────────────────────────────────
-  async function ngTab(tab) {
-    document.querySelectorAll('.ng-tab').forEach(t => {
-      t.classList.remove('active');
-      t.style.background = 'transparent';
-      t.style.color = 'var(--m)';
-    });
-    const btn = document.querySelector(`.ng-tab[data-tab="${tab}"]`);
-    if (btn) {
-      btn.classList.add('active');
-      btn.style.background = 'var(--acc)';
-      btn.style.color = '#fff';
-    }
-
-    const content = document.getElementById('ng-content');
-    if (!content) return;
-
-    if (tab === 'my') {
-      const inv = await API.inventory(_currentNewGameType);
-      window._currentNewGameItems = inv.items;
-      content.innerHTML = _renderMyItems(_currentNewGameType, inv.items);
-    } else if (tab === 'shop') {
-      content.innerHTML = _renderShop(_currentNewGameType);
-    } else if (tab === 'market') {
-      content.innerHTML = '<div style="padding:20px;text-align:center;color:var(--m)">Yuklanmoqda...</div>';
-      const m = await API.getMarket(_currentNewGameType);
-      content.innerHTML = _renderMarket(_currentNewGameType, m.items);
-    }
-  }
-
-  function _renderShop(gameType) {
-    if (gameType === 'auto') {
-      return `<div style="display:flex;flex-direction:column;gap:8px">
-  ${_newGamesCatalog.cars.filter(c => c.basePrice > 0).map(c => `
-    <div style="display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:11px">
-      <div style="width:44px;height:44px;border-radius:11px;background:rgba(123,104,238,.12);display:flex;align-items:center;justify-content:center;font-size:22px">${c.emoji}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${_escapeHtml(c.name)}</div>
-        <div style="font-size:10px;color:var(--m)">${_escapeHtml(c.description)}</div>
-      </div>
-      <button onclick="FIKRA.ngBuyCar('${c.id}')" style="padding:7px 11px;background:var(--acc);color:#fff;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0">${c.basePrice.toLocaleString()}t</button>
-    </div>`).join('')}
-</div>`;
-    }
-    if (gameType === 'fashion') {
-      return `<div style="display:flex;flex-direction:column;gap:8px">
-  ${_newGamesCatalog.outfitStyles.filter(s => s.basePrice > 0).map(s => `
-    <div style="display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:11px">
-      <div style="width:44px;height:44px;border-radius:11px;background:rgba(255,111,163,.12);display:flex;align-items:center;justify-content:center;font-size:22px">${s.emoji}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${_escapeHtml(s.name)}</div>
-        <div style="font-size:10px;color:var(--m)">${_escapeHtml(s.description)}</div>
-      </div>
-      <button onclick="FIKRA.ngBuyOutfit('${s.id}')" style="padding:7px 11px;background:var(--acc);color:#fff;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0">${s.basePrice.toLocaleString()}t</button>
-    </div>`).join('')}
-</div>`;
-    }
-    if (gameType === 'football') {
-      return `<div style="padding:20px;text-align:center;color:var(--m);font-size:12px;line-height:1.6">
-  💡 Futbolchilar faqat bozorda (boshqa o'yinchilardan) sotib olinadi.<br><br>
-  "Bozor" tabga o'ting.
-</div>`;
-    }
-    return '';
-  }
-
-  function _renderMarket(gameType, items) {
-    if (!items || items.length === 0) {
-      return '<div style="padding:24px;text-align:center;color:var(--m);font-size:12px">Bozorda obyektlar yo\'q. Birinchi bo\'ling — inventardan obyekt sotishga qo\'ying!</div>';
-    }
-
-    return `<div style="display:flex;flex-direction:column;gap:8px">
-  ${items.map(it => {
-    let icon = '📦', title = it.name || '-', subtitle = '';
-    if (gameType === 'auto') {
-      const model = _newGamesCatalog.cars.find(c => c.id === it.carModel) || {};
-      icon = model.emoji || '🚗';
-      title = model.name || it.name;
-      subtitle = `Rang: ${it.carColor || '-'}`;
-    } else if (gameType === 'fashion') {
-      const style = _newGamesCatalog.outfitStyles.find(s => s.id === it.outfitStyle) || {};
-      icon = style.emoji || '👗';
-      title = style.name || it.name;
-    } else if (gameType === 'football') {
-      icon = `<span style="font-size:11px;color:var(--y);font-weight:800">${it.playerPosition}</span>`;
-      title = it.name || 'Futbolchi';
-      const s = it.playerStats || {};
-      subtitle = `${s.speed||0}-${s.skill||0}-${s.shot||0}-${s.defense||0}`;
-    }
-    return `
-    <div style="display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid rgba(0,212,170,.15);border-radius:var(--br2);padding:10px">
-      <div style="width:40px;height:40px;border-radius:10px;background:rgba(0,212,170,.08);display:flex;align-items:center;justify-content:center;font-size:20px">${icon}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px">${_escapeHtml(title)}</div>
-        <div style="font-size:10px;color:var(--m)">${_escapeHtml(subtitle)} · Qiymat: ${it.value}t</div>
-      </div>
-      <button onclick="FIKRA.ngBuyFromMarket('${it._id}', '${it.priceTokens}')" style="padding:7px 11px;background:var(--g);color:#000;border:none;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0">${it.priceTokens.toLocaleString()}t</button>
-    </div>`;
-  }).join('')}
-</div>`;
-  }
-
-  // ─── Actions ──────────────────────────────────────────────────────────────
-  async function ngPaintCar(carId, color) {
-    try {
-      await API.carPaint(carId, color);
-      showToast(`Rang o'zgartirildi (50t)`, 'success');
-      await updateTokenDisplay();
-      ngTab('my');
-    } catch (e) {
-      showToast(e.message || 'Xatolik');
-    }
-  }
-
-  // ─── Football match ─────────────────────────────────────────────────────
-  async function openFootballMatch() {
-    const betStr = await uiPrompt(
-      'Qancha token tikasiz? (50-5000)\n\n• G\'olib bo\'lsangiz: 1.8x\n• Durang: 0.5x\n• Mag\'lub: 0',
-      '100',
-      { title: '⚽ Bot bilan o\'yin', inputMode: 'numeric' }
-    );
-    if (!betStr) return;
-    const bet = parseInt(betStr);
-    if (isNaN(bet) || bet < 50) {
-      showToast('Yaroqsiz miqdor (min 50t)', 'error');
-      return;
-    }
-    if (bet > tokens) {
-      showToast('Token yetarli emas', 'error');
-      return;
-    }
-
-    // Match simulyatsiyasi
-    showToast('O\'yin boshlanmoqda...');
-
-    try {
-      const result = await API.footballMatch(bet);
-      _renderMatchResult(result);
-      await updateTokenDisplay();
-    } catch (e) {
-      showToast(e.message || 'Xatolik', 'error');
-    }
-  }
-
-  function _renderMatchResult(r) {
-    const overlay = document.createElement('div');
-    overlay.id = 'match-result';
-    overlay.className = 'ui-modal-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10001;display:flex;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(10px);overflow-y:auto';
-
-    const resultColors = { win: 'var(--g)', draw: 'var(--y)', loss: 'var(--r)' };
-    const resultText = { win: 'G\'ALABA!', draw: 'DURANG', loss: 'MAG\'LUBIYAT' };
-    const resultEmoji = { win: '🏆', draw: '🤝', loss: '😔' };
-
-    // Eventlarni qisqartirish (gollar va kartochkalar)
-    const events = (r.events || []).map(e => {
-      const teamLabel = e.team === 'user' ? 'Sizning' : (e.team === 'bot' ? 'Bot' : (e.team === 'home' ? 'Uy' : 'Mehmon'));
-      const icon = e.type === 'goal' ? '⚽' : (e.type === 'yellow_card' ? '🟨' : '🟥');
-      return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:5px 0;border-bottom:1px solid var(--f)">
-        <span style="color:var(--m);font-weight:700;width:28px">${e.minute}'</span>
-        <span style="font-size:14px">${icon}</span>
-        <span style="flex:1;color:${e.team === 'user' || e.team === 'home' ? 'var(--g)' : 'var(--r)'};font-weight:600">${teamLabel}: ${_escapeHtml(e.player || '-')}</span>
-      </div>`;
-    }).join('');
-
-    overlay.innerHTML = `
-<div style="max-width:380px;width:100%;background:var(--s1);border:1px solid var(--f);border-radius:20px;padding:20px;animation:scaleIn .35s cubic-bezier(.34,1.56,.64,1)">
-  <div style="text-align:center;margin-bottom:14px">
-    <div style="font-size:42px;margin-bottom:4px">${resultEmoji[r.result]}</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:${resultColors[r.result]}">${resultText[r.result]}</div>
-  </div>
-
-  <!-- Score -->
-  <div style="background:linear-gradient(135deg,rgba(0,212,170,.08),rgba(123,104,238,.08));border:1px solid var(--f);border-radius:14px;padding:14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-around">
-    <div style="text-align:center">
-      <div style="font-size:9px;color:var(--m);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Siz</div>
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:32px;color:${r.userGoals >= r.botGoals ? 'var(--g)' : 'var(--m)'}">${r.userGoals}</div>
-      <div style="font-size:9px;color:var(--m);margin-top:2px">Reyting: ${r.userRating}</div>
-    </div>
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;color:var(--m)">VS</div>
-    <div style="text-align:center">
-      <div style="font-size:9px;color:var(--m);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Bot</div>
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:32px;color:${r.botGoals > r.userGoals ? 'var(--r)' : 'var(--m)'}">${r.botGoals}</div>
-      <div style="font-size:9px;color:var(--m);margin-top:2px">Reyting: ${r.botRating}</div>
-    </div>
-  </div>
-
-  <!-- Reward -->
-  <div style="display:flex;gap:8px;margin-bottom:12px">
-    <div style="flex:1;background:var(--s2);border:1px solid var(--f);border-radius:10px;padding:10px;text-align:center">
-      <div style="font-size:9px;color:var(--m);margin-bottom:2px">Tikilgan</div>
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--m)">-${r.betAmount}t</div>
-    </div>
-    <div style="flex:1;background:var(--s2);border:1px solid var(--f);border-radius:10px;padding:10px;text-align:center">
-      <div style="font-size:9px;color:var(--m);margin-bottom:2px">Olindi</div>
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:${r.reward > 0 ? 'var(--y)' : 'var(--m)'}">+${r.reward}t</div>
-    </div>
-    <div style="flex:1;background:var(--s2);border:1px solid var(--f);border-radius:10px;padding:10px;text-align:center">
-      <div style="font-size:9px;color:var(--m);margin-bottom:2px">XP</div>
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--al)">+${r.xpEarned}</div>
-    </div>
-  </div>
-
-  <!-- Events -->
-  ${events ? `
-  <div style="background:var(--s2);border:1px solid var(--f);border-radius:10px;padding:10px 12px;max-height:200px;overflow-y:auto;margin-bottom:14px">
-    <div style="font-size:10px;color:var(--m);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">O'yin daqiqalari</div>
-    ${events}
-  </div>
-  ` : ''}
-
-  <div style="display:flex;gap:8px">
-    <button onclick="document.getElementById('match-result').remove();FIKRA.openFootballMatch()" style="flex:1;padding:11px;background:var(--acc);color:#fff;border:none;border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">Yana o'ynash</button>
-    <button onclick="document.getElementById('match-result').remove()" style="flex:1;padding:11px;background:var(--s3);color:var(--txt);border:1px solid var(--f);border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">Yopish</button>
-  </div>
-</div>`;
-
-    document.body.appendChild(overlay);
-    hapticNotify(r.result === 'win' ? 'success' : (r.result === 'loss' ? 'error' : 'warning'));
-  }
-
-  async function ngBuyCar(carModel) {
-    const car = _newGamesCatalog.cars.find(c => c.id === carModel);
-    const ok = await uiConfirm(`${car.name} ni ${car.basePrice.toLocaleString()} token ga sotib olish?`, { title: 'Mashina harid', okLabel: 'Sotib olish' });
-    if (!ok) return;
-    try {
-      await API.buyCar(carModel);
-      showToast(`${car.name} garajingizda! 🎉`);
-      await updateTokenDisplay();
-      ngTab('my');
-    } catch (e) {
-      showToast(e.message || 'Xatolik');
-    }
-  }
-
-  async function ngBuyOutfit(styleId) {
-    const style = _newGamesCatalog.outfitStyles.find(s => s.id === styleId);
-    const ok = await uiConfirm(`${style.name} uslubini ${style.basePrice.toLocaleString()} token ga sotib olish?`, { title: 'Libos harid', okLabel: 'Sotib olish' });
-    if (!ok) return;
-    try {
-      await API.buyOutfit(styleId);
-      showToast(`${style.name} yaratildi! 🎉`);
-      await updateTokenDisplay();
-      ngTab('my');
-    } catch (e) {
-      showToast(e.message || 'Xatolik');
-    }
-  }
-
-  async function ngTuning(carId, part) {
-    try {
-      const r = await API.carTuning(carId, part);
-      showToast(`Daraja oshdi! Yangi qiymat: ${r.newValue}t`);
-      await updateTokenDisplay();
-      ngTab('my');
-    } catch (e) {
-      showToast(e.message || 'Xatolik');
-    }
-  }
-
-  async function ngUpgradePlayer(playerId, stat) {
-    try {
-      const r = await API.upgradePlayer(playerId, stat);
-      showToast(`+1 stat! Yangi qiymat: ${r.newValue}t`);
-      await updateTokenDisplay();
-      ngTab('my');
-    } catch (e) {
-      showToast(e.message || 'Xatolik');
-    }
-  }
-
-  async function ngDesignOutfit(outfitId) {
-    const colors = _newGamesCatalog.outfitColors;
-    const newColor = colors[Math.floor(Math.random() * colors.length)];
-    if (!confirm(`Libos rangini "${newColor}" ga o'zgartirish? (100 token)`)) return;
-    try {
-      const r = await API.outfitDesign(outfitId, { top: { color: newColor } });
-      showToast(`Dizayn o'zgartirildi! +${r.newValue - window._currentNewGameItems.find(x => x._id === outfitId).value}t`);
-      await updateTokenDisplay();
-      ngTab('my');
-    } catch (e) {
-      showToast(e.message || 'Xatolik');
-    }
-  }
-
-  async function ngListItem(itemId, currentValue) {
-    const priceStr = await uiPrompt(`Qancha tokenga sotmoqchisiz? (Joriy qiymat: ${currentValue}t)`, String(currentValue), { title: 'Bozorga qo\'yish', inputMode: 'numeric' });
-    if (!priceStr) return;
-    const price = parseInt(priceStr);
-    if (isNaN(price) || price < 10) {
-      showToast('Yaroqsiz narx (min 10t)');
-      return;
-    }
-    try {
-      await API.listItem(itemId, price);
-      showToast('Bozorga qo\'yildi!');
-      ngTab('my');
-    } catch (e) {
-      showToast(e.message || 'Xatolik');
-    }
-  }
-
-  async function ngBuyFromMarket(itemId, priceStr) {
-    const price = parseInt(priceStr);
-    const okb = await uiConfirm(`${price.toLocaleString()} token ga sotib olasizmi?\n(3% soliq)`, { title: 'Harid tasdiqi', okLabel: 'Sotib olish' });
-    if (!okb) return;
-    try {
-      const r = await API.buyFromMarket(itemId);
-      showToast(`Sotib olindi! Soliq: ${r.tax}t`);
-      await updateTokenDisplay();
-      ngTab('market');
-    } catch (e) {
-      showToast(e.message || 'Xatolik');
-    }
-  }
-
-  // ─── Musiqa player ────────────────────────────────────────────────────────
-  async function openMusicPlayer() {
-    try {
-      const data = await API.musicCategories();
-      _renderMusicPlayerModal(data);
-    } catch (e) {
-      showToast('Musiqa yuklanmadi');
-    }
-  }
-
-  function _renderMusicPlayerModal(data) {
-    const existing = document.getElementById('music-modal');
-    if (existing) existing.remove();
-
-    const modal = document.createElement('div');
-    modal.id = 'music-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;overflow-y:auto;backdrop-filter:blur(8px);padding:14px 0';
-
-    let categoriesHtml = '';
-    Object.entries(data.categories).forEach(([catKey, cat]) => {
-      if (!cat.tracks.length) return;
-      categoriesHtml += `
-<div style="margin-bottom:14px">
-  <div style="display:flex;align-items:center;gap:6px;padding:0 4px;margin-bottom:8px">
-    <span style="font-size:15px">${cat.emoji}</span>
-    <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${cat.name}</span>
-  </div>
-  <div style="display:flex;flex-direction:column;gap:6px">
-    ${cat.tracks.map(t => `
-    <div onclick="FIKRA.playTrack('${t.id}')" style="display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid ${t.isLocked ? 'var(--f)' : 'rgba(0,212,170,.2)'};border-radius:var(--br2);padding:10px 12px;cursor:pointer;${t.isLocked ? 'opacity:.55' : ''};transition:all .15s">
-      <div style="width:40px;height:40px;border-radius:10px;background:rgba(0,212,170,.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${t.coverEmoji}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;margin-bottom:1px;display:flex;align-items:center;gap:5px">
-          ${_escapeHtml(t.title)}
-          ${t.isLocked ? `<span style="font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(255,204,68,.15);color:var(--y);text-transform:uppercase">${t.tier}</span>` : ''}
-        </div>
-        <div style="font-size:10px;color:var(--m)">${_escapeHtml(t.artist)} · ${MUSIC.formatTime(t.duration)}${t.frequency > 0 ? ` · ${t.frequency}Hz` : ''}</div>
-      </div>
-      <div style="width:28px;height:28px;border-radius:50%;background:${t.isLocked ? 'var(--s3)' : 'var(--g)'};display:flex;align-items:center;justify-content:center;font-size:12px;color:${t.isLocked ? 'var(--m)' : '#000'};font-weight:700;flex-shrink:0">${t.isLocked ? '🔒' : '▶'}</div>
-    </div>`).join('')}
-  </div>
-</div>`;
-    });
-
-    modal.innerHTML = `
-<div style="max-width:420px;margin:0 auto;background:var(--s1);border-radius:var(--br);padding:16px;min-height:calc(100vh - 28px)">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-    <div>
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px">🎵 Miya musiqasi</div>
-      <div style="font-size:10px;color:var(--m);margin-top:2px">Diqqat, dam olish, binaural to'lqinlar</div>
-    </div>
-    <button onclick="FIKRA.closeMusicPlayer()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:none;color:var(--txt);font-size:17px;cursor:pointer;padding:0">×</button>
-  </div>
-
-  <div id="now-playing" style="display:none;background:linear-gradient(135deg,rgba(0,212,170,.1),rgba(123,104,238,.1));border:1px solid rgba(0,212,170,.2);border-radius:var(--br);padding:14px;margin-bottom:14px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <div id="np-emoji" style="width:48px;height:48px;border-radius:12px;background:rgba(0,212,170,.15);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🎵</div>
-      <div style="flex:1;min-width:0">
-        <div id="np-title" style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px">-</div>
-        <div id="np-artist" style="font-size:11px;color:var(--m)">-</div>
-      </div>
-      <button id="np-btn" onclick="FIKRA.togglePlay()" style="width:44px;height:44px;border-radius:50%;background:var(--g);border:none;color:#000;font-size:16px;cursor:pointer;font-weight:800;flex-shrink:0">▶</button>
-    </div>
-    <div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:10px;color:var(--m);font-weight:700" id="np-current">0:00</span>
-      <input id="np-volume" type="range" min="0" max="100" value="50" oninput="FIKRA.setMusicVolume(this.value/100)" style="flex:1;accent-color:var(--g);height:3px">
-      <span style="font-size:10px;color:var(--m);font-weight:700">🔊</span>
-    </div>
-  </div>
-
-  ${!data.userPlan || data.userPlan === 'free' ? `
-    <div style="background:linear-gradient(135deg,rgba(255,204,68,.08),rgba(0,212,170,.06));border:1px solid rgba(255,204,68,.22);border-radius:var(--br2);padding:10px 12px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
-      <div style="font-size:20px">✨</div>
-      <div style="flex:1">
-        <div style="font-size:11px;font-weight:700;color:var(--y);margin-bottom:1px">Pro obuna oling</div>
-        <div style="font-size:10px;color:var(--m)">Barcha 10+ trek, cheksiz ijro</div>
-      </div>
-      <button onclick="FIKRA.closeMusicPlayer();FIKRA.openSubscriptions()" style="padding:6px 12px;background:var(--y);color:#000;border:none;border-radius:100px;font-size:11px;font-weight:700;cursor:pointer">Ko'rish</button>
-    </div>
-  ` : ''}
-
-  ${categoriesHtml}
-</div>`;
-
-    document.body.appendChild(modal);
-    modal.onclick = (e) => { if (e.target === modal) closeMusicPlayer(); };
-
-    MUSIC.setStateHandler((state) => {
-      const btn = document.getElementById('np-btn');
-      const homeBtn = document.getElementById('home-music-btn');
-      if (state === 'play') {
-        if (btn) btn.textContent = '❚❚';
-        if (homeBtn) homeBtn.textContent = '❚❚';
-      } else if (state === 'pause' || state === 'error') {
-        if (btn) btn.textContent = '▶';
-        if (homeBtn) homeBtn.textContent = '▶';
-      }
-    });
-
-    const vol = document.getElementById('np-volume');
-    if (vol) vol.value = MUSIC.getVolume() * 100;
-
-    if (window._musicUpdateInterval) clearInterval(window._musicUpdateInterval);
-    window._musicUpdateInterval = setInterval(() => {
-      const c = document.getElementById('np-current');
-      if (c) c.textContent = MUSIC.formatTime(MUSIC.getCurrentTime());
-    }, 1000);
-
-    _updateNowPlaying();
-    window._currentMusicData = data;
-  }
-
-  async function playTrack(trackId) {
-    const data = window._currentMusicData;
-    if (!data) return;
-    let track = null;
-    Object.values(data.categories).forEach(cat => {
-      const t = cat.tracks.find(x => x.id === trackId);
-      if (t) track = t;
-    });
-    if (!track) return;
-
-    if (track.isLocked) {
-      showToast(`Bu trek ${track.tier.toUpperCase()} obuna bilan mavjud`);
-      setTimeout(() => { closeMusicPlayer(); openSubscriptions(); }, 800);
-      return;
-    }
-
-    try {
-      const allTracks = Object.values(data.categories).flatMap(c => c.tracks);
-      MUSIC.setPlaylist(allTracks);
-      await MUSIC.play(track);
-      _updateNowPlaying();
-    } catch (e) {
-      showToast('Trek yuklanmadi: ' + (e.message || 'xatolik'));
-    }
-  }
-
-  function _updateNowPlaying() {
-    const t = MUSIC.getCurrentTrack();
-    const np = document.getElementById('now-playing');
-    if (!np) return;
-    if (t) {
-      np.style.display = 'block';
-      const title = document.getElementById('np-title');
-      const artist = document.getElementById('np-artist');
-      const emoji = document.getElementById('np-emoji');
-      if (title) title.textContent = t.title;
-      if (artist) artist.textContent = t.artist;
-      if (emoji) emoji.textContent = t.coverEmoji;
-    }
-  }
-
-  function togglePlay() {
-    const playing = MUSIC.toggle();
-    const btn = document.getElementById('np-btn');
-    const homeBtn = document.getElementById('home-music-btn');
-    if (btn) btn.textContent = playing ? '❚❚' : '▶';
-    if (homeBtn) homeBtn.textContent = playing ? '❚❚' : '▶';
-  }
-
-  function setMusicVolume(v) {
-    MUSIC.setVolume(v);
-  }
-
-  function closeMusicPlayer() {
-    const m = document.getElementById('music-modal');
-    if (m) m.remove();
-    if (window._musicUpdateInterval) {
-      clearInterval(window._musicUpdateInterval);
-      window._musicUpdateInterval = null;
-    }
-  }
-
-  // ─── Turnir ───────────────────────────────────────────────────────────────
-  async function loadHomeTournament() {
-    try {
-      const data = await API.weeklyTournament();
-      if (!data || !data.tournament) return;
-
-      const label = document.getElementById('tourn-label');
-      const title = document.getElementById('tourn-title');
-      const sub = document.getElementById('tourn-sub');
-
-      const t = data.tournament;
-      const tl = data.timeLeft || {};
-      let leftText = 'tugagan';
-      if (!tl.ended) {
-        if (tl.days > 0) leftText = `${tl.days} kun ${tl.hours} soat qoldi`;
-        else leftText = `${tl.hours}s ${tl.minutes}d qoldi`;
-      }
-
-      if (label) label.textContent = `🏆 Turnir · ${leftText}`;
-      if (title) title.textContent = t.title;
-      const firstPrize = t.prizes?.[0];
-      if (sub) {
-        sub.innerHTML = `${t.totalParticipants || 0} ishtirokchi${data.myPosition ? ` · <span style="color:var(--al);font-weight:700">Siz: ${data.myPosition}-o'rin</span>` : ''}${firstPrize ? ` · 1-o'rin: <span style="color:var(--y);font-weight:700">${firstPrize.tokens}t + VIP</span>` : ''}`;
-      }
-    } catch (e) {
-      console.warn('Tournament load:', e.message);
-    }
-  }
-
-  async function openTournament() {
-    try {
-      const data = await API.weeklyTournament();
-      _renderTournamentModal(data);
-    } catch (e) {
-      showToast('Turnir ma\'lumoti yuklanmadi');
-    }
-  }
-
-  function _renderTournamentModal(data) {
-    const existing = document.getElementById('tourn-modal');
-    if (existing) existing.remove();
-    if (!data || !data.tournament) {
-      showToast('Faol turnir topilmadi');
-      return;
-    }
-
-    const modal = document.createElement('div');
-    modal.id = 'tourn-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;overflow-y:auto;backdrop-filter:blur(8px);padding:14px 0';
-
-    const t = data.tournament;
-    const tl = data.timeLeft || {};
-    const ranking = data.ranking || [];
-    const myPos = data.myPosition;
-
-    let timeText = 'Tugagan';
-    if (!tl.ended) {
-      if (tl.days > 0) timeText = `${tl.days} kun · ${tl.hours}s`;
-      else timeText = `${tl.hours}s · ${tl.minutes}daq`;
-    }
-
-    modal.innerHTML = `
-<div style="max-width:420px;margin:0 auto;background:var(--s1);border-radius:var(--br);padding:16px;min-height:calc(100vh - 28px)">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-    <div style="flex:1;min-width:0">
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px">🏆 ${_escapeHtml(t.title)}</div>
-      <div style="font-size:10px;color:var(--m);margin-top:2px">${_escapeHtml(t.description || '')}</div>
-    </div>
-    <button onclick="document.getElementById('tourn-modal').remove()" style="width:30px;height:30px;border-radius:50%;background:var(--s3);border:none;color:var(--txt);font-size:17px;cursor:pointer;padding:0;margin-left:8px;flex-shrink:0">×</button>
-  </div>
-
-  <div style="background:linear-gradient(135deg,rgba(123,104,238,.15),rgba(255,111,163,.08));border:1px solid rgba(123,104,238,.25);border-radius:var(--br);padding:14px;margin-bottom:14px;text-align:center">
-    <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--al);margin-bottom:4px">Qoldi</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--y)">${timeText}</div>
-    <div style="font-size:10px;color:var(--m);margin-top:4px">${t.totalParticipants || 0} ishtirokchi</div>
-  </div>
-
-  ${myPos ? `
-    <div style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.25);border-radius:var(--br2);padding:10px 12px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
-      <div style="font-size:18px">⭐</div>
-      <div style="flex:1">
-        <div style="font-size:11px;font-weight:700;color:var(--g)">Siz ${myPos}-o'rinda</div>
-        <div style="font-size:10px;color:var(--m)">Yana XP yig'ib joyingizni yaxshilang</div>
-      </div>
-    </div>
-  ` : ''}
-
-  <div style="margin-bottom:14px">
-    <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--m);margin-bottom:8px;padding:0 4px">🎁 Sovrinlar</div>
-    <div style="display:flex;flex-direction:column;gap:5px">
-      ${(t.prizes || []).slice(0, 5).map(pr => {
-        const medals = ['🥇', '🥈', '🥉', '🏅', '🏅'];
-        const colors = ['var(--y)', 'var(--m)', '#cd7f32', 'var(--acc)', 'var(--acc)'];
-        return `
-        <div style="display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);padding:8px 12px">
-          <div style="width:30px;height:30px;border-radius:50%;background:rgba(255,204,68,.12);display:flex;align-items:center;justify-content:center;font-size:14px">${medals[pr.position - 1] || '🏅'}</div>
-          <div style="flex:1;font-size:11px;color:var(--m);font-weight:600">${pr.position}-o'rin</div>
-          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:${colors[pr.position - 1] || 'var(--y)'}">
-            ${pr.tokens}t${pr.vipDays > 0 ? ` + VIP ${pr.vipDays}k` : ''}
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
-  </div>
-
-  <div>
-    <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--m);margin-bottom:8px;padding:0 4px">📊 Reyting (Top 10)</div>
-    ${ranking.length === 0 ? `
-      <div style="padding:14px;text-align:center;background:var(--s2);border:1px solid var(--f);border-radius:var(--br2);font-size:12px;color:var(--m)">Birinchi ishtirokchi bo'ling — o'yin o'ynab XP to'plang!</div>
-    ` : ranking.slice(0, 10).map(r => {
-      const isMe = r.telegramId === user?.telegramId;
-      const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
-      return `
-      <div style="display:flex;align-items:center;gap:10px;background:${isMe ? 'rgba(0,212,170,.1)' : 'var(--s2)'};border:1px solid ${isMe ? 'rgba(0,212,170,.3)' : 'var(--f)'};border-radius:var(--br2);padding:9px 12px;margin-bottom:4px">
-        <div style="width:26px;height:26px;border-radius:50%;background:${r.rank <= 3 ? 'rgba(255,204,68,.15)' : 'var(--s3)'};display:flex;align-items:center;justify-content:center;font-size:${r.rank <= 3 ? '14px' : '11px'};font-weight:700;color:${isMe ? 'var(--g)' : 'var(--txt)'}">${medals[r.rank] || r.rank}</div>
-        <div style="flex:1;font-size:12px;font-weight:${isMe ? '700' : '600'};color:${isMe ? 'var(--g)' : 'var(--txt)'}">${_escapeHtml(r.username)}${isMe ? ' (Siz)' : ''}</div>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:var(--y)">${r.score.toLocaleString()} XP</div>
-      </div>`;
-    }).join('')}
-  </div>
-
-  <div style="padding:12px;background:rgba(123,104,238,.06);border:1px solid rgba(123,104,238,.15);border-radius:var(--br2);font-size:10px;color:var(--m);line-height:1.6;margin-top:14px">
-    💡 XP yig'ish uchun Stroop o'ynang, DTM test ishlang, AI xizmatlardan foydalaning
-  </div>
-</div>`;
-
-    document.body.appendChild(modal);
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-  }
-
-  // ─── Obuna sotib olish ────────────────────────────────────────────────────
-  async function buyPlan(planId) {
-    showToast('To\'lov tayyorlanmoqda...');
-    try {
-      const res = await API.createInvoice(planId);
-      if (!res?.invoiceUrl) {
-        showToast('To\'lov linki olinmadi');
-        return;
-      }
-      _openInvoice(res.invoiceUrl, 'obuna');
-    } catch (e) {
-      showToast(e.message || 'To\'lov xatosi');
-      console.error('buyPlan:', e);
-    }
-  }
-
-  // ─── Token paket sotib olish ──────────────────────────────────────────────
-  async function buyPack(packId) {
-    showToast('To\'lov tayyorlanmoqda...');
-    try {
-      const res = await API.buyPack(packId);
-      if (!res?.invoiceUrl) {
-        showToast('To\'lov linki olinmadi');
-        return;
-      }
-      _openInvoice(res.invoiceUrl, 'tokenlar');
-    } catch (e) {
-      showToast(e.message || 'To\'lov xatosi');
-    }
-  }
-
-  async function _openInvoice(invoiceUrl, label) {
-    if (tg && typeof tg.openInvoice === 'function') {
-      tg.openInvoice(invoiceUrl, async (status) => {
-        if (status === 'paid') {
-          showToast(`✅ ${label} faollashtirildi!`);
-          // Modal yopish
-          ['sub-modal', 'shop-modal'].forEach(id => {
-            const m = document.getElementById(id);
-            if (m) m.remove();
-          });
-          setTimeout(async () => {
-            await updateTokenDisplay();
-            try {
-              const me = await API.me();
-              if (me) user = me;
-          _syncUserToWindow();
-            } catch {}
-            if (activePanel === 'profile') {
-              const pp = document.getElementById('p-profile');
-              if (pp) pp.outerHTML = buildProfile();
-            }
-          }, 1000);
-        } else if (status === 'failed') {
-          showToast('❌ To\'lov amalga oshmadi');
-        } else if (status === 'cancelled') {
-          showToast('To\'lov bekor qilindi');
-        }
-      });
-    } else {
-      const okp = await uiConfirm('Telegram to\'lov oynasi ochiladi.', { title: 'To\'lov davom ettirish', okLabel: 'Davom' });
-      if (okp) {
-        window.open(invoiceUrl, '_blank');
-      }
-    }
-  }
-
-  // ─── Expose ───────────────────────────────────────────────────────────────
+  // ─── EXPOSE ───────────────────────────────────────────────────────────────
   window.FIKRA = {
-    switchPanel, goGame, openAIChat, openKal, openImage, backToGames, backToAI,
-    selectStroopMode, sAns, tfAns,
-    switchTestNav, selMajFan, selMajOpt, nextMajQ,
-    selDir, startMut, switchMutFan, selMutFan: selMajFan, selMutOpt, nextMutQ,
-    setDocFmt, sendChat, sendDoc, doScan, getHint,
-    genImage, showOldImage,
-    showAdsModal, showToast, updateTokenDisplay,
-    switchLbTab, reLogin: login,
-    buyPlan, buyPack,
-    openSubscriptions, openTokenShop, switchPlanPeriod,
-    claimDaily, copyRef, shareRef, loadTokenHistory,
-    newChat, newDocChat, _chatInputChange,
-    showRankDetail, showLevelUp, showXpGain,
-    openMusicPlayer, closeMusicPlayer, playTrack, togglePlay, setMusicVolume,
-    openTournament,
-    openNewGame, startFootballClub, ngTab,
-    ngBuyCar, ngBuyOutfit, ngTuning, ngUpgradePlayer, ngDesignOutfit, ngPaintCar,
-    ngListItem, ngBuyFromMarket,
-    openFootballMatch,
-    showStroopResult, stroopWatchAd, stroopRetry, stroopExit,
+    sw, openSubs, _buyPlan,
+    // Test
+    startFan, startDir, pick, getHint, nextQ, backTest, finishTest,
+    // Stroop
+    goStroop, renderStroop, setSm, doStroop, _sa, _tf, showStroopResult, backGifts,
+    // AI
+    goAIChat, goAIDoc, goAIImage, goKal,
+    renderChat, renderDoc, renderImg, renderKal,
+    sendChat, sendDoc, genImg, doScan, setFmt, _dlDoc,
+    newChat, backGiftsAI,
+    // O'yinlar
+    openNG, _fbClubs, _fbStart, _ngt, _ngu, _fbMatch,
+    // Turnir/Rank
+    openTournament, loadHomeTournament, rankDetail, levelUp, xpGain,
+    // Musiqa
+    openMusic, playTrack,
+    // Profil
+    copyRef, shareRef,
+    // Util
+    toast, uiConfirm, uiPrompt,
+    // Auth
+    reLogin: login,
   };
 
-  // ─── Bootstrap ────────────────────────────────────────────────────────────
-  // login() xato bersa ham UI ko'rsatiladi — loading ekranda qotib qolmaydi
-  try {
-    await Promise.race([
-      login(),
-      new Promise(resolve => setTimeout(resolve, 3000)) // 3s timeout
-    ]);
-  } catch(e) {
-    console.warn('Login error (ignored):', e);
-  }
-
-  const loadingEl = document.getElementById('loading');
-  if (loadingEl) {
-    loadingEl.style.opacity = '0';
-    loadingEl.style.transition = 'opacity .3s';
-    setTimeout(() => loadingEl.remove(), 350);
-  }
+  // ─── BOOTSTRAP ────────────────────────────────────────────────────────────
+  try { await Promise.race([login(), new Promise(r=>setTimeout(r,3000))]); } catch(e) { console.warn('Login:',e); }
+  const lel=document.getElementById('loading');
+  if (lel) { lel.style.opacity='0'; lel.style.transition='opacity .3s'; setTimeout(()=>lel.remove(),350); }
   buildUI();
-
-  // Har 30s — joriy Telegram user = login qilgan user ekanligini tekshirish
-  setInterval(() => verifyAuth(), 30000);
-
-  // ─── Global Escape tugmasi: modallarni yopish ─────────────────────────────
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    // Eng yuqori z-index dagi ochiq modalni yopish
-    const modalIds = [
-      'ui-modal-overlay', // eng yuqori
-      'ng-modal', 'tourn-modal', 'music-modal', 'rank-modal',
-      'sub-modal', 'shop-modal', 'pwa-install-banner',
-    ];
-    for (const cls of ['ui-modal-overlay']) {
-      const els = document.getElementsByClassName(cls);
-      if (els.length > 0) { els[els.length - 1].remove(); return; }
-    }
-    for (const id of modalIds.slice(1)) {
-      const m = document.getElementById(id);
-      if (m) { m.remove(); return; }
-    }
-    // Ads modal
-    const adsOverlay = document.getElementById('ads-overlay');
-    if (adsOverlay && adsOverlay.classList.contains('show')) {
-      const skipBtn = document.getElementById('ads-skip');
-      if (skipBtn) skipBtn.click();
-    }
-  });
-
-  // ─── Swipe gesture: bosh sahifa slider uchun ──────────────────────────────
-  function _initSliderSwipe() {
-    const slides = document.getElementById('home-slides');
-    if (!slides) return;
-    let startX = 0, startY = 0, startTime = 0, isSwiping = false;
-    let currentIdx = 0;
-    const slideWidth = 375;
-
-    slides.addEventListener('touchstart', (e) => {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      startTime = Date.now();
-      isSwiping = true;
-      slides.style.transition = 'none';
-    }, { passive: true });
-
-    slides.addEventListener('touchmove', (e) => {
-      if (!isSwiping) return;
-      const dx = e.touches[0].clientX - startX;
-      const dy = e.touches[0].clientY - startY;
-      // Vertikal scroll ustun bo'lsa — swipe emas
-      if (Math.abs(dy) > Math.abs(dx)) { isSwiping = false; return; }
-      const offset = -currentIdx * slideWidth + dx;
-      slides.style.transform = `translateX(${offset}px)`;
-    }, { passive: true });
-
-    slides.addEventListener('touchend', (e) => {
-      if (!isSwiping) return;
-      isSwiping = false;
-      const dx = e.changedTouches[0].clientX - startX;
-      const duration = Date.now() - startTime;
-      const isQuick = duration < 300 && Math.abs(dx) > 30;
-      const isFar = Math.abs(dx) > slideWidth / 3;
-
-      const slideCount = slides.children.length;
-      if ((isQuick || isFar) && slideCount > 1) {
-        if (dx < 0) currentIdx = Math.min(currentIdx + 1, slideCount - 1);
-        else currentIdx = Math.max(currentIdx - 1, 0);
-        hapticTap('light');
-      }
-      slides.style.transition = 'transform .3s cubic-bezier(.34,1.56,.64,1)';
-      slides.style.transform = `translateX(${-currentIdx * slideWidth}px)`;
-    }, { passive: true });
+  setInterval(verifyAuth,30000);
+  document.addEventListener('keydown',e=>{ if(e.key!=='Escape')return; const ovs=document.getElementsByClassName('ov'); if(ovs.length)ovs[ovs.length-1].remove(); });
+  if ('serviceWorker' in navigator&&location.protocol==='https:') {
+    window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js').catch(()=>{}));
   }
-
-  // Slider avtomatik almashtirish (har 5 sekund)
-  function _initSliderAutoplay() {
-    let idx = 0;
-    setInterval(() => {
-      const slides = document.getElementById('home-slides');
-      if (!slides || !slides.children.length) return;
-      // Agar foydalanuvchi boshqa sahifada bo'lsa - to'xtat
-      if (activePanel !== 'home' || document.hidden) return;
-      idx = (idx + 1) % slides.children.length;
-      slides.style.transition = 'transform .5s cubic-bezier(.34,1.56,.64,1)';
-      slides.style.transform = `translateX(${-idx * 375}px)`;
-    }, 5000);
-  }
-
-  setTimeout(() => {
-    _initSliderSwipe();
-    _initSliderAutoplay();
-  }, 500);
-
-  // ─── PWA: Service Worker Registration ───────────────────────────────────
-  if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/service-worker.js')
-        .then((reg) => console.log('[PWA] SW registered:', reg.scope))
-        .catch((err) => console.warn('[PWA] SW registration failed:', err));
-    });
-  }
-
-  // PWA Install prompt — foydalanuvchi 3 marta kirgach ko'rsatiladi
-  let _deferredPrompt = null;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    _deferredPrompt = e;
-
-    // Kirish sonini yig'ish
-    try {
-      let visits = parseInt(localStorage.getItem('fikra_visits') || '0', 10);
-      visits++;
-      localStorage.setItem('fikra_visits', String(visits));
-
-      // 3 marta kirgandan keyin yoki allaqachon install qilingan bo'lmasa
-      const installed = localStorage.getItem('fikra_pwa_installed') === 'true';
-      const dismissed = localStorage.getItem('fikra_pwa_dismissed') === 'true';
-
-      if (visits >= 3 && !installed && !dismissed) {
-        setTimeout(() => showInstallPrompt(), 3000);
-      }
-    } catch (e) {}
-  });
-
-  window.addEventListener('appinstalled', () => {
-    try { localStorage.setItem('fikra_pwa_installed', 'true'); } catch {}
-    _deferredPrompt = null;
-    showToast && showToast('FIKRA telefonga yuklandi! 🎉');
-  });
-
-  function showInstallPrompt() {
-    if (!_deferredPrompt) return;
-    const banner = document.createElement('div');
-    banner.id = 'pwa-install-banner';
-    banner.style.cssText = 'position:fixed;bottom:74px;left:10px;right:10px;max-width:460px;margin:0 auto;background:linear-gradient(135deg,rgba(123,104,238,.98),rgba(90,79,212,.98));border-radius:14px;padding:14px;z-index:9998;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:slideDown .4s ease;display:flex;align-items:center;gap:12px;backdrop-filter:blur(10px)';
-    banner.innerHTML = `
-      <div style="font-size:28px">📱</div>
-      <div style="flex:1;min-width:0;color:#fff">
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px">FIKRA ni telefonga yuklab oling</div>
-        <div style="font-size:11px;opacity:.85">Tezroq ishlaydi, Telegram tashqarida ham ochiladi</div>
-      </div>
-      <button onclick="FIKRA.installPWA()" style="padding:8px 14px;background:#fff;color:var(--acc);border:none;border-radius:100px;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer;flex-shrink:0">Yuklash</button>
-      <button onclick="FIKRA.dismissInstall()" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:14px;cursor:pointer;padding:0;flex-shrink:0">×</button>
-    `;
-    document.body.appendChild(banner);
-  }
-
-  async function installPWA() {
-    if (!_deferredPrompt) {
-      showToast('O\'rnatish imkoniyati mavjud emas');
-      return;
-    }
-    _deferredPrompt.prompt();
-    const { outcome } = await _deferredPrompt.userChoice;
-    console.log('[PWA] Install choice:', outcome);
-    _deferredPrompt = null;
-    const banner = document.getElementById('pwa-install-banner');
-    if (banner) banner.remove();
-  }
-
-  function dismissInstall() {
-    try { localStorage.setItem('fikra_pwa_dismissed', 'true'); } catch {}
-    const banner = document.getElementById('pwa-install-banner');
-    if (banner) banner.remove();
-  }
-
-  // Expose
-  if (window.FIKRA) {
-    window.FIKRA.installPWA = installPWA;
-    window.FIKRA.dismissInstall = dismissInstall;
-  }
-
 })();

@@ -1,5 +1,17 @@
 const mongoose = require('mongoose');
 
+// ─── AI ishlatish kunlik tracker ─────────────────────────────────────────────
+// Har xil AI turi bo'yicha kunlik sanash
+const aiUsageSchema = new mongoose.Schema({
+  date: { type: String, default: '' },     // 'YYYY-MM-DD' (Tashkent vaqti)
+  hints: { type: Number, default: 0 },     // DTM test AI tushuntirish
+  chats: { type: Number, default: 0 },     // AI Chat xabar
+  docs:  { type: Number, default: 0 },     // AI Hujjat
+  images:{ type: Number, default: 0 },     // AI Rasm
+  calories:{ type: Number, default: 0 },   // Kaloriya tahlili
+  games: { type: Number, default: 0 },     // O'yin partiyalari (free uchun)
+}, { _id: false });
+
 const userSchema = new mongoose.Schema({
   telegramId: {
     type: Number,
@@ -12,84 +24,116 @@ const userSchema = new mongoose.Schema({
   lastName: { type: String, default: '' },
   photoUrl: { type: String, default: '' },
 
-  // Token tizimi
-  tokens: { type: Number, default: 50, min: 0 },
-
-  // Obuna
+  // ─── Obuna (Telegram Stars) ──────────────────────────────────────────────
   plan: {
     type: String,
-    enum: ['free', 'basic', 'pro', 'vip', 'business'],
+    enum: ['free', 'basic', 'pro', 'vip'],
     default: 'free',
+    index: true,
   },
-  planTier: { type: String, default: 'free' },
-  planId: { type: String, default: null },
-  planExpiresAt: { type: Date, default: null },
+  planId: { type: String, default: null },              // 'basic_1m', 'pro_3m'...
+  planExpiresAt: { type: Date, default: null, index: true },
   planLastPurchaseAt: { type: Date, default: null },
+  planChargeIds: { type: [String], default: [] },        // idempotency uchun
 
-  // Gamification
+  // ─── AI kunlik ishlatish ─────────────────────────────────────────────────
+  aiUsage: { type: aiUsageSchema, default: () => ({}) },
+
+  // ─── Gamification (tokensiz) ─────────────────────────────────────────────
   streakDays: { type: Number, default: 0 },
   lastLoginDate: { type: Date, default: null },
   totalGamesPlayed: { type: Number, default: 0 },
   totalAiRequests: { type: Number, default: 0 },
 
-  // Daraja va Lavozim (XP tizimi)
+  // XP/Lavozim — qoladi (status drive uchun)
   xp: { type: Number, default: 0, min: 0, index: true },
-  rank: { type: String, default: 'seedling' }, // rank id
-  rankLevel: { type: Number, default: 1 }, // 1-8
+  rank: { type: String, default: 'seedling' },
+  rankLevel: { type: Number, default: 1 },
 
-  // Referral
-  referredBy: { type: Number, default: null }, // telegramId
+  // ─── Referral (token bonusisiz, faqat statistika) ────────────────────────
+  referredBy: { type: Number, default: null },
   referralCount: { type: Number, default: 0 },
-
-  // Kunlik cheklov (bepul foydalanuvchilar)
-  dailyTokensUsed: { type: Number, default: 0 },
-  dailyTokensDate: { type: Date, default: null },
 
   isActive: { type: Boolean, default: true },
 }, {
   timestamps: true,
 });
 
-// ─── Virtual: obuna aktiv? ────────────────────────────────────────────────────
-userSchema.virtual('isPro').get(function () {
-  return this.plan === 'pro' && this.planExpiresAt && this.planExpiresAt > new Date();
+// ─── Plan limitlari (kunlik) ─────────────────────────────────────────────────
+//   free:  test cheksiz, hints=5, qolgani=0, o'yin=3 partiya
+//   basic: hints cheksiz, chat=50, qolgani=0, o'yin cheksiz
+//   pro:   chat cheksiz, doc=10, image=20, o'yin cheksiz
+//   vip:   hammasi cheksiz
+const PLAN_LIMITS = {
+  free:  { hints: 5,        chats: 0,         docs: 0,        images: 0,        calories: 0,        games: 3 },
+  basic: { hints: Infinity, chats: 50,        docs: 0,        images: 0,        calories: 0,        games: Infinity },
+  pro:   { hints: Infinity, chats: Infinity,  docs: 10,       images: 20,       calories: 0,        games: Infinity },
+  vip:   { hints: Infinity, chats: Infinity,  docs: Infinity, images: Infinity, calories: Infinity, games: Infinity },
+};
+
+userSchema.statics.PLAN_LIMITS = PLAN_LIMITS;
+
+// ─── Tashkent (UTC+5) bo'yicha kunlik kalit ──────────────────────────────────
+function _todayKeyTashkent(date) {
+  const d = date || new Date();
+  const tashkent = new Date(d.getTime() + 5 * 3600 * 1000);
+  return tashkent.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+}
+userSchema.statics.todayKey = _todayKeyTashkent;
+
+// ─── Virtuals ─────────────────────────────────────────────────────────────────
+userSchema.virtual('isSubscribed').get(function () {
+  return this.plan !== 'free' && this.planExpiresAt && this.planExpiresAt > new Date();
 });
 
-userSchema.virtual('isBasic').get(function () {
-  return (this.plan === 'basic' || this.plan === 'pro') &&
-    this.planExpiresAt && this.planExpiresAt > new Date();
+userSchema.virtual('planLevel').get(function () {
+  if (!this.isSubscribed) return 0;
+  return ({ free: 0, basic: 1, pro: 2, vip: 3 })[this.plan] || 0;
 });
 
-// ─── Streak yangilash ─────────────────────────────────────────────────────────
+// ─── Streak yangilash (Tashkent zonasi) ──────────────────────────────────────
 userSchema.methods.updateStreak = function () {
   const now = new Date();
-  const lastLogin = this.lastLoginDate;
-  if (!lastLogin) {
+  const todayKey = _todayKeyTashkent(now);
+  const lastKey = this.lastLoginDate ? _todayKeyTashkent(this.lastLoginDate) : null;
+
+  if (!lastKey) {
     this.streakDays = 1;
+  } else if (lastKey === todayKey) {
+    // Bugun allaqachon kirgan — streak o'zgarmaydi
   } else {
-    const diffMs = now - lastLogin;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays === 1) {
-      this.streakDays += 1;
-    } else if (diffDays > 1) {
-      this.streakDays = 1;
-    }
-    // diffDays === 0 => same day, streak o'zgarmaydi
+    const lastTs = new Date(lastKey + 'T00:00:00.000Z').getTime();
+    const todayTs = new Date(todayKey + 'T00:00:00.000Z').getTime();
+    const diffDays = Math.round((todayTs - lastTs) / 86400000);
+    if (diffDays === 1) this.streakDays += 1;
+    else if (diffDays > 1) this.streakDays = 1;
   }
   this.lastLoginDate = now;
 };
 
-// ─── Kunlik limit tekshirish ──────────────────────────────────────────────────
-userSchema.methods.canUseTokens = function (amount) {
-  if (this.plan !== 'free') return true; // Obunalilarga cheklov yo'q
-  const today = new Date().toDateString();
-  const lastDate = this.dailyTokensDate ? this.dailyTokensDate.toDateString() : null;
-  if (lastDate !== today) {
-    // Yangi kun — reset
-    this.dailyTokensUsed = 0;
-    this.dailyTokensDate = new Date();
-  }
-  return (this.dailyTokensUsed + amount) <= 30; // Bepuflarga kuniga 30t
+// ─── Plan helpers ─────────────────────────────────────────────────────────────
+userSchema.methods.effectivePlan = function () {
+  if (this.plan === 'free') return 'free';
+  if (!this.planExpiresAt || this.planExpiresAt <= new Date()) return 'free';
+  return this.plan;
+};
+
+userSchema.methods.getAiLimit = function (kind) {
+  const tier = this.effectivePlan();
+  return PLAN_LIMITS[tier]?.[kind] ?? 0;
+};
+
+userSchema.methods.getAiUsage = function (kind) {
+  const todayKey = _todayKeyTashkent();
+  if (this.aiUsage?.date !== todayKey) return 0;
+  return this.aiUsage?.[kind] || 0;
+};
+
+userSchema.methods.canUseAi = function (kind) {
+  const limit = this.getAiLimit(kind);
+  if (limit === Infinity) return true;
+  if (limit <= 0) return false;
+  return this.getAiUsage(kind) < limit;
 };
 
 module.exports = mongoose.model('User', userSchema);

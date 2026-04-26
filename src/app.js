@@ -10,7 +10,6 @@ const { logger }       = require('./utils/logger');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const authRoutes  = require('./routes/auth');
-const tokenRoutes = require('./routes/tokens');
 const gameRoutes  = require('./routes/games');
 const aiRoutes    = require('./routes/ai');
 const subRoutes   = require('./routes/subscription');
@@ -68,7 +67,6 @@ if (fs.existsSync(publicDir)) {
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth',   authRoutes);
-app.use('/api/tokens', tokenRoutes);
 app.use('/api/games',  gameRoutes);
 app.use('/api/ai',     aiRoutes);
 app.use('/api/sub',    subRoutes);
@@ -88,9 +86,8 @@ app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
 // ─── Client config (public keys only) ────────────────────────────────────────
 app.get('/api/config', (req, res) => {
   res.json({
-    adsgramBlockId: process.env.ADSGRAM_BLOCK_ID || '',
-    botUsername: process.env.BOT_USERNAME || 'fikra_bot',
-    version: '1.2.0',
+    botUsername: process.env.BOT_USERNAME || 'fikraai_bot',
+    version: '2.0.0',
   });
 });
 

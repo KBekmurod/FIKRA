@@ -1,29 +1,24 @@
-// ─── FIKRA API Client ──────────────────────────────────────────────────────────
+// ─── FIKRA API Client v2.0 ─────────────────────────────────────────────────
 const API_BASE = window.location.origin;
 
-let _accessToken = null;
+let _accessToken  = null;
 let _refreshToken = null;
-let _tokenOwnerTgId = null; // JWT qaysi Telegram ID ga tegishli — konflikt aniqlash uchun
+let _tokenOwnerTgId = null;
 
-// ─── Tokenni yuklash ─────────────────────────────────────────────────────────
-// Token faqat shu Telegram foydalanuvchi uchun bo'lsa ishlatiladi
 function _loadSavedTokens(currentTgId) {
   try {
     const saved = localStorage.getItem('fikra_auth');
     if (!saved) return;
     const data = JSON.parse(saved);
-    // Agar saqlangan token boshqa foydalanuvchiga tegishli bo'lsa — o'chirib tashla
     if (currentTgId && data.tgId && data.tgId !== currentTgId) {
-      console.warn('[API] Boshqa user tokeni topildi, tozalanmoqda');
+      console.warn('[API] Boshqa user tokeni — tozalanmoqda');
       localStorage.removeItem('fikra_auth');
       return;
     }
     _accessToken = data.access || null;
     _refreshToken = data.refresh || null;
     _tokenOwnerTgId = data.tgId || null;
-  } catch (e) {
-    console.warn('localStorage unavailable:', e);
-  }
+  } catch (e) { console.warn('localStorage unavailable:', e); }
 }
 
 function setTokens(access, refresh, tgId) {
@@ -32,22 +27,17 @@ function setTokens(access, refresh, tgId) {
   _tokenOwnerTgId = tgId || null;
   try {
     if (access && refresh) {
-      localStorage.setItem('fikra_auth', JSON.stringify({
-        access, refresh, tgId: tgId || null, ts: Date.now()
-      }));
+      localStorage.setItem('fikra_auth', JSON.stringify({ access, refresh, tgId: tgId || null, ts: Date.now() }));
     } else {
       localStorage.removeItem('fikra_auth');
     }
-  } catch (e) { console.warn('localStorage unavailable'); }
+  } catch {}
 }
 
-function clearTokens() {
-  setTokens(null, null, null);
-}
-
+function clearTokens() { setTokens(null, null, null); }
 function getTokenOwner() { return _tokenOwnerTgId; }
 
-// ─── Asosiy so'rov funksiya ──────────────────────────────────────────────────
+// ─── Asosiy so'rov ─────────────────────────────────────────────────────────
 async function apiRequest(path, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
@@ -70,7 +60,6 @@ async function apiRequest(path, options = {}) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: _refreshToken }),
     });
-
     if (refreshRes.ok) {
       const data = await refreshRes.json();
       setTokens(data.accessToken, data.refreshToken, _tokenOwnerTgId);
@@ -78,7 +67,7 @@ async function apiRequest(path, options = {}) {
       res = await fetch(`${API_BASE}${path}`, { ...options, headers });
     } else {
       clearTokens();
-      window.FIKRA && window.FIKRA.reLogin && window.FIKRA.reLogin();
+      window.FIKRA?.reLogin?.();
       return null;
     }
   }
@@ -94,13 +83,11 @@ async function apiRequest(path, options = {}) {
   return res.json();
 }
 
-// ─── Multipart upload ─────────────────────────────────────────────────────────
+// ─── Multipart upload ──────────────────────────────────────────────────────
 async function apiUpload(path, formData) {
   const headers = {};
   if (_accessToken) headers['Authorization'] = `Bearer ${_accessToken}`;
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST', headers, body: formData,
-  });
+  const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: formData });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Yuklash xatosi');
@@ -108,23 +95,20 @@ async function apiUpload(path, formData) {
   return res.json();
 }
 
-// ─── SSE Stream ───────────────────────────────────────────────────────────────
+// ─── SSE Stream ────────────────────────────────────────────────────────────
 async function apiStream(path, body, onChunk, onDone) {
   const headers = {
     'Content-Type': 'application/json',
-    ..._accessToken ? { 'Authorization': `Bearer ${_accessToken}` } : {},
+    ...(_accessToken ? { 'Authorization': `Bearer ${_accessToken}` } : {}),
   };
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST', headers, body: JSON.stringify(body),
-  });
+  const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const e = new Error(err.error || 'Stream xatosi');
-    e.code = err.code;
-    e.statusCode = res.status;
+    e.code = err.code; e.statusCode = res.status;
     throw e;
   }
-  const reader = res.body.getReader();
+  const reader  = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   while (true) {
@@ -136,45 +120,46 @@ async function apiStream(path, body, onChunk, onDone) {
     for (const line of lines) {
       if (!line.startsWith('data: ')) continue;
       const data = line.slice(6);
-      if (data === '[DONE]') { onDone && onDone(); return; }
+      if (data === '[DONE]') { onDone?.(); return; }
       try {
         const parsed = JSON.parse(data);
         if (parsed.content) onChunk(parsed.content);
       } catch {}
     }
   }
-  onDone && onDone();
+  onDone?.();
 }
 
-// ─── API Methods ──────────────────────────────────────────────────────────────
+// ─── API Methods ────────────────────────────────────────────────────────────
 const API = {
+  // Auth
   login: (initData, referralCode) =>
     apiRequest('/api/auth/login', { method: 'POST', body: { initData, referralCode } }),
   me: () => apiRequest('/api/auth/me'),
   rankInfo: () => apiRequest('/api/auth/rank'),
-  logout: () => { clearTokens(); },
+  logout: () => clearTokens(),
 
-  balance: () => apiRequest('/api/tokens/balance'),
-  dailyBonus: () => apiRequest('/api/tokens/daily-bonus', { method: 'POST' }),
-  adsReward: (format, context) =>
-    apiRequest('/api/tokens/ads-reward', { method: 'POST', body: { format, context } }),
-  referral: (refCode) =>
-    apiRequest('/api/tokens/referral', { method: 'POST', body: { refCode } }),
-  tokenHistory: () => apiRequest('/api/tokens/history'),
+  // Obuna
+  plans: () => apiRequest('/api/sub/plans'),
+  subStatus: () => apiRequest('/api/sub/status'),
+  createInvoice: (planId) =>
+    apiRequest('/api/sub/create-invoice', { method: 'POST', body: { planId } }),
+  cancelInfo: () => apiRequest('/api/sub/cancel-info'),
 
-  stroopResult: (gameType, score, correctAnswers, wrongAnswers, durationSec) =>
-    apiRequest('/api/games/stroop/result', { method: 'POST',
-      body: { gameType, score, correctAnswers, wrongAnswers, durationSec } }),
+  // DTM Test — loyihaning markazi
   testQuestions: (subject, block, limit) =>
-    apiRequest(`/api/games/test/questions?subject=${subject}&block=${block}&limit=${limit || 10}`),
+    apiRequest(`/api/games/test/questions?subject=${subject}&block=${block || ''}&limit=${limit || 10}`),
   checkAnswer: (questionId, selectedIndex) =>
     apiRequest('/api/games/test/check-answer', { method: 'POST', body: { questionId, selectedIndex } }),
   testResult: (data) =>
     apiRequest('/api/games/test/result', { method: 'POST', body: data }),
-  leaderboard: (type, period = 'week') =>
-    apiRequest(`/api/games/leaderboard/${type}?period=${period}`),
-  myStats: () => apiRequest('/api/games/my-stats'),
 
+  // AI — DTM uchun markaziy funksiya
+  // mode: 'hint' (to'g'ri javobsiz maslahat) | 'explain' (javobdan keyin tushuntirish)
+  hint: (question, options, subject, mode = 'hint') =>
+    apiRequest('/api/ai/hint', { method: 'POST', body: { question, options, subject, mode } }),
+
+  // AI — obuna bilan
   chat: (message, history, onChunk, onDone) =>
     apiStream('/api/ai/chat', { message, history }, onChunk, onDone),
   document: (prompt, format, history) =>
@@ -185,54 +170,45 @@ const API = {
     const fd = new FormData(); fd.append('image', file);
     return apiUpload('/api/ai/calorie', fd);
   },
-  hint: (question, options, subject) =>
-    apiRequest('/api/ai/hint', { method: 'POST', body: { question, options, subject } }),
-  video: (prompt) =>
-    apiRequest('/api/ai/video', { method: 'POST', body: { prompt } }),
 
-  plans: () => apiRequest('/api/sub/plans'),
-  packs: () => apiRequest('/api/sub/packs'),
-  subStatus: () => apiRequest('/api/sub/status'),
-  createInvoice: (planId) =>
-    apiRequest('/api/sub/create-invoice', { method: 'POST', body: { planId } }),
-  buyPack: (packId) =>
-    apiRequest('/api/sub/create-invoice', { method: 'POST', body: { packId } }),
+  // O'yinlar
+  stroopResult: (gameType, score, correctAnswers, wrongAnswers, durationSec) =>
+    apiRequest('/api/games/stroop/result', { method: 'POST',
+      body: { gameType, score, correctAnswers, wrongAnswers, durationSec } }),
+  leaderboard: (type, period = 'week') =>
+    apiRequest(`/api/games/leaderboard/${type}?period=${period}`),
+  myStats: () => apiRequest('/api/games/my-stats'),
 
   // Musiqa va turnir
   music: () => apiRequest('/api/content/music'),
-  musicCategories: () => apiRequest('/api/content/music/categories'),
   musicPlay: (trackId) =>
     apiRequest('/api/content/music/play', { method: 'POST', body: { trackId } }),
   tournaments: () => apiRequest('/api/content/tournaments'),
   weeklyTournament: () => apiRequest('/api/content/tournaments/weekly'),
 
-  // Yangi o'yinlar
+  // Sovg'alar: yangi o'yinlar
   newGamesCatalog: () => apiRequest('/api/newgames/catalog'),
   inventory: (gameType) => apiRequest(`/api/newgames/inventory/${gameType}`),
   footballStart: (clubId) =>
     apiRequest('/api/newgames/football/start', { method: 'POST', body: { clubId } }),
-  buyCar: (carModel) =>
-    apiRequest('/api/newgames/auto/buy', { method: 'POST', body: { carModel } }),
   carTuning: (carId, part) =>
     apiRequest('/api/newgames/auto/tuning', { method: 'POST', body: { carId, part } }),
   carPaint: (carId, color) =>
     apiRequest('/api/newgames/auto/paint', { method: 'POST', body: { carId, color } }),
-  buyOutfit: (styleId) =>
-    apiRequest('/api/newgames/fashion/buy', { method: 'POST', body: { styleId } }),
   outfitDesign: (outfitId, updates) =>
     apiRequest('/api/newgames/fashion/design', { method: 'POST', body: { outfitId, updates } }),
   upgradePlayer: (playerId, stat) =>
     apiRequest('/api/newgames/football/upgrade', { method: 'POST', body: { playerId, stat } }),
-  footballMatch: (betAmount) =>
-    apiRequest('/api/newgames/football/match', { method: 'POST', body: { betAmount } }),
+  footballMatch: () =>
+    apiRequest('/api/newgames/football/match', { method: 'POST', body: {} }),
   getMarket: (gameType) =>
     apiRequest(`/api/newgames/market?gameType=${gameType || ''}`),
-  listItem: (itemId, priceTokens) =>
-    apiRequest('/api/newgames/market/list', { method: 'POST', body: { itemId, priceTokens } }),
+  listItem: (itemId) =>
+    apiRequest('/api/newgames/market/list', { method: 'POST', body: { itemId } }),
   cancelListing: (itemId) =>
     apiRequest('/api/newgames/market/cancel', { method: 'POST', body: { itemId } }),
-  buyFromMarket: (itemId) =>
-    apiRequest('/api/newgames/market/buy', { method: 'POST', body: { itemId } }),
+  tradeFromMarket: (itemId) =>
+    apiRequest('/api/newgames/market/trade', { method: 'POST', body: { itemId } }),
 };
 
 window.API = API;

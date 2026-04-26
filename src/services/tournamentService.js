@@ -6,7 +6,7 @@
 const Tournament = require('../models/Tournament');
 const User = require('../models/User');
 const { logger } = require('../utils/logger');
-const { earnTokens } = require('./tokenService');
+
 
 // ─── Haftalik turnir yaratish (cron orqali) ──────────────────────────────────
 async function createWeeklyTournament() {
@@ -35,11 +35,11 @@ async function createWeeklyTournament() {
     startAt, endAt,
     isActive: true,
     prizes: [
-      { position: 1, tokens: 500, vipDays: 7,  xp: 500 },
-      { position: 2, tokens: 250, vipDays: 3,  xp: 250 },
-      { position: 3, tokens: 100, vipDays: 0,  xp: 150 },
-      { position: 4, tokens: 50,  vipDays: 0,  xp: 50 },
-      { position: 5, tokens: 50,  vipDays: 0,  xp: 50 },
+      { position: 1, vipDays: 14, xp: 500 },
+      { position: 2, vipDays: 7,  xp: 250 },
+      { position: 3, vipDays: 3,  xp: 150 },
+      { position: 4, vipDays: 0,  xp: 50  },
+      { position: 5, vipDays: 0,  xp: 50  },
     ],
     participants: [],
   });
@@ -150,11 +150,7 @@ async function finalizePrizes(tournamentId) {
     try {
       // Token berish
       if (prize.tokens > 0) {
-        await earnTokens(
-          p.userId, p.telegramId, prize.tokens,
-          `tournament_${t.type}`, 'bonus',
-          { tournamentId: t._id, position: i + 1 }
-        );
+// token yo'q — faqat XP va VIP
       }
 
       // VIP kunlar — agar 7 kun bo'lsa, obuna beriladi
@@ -165,7 +161,8 @@ async function finalizePrizes(tournamentId) {
           const currentExp = user.planExpiresAt && user.planExpiresAt > now
             ? user.planExpiresAt : now;
           const newExp = new Date(currentExp.getTime() + prize.vipDays * 86400000);
-          const tier = user.plan === 'free' ? 'vip' : user.plan;
+          const validPlans = ['basic','pro','vip'];
+          const tier = validPlans.includes(user.plan) ? user.plan : 'vip';
           await User.findByIdAndUpdate(p.userId, {
             plan: tier,
             planTier: tier,
@@ -174,7 +171,7 @@ async function finalizePrizes(tournamentId) {
         }
       }
 
-      logger.info(`Prize paid: ${p.telegramId} position ${i+1} (${prize.tokens}t + ${prize.vipDays}d)`);
+      logger.info(`Prize paid: ${p.telegramId} position ${i+1} (+${prize.vipDays}d VIP, +${prize.xp}xp)`);
     } catch (e) {
       logger.error(`Prize xatosi ${p.telegramId}:`, e.message);
     }
