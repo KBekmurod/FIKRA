@@ -13,8 +13,9 @@ const authRoutes  = require('./routes/auth');
 const gameRoutes  = require('./routes/games');
 const aiRoutes    = require('./routes/ai');
 const subRoutes   = require('./routes/subscription');
-const contentRoutes = require('./routes/content');
+const contentRoutes  = require('./routes/content');
 const newGamesRoutes = require('./routes/newgames');
+const adminRoutes    = require('./routes/admin');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
