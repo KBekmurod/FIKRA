@@ -764,31 +764,157 @@
   }
 
   // ─── OBUNA MODALI ─────────────────────────────────────────────────────────
+  // Obuna modal — rejim tanlash (Stars yoki P2P)
+  let _subPayMode = 'stars'; // 'stars' | 'p2p'
+
   async function openSubs() {
     haptic('light'); let plans=[];
     try { plans=await API.plans(); } catch {}
     const tc={basic:'var(--y)',pro:'var(--acc)',vip:'var(--g)'};
     const te={basic:'⭐',pro:'✨',vip:'💎'};
+
     uiOverlay(`
-<div style="width:100%;max-width:480px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;max-height:85vh;overflow-y:auto">
-  <div style="padding:16px 14px;border-bottom:1px solid var(--f);display:flex;align-items:center;justify-content:space-between">
-    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px">⭐ Obuna rejalari</div>
-    <button onclick="this.closest('.ov').remove()" style="width:30px;height:30px;border-radius:50%;background:var(--s2);border:1px solid var(--f);color:var(--m);cursor:pointer;font-size:16px">×</button>
+<div style="width:100%;max-width:480px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;max-height:88vh;overflow-y:auto">
+  <div style="padding:14px 14px 10px;border-bottom:1px solid var(--f);display:flex;align-items:center;justify-content:space-between">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px">⭐ Obuna</div>
+    <button onclick="this.closest('.ov').remove()" style="width:28px;height:28px;border-radius:50%;background:var(--s2);border:1px solid var(--f);color:var(--m);cursor:pointer;font-size:15px">×</button>
   </div>
-  <div style="padding:14px">
-    <div style="font-size:11px;color:var(--m);margin-bottom:12px">Telegram Stars orqali to'g'ridan-to'g'ri. Darhol faollanadi.</div>
+
+  <!-- To'lov turi tanlash -->
+  <div style="padding:10px 14px 0;display:flex;gap:8px">
+    <button id="pm-stars" onclick="FIKRA._setPayMode('stars')" style="flex:1;padding:9px;border-radius:var(--br2);border:1.5px solid var(--acc);background:rgba(123,104,238,.12);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:var(--acc)">⭐ Telegram Stars</button>
+    <button id="pm-p2p" onclick="FIKRA._setPayMode('p2p')" style="flex:1;padding:9px;border-radius:var(--br2);border:1.5px solid var(--f);background:transparent;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:var(--m)">💳 P2P (Bank)</button>
+  </div>
+
+  <!-- Stars tushuntirish -->
+  <div id="pm-info-stars" style="margin:8px 14px 0;background:rgba(123,104,238,.07);border-radius:var(--br2);padding:8px 12px;font-size:11px;color:var(--m)">Telegram Stars orqali to'g'ridan-to'g'ri. Darhol faollanadi.</div>
+  <div id="pm-info-p2p" style="display:none;margin:8px 14px 0;background:rgba(0,212,170,.07);border-radius:var(--br2);padding:8px 12px;font-size:11px;color:var(--m)">Karta orqali to'lov: ID olasiz → admin'ga chek yuborasiz → admin tasdiqlaydi.</div>
+
+  <div style="padding:10px 14px 14px">
     ${plans.map(p=>`
-    <div style="background:var(--s2);border:1.5px solid ${p.tier==='pro'?'var(--acc)':'var(--f)'};border-radius:var(--br);padding:14px;margin-bottom:10px;cursor:pointer;position:relative" onclick="FIKRA._buyPlan('${p.id}')">
-      ${p.badge?`<div style="position:absolute;top:-8px;right:12px;background:${tc[p.tier]};color:#000;font-size:9px;font-weight:800;padding:2px 8px;border-radius:100px">${p.badge}</div>`:''}
+    <div style="background:var(--s2);border:1.5px solid ${p.tier==='pro'?'var(--acc)':'var(--f)'};border-radius:var(--br);padding:12px;margin-bottom:8px;position:relative">
+      ${p.badge?`<div style="position:absolute;top:-7px;right:12px;background:${tc[p.tier]};color:#000;font-size:9px;font-weight:800;padding:2px 8px;border-radius:100px">${p.badge}</div>`:''}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:6px"><span style="font-size:18px">${te[p.tier]}</span><span style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:${tc[p.tier]}">${p.name}</span><span style="font-size:11px;color:var(--m)">${p.period}</span></div>
-        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px">${p.priceStars}⭐</div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:16px">${te[p.tier]}</span>
+          <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:${tc[p.tier]}">${p.name}</span>
+          <span style="font-size:10px;color:var(--m)">${p.period}</span>
+        </div>
+        <div>
+          <div id="price-stars-${p.id}" style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px">${p.priceStars}⭐</div>
+          <div id="price-p2p-${p.id}" style="display:none;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--g)">${(p.priceUZS||0).toLocaleString()} UZS</div>
+        </div>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">${p.features.map(f=>`<div style="font-size:10px;color:var(--m);background:var(--s3);border-radius:6px;padding:3px 7px">${_e(f)}</div>`).join('')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">
+        ${p.features.map(f=>`<div style="font-size:10px;color:var(--m);background:var(--s3);border-radius:5px;padding:3px 6px">${_e(f)}</div>`).join('')}
+      </div>
+      <button onclick="FIKRA._buyPlanMode('${p.id}')" style="width:100%;padding:9px;background:${p.tier==='pro'?'var(--acc)':'var(--s3)'};color:${p.tier==='pro'?'#fff':'var(--txt)'};border:${p.tier==='pro'?'none':'1px solid var(--f)'};border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer">
+        Obuna olish →
+      </button>
     </div>`).join('')}
-    <div style="font-size:10px;color:var(--m);text-align:center;padding:4px 0 8px">Telegram Stars to'lovlari qaytarilmaydi</div>
   </div>
 </div>`);
+  }
+
+  function _setPayMode(mode) {
+    _subPayMode = mode;
+    // Tugmalar
+    const starsBtn = document.getElementById('pm-stars');
+    const p2pBtn   = document.getElementById('pm-p2p');
+    if (starsBtn) {
+      starsBtn.style.borderColor = mode==='stars' ? 'var(--acc)' : 'var(--f)';
+      starsBtn.style.background  = mode==='stars' ? 'rgba(123,104,238,.12)' : 'transparent';
+      starsBtn.style.color       = mode==='stars' ? 'var(--acc)' : 'var(--m)';
+    }
+    if (p2pBtn) {
+      p2pBtn.style.borderColor = mode==='p2p' ? 'var(--g)' : 'var(--f)';
+      p2pBtn.style.background  = mode==='p2p' ? 'rgba(0,212,170,.08)' : 'transparent';
+      p2pBtn.style.color       = mode==='p2p' ? 'var(--g)' : 'var(--m)';
+    }
+    // Info
+    const si = document.getElementById('pm-info-stars');
+    const pi = document.getElementById('pm-info-p2p');
+    if (si) si.style.display = mode==='stars' ? 'block' : 'none';
+    if (pi) pi.style.display = mode==='p2p' ? 'block' : 'none';
+    // Narxlar
+    document.querySelectorAll('[id^="price-stars-"]').forEach(el => el.style.display = mode==='stars' ? 'block' : 'none');
+    document.querySelectorAll('[id^="price-p2p-"]').forEach(el => el.style.display = mode==='p2p' ? 'block' : 'none');
+  }
+
+  async function _buyPlanMode(planId) {
+    if (_subPayMode === 'stars') {
+      await _buyPlan(planId);
+    } else {
+      await _buyP2P(planId);
+    }
+  }
+
+  async function _buyP2P(planId) {
+    if (!user || user._demo) { toast('Telegram ichida kiring'); return; }
+    haptic('medium');
+    try {
+      const res = await API.createP2POrder(planId);
+      const order = res.order;
+      document.querySelector('.ov')?.remove();
+
+      // Admin telegram username'ga Telegram URL bilan o'tish
+      const adminUsername = window.ADMIN_USERNAME || 'fikraai_admin';
+      const botToken = window.BOT_USERNAME || 'fikraai_bot';
+      const msgText = `Salom! Men ${_e(order.planName)} obunasini olmoqchiman.\nBuyurtma ID: ${order.orderId}\nNarx: ${(order.priceUZS||0).toLocaleString()} UZS`;
+
+      // Overlay ko'rsatish
+      uiOverlay(`
+<div style="width:100%;max-width:480px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;padding:20px">
+  <div style="text-align:center;margin-bottom:16px">
+    <div style="font-size:40px;margin-bottom:8px">💳</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px;margin-bottom:4px">P2P To'lov</div>
+    <div style="font-size:11px;color:var(--m)">Quyidagi ma'lumotlar bilan admin'ga yozing</div>
+  </div>
+
+  <div style="background:var(--s2);border:1.5px solid rgba(255,204,68,.3);border-radius:var(--br);padding:14px;margin-bottom:14px">
+    <div style="font-size:10px;color:var(--m);margin-bottom:4px">Buyurtma ID</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--y);letter-spacing:2px">${order.orderId}</div>
+    <div style="font-size:11px;color:var(--m);margin-top:6px">${_e(order.planName)} · ${(order.priceUZS||0).toLocaleString()} UZS</div>
+  </div>
+
+  <div style="font-size:12px;color:var(--m);line-height:1.6;margin-bottom:14px">
+    <div style="font-weight:700;color:var(--txt);margin-bottom:6px">Qadamlar:</div>
+    1. Quyidagi tugmani bosing<br>
+    2. Xabar avtomatik to'ldiriladi — yuborib yuboring<br>
+    3. Admin to'lov rekvizitlarini yuboradi<br>
+    4. To'lovdan so'ng chek yuborasiz<br>
+    5. Admin tasdiqlaydi → obuna avtomatik ochiladi
+  </div>
+
+  <button onclick="FIKRA._openAdminTg('${order.orderId}','${_e(order.planName)}','${order.priceUZS||0}')" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--acc),#5a4fd4);color:#fff;border:none;border-radius:var(--br2);font-family:'Syne',sans-serif;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:8px">
+    📨 Admin'ga yozish →
+  </button>
+  <button onclick="this.closest('.ov').remove()" style="width:100%;padding:10px;background:transparent;border:1px solid var(--f);border-radius:var(--br2);color:var(--m);font-family:'Syne',sans-serif;font-weight:600;font-size:12px;cursor:pointer">
+    Keyinroq
+  </button>
+</div>`);
+    } catch(e) { toast(e.message || 'Xatolik', 'err'); }
+  }
+
+  function _openAdminTg(orderId, planName, priceUZS) {
+    const adminUsername = window.ADMIN_USERNAME || 'admin';
+    const text = encodeURIComponent(
+      `Salom! Men FIKRA ilovasidan ${planName} obunasini olmoqchiman.
+` +
+      `Buyurtma ID: ${orderId}
+` +
+      `Narx: ${parseInt(priceUZS).toLocaleString()} UZS
+
+` +
+      `Rekvizitlarni yuboring!`
+    );
+    const url = `https://t.me/${adminUsername}?text=${text}`;
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.openTelegramLink(url);
+    } else {
+      window.open(url, '_blank');
+    }
+    haptic('medium');
   }
 
   async function _buyPlan(planId) {
@@ -1051,7 +1177,10 @@
 
   // ─── INIT APP ─────────────────────────────────────────────────────────────
   function initApp() {
-    fetch('/api/config').then(r=>r.json()).then(c=>{if(c.botUsername)window.BOT_USERNAME=c.botUsername;}).catch(()=>{});
+    fetch('/api/config').then(r=>r.json()).then(c=>{
+      if(c.botUsername)   window.BOT_USERNAME   = c.botUsername;
+      if(c.adminUsername) window.ADMIN_USERNAME = c.adminUsername;
+    }).catch(()=>{});
     startLB();
     loadHomeTournament();
     document.addEventListener('visibilitychange',()=>{if(document.hidden)stopLB();else startLB();});

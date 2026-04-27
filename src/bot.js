@@ -84,6 +84,15 @@ module.exports = function setupBot(app) {
     );
   });
 
+  // ─── /admin ────────────────────────────────────────────────────────────────
+  bot.command('admin', async (ctx) => {
+    const adminIds = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(s => parseInt(s.trim(), 10)).filter(Boolean);
+    if (!adminIds.includes(ctx.from.id)) return;
+    const frontendUrl = process.env.FRONTEND_URL || '';
+    ctx.reply(`🔐 Admin panel:\n${frontendUrl}/admin\n\nAdmin secret'ni kiritib kirish mumkin.`,
+      { reply_markup: { inline_keyboard: [[{ text: '🔐 Admin Panel', url: frontendUrl + '/admin' }]] } });
+  });
+
   // ─── /help ─────────────────────────────────────────────────────────────
   bot.command('help', async (ctx) => {
     ctx.reply(

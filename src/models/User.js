@@ -65,9 +65,10 @@ const userSchema = new mongoose.Schema({
 //   pro:   chat cheksiz, doc=10, image=20, o'yin cheksiz
 //   vip:   hammasi cheksiz
 const PLAN_LIMITS = {
-  free:  { hints: 5,        chats: 0,         docs: 0,        images: 0,        calories: 0,        games: 3 },
-  basic: { hints: Infinity, chats: 50,        docs: 0,        images: 0,        calories: 0,        games: Infinity },
-  pro:   { hints: Infinity, chats: Infinity,  docs: 10,       images: 20,       calories: 0,        games: Infinity },
+  // free: chat va doc bepul (har kun), hint chekli, o'yinlar chekli
+  free:  { hints: 5,        chats: 10,        docs: 2,        images: 0,        calories: 0,        games: 3 },
+  basic: { hints: Infinity, chats: 50,        docs: 10,       images: 5,        calories: 0,        games: Infinity },
+  pro:   { hints: Infinity, chats: Infinity,  docs: 30,       images: 20,       calories: 5,        games: Infinity },
   vip:   { hints: Infinity, chats: Infinity,  docs: Infinity, images: Infinity, calories: Infinity, games: Infinity },
 };
 

@@ -145,6 +145,9 @@ const API = {
   createInvoice: (planId) =>
     apiRequest('/api/sub/create-invoice', { method: 'POST', body: { planId } }),
   cancelInfo: () => apiRequest('/api/sub/cancel-info'),
+  createP2POrder: (planId) =>
+    apiRequest('/api/sub/create-p2p-order', { method: 'POST', body: { planId } }),
+  myOrders: () => apiRequest('/api/sub/my-orders'),
 
   // DTM Test — loyihaning markazi
   testQuestions: (subject, block, limit) =>

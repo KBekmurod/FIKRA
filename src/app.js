@@ -23,7 +23,14 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
-    ? [process.env.FRONTEND_URL, 'https://web.telegram.org', /\.railway\.app$/]
+    ? [
+        process.env.FRONTEND_URL,
+        'https://web.telegram.org',
+        'https://webk.telegram.org',
+        'https://webz.telegram.org',
+        /\.railway\.app$/,
+        /\.up\.railway\.app$/,
+      ]
     : '*',
   credentials: true,
 }));
@@ -72,6 +79,7 @@ app.use('/api/ai',     aiRoutes);
 app.use('/api/sub',    subRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/newgames', newGamesRoutes);
+app.use('/api/admin',    adminRoutes);
 
 // ─── Telegram Bot ─────────────────────────────────────────────────────────────
 require('./bot')(app);
@@ -98,9 +106,18 @@ app.get('/health', (req, res) => {
 // ─── Client config (public keys only) ────────────────────────────────────────
 app.get('/api/config', (req, res) => {
   res.json({
-    botUsername: process.env.BOT_USERNAME || 'fikraai_bot',
+    botUsername:    process.env.BOT_USERNAME    || 'fikraai_bot',
+    adminUsername:  process.env.ADMIN_USERNAME  || '',
     version: '2.0.0',
   });
+});
+
+// ─── Admin panel (himoyalangan) ───────────────────────────────────────────────
+app.get('/admin', (req, res) => {
+  // Basic referer check — to'liq himoya ADMIN_SECRET orqali
+  const adminFile = path.join(publicDir, 'admin.html');
+  if (fs.existsSync(adminFile)) res.sendFile(adminFile);
+  else res.status(404).send('Admin panel topilmadi');
 });
 
 // ─── SPA fallback ─────────────────────────────────────────────────────────────
