@@ -82,6 +82,23 @@ app.use('/api/admin',    adminRoutes);
 require('./bot')(app);
 
 // ─── Health ───────────────────────────────────────────────────────────────────
+// ─── Bir martalik seed endpoint ──────────────────────────────────────────────
+app.get('/api/seed-questions', async (req, res) => {
+  const secret = req.query.secret;
+  if (!secret || secret !== process.env.ADMIN_SECRET) {
+    return res.status(403).json({ error: 'Secret kerak: ?secret=...' });
+  }
+  try {
+    const { seedQuestions } = require('./utils/seedQuestions');
+    await seedQuestions();
+    const TestQuestion = require('./models/TestQuestion');
+    const count = await TestQuestion.countDocuments();
+    res.json({ success: true, message: count + ' ta savol bazada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/health', (req, res) => {
   const { isConnected } = require('./utils/db');
   res.json({
