@@ -129,7 +129,7 @@ async function chatWithMemory(userId, message) {
   history.messages.push({ role: 'user', content: message });
   history.messages.push({ role: 'assistant', content: assistantReply });
   // Save history without blocking the reply on failure
-  history.save().catch(err => logger.error('chatWithMemory history save:', err.message));
+  history.save().catch(err => logger.error('Failed to save chat history:', err.message));
 
   return assistantReply;
 }
