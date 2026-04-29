@@ -3,6 +3,8 @@ const { logger } = require('../utils/logger');
 const ChatHistory = require('../models/ChatHistory');
 
 // ─── Lazy DeepSeek client ──────────────────────────────────────────────────
+// Required env variable: DEEPSEEK_API_KEY — DeepSeek API kaliti
+// Optional env variable: DEEPSEEK_BASE_URL — DeepSeek API manzili (default: https://api.deepseek.com/v1)
 let _deepseek = null;
 function deepseek() {
   if (!_deepseek) {
@@ -126,12 +128,14 @@ async function chatWithMemory(userId, message) {
   // Foydalanuvchi xabari va AI javobini tarixga saqlaymiz
   history.messages.push({ role: 'user', content: message });
   history.messages.push({ role: 'assistant', content: assistantReply });
-  await history.save();
+  // Save history without blocking the reply on failure
+  history.save().catch(err => logger.error('Failed to save chat history:', err.message));
 
   return assistantReply;
 }
 
 // ─── Rasm yaratish (Gemini 2.0 Flash Exp) ──────────────────────────────────
+// Required env variable: GEMINI_API_KEY — Google Gemini API kaliti
 async function generateImage(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key || key === 'placeholder') throw new Error('GEMINI_API_KEY sozlanmagan');

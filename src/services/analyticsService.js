@@ -1,5 +1,13 @@
 const ExamSession  = require('../models/ExamSession');
 const UserAnswer   = require('../models/UserAnswer');
+const mongoose     = require('mongoose');
+
+// Validate that a value is a valid MongoDB ObjectId
+function assertObjectId(value, label) {
+  if (!mongoose.Types.ObjectId.isValid(value)) {
+    throw new Error(`Yaroqsiz ${label}: "${value}"`);
+  }
+}
 
 // ─── 1. Topic-level analytics ─────────────────────────────────────────────
 /**
@@ -15,6 +23,7 @@ const UserAnswer   = require('../models/UserAnswer');
  * Returns an empty array when the user has no answer history.
  */
 async function getUserTopicAnalytics(userId) {
+  assertObjectId(userId, 'userId');
   const answers = await UserAnswer.find({ userId })
     .populate({ path: 'questionId', select: 'subject topic' })
     .lean();
@@ -78,6 +87,7 @@ async function getUserTopicAnalytics(userId) {
  * Returns a default object with zero/null values when the user has no history.
  */
 async function getUserProgress(userId) {
+  assertObjectId(userId, 'userId');
   const sessions = await ExamSession.find({ userId, status: 'completed' })
     .sort({ endTime: 1 }) // oldest first
     .lean();

@@ -1,6 +1,7 @@
 const ExamSession  = require('../models/ExamSession');
 const UserAnswer   = require('../models/UserAnswer');
 const TestQuestion = require('../models/TestQuestion');
+const mongoose     = require('mongoose');
 
 // ─── Direction → Specialized subjects mapping ─────────────────────────────
 // Each direction maps to exactly two specialized subjects.
@@ -58,8 +59,16 @@ async function fetchRandomQuestions(subject, count) {
   ]);
 }
 
+// Validate that a value is a valid MongoDB ObjectId
+function assertObjectId(value, label) {
+  if (!mongoose.Types.ObjectId.isValid(value)) {
+    throw new Error(`Yaroqsiz ${label}: "${value}"`);
+  }
+}
+
 // ─── 1. Start exam session ─────────────────────────────────────────────────
 async function startExamSession(userId, direction) {
+  assertObjectId(userId, 'userId');
   // Validate direction early
   getSpecializedSubjects(direction);
 
@@ -104,6 +113,9 @@ async function startExamSession(userId, direction) {
 
 // ─── 2. Submit a single answer ─────────────────────────────────────────────
 async function submitAnswer(sessionId, userId, questionId, selectedOption) {
+  assertObjectId(sessionId, 'sessionId');
+  assertObjectId(userId, 'userId');
+  assertObjectId(questionId, 'questionId');
   const [session, testQuestion] = await Promise.all([
     ExamSession.findById(sessionId),
     TestQuestion.findById(questionId),
@@ -129,6 +141,7 @@ async function submitAnswer(sessionId, userId, questionId, selectedOption) {
 
 // ─── 3. Finish exam session ────────────────────────────────────────────────
 async function finishExamSession(sessionId) {
+  assertObjectId(sessionId, 'sessionId');
   const session = await ExamSession.findById(sessionId);
   if (!session) throw new Error('Imtihon sessiyasi topilmadi');
   if (session.status === 'completed') throw new Error('Sessiya allaqachon yakunlangan');
@@ -161,6 +174,7 @@ async function finishExamSession(sessionId) {
 
 // ─── 4. Get exam results ───────────────────────────────────────────────────
 async function getExamResults(sessionId) {
+  assertObjectId(sessionId, 'sessionId');
   const session = await ExamSession.findById(sessionId);
   if (!session) throw new Error('Imtihon sessiyasi topilmadi');
 
