@@ -57,6 +57,9 @@ async function countTodayExams(userId) {
 let _bot = null;
 function getBot() { return _bot; }
 
+// Standard user-friendly error message (Uzbek)
+const ERR_MSG = 'Kechirasiz, tizimda xatolik yuz berdi. Iltimos, keyinroq qayta urinib ko\'ring.';
+
 module.exports = function setupBot(app) {
   if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'placeholder') {
     logger.warn('BOT_TOKEN sozlanmagan — bot ishlamaydi');
@@ -69,20 +72,25 @@ module.exports = function setupBot(app) {
 
   // ─── /start ───────────────────────────────────────────────────────────────
   bot.start(async (ctx) => {
-    const name = ctx.from.first_name || 'Abituriyent';
-    await ctx.reply(
-      `Salom, ${name}! 🎓\n\n` +
-      `*FIKRA* — DTM testlariga tayyorlanish platformasi.\n\n` +
-      `📝 Blok test — 90 savollik DTM formati\n` +
-      `📊 Natijalar — o'sishingizni kuzating\n` +
-      `🧠 AI tahlil — zaif mavzularni mustahkamlang\n` +
-      `🤖 AI Chat va Hujjat yaratish\n\n` +
-      `Menyudan tanlang yoki ilovani oching 👇`,
-      {
-        parse_mode: 'Markdown',
-        ...mainMenu,
-      },
-    );
+    try {
+      const name = ctx.from.first_name || 'Abituriyent';
+      await ctx.reply(
+        `Salom, ${name}! 🎓\n\n` +
+        `*FIKRA* — DTM testlariga tayyorlanish platformasi.\n\n` +
+        `📝 Blok test — 90 savollik DTM formati\n` +
+        `📊 Natijalar — o'sishingizni kuzating\n` +
+        `🧠 AI tahlil — zaif mavzularni mustahkamlang\n` +
+        `🤖 AI Chat va Hujjat yaratish\n\n` +
+        `Menyudan tanlang yoki ilovani oching 👇`,
+        {
+          parse_mode: 'Markdown',
+          ...mainMenu,
+        },
+      );
+    } catch (err) {
+      logger.error('/start handler:', err.message);
+      ctx.reply(ERR_MSG).catch(() => {});
+    }
   });
 
   // ─── 📝 Blok test boshlash ────────────────────────────────────────────────
@@ -136,7 +144,7 @@ module.exports = function setupBot(app) {
       });
     } catch (err) {
       logger.error('Blok test handler:', err.message);
-      ctx.reply('❌ Xatolik yuz berdi. Qayta urinib ko\'ring.').catch(() => {});
+      ctx.reply(ERR_MSG).catch(() => {});
     }
   });
 
@@ -213,7 +221,7 @@ module.exports = function setupBot(app) {
       }
     } catch (err) {
       logger.error('Natijalar handler:', err.message);
-      ctx.reply('❌ Xatolik yuz berdi. Qayta urinib ko\'ring.').catch(() => {});
+      ctx.reply(ERR_MSG).catch(() => {});
     }
   });
 
@@ -265,19 +273,29 @@ module.exports = function setupBot(app) {
       });
     } catch (err) {
       logger.error('Xatolar ustida ishlash handler:', err.message);
-      ctx.reply('❌ Xatolik yuz berdi. Qayta urinib ko\'ring.').catch(() => {});
+      ctx.reply(ERR_MSG).catch(() => {});
     }
   });
 
   // ─── ❌ Chatni yakunlash / /menu ──────────────────────────────────────────
   bot.hears('❌ Chatni yakunlash', async (ctx) => {
-    userStates.delete(ctx.from.id);
-    await ctx.reply('✅ AI chat yakunlandi.', mainMenu);
+    try {
+      userStates.delete(ctx.from.id);
+      await ctx.reply('✅ AI chat yakunlandi.', mainMenu);
+    } catch (err) {
+      logger.error('Chatni yakunlash handler:', err.message);
+      ctx.reply(ERR_MSG).catch(() => {});
+    }
   });
 
   bot.command('menu', async (ctx) => {
-    userStates.delete(ctx.from.id);
-    await ctx.reply('Asosiy menyu:', mainMenu);
+    try {
+      userStates.delete(ctx.from.id);
+      await ctx.reply('Asosiy menyu:', mainMenu);
+    } catch (err) {
+      logger.error('/menu handler:', err.message);
+      ctx.reply(ERR_MSG).catch(() => {});
+    }
   });
 
   // ─── 👤 Profilim ──────────────────────────────────────────────────────────
@@ -300,19 +318,24 @@ module.exports = function setupBot(app) {
         `🤖 AI so'rovlar: ${user.totalAiRequests || 0}`,
         { parse_mode: 'Markdown', ...mainMenu },
       );
-    } catch { ctx.reply('Xatolik.').catch(() => {}); }
+    } catch (err) { logger.error('Profilim handler:', err.message); ctx.reply(ERR_MSG).catch(() => {}); }
   });
 
   // ─── 🚀 Ilovani ochish ────────────────────────────────────────────────────
   bot.hears('🚀 Ilovani ochish', async (ctx) => {
-    await ctx.reply('🚀 *FIKRA ilovasini oching:*', {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [[
-          { text: '🚀 FIKRA — DTM tayyorlik', web_app: { url: webAppUrl } },
-        ]],
-      },
-    });
+    try {
+      await ctx.reply('🚀 *FIKRA ilovasini oching:*', {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '🚀 FIKRA — DTM tayyorlik', web_app: { url: webAppUrl } },
+          ]],
+        },
+      });
+    } catch (err) {
+      logger.error('Ilovani ochish handler:', err.message);
+      ctx.reply(ERR_MSG).catch(() => {});
+    }
   });
 
   // ─── /profile (backward compatibility) ───────────────────────────────────
@@ -335,37 +358,47 @@ module.exports = function setupBot(app) {
         `🤖 AI so'rovlar: ${user.totalAiRequests || 0}`,
         { parse_mode: 'Markdown' },
       );
-    } catch { ctx.reply('Xatolik.').catch(() => {}); }
+    } catch (err) { logger.error('/profile handler:', err.message); ctx.reply(ERR_MSG).catch(() => {}); }
   });
 
   // ─── /admin ───────────────────────────────────────────────────────────────
   bot.command('admin', async (ctx) => {
-    const adminIds = (process.env.ADMIN_TELEGRAM_IDS || '')
-      .split(',').map(s => parseInt(s.trim(), 10)).filter(Boolean);
-    if (!adminIds.includes(ctx.from.id)) return;
-    ctx.reply(
-      `🔐 *Admin Panel*\n${webAppUrl}/admin\n\nKalitni kiritib kirish mumkin.`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: { inline_keyboard: [[{ text: '🔐 Admin Panel', url: `${webAppUrl}/admin` }]] },
-      },
-    );
+    try {
+      const adminIds = (process.env.ADMIN_TELEGRAM_IDS || '')
+        .split(',').map(s => parseInt(s.trim(), 10)).filter(Boolean);
+      if (!adminIds.includes(ctx.from.id)) return;
+      ctx.reply(
+        `🔐 *Admin Panel*\n${webAppUrl}/admin\n\nKalitni kiritib kirish mumkin.`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard: [[{ text: '🔐 Admin Panel', url: `${webAppUrl}/admin` }]] },
+        },
+      );
+    } catch (err) {
+      logger.error('/admin handler:', err.message);
+      ctx.reply(ERR_MSG).catch(() => {});
+    }
   });
 
   // ─── /help ────────────────────────────────────────────────────────────────
-  bot.command('help', (ctx) => {
-    ctx.reply(
-      `📚 *FIKRA buyruqlari*\n\n` +
-      `/start — Bosh sahifa\n` +
-      `/profile — Profilim\n` +
-      `/menu — Asosiy menyuga qaytish\n` +
-      `/help — Yordam\n\n` +
-      `*Menyudan foydalanish:*\n` +
-      `📝 Blok test boshlash — 90 savollik DTM testi\n` +
-      `📊 Mening natijalarim — statistika va tahlil\n` +
-      `🧠 Xatolar ustida ishlash — AI bilan zaif mavzular`,
-      { parse_mode: 'Markdown', ...mainMenu },
-    );
+  bot.command('help', async (ctx) => {
+    try {
+      await ctx.reply(
+        `📚 *FIKRA buyruqlari*\n\n` +
+        `/start — Bosh sahifa\n` +
+        `/profile — Profilim\n` +
+        `/menu — Asosiy menyuga qaytish\n` +
+        `/help — Yordam\n\n` +
+        `*Menyudan foydalanish:*\n` +
+        `📝 Blok test boshlash — 90 savollik DTM testi\n` +
+        `📊 Mening natijalarim — statistika va tahlil\n` +
+        `🧠 Xatolar ustida ishlash — AI bilan zaif mavzular`,
+        { parse_mode: 'Markdown', ...mainMenu },
+      );
+    } catch (err) {
+      logger.error('/help handler:', err.message);
+      ctx.reply(ERR_MSG).catch(() => {});
+    }
   });
 
   // ─── Callback queries ─────────────────────────────────────────────────────
@@ -487,7 +520,7 @@ module.exports = function setupBot(app) {
     } catch (err) {
       logger.error('callback_query handler:', err.message);
       try { await ctx.answerCbQuery('❌ Xatolik'); } catch {}
-      ctx.reply('❌ Xatolik yuz berdi. Qayta urinib ko\'ring.').catch(() => {});
+      ctx.reply(ERR_MSG).catch(() => {});
     }
   });
 
@@ -539,7 +572,7 @@ module.exports = function setupBot(app) {
         );
       } catch (err) {
         logger.error('successful_payment:', err.message);
-        try { await ctx.reply('❌ Xato. Qayta urinib ko\'ring.'); } catch {}
+        try { await ctx.reply(ERR_MSG); } catch {}
       }
       return;
     }
@@ -556,7 +589,35 @@ module.exports = function setupBot(app) {
           return ctx.reply('❗ Avval ilovani oching.', mainMenu);
         }
 
+        // Enforce daily AI chat limit per subscription plan
+        if (!user.canUseAi('chats')) {
+          const plan = user.effectivePlan();
+          const limitMsg = plan === 'free'
+            ? '🆓 *Free tarif:* kunlik AI chat limitingiz tugadi.\n\n⭐ *Basic* yoki ✨ *Pro* tarifga o\'ting!'
+            : '⭐ Kunlik AI chat limitingiz tugadi.\n\n✨ *Pro* tarifga o\'ting!';
+          return ctx.reply(
+            `❌ ${limitMsg}`,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [[
+                  { text: '💎 Tarifni yangilash', web_app: { url: `${webAppUrl}/pricing` } },
+                ]],
+              },
+            },
+          );
+        }
+
         const reply = await aiService.chatWithMemory(user._id, msg.text);
+
+        // Increment usage counter after successful response
+        const todayKey = User.todayKey();
+        if (user.aiUsage?.date !== todayKey) {
+          user.aiUsage = { date: todayKey, hints: 0, chats: 0, docs: 0, images: 0, calories: 0 };
+        }
+        user.aiUsage.chats = (user.aiUsage.chats || 0) + 1;
+        user.totalAiRequests = (user.totalAiRequests || 0) + 1;
+        await user.save();
 
         await ctx.reply(reply, {
           reply_markup: {
@@ -566,7 +627,7 @@ module.exports = function setupBot(app) {
         });
       } catch (err) {
         logger.error('AI chat handler:', err.message);
-        ctx.reply('❌ AI javob bera olmadi. Qayta urinib ko\'ring.').catch(() => {});
+        ctx.reply(ERR_MSG).catch(() => {});
       }
       return;
     }
