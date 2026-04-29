@@ -2,7 +2,6 @@ const express  = require('express');
 const router   = express.Router();
 const User     = require('../models/User');
 const PendingOrder = require('../models/PendingOrder');
-const GameSession  = require('../models/GameSession');
 const TestQuestion = require('../models/TestQuestion');
 const { logger } = require('../utils/logger');
 const { PLANS, _activatePlan } = require('./subscription');
@@ -39,7 +38,8 @@ router.get('/stats', adminAuth, async (req, res) => {
       User.countDocuments({ plan: 'vip',   planExpiresAt: { $gt: new Date() } }),
       PendingOrder.countDocuments({ status: 'pending' }),
       PendingOrder.countDocuments({ status: 'confirmed' }),
-      GameSession.countDocuments(),
+      // O'yinlar yo'q, lekin test sessiyalari User'da hisoblanadi
+      User.aggregate([{ $group: { _id: null, total: { $sum: '$totalGamesPlayed' } } }]),
       User.aggregate([{ $group: { _id: null, total: { $sum: '$totalAiRequests' } } }]),
     ]);
 
@@ -50,7 +50,7 @@ router.get('/stats', adminAuth, async (req, res) => {
         total: activeBasic + activePro + activeVip,
       },
       orders: { pending: pendingOrders, confirmed: confirmedOrders },
-      activity: { totalGames, aiRequests: aiRequests[0]?.total || 0 },
+      activity: { totalGames: totalGames[0]?.total || 0, aiRequests: aiRequests[0]?.total || 0 },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
