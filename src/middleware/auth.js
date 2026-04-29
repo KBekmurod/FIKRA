@@ -196,12 +196,10 @@ async function incrementAiUsage(userId, kind) {
 // Qaysi plan bu kindni ochadi?
 function planThatUnlocks(kind) {
   const map = {
-    hints: 'free',     // free uchun ham 5 ta bor
-    chats: 'basic',
-    docs:  'pro',
-    images:'pro',
-    calories:'vip',
-    games: 'free',     // free uchun 3 ta bor
+    hints:  'free',
+    chats:  'free',
+    docs:   'free',
+    images: 'basic',
   };
   return map[kind] || 'pro';
 }

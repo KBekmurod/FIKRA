@@ -13,8 +13,6 @@ const authRoutes  = require('./routes/auth');
 const gameRoutes  = require('./routes/games');
 const aiRoutes    = require('./routes/ai');
 const subRoutes   = require('./routes/subscription');
-const contentRoutes  = require('./routes/content');
-const newGamesRoutes = require('./routes/newgames');
 const adminRoutes    = require('./routes/admin');
 
 const app  = express();
@@ -78,16 +76,10 @@ app.use('/api/auth',   authRoutes);
 app.use('/api/games',  gameRoutes);
 app.use('/api/ai',     aiRoutes);
 app.use('/api/sub',    subRoutes);
-app.use('/api/content', contentRoutes);
-app.use('/api/newgames', newGamesRoutes);
 app.use('/api/admin',    adminRoutes);
 
 // ─── Telegram Bot ─────────────────────────────────────────────────────────────
 require('./bot')(app);
-
-// ─── Subscription cron ────────────────────────────────────────────────────────
-const { startSubscriptionCron } = require('./services/subscriptionCron');
-startSubscriptionCron();
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {

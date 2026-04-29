@@ -100,19 +100,7 @@ async function addXp(userId, telegramId, amount, source, meta = {}) {
   });
 
   // Haftalik turnirga ham qo'shish (xatolik ishlashga xalaqit bermasin)
-  try {
-    const { addXpToWeeklyTournament } = require('./tournamentService');
-    const userInfo = await User.findById(userId).select('firstName').lean();
-    addXpToWeeklyTournament(
-      userId, telegramId,
-      userInfo?.firstName || 'Anonim',
-      finalXp
-    ).catch(() => {});
-  } catch (e) {
-    // Tournament model hali yo'q bo'lsa — o'tkazib yuboramiz
-  }
-
-  logger.info(`XP added: user=${telegramId} +${finalXp}xp (base ${amount} x${multiplier}) source=${source}${levelUp ? ' LEVEL UP to ' + rankAfter.id : ''}`);
+logger.info(`XP added: user=${telegramId} +${finalXp}xp (base ${amount} x${multiplier}) source=${source}${levelUp ? ' LEVEL UP to ' + rankAfter.id : ''}`);
 
   return {
     xpBefore, xpAfter, xpAdded: finalXp, baseXp: amount, multiplier,

@@ -1,35 +1,34 @@
 {
   "name": "fikra",
-  "version": "1.1.0",
-  "description": "FIKRA Telegram Mini App",
+  "version": "3.0.0",
+  "description": "FIKRA — DTM tayyorlik platformasi",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "client:install": "cd client && npm install",
+    "client:build": "cd client && npm install && npm run build",
+    "build": "npm run client:build",
+    "seed": "node src/utils/seedQuestions.js",
+    "postinstall": "npm run client:build"
   },
   "dependencies": {
-    "axios": "^1.6.2",
+    "axios": "^1.7.7",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "docx": "^9.0.2",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "express-rate-limit": "^7.1.5",
-    "express-validator": "^7.0.1",
+    "docx": "^8.5.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "marked": "^12.0.0",
-    "mongoose": "^8.0.3",
+    "mongoose": "^8.6.3",
     "multer": "^1.4.5-lts.1",
-    "node-cron": "^3.0.3",
-    "openai": "^4.20.1",
+    "openai": "^4.65.0",
     "pdfkit": "^0.15.0",
     "pptxgenjs": "^3.12.0",
-    "telegraf": "^4.15.3",
-    "winston": "^3.11.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
+    "telegraf": "^4.16.3",
+    "winston": "^3.14.2"
   },
   "engines": {
     "node": ">=18.0.0"

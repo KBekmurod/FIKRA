@@ -684,24 +684,91 @@ async function deleteQuestion(id) {
 
 function showCSVImport() {
   showModal(`
-    <h3>📥 CSV import</h3>
-    <p style="font-size:12px;color:var(--m);margin-bottom:12px">JSON format: massiv [{question, options:[], answer (0-3), subject, block, explanation}]</p>
-    <div class="form-group"><label>JSON ma'lumot</label>
-      <textarea id="csv-data" rows="8" style="width:100%;font-family:'JetBrains Mono';font-size:11px" placeholder='[{"question":"...","options":["A","B","C","D"],"answer":0,"subject":"math","block":"majburiy"}]'></textarea></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
+    <h3>📥 Savollar import qilish</h3>
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button id="imp-tab-csv" onclick="switchImportTab('csv')" class="btn btn-acc btn-sm" style="flex:1">📄 CSV fayl</button>
+      <button id="imp-tab-json" onclick="switchImportTab('json')" class="btn btn-ghost btn-sm" style="flex:1">📋 JSON</button>
+    </div>
+
+    <div id="imp-csv">
+      <p style="font-size:12px;color:var(--m);margin-bottom:8px">CSV format (har qator bitta savol):</p>
+      <pre style="font-size:10px;background:var(--s2);padding:8px;border-radius:6px;color:var(--m);margin-bottom:10px">question;optionA;optionB;optionC;optionD;answer(0-3);subject;block;explanation</pre>
+      <p style="font-size:11px;color:var(--m);margin-bottom:8px">Misol:</p>
+      <pre style="font-size:10px;background:var(--s2);padding:8px;border-radius:6px;color:var(--g);margin-bottom:10px;overflow-x:auto">2x+5=15 dagi x ?;3;5;7;10;1;math;majburiy;2x=10 → x=5</pre>
+      <div class="form-group">
+        <label>CSV fayl yuklang</label>
+        <input type="file" id="csv-file" accept=".csv,.txt" onchange="loadCSVFile(this.files[0])">
+      </div>
+      <div class="form-group">
+        <label>Yoki matnni yopishtiring</label>
+        <textarea id="csv-text" rows="6" style="width:100%;font-family:monospace;font-size:11px" placeholder="2x+5=15 dagi x?;3;5;7;10;1;math;majburiy;..."></textarea>
+      </div>
+    </div>
+
+    <div id="imp-json" style="display:none">
+      <p style="font-size:12px;color:var(--m);margin-bottom:8px">JSON format: [{question, options:[], answer:0-3, subject, block, explanation}]</p>
+      <textarea id="json-data" rows="10" style="width:100%;font-family:monospace;font-size:11px"></textarea>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
       <button class="btn btn-ghost" onclick="closeModal()">Bekor</button>
-      <button class="btn btn-acc" onclick="doCSVImport()">Import qilish</button>
-    </div>`);
+      <button class="btn btn-acc" onclick="doImport()">Import qilish</button>
+    </div>
+  `);
 }
 
-async function doCSVImport() {
+let _impTab = 'csv';
+function switchImportTab(tab) {
+  _impTab = tab;
+  document.getElementById('imp-csv').style.display = tab === 'csv' ? 'block' : 'none';
+  document.getElementById('imp-json').style.display = tab === 'json' ? 'block' : 'none';
+  document.getElementById('imp-tab-csv').className = 'btn btn-sm ' + (tab === 'csv' ? 'btn-acc' : 'btn-ghost');
+  document.getElementById('imp-tab-json').className = 'btn btn-sm ' + (tab === 'json' ? 'btn-acc' : 'btn-ghost');
+}
+
+function loadCSVFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('csv-text').value = e.target.result;
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function parseCSVtoQuestions(csvText) {
+  const lines = csvText.split('\n').map(l => l.trim()).filter(Boolean);
+  const questions = [];
+  for (const line of lines) {
+    const parts = line.split(';');
+    if (parts.length < 7) continue;
+    questions.push({
+      question: parts[0].trim(),
+      options: [parts[1], parts[2], parts[3], parts[4]].map(s => s.trim()),
+      answer: parseInt(parts[5]),
+      subject: parts[6].trim(),
+      block: (parts[7] || 'majburiy').trim(),
+      explanation: (parts[8] || '').trim(),
+    });
+  }
+  return questions;
+}
+
+async function doImport() {
+  let questions = [];
   try {
-    const raw = document.getElementById('csv-data').value;
-    const questions = JSON.parse(raw);
+    if (_impTab === 'csv') {
+      const text = document.getElementById('csv-text').value.trim();
+      if (!text) { toast('Avval CSV matn yoki faylni yuklang', 'err'); return; }
+      questions = parseCSVtoQuestions(text);
+      if (!questions.length) { toast('CSV format noto\'g\'ri', 'err'); return; }
+    } else {
+      const raw = document.getElementById('json-data').value;
+      questions = JSON.parse(raw);
+    }
     const r = await req('/questions/csv-import', { method: 'POST', body: { questions } });
     toast(`✅ ${r.inserted} ta savol import qilindi!`, 'ok');
     closeModal(); loadQuestions();
-  } catch(e) { toast('JSON xato: ' + e.message, 'err'); }
+  } catch(e) { toast('Xato: ' + e.message, 'err'); }
 }
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────

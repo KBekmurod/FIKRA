@@ -9,7 +9,6 @@ const aiUsageSchema = new mongoose.Schema({
   docs:  { type: Number, default: 0 },     // AI Hujjat
   images:{ type: Number, default: 0 },     // AI Rasm
   calories:{ type: Number, default: 0 },   // Kaloriya tahlili
-  games: { type: Number, default: 0 },     // O'yin partiyalari (free uchun)
 }, { _id: false });
 
 const userSchema = new mongoose.Schema({
@@ -64,12 +63,16 @@ const userSchema = new mongoose.Schema({
 //   basic: hints cheksiz, chat=50, qolgani=0, o'yin cheksiz
 //   pro:   chat cheksiz, doc=10, image=20, o'yin cheksiz
 //   vip:   hammasi cheksiz
+// Plan limitlari (kunlik)
+//   free:  test cheksiz + hint 5/kun + chat 10/kun + doc 2/kun
+//   basic: hint cheksiz + chat 50/kun + doc 10/kun + image 5/kun
+//   pro:   hint cheksiz + chat cheksiz + doc 30/kun + image 20/kun
+//   vip:   hammasi cheksiz
 const PLAN_LIMITS = {
-  // free: chat va doc bepul (har kun), hint chekli, o'yinlar chekli
-  free:  { hints: 5,        chats: 10,        docs: 2,        images: 0,        calories: 0,        games: 3 },
-  basic: { hints: Infinity, chats: 50,        docs: 10,       images: 5,        calories: 0,        games: Infinity },
-  pro:   { hints: Infinity, chats: Infinity,  docs: 30,       images: 20,       calories: 5,        games: Infinity },
-  vip:   { hints: Infinity, chats: Infinity,  docs: Infinity, images: Infinity, calories: Infinity, games: Infinity },
+  free:  { hints: 5,        chats: 10,        docs: 2,        images: 0 },
+  basic: { hints: Infinity, chats: 50,        docs: 10,       images: 5 },
+  pro:   { hints: Infinity, chats: Infinity,  docs: 30,       images: 20 },
+  vip:   { hints: Infinity, chats: Infinity,  docs: Infinity, images: Infinity },
 };
 
 userSchema.statics.PLAN_LIMITS = PLAN_LIMITS;

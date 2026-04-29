@@ -1,5 +1,5 @@
 const express = require('express');
-const multer  = require('multer');
+const crypto  = require('crypto');
 const router  = express.Router();
 const { authMiddleware, requireAiAccess, incrementAiUsage } = require('../middleware/auth');
 const { aiLimiter } = require('../middleware/rateLimit');
@@ -7,16 +7,24 @@ const { addXp } = require('../services/rankService');
 const ai = require('../services/aiService');
 const { logger } = require('../utils/logger');
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10 MB
-});
+// XP berish
+const XP = { chat: 2, image: 8, document: 5, hint: 1 };
 
-// XP berish (status drive uchun, tokensiz)
-const XP = { chat: 2, image: 8, calorie: 3, document: 5, hint: 1 };
+// In-memory file storage (vaqtinchalik fayllar)
+// Production'da Redis yoki disk, lekin Railway uchun memory yetarli
+const fileStore = new Map();
+const FILE_TTL = 30 * 60 * 1000; // 30 daqiqa
+
+function _saveFile(buffer, mimeType, fileName) {
+  const id = crypto.randomBytes(16).toString('hex');
+  const meta = { buffer, mimeType, fileName, createdAt: Date.now() };
+  fileStore.set(id, meta);
+  // TTL bo'yicha o'chirish
+  setTimeout(() => fileStore.delete(id), FILE_TTL);
+  return id;
+}
 
 // ─── POST /api/ai/chat — SSE stream ──────────────────────────────────────────
-// Free uchun yopiq. Basic+: kuniga 50, Pro+: cheksiz
 router.post('/chat',
   authMiddleware,
   aiLimiter,
@@ -25,14 +33,11 @@ router.post('/chat',
     try {
       const { message, history = [] } = req.body;
       if (!message) return res.status(400).json({ error: 'Xabar kerak' });
-
-      // Limit oldindan inkrement (stream xato bersa ham — limit yeyilgan
-      // bu odatdiy AI providerlardagi yondashuv)
       await incrementAiUsage(req.user._id, 'chats');
       addXp(req.user._id, req.user.telegramId, XP.chat, 'ai_chat').catch(() => {});
 
       const messages = [
-        { role: 'system', content: "Sen FIKRA AI yordamchisisan. O'zbek tilida qisqa va aniq javob ber." },
+        { role: 'system', content: "Sen FIKRA AI yordamchisisan. O'zbek tilida qisqa va aniq javob ber. Abituriyentlarga DTM testlariga tayyorgarlik ko'rishda yordam beradigan, do'stona, tushunarli AI'sen." },
         ...history.slice(-10),
         { role: 'user', content: message },
       ];
@@ -45,9 +50,7 @@ router.post('/chat',
   }
 );
 
-// ─── POST /api/ai/hint — DTM test savoli uchun tushuntirish ──────────────────
-// Free: kuniga 5, Basic+: cheksiz
-// Bu loyihaning markaziy AI funksiyasi
+// ─── POST /api/ai/hint — DTM test savoli uchun ───────────────────────────────
 router.post('/hint',
   authMiddleware,
   requireAiAccess('hints'),
@@ -55,17 +58,13 @@ router.post('/hint',
     try {
       const { question, options, subject, mode } = req.body;
       if (!question) return res.status(400).json({ error: 'Savol kerak' });
-
       await incrementAiUsage(req.user._id, 'hints');
       addXp(req.user._id, req.user.telegramId, XP.hint, 'ai_hint').catch(() => {});
 
-      // 'hint' rejimi — to'g'ri javobni aytmasdan yo'l ko'rsatadi
-      // 'explain' rejimi — to'g'ri javob bilan to'liq tushuntirish
       const hint = mode === 'explain'
         ? await ai.explainTestQuestion(question, options || [], subject || '')
         : await ai.getTestHint(question, options || [], subject || '');
 
-      // Foydalanuvchiga qolgan limit ham qaytariladi
       const usedAfter = req.user.getAiUsage('hints') + 1;
       const limit = req.user.getAiLimit('hints');
       res.json({
@@ -81,8 +80,9 @@ router.post('/hint',
   }
 );
 
-// ─── POST /api/ai/document — DOCX/PDF/PPTX ─────────────────────────────────
-// Pro+: kuniga 10, VIP: cheksiz
+// ─── POST /api/ai/document — Hujjat yaratish ─────────────────────────────────
+// MUHIM: blob URL Telegram WebApp'da ishlamaydi.
+// Yechim: fayl serverda saqlanadi, frontend direkt /api/ai/file/:id ga so'rov yuboradi
 router.post('/document',
   authMiddleware,
   aiLimiter,
@@ -91,12 +91,10 @@ router.post('/document',
     try {
       const { prompt, format = 'DOCX', history = [] } = req.body;
       if (!prompt) return res.status(400).json({ error: 'Prompt kerak' });
-
       await incrementAiUsage(req.user._id, 'docs');
       addXp(req.user._id, req.user.telegramId, XP.document, 'ai_document', { format }).catch(() => {});
 
       const content = await ai.generateDocument(prompt, format, history);
-
       const titleMatch = content.match(/^#\s+(.+)$/m);
       const title = titleMatch ? titleMatch[1].trim() : (prompt.slice(0, 60) || 'Hujjat');
 
@@ -104,17 +102,20 @@ router.post('/document',
       const file = await documentService.generateFile(format, title, content);
 
       const safeTitle = title
-        .replace(/[^\w\s-]/g, '')
+        .replace(/[^\w\s\u0400-\u04FF\u0100-\u017F-]/g, '')
         .replace(/\s+/g, '_')
         .slice(0, 50) || 'fikra_document';
       const fileName = `${safeTitle}_${Date.now()}.${file.ext}`;
+
+      // Faylni serverda saqlash, ID qaytarish
+      const fileId = _saveFile(file.buffer, file.mime, fileName);
 
       res.json({
         success: true,
         format: format.toUpperCase(),
         fileName,
-        mimeType: file.mime,
-        base64: file.buffer.toString('base64'),
+        fileId,
+        downloadUrl: `/api/ai/file/${fileId}`,
         sizeKb: Math.round(file.buffer.length / 1024),
         title,
         preview: content.slice(0, 300),
@@ -126,8 +127,24 @@ router.post('/document',
   }
 );
 
+// ─── GET /api/ai/file/:fileId — Fayl yuklab olish ────────────────────────────
+// Authsiz — chunki fileId crypto random, faqat egasi biladi
+router.get('/file/:fileId', (req, res) => {
+  const { fileId } = req.params;
+  const file = fileStore.get(fileId);
+  if (!file) {
+    return res.status(404).json({ error: 'Fayl topilmadi yoki muddati o\'tdi' });
+  }
+  res.set({
+    'Content-Type': file.mimeType,
+    'Content-Disposition': `attachment; filename="${encodeURIComponent(file.fileName)}"`,
+    'Content-Length': file.buffer.length,
+    'Cache-Control': 'private, max-age=1800',
+  });
+  res.send(file.buffer);
+});
+
 // ─── POST /api/ai/image ──────────────────────────────────────────────────────
-// Pro+: kuniga 20, VIP: cheksiz
 router.post('/image',
   authMiddleware,
   aiLimiter,
@@ -136,37 +153,25 @@ router.post('/image',
     try {
       const { prompt } = req.body;
       if (!prompt) return res.status(400).json({ error: 'Prompt kerak' });
-
       await incrementAiUsage(req.user._id, 'images');
       addXp(req.user._id, req.user.telegramId, XP.image, 'ai_image').catch(() => {});
 
       const result = await ai.generateImage(prompt);
-      res.json({ success: true, ...result });
+      // Image ham serverda saqlash (yuklab olinishi uchun)
+      const imageBuffer = Buffer.from(result.base64, 'base64');
+      const fileName = `fikra_image_${Date.now()}.png`;
+      const fileId = _saveFile(imageBuffer, result.mimeType, fileName);
+
+      res.json({
+        success: true,
+        base64: result.base64,
+        mimeType: result.mimeType,
+        fileId,
+        downloadUrl: `/api/ai/file/${fileId}`,
+        fileName,
+      });
     } catch (err) {
       logger.error('AI image error:', err.message);
-      next(err);
-    }
-  }
-);
-
-// ─── POST /api/ai/calorie ───────────────────────────────────────────────────
-// VIP: cheksiz, qolganlarga yopiq
-router.post('/calorie',
-  authMiddleware,
-  aiLimiter,
-  requireAiAccess('calories'),
-  upload.single('image'),
-  async (req, res, next) => {
-    try {
-      if (!req.file) return res.status(400).json({ error: 'Rasm kerak' });
-
-      await incrementAiUsage(req.user._id, 'calories');
-      addXp(req.user._id, req.user.telegramId, XP.calorie, 'ai_calorie').catch(() => {});
-
-      const result = await ai.analyzeCalorie(req.file.buffer.toString('base64'), req.file.mimetype);
-      res.json({ success: true, ...result });
-    } catch (err) {
-      logger.error('AI calorie error:', err.message);
       next(err);
     }
   }
