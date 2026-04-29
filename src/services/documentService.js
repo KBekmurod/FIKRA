@@ -296,4 +296,21 @@ async function generateFile(format, title, content) {
   }
 }
 
-module.exports = { generateFile, createDocx, createPdf, createPptx };
+// ─── Eksport: Buffer qaytaruvchi sodda interfeys ──────────────────────────────
+// format: 'pdf' | 'docx'
+async function exportDocumentAsBuffer(textFormatContent, format) {
+  const fmt = (format || 'pdf').toLowerCase();
+  try {
+    if (fmt === 'pdf') {
+      return await createPdf('Hujjat', textFormatContent);
+    } else if (fmt === 'docx') {
+      return await createDocx('Hujjat', textFormatContent);
+    }
+    throw new Error(`Qo'llab-quvvatlanmaydigan format: ${format}`);
+  } catch (err) {
+    logger.error('exportDocumentAsBuffer error:', err);
+    throw err;
+  }
+}
+
+module.exports = { generateFile, exportDocumentAsBuffer, createDocx, createPdf, createPptx };
