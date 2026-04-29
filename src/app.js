@@ -19,19 +19,17 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // ─── Security ─────────────────────────────────────────────────────────────────
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false,
+}));
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? [
-        process.env.FRONTEND_URL,
-        'https://web.telegram.org',
-        'https://webk.telegram.org',
-        'https://webz.telegram.org',
-        /\.railway\.app$/,
-        /\.up\.railway\.app$/,
-      ]
-    : '*',
+  origin: true,
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Secret', 'x-admin-secret'],
 }));
 
 // ─── Body parsers ─────────────────────────────────────────────────────────────
@@ -42,21 +40,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Railway: /app/public/  (package.json bilan bir papkada)
 const publicDir = path.join(__dirname, '..', 'public');
 if (fs.existsSync(publicDir)) {
-  // Service worker uchun alohida — cache-control va scope
-  app.get('/service-worker.js', (req, res) => {
-    res.set({
-      'Content-Type': 'application/javascript',
-      'Service-Worker-Allowed': '/',
-      'Cache-Control': 'no-cache', // SW o'zi yangilanishi kerak
-    });
-    res.sendFile(path.join(publicDir, 'service-worker.js'));
-  });
-
-  // Manifest
-  app.get('/manifest.json', (req, res) => {
-    res.set('Content-Type', 'application/manifest+json');
-    res.sendFile(path.join(publicDir, 'manifest.json'));
-  });
+  // service-worker.js yo'q — 204 qaytarish (Telegram log spam oldini olish)
+  app.get('/service-worker.js', (req, res) => res.status(204).end());
+  app.get('/manifest.json',     (req, res) => res.status(204).end());
+  app.get('/favicon.ico',       (req, res) => res.status(204).end());
 
   app.use(express.static(publicDir, {
     maxAge: '7d', // Static cache 7 kun

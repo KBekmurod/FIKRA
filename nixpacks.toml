@@ -2,10 +2,16 @@
 nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["npm install", "cd client && npm install"]
+cmds = [
+  "npm install",
+  "cd client && npm install"
+]
 
 [phases.build]
-cmds = ["cd client && npm run build"]
+cmds = [
+  "cd client && npm run build",
+  "cp public_static/admin.html public/admin.html"
+]
 
 [start]
 cmd = "node src/app.js"
