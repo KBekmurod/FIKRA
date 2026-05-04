@@ -8,68 +8,59 @@ export interface User {
   plan: Plan
   effectivePlan?: Plan
   planExpiresAt?: string | null
-  isSubscribed?: boolean
-  streakDays?: number
-  totalGamesPlayed?: number
-  totalAiRequests?: number
-  xp?: number
-  rank?: RankProgress | null
-  aiUsage?: Record<string, number>
-  aiLimits?: Record<string, number | null>
-  isNew?: boolean
-  _demo?: boolean
-}
+  // ─── Exam types ───────────────────────────────────────────────────────────
+  export interface SubjectBreakdown {
+    subjectId: string
+    subjectName: string
+    block: string
+    weight: number
+    questionCount: number
+    correct: number
+    wrong: number
+    score: number
+    maxScore: number
+  }
 
-export interface Rank {
-  id: string
-  level: number
-  name: string
-  emoji: string
-  minXp: number
-  color: string
-  glow: string
-}
+  // ─── Exam / Session types (Phase 2) ──────────────────────────────────────────
 
-export interface RankProgress {
-  current: Rank
-  next: Rank | null
-  percent: number
-  xpInLevel?: number
-  xpToNext?: number
-  currentXp?: number
-}
+  export type ExamMode = 'dtm' | 'subject'
+  export type SessionStatus = 'in_progress' | 'completed' | 'abandoned'
 
-export interface Question {
-  _id: string
-  question: string
-  options: string[]
-  subject: string
-  block: string
-}
+  export interface SessionSubject {
+    subjectId: string
+    name: string
+    block: string
+    questionCount: number
+    weight: number
+  }
 
-export interface CheckResult {
-  isCorrect: boolean
-  correctIndex: number
-  explanation: string
-  questionContext: { question: string; options: string[]; subject: string }
-}
+  export interface SubjectScore {
+    subjectId: string
+    name: string
+    correct: number
+    wrong: number
+    score: number
+  }
 
-export interface PlanData {
-  id: string
-  name: string
-  tier: Plan
-  period: string
-  durationDays: number
-  priceStars: number
-  priceUZS: number
-  badge: string | null
-  features: string[]
-}
+  export interface ExamSession {
+    _id: string
+    // Backwards-compatible fields
+    mode: 'dtm' | 'subject'
+    direction?: string | null
+    selectedSubjects?: string[]
+    durationSeconds: number
+    status: 'in_progress' | 'completed' | 'abandoned'
+    startTime: string
+    endTime?: string | null
+    totalScore: number
+    maxTotalScore?: number
 
-export interface DocumentResponse {
-  success: boolean
-  format: string
-  fileName: string
+    // New-style fields
+    userId?: string
+    subjects?: SessionSubject[]
+    subjectScores?: SubjectScore[]
+    subjectBreakdown?: SubjectBreakdown[]
+  }
   fileId: string
   downloadUrl: string
   sizeKb: number
@@ -86,6 +77,7 @@ export interface ImageResponse {
   fileName: string
 }
 
+<<<<<<< HEAD
 // ─── Exam types ───────────────────────────────────────────────────────────
 export interface SubjectBreakdown {
   subjectId: string
@@ -97,10 +89,32 @@ export interface SubjectBreakdown {
   wrong: number
   score: number
   maxScore: number
+=======
+// ─── Exam / Session types (Phase 2) ──────────────────────────────────────────
+
+export type ExamMode = 'dtm' | 'subject'
+export type SessionStatus = 'in_progress' | 'completed' | 'abandoned'
+
+export interface SessionSubject {
+  subjectId: string
+  name: string
+  block: string
+  questionCount: number
+  weight: number
+}
+
+export interface SubjectScore {
+  subjectId: string
+  name: string
+  correct: number
+  wrong: number
+  score: number
+>>>>>>> ab9ecca (Changes before error encountered)
 }
 
 export interface ExamSession {
   _id: string
+<<<<<<< HEAD
   mode: 'dtm' | 'subject'
   direction?: string
   selectedSubjects: string[]
@@ -111,15 +125,71 @@ export interface ExamSession {
   totalScore: number
   maxTotalScore: number
   subjectBreakdown: SubjectBreakdown[]
+=======
+  userId: string
+  mode: ExamMode
+  direction?: string | null
+  subjects: SessionSubject[]
+  durationSeconds: number
+  status: SessionStatus
+  startTime: string
+  endTime?: string | null
+  totalScore: number
+  subjectScores: SubjectScore[]
+>>>>>>> ab9ecca (Changes before error encountered)
 }
 
 export interface ExamQuestion {
   _id: string
   subject: string
+<<<<<<< HEAD
   subjectName?: string
   block: string
+=======
+  block: string | null
+>>>>>>> ab9ecca (Changes before error encountered)
   question: string
   options: string[]
   difficulty?: string
   topic?: string
 }
+<<<<<<< HEAD
+=======
+
+export interface AnswerResult {
+  answer: {
+    _id: string
+    sessionId: string
+    subjectId: string
+    isCorrect: boolean
+    selectedOption: number
+    block: string | null
+  }
+  isCorrect: boolean
+  correctIndex: number
+  explanation: string
+}
+
+export interface DtmSubjectMeta {
+  id: string
+  name: string
+}
+
+export interface DtmConfig {
+  totalQuestions: number
+  durationMinutes: number
+  durationSeconds: number
+  maxScore: number
+  mandatory: {
+    block: string
+    weight: number
+    questionCount: number
+    subjects: DtmSubjectMeta[]
+  }
+  specialty: {
+    slots: { block: string; weight: number; questionCount: number }[]
+  }
+  directions: Record<string, { name: string; subjects: string[] }>
+  allSubjects: { id: string; name: string; type: 'mandatory' | 'specialty' }[]
+}
+>>>>>>> ab9ecca (Changes before error encountered)

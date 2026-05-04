@@ -13,8 +13,13 @@ const authRoutes  = require('./routes/auth');
 const gameRoutes  = require('./routes/games');
 const aiRoutes    = require('./routes/ai');
 const subRoutes   = require('./routes/subscription');
-const adminRoutes = require('./routes/admin');
-const examRoutes  = require('./routes/exams');
+<<<<<<< HEAD
+const adminRoutes    = require('./routes/admin');
+const examRoutes     = require('./routes/exam');
+=======
+const adminRoutes    = require('./routes/admin');
+const examRoutes  = require('./routes/exam');
+>>>>>>> ab9ecca (Changes before error encountered)
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -64,8 +69,13 @@ app.use('/api/auth',   authRoutes);
 app.use('/api/games',  gameRoutes);
 app.use('/api/ai',     aiRoutes);
 app.use('/api/sub',    subRoutes);
-app.use('/api/admin',  adminRoutes);
-app.use('/api/exams',  examRoutes);
+<<<<<<< HEAD
+app.use('/api/admin',    adminRoutes);
+app.use('/api/exam',     examRoutes);
+=======
+app.use('/api/admin',    adminRoutes);
+app.use('/api/exam',   examRoutes);
+>>>>>>> ab9ecca (Changes before error encountered)
 
 // ─── Telegram Bot ─────────────────────────────────────────────────────────────
 require('./bot')(app);

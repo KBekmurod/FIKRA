@@ -1,5 +1,5 @@
 import api from './client'
-import type { User, Question, CheckResult, PlanData, DocumentResponse, ImageResponse } from '../types'
+import type { User, Question, CheckResult, PlanData, DocumentResponse, ImageResponse, ExamSession, ExamQuestion, AnswerResult, DtmConfig } from '../types'
 
 export const authApi = {
   login: (initData: string, referralCode?: string) =>
@@ -42,6 +42,54 @@ export const examApi = {
     api.get(`/api/exams/sessions/${sessionId}/review`),
   history: (mode?: string, page = 1) =>
     api.get('/api/exams/history', { params: { mode, page } }),
+}
+
+// ─── Exam API (Phase 2) ───────────────────────────────────────────────────────
+export const examApi = {
+  /** DTM 2026 exam structure config (no auth required) */
+  config: () =>
+    api.get<DtmConfig>('/api/exam/config'),
+
+  /** Start DTM-mode session (yo'nalish bo'yicha) */
+  startDtm: (directionId: string) =>
+    api.post<{ session: ExamSession; questions: ExamQuestion[] }>(
+      '/api/exam/start/dtm', { directionId }
+    ),
+
+  /**
+   * Start subject-select session (erkin fan tanlash)
+   * @param subjects   - Array of { subjectId }
+   * @param questionCounts  - Optional per-subject count override
+   * @param durationSeconds - Optional total duration override
+   */
+  startSubject: (
+    subjects: { subjectId: string }[],
+    questionCounts?: Record<string, number>,
+    durationSeconds?: number,
+  ) =>
+    api.post<{ session: ExamSession; questions: ExamQuestion[] }>(
+      '/api/exam/start/subject', { subjects, questionCounts, durationSeconds }
+    ),
+
+  /** Submit one answer */
+  submitAnswer: (sessionId: string, questionId: string, selectedOption: number) =>
+    api.post<AnswerResult>(`/api/exam/${sessionId}/answer`, { questionId, selectedOption }),
+
+  /** Finish session and get computed scores */
+  finish: (sessionId: string) =>
+    api.post<{ session: ExamSession; subjectScores: any[]; totalScore: number }>(
+      `/api/exam/${sessionId}/finish`
+    ),
+
+  /** Get full results (session + answered questions) for review */
+  results: (sessionId: string) =>
+    api.get<{ session: ExamSession; answers: any[] }>(`/api/exam/${sessionId}/results`),
+
+  /** Paginated session history */
+  history: (params?: { mode?: 'dtm' | 'subject'; page?: number; limit?: number }) =>
+    api.get<{ sessions: ExamSession[]; total: number; page: number; limit: number }>(
+      '/api/exam/history', { params }
+    ),
 }
 
 export const aiApi = {

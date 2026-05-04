@@ -10,6 +10,7 @@
     "client:build": "cd client && npm install && npm run build",
     "build": "npm run client:build",
     "seed": "node src/utils/seedQuestions.js",
+    "test": "node src/tests/dtm2026.test.js",
     "postinstall": "npm run client:build"
   },
   "dependencies": {

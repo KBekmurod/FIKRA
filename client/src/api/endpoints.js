@@ -21,6 +21,28 @@ export const examApi = {
     review: (sessionId) => api.get(`/api/exams/sessions/${sessionId}/review`),
     history: (mode, page = 1) => api.get('/api/exams/history', { params: { mode, page } }),
 };
+// ─── Exam API (Phase 2) ───────────────────────────────────────────────────────
+export const examApi = {
+    /** DTM 2026 exam structure config (no auth required) */
+    config: () => api.get('/api/exam/config'),
+    /** Start DTM-mode session (yo'nalish bo'yicha) */
+    startDtm: (directionId) => api.post('/api/exam/start/dtm', { directionId }),
+    /**
+     * Start subject-select session (erkin fan tanlash)
+     * @param subjects   - Array of { subjectId }
+     * @param questionCounts  - Optional per-subject count override
+     * @param durationSeconds - Optional total duration override
+     */
+    startSubject: (subjects, questionCounts, durationSeconds) => api.post('/api/exam/start/subject', { subjects, questionCounts, durationSeconds }),
+    /** Submit one answer */
+    submitAnswer: (sessionId, questionId, selectedOption) => api.post(`/api/exam/${sessionId}/answer`, { questionId, selectedOption }),
+    /** Finish session and get computed scores */
+    finish: (sessionId) => api.post(`/api/exam/${sessionId}/finish`),
+    /** Get full results (session + answered questions) for review */
+    results: (sessionId) => api.get(`/api/exam/${sessionId}/results`),
+    /** Paginated session history */
+    history: (params) => api.get('/api/exam/history', { params }),
+};
 export const aiApi = {
     hint: (question, options, subject, mode = 'hint') => api.post('/api/ai/hint', { question, options, subject, mode }),
     document: (prompt, format, history = []) => api.post('/api/ai/document', { prompt, format, history }),
