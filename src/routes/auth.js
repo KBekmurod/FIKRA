@@ -50,7 +50,84 @@ function _serializeUser(user, rankProgress) {
   };
 }
 
-// ─── POST /api/auth/login ────────────────────────────────────────────────────
+// ─── POST /api/auth/register (Standard Auth) ──────────────────────────────────
+router.post('/register', authLimiter, async (req, res, next) => {
+  try {
+    const { phone, password, firstName, lastName } = req.body;
+    if (!phone || !password) {
+      return res.status(400).json({ error: 'Telefon raqam va parol kiritilishi shart' });
+    }
+
+    let user = await User.findOne({ phone });
+    if (user) {
+      return res.status(400).json({ error: 'Bu telefon raqami allaqachon ro\'yxatdan o\'tgan' });
+    }
+
+    const bcrypt = require('bcryptjs');
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    user = await User.create({
+      phone,
+      password: passwordHash,
+      firstName: firstName || '',
+      lastName: lastName || '',
+    });
+
+    user.updateStreak();
+    await user.save();
+
+    const { accessToken, refreshToken } = generateTokens(user._id, null); // no telegramId
+    const { getProgress } = require('../services/rankService');
+    const rankProgress = getProgress(user.xp || 0);
+
+    res.json({
+      accessToken,
+      refreshToken,
+      user: { ..._serializeUser(user, rankProgress), isNew: true },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /api/auth/login-standard (Standard Auth) ──────────────────────────
+router.post('/login-standard', authLimiter, async (req, res, next) => {
+  try {
+    const { phone, password } = req.body;
+    if (!phone || !password) {
+      return res.status(400).json({ error: 'Telefon raqam va parol kiritilishi shart' });
+    }
+
+    const user = await User.findOne({ phone });
+    if (!user || !user.password) {
+      return res.status(400).json({ error: 'Noto\'g\'ri telefon raqami yoki parol' });
+    }
+
+    const bcrypt = require('bcryptjs');
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Noto\'g\'ri telefon raqami yoki parol' });
+    }
+
+    user.updateStreak();
+    await user.save();
+
+    const { accessToken, refreshToken } = generateTokens(user._id, user.telegramId || null);
+    const { getProgress } = require('../services/rankService');
+    const rankProgress = getProgress(user.xp || 0);
+
+    res.json({
+      accessToken,
+      refreshToken,
+      user: { ..._serializeUser(user, rankProgress), isNew: false },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /api/auth/login (Telegram WebApp Auth) ────────────────────────────
 router.post('/login', authLimiter, async (req, res, next) => {
   try {
     const { initData, referralCode } = req.body;

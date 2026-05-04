@@ -6,6 +6,14 @@ export const authApi = {
     api.post<{ accessToken: string; refreshToken: string; user: User }>(
       '/api/auth/login', { initData, referralCode }
     ),
+  loginStandard: (phone: string, password: string) =>
+    api.post<{ accessToken: string; refreshToken: string; user: User }>(
+      '/api/auth/login-standard', { phone, password }
+    ),
+  register: (phone: string, password: string, firstName: string, lastName: string) =>
+    api.post<{ accessToken: string; refreshToken: string; user: User }>(
+      '/api/auth/register', { phone, password, firstName, lastName }
+    ),
   me: () => api.get<User>('/api/auth/me'),
   rank: () => api.get('/api/auth/rank'),
 }

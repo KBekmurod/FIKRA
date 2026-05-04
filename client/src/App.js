@@ -6,6 +6,8 @@ import HomePage from './pages/HomePage';
 import TestPage from './pages/TestPage';
 import AIPage from './pages/AIPage';
 import ProfilePage from './pages/ProfilePage';
+import AuthPage from './pages/AuthPage';
+import InstallPWA from './components/InstallPWA';
 import { ToastProvider } from './components/Toast';
 function FullLoader() {
     return (_jsxs("div", { className: "full-loader", children: [_jsxs("div", { className: "full-loader-text", children: ["FIKRA", _jsx("span", { children: "." })] }), _jsx("div", { className: "spin" })] }));
@@ -42,11 +44,18 @@ export default function App() {
             window.BOT_USERNAME = c.botUsername;
             window.ADMIN_USERNAME = c.adminUsername;
         }).catch(() => { });
-        // Polling — har 30 sek user ma'lumotlarini yangilash (limit, plan)
-        const t = setInterval(() => refreshUser(), 30000);
+        // Polling — har 30 sek user ma'lumotlarini yangilash
+        const t = setInterval(() => {
+            if (useAppStore.getState().user) {
+                refreshUser();
+            }
+        }, 30000);
         return () => clearInterval(t);
     }, []);
     if (!bootstrapped || loading)
         return _jsx(FullLoader, {});
-    return (_jsx("div", { className: "app", children: _jsxs(ToastProvider, { children: [_jsx("div", { className: "app-content", children: _jsxs(Routes, { children: [_jsx(Route, { path: "/", element: _jsx(HomePage, {}) }), _jsx(Route, { path: "/test/*", element: _jsx(TestPage, {}) }), _jsx(Route, { path: "/ai/*", element: _jsx(AIPage, {}) }), _jsx(Route, { path: "/profile", element: _jsx(ProfilePage, {}) })] }) }), _jsx(BottomNav, {})] }) }));
+    if (!user) {
+        return (_jsx("div", { className: "app", children: _jsxs(ToastProvider, { children: [_jsx(AuthPage, {}), _jsx(InstallPWA, {})] }) }));
+    }
+    return (_jsx("div", { className: "app", children: _jsxs(ToastProvider, { children: [_jsx("div", { className: "app-content", children: _jsxs(Routes, { children: [_jsx(Route, { path: "/", element: _jsx(HomePage, {}) }), _jsx(Route, { path: "/test/*", element: _jsx(TestPage, {}) }), _jsx(Route, { path: "/ai/*", element: _jsx(AIPage, {}) }), _jsx(Route, { path: "/profile", element: _jsx(ProfilePage, {}) })] }) }), _jsx(BottomNav, {}), _jsx(InstallPWA, {})] }) }));
 }

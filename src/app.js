@@ -41,8 +41,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Railway: /app/public/  (package.json bilan bir papkada)
 const publicDir = path.join(__dirname, '..', 'public');
 if (fs.existsSync(publicDir)) {
-  // service-worker.js yo'q — 204 qaytarish (Telegram log spam oldini olish)
-  app.get('/service-worker.js', (req, res) => res.status(204).end());
+  // PWA uchun service worker Endi mavjud, shuning uchun bu to'siq olib tashlandi
+  // app.get('/service-worker.js', (req, res) => res.status(204).end());
   app.get('/manifest.json',     (req, res) => res.status(204).end());
   app.get('/favicon.ico',       (req, res) => res.status(204).end());
 

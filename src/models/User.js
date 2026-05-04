@@ -14,9 +14,18 @@ const aiUsageSchema = new mongoose.Schema({
 const userSchema = new mongoose.Schema({
   telegramId: {
     type: Number,
-    required: true,
+    sparse: true,
     unique: true,
     index: true,
+  },
+  phone: {
+    type: String,
+    sparse: true,
+    unique: true,
+    index: true,
+  },
+  password: { 
+    type: String, // Hech qachon ochiq saqlanmaydi (Bcrypt ishlatamiz)
   },
   username: { type: String, default: '' },
   firstName: { type: String, default: '' },

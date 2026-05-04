@@ -1,6 +1,8 @@
 import api from './client';
 export const authApi = {
     login: (initData, referralCode) => api.post('/api/auth/login', { initData, referralCode }),
+    loginStandard: (phone, password) => api.post('/api/auth/login-standard', { phone, password }),
+    register: (phone, password, firstName, lastName) => api.post('/api/auth/register', { phone, password, firstName, lastName }),
     me: () => api.get('/api/auth/me'),
     rank: () => api.get('/api/auth/rank'),
 };

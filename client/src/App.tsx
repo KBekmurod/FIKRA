@@ -5,6 +5,8 @@ import HomePage from './pages/HomePage'
 import TestPage from './pages/TestPage'
 import AIPage from './pages/AIPage'
 import ProfilePage from './pages/ProfilePage'
+import AuthPage from './pages/AuthPage'
+import InstallPWA from './components/InstallPWA'
 import { ToastProvider } from './components/Toast'
 
 function FullLoader() {
@@ -65,12 +67,27 @@ export default function App() {
       ;(window as any).ADMIN_USERNAME = c.adminUsername
     }).catch(() => {})
 
-    // Polling — har 30 sek user ma'lumotlarini yangilash (limit, plan)
-    const t = setInterval(() => refreshUser(), 30000)
+    // Polling — har 30 sek user ma'lumotlarini yangilash
+    const t = setInterval(() => {
+      if (useAppStore.getState().user) {
+        refreshUser()
+      }
+    }, 30000)
     return () => clearInterval(t)
   }, [])
 
   if (!bootstrapped || loading) return <FullLoader />
+
+  if (!user) {
+    return (
+      <div className="app">
+        <ToastProvider>
+          <AuthPage />
+          <InstallPWA />
+        </ToastProvider>
+      </div>
+    )
+  }
 
   return (
     <div className="app">
@@ -84,6 +101,7 @@ export default function App() {
           </Routes>
         </div>
         <BottomNav />
+        <InstallPWA />
       </ToastProvider>
     </div>
   )

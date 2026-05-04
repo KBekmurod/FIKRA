@@ -33,64 +33,34 @@ export const useAppStore = create<AppState>((set, get) => ({
     const initUser = tg?.initDataUnsafe?.user
     const tid = initUser?.id
 
-    // Demo mode (brauzerda test)
-    if (!initData || !tid) {
-      set({
-        user: {
-          telegramId: 0,
-          firstName: 'Demo Foydalanuvchi',
-          plan: 'free',
-          streakDays: 1,
-          xp: 50,
-          aiUsage: {},
-          aiLimits: { hints: 5, chats: 10, docs: 2, images: 0 },
-          _demo: true,
-        },
-        loading: false,
-      })
-      return
-    }
-
-    // Saqlangan token
+    // Agar Telegramdan kirmasa va saqlangan token bo'lmasa => user: null qoldiramiz (Login pageni ko'rsatish uchun)
     const stored = getStoredAuth()
-    if (stored && stored.tgId === tid) {
+    
+    if (stored) {
       try {
         const { data } = await authApi.me()
-        if (data.telegramId === tid) {
-          set({ user: data, loading: false })
-          return
-        }
-      } catch { clearAuth() }
-    } else if (stored && stored.tgId !== tid) {
-      clearAuth()
+        set({ user: data, loading: false })
+        return
+      } catch {
+        clearAuth()
+      }
     }
 
-    // Login
-    try {
-      const refCode = new URLSearchParams(window.location.search).get('ref')
-        || tg?.initDataUnsafe?.start_param
-      const { data } = await authApi.login(initData, refCode || undefined)
-      if (data.user.telegramId !== tid) throw new Error('ID mismatch')
-      setAuth(data.accessToken, data.refreshToken, tid)
-      set({ user: data.user, loading: false })
-    } catch (e: any) {
-      console.warn('[FIKRA] Login error:', e.message)
-      // Fallback: brauzerda yoki server xatosida demo rejim
-      set({
-        user: {
-          telegramId: tid || 0,
-          firstName: initUser?.first_name || 'Foydalanuvchi',
-          username: initUser?.username,
-          plan: 'free',
-          streakDays: 0,
-          xp: 0,
-          aiUsage: {},
-          aiLimits: { hints: 5, chats: 10, docs: 2, images: 0 },
-        },
-        loading: false,
-        error: e.message,
-      })
+    if (initData && tid) {
+      try {
+        const refCode = new URLSearchParams(window.location.search).get('ref')
+          || tg?.initDataUnsafe?.start_param
+        const { data } = await authApi.login(initData, refCode || undefined)
+        setAuth(data.accessToken, data.refreshToken, tid)
+        set({ user: data.user, loading: false })
+        return
+      } catch (e: any) {
+        console.warn('[FIKRA] Telegram Login error:', e.message)
+      }
     }
+
+    // Hech qanday auth topilmadi => Auth page
+    set({ user: null, loading: false })
   },
 
   refreshUser: async () => {
