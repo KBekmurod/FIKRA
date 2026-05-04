@@ -16,6 +16,7 @@ JWT_SECRET=<32+ belgi random>
 JWT_REFRESH_SECRET=<boshqa 32+ belgi>
 NODE_ENV=production
 FRONTEND_URL=https://your-app.railway.app
+TELEGRAM_WEBAPP_URL=https://your-app.railway.app   # Bot "Kirish" tugmasida ochadigan URL
 PORT=3000
 ```
 
@@ -64,6 +65,13 @@ npm run seed
 /setmenubutton — FIKRA → https://your-app.railway.app
 /setdomain — your-app.railway.app
 ```
+
+> **Eslatma:** Bot faqat minimal launcher sifatida ishlaydi.
+> `/start` buyrug'i foydalanuvchiga ikkita tugma ko'rsatadi:
+> - **Kirish** — `TELEGRAM_WEBAPP_URL` ga Web App sifatida ochadi
+> - **PWA o'rnatish** — ilovani bosh ekranga qo'shish bo'yicha yo'riqnoma beradi
+>
+> Barcha testlar, analitika va AI funksiyalari faqat Web App (PWA) ichida ishlaydi.
 
 ## URL'lar
 - **Foydalanuvchi:** `https://your-app.railway.app` (Telegram WebApp)
