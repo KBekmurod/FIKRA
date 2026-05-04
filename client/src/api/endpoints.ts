@@ -17,7 +17,23 @@ export const testApi = {
     api.post<CheckResult>('/api/games/test/check-answer', { questionId, selectedIndex }),
   result: (data: any) =>
     api.post('/api/games/test/result', data),
-  myStats: () => api.get('/api/games/my-stats'),
+}
+
+// ─── Exam (yangi DTM/Subject sessiyalar) ──────────────────────────────────
+export const examApi = {
+  config: () => api.get('/api/exams/config'),
+  startDtm: (direction: string) =>
+    api.post('/api/exams/start-dtm', { direction }),
+  startSubject: (subjects: string[], advanced?: any) =>
+    api.post('/api/exams/start-subject', { subjects, advanced }),
+  answer: (sessionId: string, questionId: string, selectedOption: number) =>
+    api.post(`/api/exams/sessions/${sessionId}/answer`, { questionId, selectedOption }),
+  finish: (sessionId: string) =>
+    api.post(`/api/exams/sessions/${sessionId}/finish`),
+  review: (sessionId: string) =>
+    api.get(`/api/exams/sessions/${sessionId}/review`),
+  history: (mode?: string, page = 1) =>
+    api.get('/api/exams/history', { params: { mode, page } }),
 }
 
 export const aiApi = {
@@ -31,7 +47,6 @@ export const aiApi = {
     api.post<ImageResponse>('/api/ai/image', { prompt }),
 }
 
-// AI Chat — SSE
 export async function streamChat(
   message: string,
   history: { role: string; content: string }[],
@@ -41,7 +56,6 @@ export async function streamChat(
 ) {
   const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}')
   const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000'
-
   try {
     const res = await fetch(`${API_BASE}/api/ai/chat`, {
       method: 'POST',
@@ -51,10 +65,7 @@ export async function streamChat(
       },
       body: JSON.stringify({ message, history })
     })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      onError(err); return
-    }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); onError(err); return }
     const reader = res.body!.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
@@ -68,16 +79,11 @@ export async function streamChat(
         if (!line.startsWith('data: ')) continue
         const data = line.slice(6)
         if (data === '[DONE]') { onDone(); return }
-        try {
-          const parsed = JSON.parse(data)
-          if (parsed.content) onChunk(parsed.content)
-        } catch {}
+        try { const parsed = JSON.parse(data); if (parsed.content) onChunk(parsed.content) } catch {}
       }
     }
     onDone()
-  } catch (e) {
-    onError(e)
-  }
+  } catch (e) { onError(e) }
 }
 
 export const subApi = {

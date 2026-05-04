@@ -85,3 +85,41 @@ export interface ImageResponse {
   downloadUrl: string
   fileName: string
 }
+
+// ─── Exam types ───────────────────────────────────────────────────────────
+export interface SubjectBreakdown {
+  subjectId: string
+  subjectName: string
+  block: string
+  weight: number
+  questionCount: number
+  correct: number
+  wrong: number
+  score: number
+  maxScore: number
+}
+
+export interface ExamSession {
+  _id: string
+  mode: 'dtm' | 'subject'
+  direction?: string
+  selectedSubjects: string[]
+  durationSeconds: number
+  status: 'in_progress' | 'completed' | 'abandoned'
+  startTime: string
+  endTime?: string
+  totalScore: number
+  maxTotalScore: number
+  subjectBreakdown: SubjectBreakdown[]
+}
+
+export interface ExamQuestion {
+  _id: string
+  subject: string
+  subjectName?: string
+  block: string
+  question: string
+  options: string[]
+  difficulty?: string
+  topic?: string
+}

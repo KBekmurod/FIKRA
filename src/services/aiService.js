@@ -1,7 +1,10 @@
 const axios = require('axios');
 const { logger } = require('../utils/logger');
+const ChatHistory = require('../models/ChatHistory');
 
 // ─── Lazy DeepSeek client ──────────────────────────────────────────────────
+// Required env variable: DEEPSEEK_API_KEY — DeepSeek API kaliti
+// Optional env variable: DEEPSEEK_BASE_URL — DeepSeek API manzili (default: https://api.deepseek.com/v1)
 let _deepseek = null;
 function deepseek() {
   if (!_deepseek) {
@@ -87,7 +90,52 @@ Tushuntirish 4-7 jumla, ortiqcha gap yo'q. Markdown ishlatma. Asosiy qoida nomin
   return res.choices[0].message.content;
 }
 
+// ─── AI Chat xotira bilan (stateful) ──────────────────────────────────────
+const MAX_CONTEXT_MESSAGES = 20;
+
+async function chatWithMemory(userId, message) {
+  // findOneAndUpdate upsert: foydalanuvchi tarixini topamiz yoki yangisini yaratamiz
+  const history = await ChatHistory.findOneAndUpdate(
+    { userId },
+    { $setOnInsert: { userId, messages: [] } },
+    { upsert: true, new: true }
+  );
+
+  // Kontekst uchun oxirgi MAX_CONTEXT_MESSAGES ta xabarni olamiz
+  const recentMessages = history.messages.slice(-MAX_CONTEXT_MESSAGES).map(m => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  const messagesToSend = [
+    {
+      role: 'system',
+      content: "Sen FIKRA — DTM testlariga tayyorlovchi AI yordamchisan. O'zbek tilida samimiy, aniq va foydali javob ber.",
+    },
+    ...recentMessages,
+    { role: 'user', content: message },
+  ];
+
+  const response = await deepseek().chat.completions.create({
+    model: 'deepseek-chat',
+    messages: messagesToSend,
+    max_tokens: 1000,
+    temperature: 0.7,
+  });
+
+  const assistantReply = response.choices[0].message.content;
+
+  // Foydalanuvchi xabari va AI javobini tarixga saqlaymiz
+  history.messages.push({ role: 'user', content: message });
+  history.messages.push({ role: 'assistant', content: assistantReply });
+  // Save history without blocking the reply on failure
+  history.save().catch(err => logger.error('Failed to save chat history:', err.message));
+
+  return assistantReply;
+}
+
 // ─── Rasm yaratish (Gemini 2.0 Flash Exp) ──────────────────────────────────
+// Required env variable: GEMINI_API_KEY — Google Gemini API kaliti
 async function generateImage(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key || key === 'placeholder') throw new Error('GEMINI_API_KEY sozlanmagan');
@@ -124,6 +172,7 @@ async function analyzeCalorie(imageBase64, mimeType = 'image/jpeg') {
 module.exports = {
   streamChat,
   generateDocument,
+  chatWithMemory,
   getTestHint,
   explainTestQuestion,
   generateImage,
