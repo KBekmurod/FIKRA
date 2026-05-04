@@ -8,14 +8,22 @@ export const testApi = {
     questions: (subject, block, limit = 10) => api.get('/api/games/test/questions', { params: { subject, block, limit } }),
     checkAnswer: (questionId, selectedIndex) => api.post('/api/games/test/check-answer', { questionId, selectedIndex }),
     result: (data) => api.post('/api/games/test/result', data),
-    myStats: () => api.get('/api/games/my-stats'),
+};
+// ─── Exam (yangi DTM/Subject sessiyalar) ──────────────────────────────────
+export const examApi = {
+    config: () => api.get('/api/exams/config'),
+    startDtm: (direction) => api.post('/api/exams/start-dtm', { direction }),
+    startSubject: (subjects, advanced) => api.post('/api/exams/start-subject', { subjects, advanced }),
+    answer: (sessionId, questionId, selectedOption) => api.post(`/api/exams/sessions/${sessionId}/answer`, { questionId, selectedOption }),
+    finish: (sessionId) => api.post(`/api/exams/sessions/${sessionId}/finish`),
+    review: (sessionId) => api.get(`/api/exams/sessions/${sessionId}/review`),
+    history: (mode, page = 1) => api.get('/api/exams/history', { params: { mode, page } }),
 };
 export const aiApi = {
     hint: (question, options, subject, mode = 'hint') => api.post('/api/ai/hint', { question, options, subject, mode }),
     document: (prompt, format, history = []) => api.post('/api/ai/document', { prompt, format, history }),
     image: (prompt) => api.post('/api/ai/image', { prompt }),
 };
-// AI Chat — SSE
 export async function streamChat(message, history, onChunk, onDone, onError) {
     const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}');
     const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000';
