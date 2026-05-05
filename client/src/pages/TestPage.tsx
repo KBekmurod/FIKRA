@@ -874,15 +874,30 @@ function ResultScreen({ result, onBack, onHistory, onReview }: any) {
                 background: 'var(--s1)', border: '1px solid var(--f)',
                 borderRadius: 10, padding: '10px 14px',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span style={{ fontSize: 13, fontWeight: 700 }}>
                     {SUBJECT_EMOJI[s.subjectId] || '📘'} {s.subjectName}
                   </span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: subPct >= 70 ? 'var(--g)' : subPct >= 50 ? 'var(--y)' : 'var(--r)' }}>
-                    {s.score.toFixed(1)}/{s.maxScore.toFixed(1)}
-                  </span>
                 </div>
-                <div style={{ height: 5, background: 'var(--s3)', borderRadius: 100 }}>
+                
+                {/* Test count and score display */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                  <div style={{ padding: '8px', background: 'rgba(0,212,170,0.08)', borderRadius: 8, textAlign: 'center' }}>
+                    <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 2 }}>Savol</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--acc-l)' }}>
+                      {s.correct}/{s.questionCount}
+                    </div>
+                  </div>
+                  <div style={{ padding: '8px', background: 'rgba(123,104,238,0.08)', borderRadius: 8, textAlign: 'center' }}>
+                    <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 2 }}>Ball</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: subPct >= 70 ? 'var(--g)' : subPct >= 50 ? 'var(--y)' : 'var(--r)' }}>
+                      {s.score.toFixed(1)}/{s.maxScore.toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Progress bar */}
+                <div style={{ height: 5, background: 'var(--s3)', borderRadius: 100, marginBottom: 6 }}>
                   <div style={{
                     height: '100%', borderRadius: 100,
                     width: `${subPct}%`,
@@ -890,8 +905,10 @@ function ResultScreen({ result, onBack, onHistory, onReview }: any) {
                     transition: 'width 0.5s',
                   }} />
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--txt-3)', marginTop: 4 }}>
-                  ✓ {s.correct} ta to'g'ri · ✗ {s.wrong} ta xato · {subPct}%
+                
+                {/* Details */}
+                <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>
+                  ✓ {s.correct} to'g'ri · ✗ {s.wrong} xato · {subPct}%
                 </div>
               </div>
             )

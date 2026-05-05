@@ -1,10 +1,15 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
+const NOTIFICATION_VIEW_KEY = 'fikra_install_notification_views';
+const MAX_NOTIFICATION_VIEWS = 3;
+const AUTO_CLOSE_DELAY_MS = 5000;
 export default function InstallPWA() {
     const [supportsPWA, setSupportsPWA] = useState(false);
     const [promptInstall, setPromptInstall] = useState(null);
     const [isInstalled, setIsInstalled] = useState(false);
     const [showModal, setShowModal] = useState(false);
+    const [showFloating, setShowFloating] = useState(false);
+    const [viewCount, setViewCount] = useState(0);
     const [activeTab, setActiveTab] = useState('native');
     const [copied, setCopied] = useState(false);
     const appUrl = window.location.origin;
@@ -22,10 +27,27 @@ export default function InstallPWA() {
     }, []);
     useEffect(() => {
         if (!isInstalled) {
-            setShowModal(true);
-            setActiveTab(supportsPWA ? 'native' : 'manual');
+            const savedViewCount = parseInt(localStorage.getItem(NOTIFICATION_VIEW_KEY) || '0', 10);
+            setViewCount(savedViewCount);
+            // Show floating notification only if under the view limit
+            if (savedViewCount < MAX_NOTIFICATION_VIEWS) {
+                setShowFloating(true);
+                // Auto-close after 5 seconds
+                const timer = setTimeout(() => {
+                    setShowFloating(false);
+                }, AUTO_CLOSE_DELAY_MS);
+                return () => clearTimeout(timer);
+            }
         }
-    }, [isInstalled, supportsPWA]);
+    }, [isInstalled]);
+    useEffect(() => {
+        if (!isInstalled && showFloating && viewCount < MAX_NOTIFICATION_VIEWS) {
+            // Increment view count when floating notification is shown
+            const newCount = viewCount + 1;
+            setViewCount(newCount);
+            localStorage.setItem(NOTIFICATION_VIEW_KEY, String(newCount));
+        }
+    }, [showFloating, isInstalled, viewCount]);
     const handleNativeInstall = (evt) => {
         evt.preventDefault();
         if (!promptInstall) {
@@ -37,8 +59,18 @@ export default function InstallPWA() {
             if (choiceResult.outcome === 'accepted') {
                 setIsInstalled(true);
                 setShowModal(false);
+                setShowFloating(false);
             }
         });
+    };
+    const closeFloatingNotification = () => {
+        setShowFloating(false);
+    };
+    const openModalFromFloating = (e) => {
+        e.stopPropagation();
+        setShowModal(true);
+        setShowFloating(false);
+        setActiveTab(supportsPWA ? 'native' : 'manual');
     };
     const copyUrl = () => {
         navigator.clipboard.writeText(appUrl).then(() => {
@@ -51,7 +83,7 @@ export default function InstallPWA() {
     };
     if (isInstalled)
         return null;
-    return (_jsxs(_Fragment, { children: [!showModal && (_jsxs("div", { onClick: () => setShowModal(true), style: {
+    return (_jsxs(_Fragment, { children: [showFloating && (_jsxs("div", { style: {
                     position: 'fixed',
                     bottom: '80px',
                     left: '20px',
@@ -66,22 +98,19 @@ export default function InstallPWA() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     animation: 'slideUp 0.5s ease-out',
-                    cursor: 'pointer',
                     transition: 'transform 0.2s'
-                }, onMouseEnter: (e) => (e.currentTarget.style.transform = 'scale(1.02)'), onMouseLeave: (e) => (e.currentTarget.style.transform = 'scale(1)'), children: [_jsxs("div", { children: [_jsx("h4", { style: { margin: 0, fontSize: '16px', fontWeight: 'bold' }, children: "\uD83D\uDCF1 Ilovani o'rnating" }), _jsx("p", { style: { margin: '5px 0 0', fontSize: '13px', opacity: 0.9 }, children: "Ilovani telefonga qo'shing, keyin tez ochiladi va qulay ishlaydi" })] }), _jsx("button", { onClick: (e) => {
-                            e.stopPropagation();
-                            setShowModal(true);
-                        }, style: {
-                            background: 'white',
-                            color: 'var(--acc)',
+                }, onMouseEnter: (e) => (e.currentTarget.style.transform = 'scale(1.02)'), onMouseLeave: (e) => (e.currentTarget.style.transform = 'scale(1)'), children: [_jsxs("div", { style: { flex: 1, cursor: 'pointer' }, onClick: openModalFromFloating, children: [_jsx("h4", { style: { margin: 0, fontSize: '16px', fontWeight: 'bold' }, children: "\uD83D\uDCF1 Ilovani o'rnating" }), _jsx("p", { style: { margin: '5px 0 0', fontSize: '13px', opacity: 0.9 }, children: "Ilovani telefonga qo'shing, keyin tez ochiladi" })] }), _jsx("button", { onClick: closeFloatingNotification, style: {
+                            background: 'rgba(255,255,255,0.3)',
                             border: 'none',
-                            padding: '8px 15px',
+                            color: 'white',
+                            padding: '8px 12px',
                             borderRadius: '8px',
-                            fontWeight: 'bold',
                             cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            marginLeft: '10px'
-                        }, children: supportsPWA ? "O'rnatish" : "Ko'rsatma" })] })), showModal && (_jsx("div", { style: {
+                            fontSize: '16px',
+                            fontWeight: 'bold',
+                            marginLeft: '10px',
+                            minWidth: '40px'
+                        }, title: "Yopish", children: "\u2715" })] })), showModal && (_jsx("div", { style: {
                     position: 'fixed',
                     top: 0,
                     left: 0,
