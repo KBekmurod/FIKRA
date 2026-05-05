@@ -20,6 +20,12 @@ export default function InstallPWA() {
         window.addEventListener('beforeinstallprompt', handler);
         return () => window.removeEventListener('beforeinstallprompt', handler);
     }, []);
+    useEffect(() => {
+        if (!isInstalled) {
+            setShowModal(true);
+            setActiveTab(supportsPWA ? 'native' : 'manual');
+        }
+    }, [isInstalled, supportsPWA]);
     const handleNativeInstall = (evt) => {
         evt.preventDefault();
         if (!promptInstall) {
@@ -45,7 +51,7 @@ export default function InstallPWA() {
     };
     if (isInstalled)
         return null;
-    return (_jsxs(_Fragment, { children: [supportsPWA && !showModal && (_jsxs("div", { onClick: () => setShowModal(true), style: {
+    return (_jsxs(_Fragment, { children: [!showModal && (_jsxs("div", { onClick: () => setShowModal(true), style: {
                     position: 'fixed',
                     bottom: '80px',
                     left: '20px',
@@ -62,7 +68,7 @@ export default function InstallPWA() {
                     animation: 'slideUp 0.5s ease-out',
                     cursor: 'pointer',
                     transition: 'transform 0.2s'
-                }, onMouseEnter: (e) => (e.currentTarget.style.transform = 'scale(1.02)'), onMouseLeave: (e) => (e.currentTarget.style.transform = 'scale(1)'), children: [_jsxs("div", { children: [_jsx("h4", { style: { margin: 0, fontSize: '16px', fontWeight: 'bold' }, children: "\uD83D\uDCF1 Ilovani o'rnating" }), _jsx("p", { style: { margin: '5px 0 0', fontSize: '13px', opacity: 0.9 }, children: "Tez kirish va oflayn ishlash uchun" })] }), _jsx("button", { onClick: (e) => {
+                }, onMouseEnter: (e) => (e.currentTarget.style.transform = 'scale(1.02)'), onMouseLeave: (e) => (e.currentTarget.style.transform = 'scale(1)'), children: [_jsxs("div", { children: [_jsx("h4", { style: { margin: 0, fontSize: '16px', fontWeight: 'bold' }, children: "\uD83D\uDCF1 Ilovani o'rnating" }), _jsx("p", { style: { margin: '5px 0 0', fontSize: '13px', opacity: 0.9 }, children: "Ilovani telefonga qo'shing, keyin tez ochiladi va qulay ishlaydi" })] }), _jsx("button", { onClick: (e) => {
                             e.stopPropagation();
                             setShowModal(true);
                         }, style: {
@@ -75,7 +81,7 @@ export default function InstallPWA() {
                             cursor: 'pointer',
                             whiteSpace: 'nowrap',
                             marginLeft: '10px'
-                        }, children: "O'rnatish" })] })), showModal && (_jsx("div", { style: {
+                        }, children: supportsPWA ? "O'rnatish" : "Ko'rsatma" })] })), showModal && (_jsx("div", { style: {
                     position: 'fixed',
                     top: 0,
                     left: 0,
@@ -126,7 +132,7 @@ export default function InstallPWA() {
                                         fontWeight: 'bold',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s'
-                                    }, children: "\uD83D\uDCD6 Qo'lda" })] }), activeTab === 'native' && (_jsxs("div", { children: [_jsx("p", { style: { margin: '0 0 15px', color: 'var(--txt-2)', fontSize: '14px' }, children: "Ro\u02BByxatdan o\u02BBtish tugmasini bosib, ilovani qayta o\u02BBrnating:" }), _jsx("button", { onClick: handleNativeInstall, style: {
+                                    }, children: "\uD83D\uDCD6 Qo'lda" })] }), activeTab === 'native' && (_jsxs("div", { children: [_jsx("p", { style: { margin: '0 0 15px', color: 'var(--txt-2)', fontSize: '14px', lineHeight: 1.6 }, children: "Brauzer o'rnatishga ruxsat bersa, quyidagi tugma bilan ilovani qo'shasiz. Agar Telegram ichida bo'lsangiz yoki tugma chiqmasa, Qo'lda bo'limiga o'ting." }), _jsx("button", { onClick: handleNativeInstall, style: {
                                         width: '100%',
                                         padding: '15px',
                                         background: 'var(--acc)',
@@ -180,7 +186,16 @@ export default function InstallPWA() {
                                         background: 'var(--s2)',
                                         padding: '15px',
                                         borderRadius: '10px'
-                                    }, children: [_jsx("p", { style: {
+                                    }, children: [_jsxs("div", { style: {
+                                                marginBottom: '12px',
+                                                padding: '10px 12px',
+                                                borderRadius: '8px',
+                                                background: 'rgba(123,104,238,0.08)',
+                                                color: 'var(--txt-2)',
+                                                fontSize: '12px',
+                                                lineHeight: 1.6,
+                                                border: '1px solid rgba(123,104,238,0.18)'
+                                            }, children: ["Bu usul Telegram ichida ham ishlaydi. Avval URL ni nusxalang, Chrome\u2019da oching, so\u2018ng menyudan", _jsx("strong", { children: " \u201CEkranga qo\u2018shish\u201D" }), " yoki ", _jsx("strong", { children: " \u201CIlovani o\u2018rnatish\u201D" }), " ni bosing."] }), _jsx("p", { style: {
                                                 margin: '0 0 12px 0',
                                                 fontWeight: 'bold',
                                                 fontSize: '12px'

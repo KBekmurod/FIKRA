@@ -27,6 +27,13 @@ export default function InstallPWA() {
     return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
+  useEffect(() => {
+    if (!isInstalled) {
+      setShowModal(true)
+      setActiveTab(supportsPWA ? 'native' : 'manual')
+    }
+  }, [isInstalled, supportsPWA])
+
   const handleNativeInstall = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault()
     if (!promptInstall) {
@@ -57,8 +64,8 @@ export default function InstallPWA() {
 
   return (
     <>
-      {/* Floating Toast (shows on first load) */}
-      {supportsPWA && !showModal && (
+      {/* Floating prompt: always visible until user closes it */}
+      {!showModal && (
         <div
           onClick={() => setShowModal(true)}
           style={{
@@ -87,7 +94,7 @@ export default function InstallPWA() {
               📱 Ilovani o'rnating
             </h4>
             <p style={{ margin: '5px 0 0', fontSize: '13px', opacity: 0.9 }}>
-              Tez kirish va oflayn ishlash uchun
+              Ilovani telefonga qo'shing, keyin tez ochiladi va qulay ishlaydi
             </p>
           </div>
           <button
@@ -107,7 +114,7 @@ export default function InstallPWA() {
               marginLeft: '10px'
             }}
           >
-            O'rnatish
+            {supportsPWA ? "O'rnatish" : "Ko'rsatma"}
           </button>
         </div>
       )}
@@ -207,8 +214,9 @@ export default function InstallPWA() {
             {/* Native Tab */}
             {activeTab === 'native' && (
               <div>
-                <p style={{ margin: '0 0 15px', color: 'var(--txt-2)', fontSize: '14px' }}>
-                  Roʻyxatdan oʻtish tugmasini bosib, ilovani qayta oʻrnating:
+                <p style={{ margin: '0 0 15px', color: 'var(--txt-2)', fontSize: '14px', lineHeight: 1.6 }}>
+                  Brauzer o'rnatishga ruxsat bersa, quyidagi tugma bilan ilovani qo'shasiz.
+                  Agar Telegram ichida bo'lsangiz yoki tugma chiqmasa, Qo'lda bo'limiga o'ting.
                 </p>
                 <button
                   onClick={handleNativeInstall}
@@ -309,6 +317,19 @@ export default function InstallPWA() {
                     borderRadius: '10px'
                   }}
                 >
+                  <div style={{
+                    marginBottom: '12px',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(123,104,238,0.08)',
+                    color: 'var(--txt-2)',
+                    fontSize: '12px',
+                    lineHeight: 1.6,
+                    border: '1px solid rgba(123,104,238,0.18)'
+                  }}>
+                    Bu usul Telegram ichida ham ishlaydi. Avval URL ni nusxalang, Chrome’da oching, so‘ng menyudan
+                    <strong> “Ekranga qo‘shish”</strong> yoki <strong> “Ilovani o‘rnatish”</strong> ni bosing.
+                  </div>
                   <p
                     style={{
                       margin: '0 0 12px 0',
