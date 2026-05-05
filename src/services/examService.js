@@ -139,6 +139,10 @@ function assertObjectId(value, label) {
 
 // Fetch `count` random questions for a subject (answer field NOT returned to client)
 async function fetchRandomQuestions(subjectId, count) {
+  const available = await TestQuestion.countDocuments({ subject: subjectId });
+  if (available < count) {
+    throw new Error(`Kamida ${count} ta savol kerak: "${subjectId}" fanida mavjud ${available} ta`);
+  }
   return TestQuestion.aggregate([
     { $match: { subject: subjectId } },
     { $sample: { size: count } },
