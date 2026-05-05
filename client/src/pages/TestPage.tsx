@@ -1,8 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from '../store'
-import { examApi, aiApi } from '../api/endpoints'
+import { examApi, aiApi, testApi } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import SubscriptionModal from '../components/SubscriptionModal'
+import {
+  buildOfflineDtmSession,
+  buildOfflineSubjectSession,
+  calculateOfflineResult,
+  getCachedExamConfig,
+  saveCachedExamConfig,
+  warmOfflineQuestionBank,
+  type ExamConfigCache,
+  type OfflineSessionData,
+} from '../utils/offlinePractice'
 
 // ─── Turlar ────────────────────────────────────────────────────────────────
 type Screen =
@@ -36,7 +46,7 @@ const SUBJECT_EMOJI: Record<string, string> = {
 // ─── Asosiy komponent ──────────────────────────────────────────────────────
 export default function TestPage() {
   const [screen, setScreen] = useState<Screen>('home')
-  const [config, setConfig] = useState<{ subjects: SubjectMeta[]; directions: DirectionMeta[] } | null>(null)
+  const [config, setConfig] = useState<ExamConfigCache | null>(null)
   const [sessionData, setSessionData] = useState<any>(null)   // quiz uchun
   const [resultData, setResultData] = useState<SessionResult | null>(null)
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null)
@@ -45,7 +55,28 @@ export default function TestPage() {
   const { toast } = useToast()
 
   useEffect(() => {
-    examApi.config().then(r => setConfig(r.data)).catch(() => {})
+    let alive = true
+
+    const loadConfig = async () => {
+      try {
+        const { data } = await examApi.config()
+        if (!alive) return
+        setConfig(data)
+        saveCachedExamConfig(data)
+
+        if (navigator.onLine) {
+          warmOfflineQuestionBank(data, async (subject, block, limit) => {
+            const { data: pack } = await testApi.offlinePack(subject, block, limit)
+            return pack
+          }).catch(() => {})
+        }
+      } catch {
+        const cached = getCachedExamConfig()
+        if (cached && alive) setConfig(cached)
+      }
+    }
+
+    loadConfig()
   }, [])
 
   const goHome = () => {
@@ -60,7 +91,16 @@ export default function TestPage() {
       const { data } = await examApi.startDtm(direction)
       setSessionData(data)
       setScreen('quiz')
-    } catch (e: any) { toast(e.response?.data?.error || 'Xatolik', 'err') }
+    } catch (e: any) {
+      const offlineSession = config ? buildOfflineDtmSession(config, direction) : null
+      if (offlineSession) {
+        setSessionData(offlineSession)
+        setScreen('quiz')
+        toast('Oflayn mashq rejimi ishga tushdi', 'ok')
+        return
+      }
+      toast(e.response?.data?.error || 'Xatolik', 'err')
+    }
   }
 
   // ─── Subject boshlash ──────────────────────────────────────────────────
@@ -69,7 +109,17 @@ export default function TestPage() {
       const { data } = await examApi.startSubject(subjects, advanced)
       setSessionData(data)
       setScreen('quiz')
-    } catch (e: any) { toast(e.response?.data?.error || 'Xatolik', 'err') }
+    } catch (e: any) {
+      const counts = advanced?.questionCounts || undefined
+      const offlineSession = config ? buildOfflineSubjectSession(config, subjects, counts) : null
+      if (offlineSession) {
+        setSessionData({ ...offlineSession, advanced })
+        setScreen('quiz')
+        toast('Oflayn mashq rejimi ishga tushdi', 'ok')
+        return
+      }
+      toast(e.response?.data?.error || 'Xatolik', 'err')
+    }
   }
 
   // ─── Quiz tugadi → natija ──────────────────────────────────────────────
@@ -511,7 +561,7 @@ function SubjectSetup({ subjects, onStart, onBack }: any) {
 // QuizScreen
 // ═══════════════════════════════════════════════════════════════════════════
 function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }: any) {
-  const { sessionId, questions, durationSeconds, subjectBreakdown, mode } = sessionData
+  const { sessionId, questions, durationSeconds, subjectBreakdown, mode, offline } = sessionData
 
   const [qIdx, setQIdx] = useState(0)
   const [answers, setAnswers] = useState<Record<string, { selected: number; isCorrect: boolean; correctIndex: number; explanation: string }>>({})
@@ -521,6 +571,7 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }: any) {
   const [hintLoading, setHintLoading] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [timeLeft, setTimeLeft] = useState(durationSeconds)
+  const [offlineAnswers, setOfflineAnswers] = useState<Record<string, { selected: number; isCorrect: boolean }>>({})
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const { user } = useAppStore()
   const { toast } = useToast()
@@ -529,6 +580,13 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }: any) {
     if (finishing) return
     setFinishing(true)
     if (timerRef.current) clearInterval(timerRef.current)
+
+    if (offline) {
+      const offlineResult = calculateOfflineResult(sessionData as OfflineSessionData, offlineAnswers)
+      onFinish(offlineResult)
+      return
+    }
+
     try {
       const { data } = await examApi.finish(sessionId)
       onFinish(data)
@@ -567,6 +625,21 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }: any) {
   const selectAnswer = async (idx: number) => {
     if (selected !== null) return
     setSelected(idx)
+
+    if (offline) {
+      const isCorrect = idx === q.answer
+      const offlineResponse = {
+        isCorrect,
+        correctIndex: q.answer,
+        explanation: q.explanation || '',
+      }
+      setResult(offlineResponse)
+      setAnswers(prev => ({ ...prev, [q._id]: { selected: idx, isCorrect, correctIndex: q.answer, explanation: q.explanation || '' } }))
+      setOfflineAnswers(prev => ({ ...prev, [q._id]: { selected: idx, isCorrect } }))
+      if (!isCorrect && q.explanation) setHint(q.explanation)
+      return
+    }
+
     try {
       const { data } = await examApi.answer(sessionId, q._id, idx)
       setResult(data)

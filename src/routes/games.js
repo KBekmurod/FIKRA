@@ -25,6 +25,25 @@ router.get('/test/questions', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ─── GET /api/games/test/offline-pack ────────────────────────────────────
+// Oflayn mashq uchun: savol + javob kaliti + izoh
+router.get('/test/offline-pack', authMiddleware, async (req, res, next) => {
+  try {
+    const { subject, block, limit = 10 } = req.query;
+    const query = {};
+    if (subject) query.subject = subject;
+    if (block) query.block = block;
+    const lim = Math.min(Math.max(parseInt(limit) || 10, 1), 50);
+
+    const questions = await TestQuestion.aggregate([
+      { $match: query },
+      { $sample: { size: lim } },
+      { $project: { question: 1, options: 1, subject: 1, block: 1, answer: 1, explanation: 1 } },
+    ]);
+    res.json(questions);
+  } catch (err) { next(err); }
+});
+
 // ─── POST /api/games/test/check-answer ────────────────────────────────────
 router.post('/test/check-answer', authMiddleware, async (req, res, next) => {
   try {

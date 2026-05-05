@@ -21,6 +21,10 @@ export const authApi = {
 export const testApi = {
   questions: (subject: string, block?: string, limit = 10) =>
     api.get<Question[]>('/api/games/test/questions', { params: { subject, block, limit } }),
+  offlinePack: (subject: string, block?: string, limit = 10) =>
+    api.get<(Question & { answer: number; explanation?: string })[]>('/api/games/test/offline-pack', {
+      params: { subject, block, limit }
+    }),
   checkAnswer: (questionId: string, selectedIndex: number) =>
     api.post<CheckResult>('/api/games/test/check-answer', { questionId, selectedIndex }),
   result: (data: any) =>
