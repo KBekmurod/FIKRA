@@ -281,9 +281,11 @@ const QUESTIONS = [
   { subject: 'adab', block: 'mutaxassislik', question: "Og'zaki xalq ijodiyotiga kirmaydigan janr qaysi?", options: ['Doston', 'Maqol', 'Roman', 'Ertak'], answer: 2, explanation: "Roman — yozma adabiyot janri, og'zaki xalq ijodiyotiga kirmaydi." }
 
 ];
+const DTM = require('../config/dtm2026');
 
 async function seedQuestions() {
   try {
+<<<<<<< HEAD
     // Fan bo'yicha tekshiruv — agar biror fan savollari kam bo'lsa, faqat ularni qo'shadi
     const subjectCounts = await TestQuestion.aggregate([
       { $group: { _id: '$subject', count: { $sum: 1 } } }
@@ -305,6 +307,90 @@ async function seedQuestions() {
       logger.info(`✅ ${result.length} ta yangi savol qo'shildi (${[...new Set(missingQ.map(q => q.subject))].join(', ')})`);
     } else {
       logger.info(`Savollar bazada bor: ${totalCount} ta. Hamma fanlar mavjud.`);
+=======
+    const totalCount = await TestQuestion.countDocuments();
+    if (totalCount === 0) {
+      const result = await TestQuestion.insertMany(QUESTIONS, { ordered: false });
+      logger.info(`✅ ${result.length} ta DTM 2025 namunaviy savol yuklandi`);
+      return;
+    }
+
+    logger.info(`Bazada allaqachon ${totalCount} ta savol mavjud. Tekshirilmoqda...`);
+
+    // Add any completely missing sample questions from QUESTIONS (new subjects)
+    const subjectCounts = await TestQuestion.aggregate([
+      { $group: { _id: '$subject', count: { $sum: 1 } } }
+    ]);
+    const existingSubjects = new Set(subjectCounts.map(s => s._id));
+
+    const missingQ = QUESTIONS.filter(q => !existingSubjects.has(q.subject));
+    if (missingQ.length > 0) {
+      await TestQuestion.insertMany(missingQ, { ordered: false });
+      logger.info(`✅ ${missingQ.length} ta yangi namunaviy savol qo'shildi (${[...new Set(missingQ.map(q => q.subject))].join(', ')})`);
+    }
+
+    // Ensure per-subject minimum counts (mandatory:10, specialty:30)
+    let addedDummyCount = 0;
+    for (const subject of DTM.allSubjects) {
+      const count = await TestQuestion.countDocuments({ subject: subject.id });
+      const required = subject.type === 'mandatory' ? 10 : 30;
+
+      if (count < required) {
+        const missing = required - count;
+        const dummyQuestions = [];
+        for (let i = 0; i < missing; i++) {
+          dummyQuestions.push({
+            subject: subject.id,
+            block: subject.type === 'mandatory' ? 'majburiy' : 'mutaxassislik',
+            question: `[NAMUNA] ${subject.name} fani bo'yicha avtomatik qo'shilgan savol #${i + 1}`,
+            options: ['A variant', 'B variant', 'C variant', 'D variant'],
+            answer: 0,
+            difficulty: 'easy'
+          });
+        }
+        await TestQuestion.insertMany(dummyQuestions);
+        addedDummyCount += missing;
+        logger.info(`➕ ${subject.name} fanidan ${missing} ta namuna savol qo'shildi.`);
+      }
+    }
+
+    if (addedDummyCount > 0) {
+      logger.info(`🚀 Jami ${addedDummyCount} ta namuna savol bazaga kiritildi.`);
+    } else {
+      logger.info(`✅ Barcha fanlar bo'yicha yetarlicha savollar mavjud (Majburiy: 10+, Mutaxassislik: 30+).`);
+    }
+
+    // Har bir fan bo'yicha talab etilgan testlar borligini tekshirish
+    let addedDummyCount = 0;
+    for (const subject of DTM.allSubjects) {
+      const count = await TestQuestion.countDocuments({ subject: subject.id });
+      const required = subject.type === 'mandatory' ? 10 : 30;
+
+      if (count < required) {
+        const missing = required - count;
+        const dummyQuestions = [];
+        let currentCount = count + 1;
+        for (let i = 0; i < missing; i++) {
+          dummyQuestions.push({
+            subject: subject.id,
+            block: subject.type === 'mandatory' ? 'majburiy' : 'mutaxassislik',
+            question: `[NAMUNA] ${subject.name} fani bo'yicha ${currentCount + i}-test savoli (tizim tomonidan avtomatik qo'shilgan)`,
+            options: ['A variant', 'B variant', 'C variant', 'D variant'],
+            answer: 0,
+            difficulty: 'easy'
+          });
+        }
+        await TestQuestion.insertMany(dummyQuestions);
+        addedDummyCount += missing;
+        logger.info(`➕ ${subject.name} fanidan ${missing} ta namuna savol qo'shildi.`);
+      }
+    }
+
+    if (addedDummyCount > 0) {
+      logger.info(`🚀 Jami ${addedDummyCount} ta namuna savol bazaga kiritildi, imtihon ishlash uchun yetarli.`);
+    } else {
+      logger.info(`✅ Barcha fanlar bo'yicha yetarlicha savollar mavjud (Majburiy: 10+, Mutaxassislik: 30+).`);
+>>>>>>> 066d90f (add test)
     }
   } catch (err) {
     logger.error('Seed xato:', err.message);
