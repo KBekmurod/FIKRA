@@ -1,10 +1,28 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
-import { aiApi, streamChat } from '../api/endpoints'
+import { aiApi, examApi, streamChat } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import SubscriptionModal from '../components/SubscriptionModal'
 
-type Tab = 'chat' | 'doc' | 'image'
+type Tab = 'chat' | 'doc' | 'image' | 'analysis'
+
+interface WeakSubject {
+  subject: string
+  subjectName: string
+  accuracy: number
+  totalAnswered: number
+  correctAnswers: number
+  level: 'strong' | 'medium' | 'weak' | 'veryWeak'
+}
+
+interface RecommendationData {
+  summary: string
+  weakAreas: WeakSubject[]
+  drillTargets: Array<{ subject: string; subjectName: string; questionCount: number; accuracy: number; level: string }>
+  recommendations: string[]
+  progress?: { overallAvg: number; recentAvg: number; previousAvg: number; growthTrend: number }
+}
 
 export default function AIPage() {
   const [tab, setTab] = useState<Tab>('chat')
@@ -23,11 +41,13 @@ export default function AIPage() {
         <TabButton active={tab === 'chat'} onClick={() => setTab('chat')} icon="💬" label="Chat" />
         <TabButton active={tab === 'doc'} onClick={() => setTab('doc')} icon="📄" label="Hujjat" />
         <TabButton active={tab === 'image'} onClick={() => setTab('image')} icon="🎨" label="Rasm" />
+        <TabButton active={tab === 'analysis'} onClick={() => setTab('analysis')} icon="📊" label="Tahlil" />
       </div>
 
       {tab === 'chat' && <ChatTab onSubOpen={() => setSubOpen(true)} />}
       {tab === 'doc' && <DocTab onSubOpen={() => setSubOpen(true)} />}
       {tab === 'image' && <ImageTab onSubOpen={() => setSubOpen(true)} />}
+      {tab === 'analysis' && <AnalysisTab onSubOpen={() => setSubOpen(true)} />}
 
       <SubscriptionModal open={subOpen} onClose={() => setSubOpen(false)} />
     </>
@@ -395,6 +415,106 @@ function ImageTab({ onSubOpen }: { onSubOpen: () => void }) {
           />
           <button onClick={download} className="btn btn-success btn-block" style={{ marginTop: 10 }}>
             ⬇ Yuklab olish
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── ANALYSIS TAB ───────────────────────────────────────────────────────────
+function AnalysisTab({ onSubOpen }: { onSubOpen: () => void }) {
+  const [data, setData] = useState<RecommendationData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    examApi.recommendations()
+      .then(({ data }) => {
+        if (!alive) return
+        setData(data)
+      })
+      .catch(() => {
+        if (alive) toast('Tahlil yuklanmadi', 'err')
+      })
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+
+    return () => { alive = false }
+  }, [toast])
+
+  const startDrill = (subject: string, count: number) => {
+    navigate(`/test?drill=1&subject=${encodeURIComponent(subject)}&count=${count}`)
+  }
+
+  return (
+    <div style={{ padding: '0 20px 20px' }}>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 6 }}>📈 Tarixdan tavsiyalar</div>
+        {loading ? (
+          <div style={{ color: 'var(--txt-3)', fontSize: 12 }}>Tahlil tayyorlanmoqda...</div>
+        ) : data ? (
+          <>
+            <div style={{ fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.6 }}>{data.summary}</div>
+            {data.progress && (
+              <div style={{ marginTop: 10, fontSize: 11, color: 'var(--txt-3)' }}>
+                O'rtacha ball: {data.progress.overallAvg.toFixed(2)} · So'nggi trend: {data.progress.growthTrend >= 0 ? '+' : ''}{data.progress.growthTrend}%
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ color: 'var(--txt-3)', fontSize: 12 }}>Hozircha ma'lumot yo'q.</div>
+        )}
+      </div>
+
+      {!loading && data && data.recommendations.length > 0 && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>💡 AI tavsiyalar</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {data.recommendations.map((item, idx) => (
+              <div key={idx} style={{ fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.6 }}>• {item}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!loading && data && data.drillTargets.length > 0 && (
+        <div className="card">
+          <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>⚡ Drill rejimi</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {data.drillTargets.map(target => (
+              <div key={target.subject} style={{ paddingBottom: 10, borderBottom: '1px solid var(--f)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{target.subjectName}</div>
+                    <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 2 }}>
+                      {target.accuracy}% to'g'rilik · {target.questionCount} savol
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => startDrill(target.subject, target.questionCount)}
+                  >
+                    Mashq
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!loading && data && data.weakAreas.length === 0 && (
+        <div className="card">
+          <div style={{ fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.7 }}>
+            Hali sezilarli zaif fan topilmadi. Istasangiz, kengaytirilgan testlar ishlang.
+          </div>
+          <button className="btn btn-primary btn-block btn-lg" onClick={onSubOpen} style={{ marginTop: 10 }}>
+            Obuna yoki AI limit
           </button>
         </div>
       )}

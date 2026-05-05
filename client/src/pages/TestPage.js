@@ -1,5 +1,6 @@
 import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
 import { examApi, aiApi, testApi } from '../api/endpoints';
 import { useToast } from '../components/Toast';
@@ -21,6 +22,9 @@ export default function TestPage() {
     const [historyMode, setHistoryMode] = useState('dtm');
     const [subOpen, setSubOpen] = useState(false);
     const { toast } = useToast();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const drillStartedRef = useRef(false);
     useEffect(() => {
         let alive = true;
         const loadConfig = async () => {
@@ -45,6 +49,24 @@ export default function TestPage() {
         };
         loadConfig();
     }, []);
+    useEffect(() => {
+        if (!config || drillStartedRef.current)
+            return;
+        const params = new URLSearchParams(location.search);
+        if (params.get('drill') !== '1')
+            return;
+        const subject = params.get('subject');
+        if (!subject)
+            return;
+        const rawCount = parseInt(params.get('count') || '5', 10);
+        const count = Number.isFinite(rawCount) ? Math.min(10, Math.max(1, rawCount)) : 5;
+        drillStartedRef.current = true;
+        navigate('/test', { replace: true });
+        void startSubject([subject], {
+            questionCounts: { [subject]: count },
+            durationSeconds: Math.max(10 * 60, count * 90),
+        });
+    }, [config, location.search, navigate]);
     const goHome = () => {
         setScreen('home');
         setSessionData(null);

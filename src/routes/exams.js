@@ -16,6 +16,10 @@ const {
   getSessionReview,
   getHistory,
 } = require('../services/examService');
+const {
+  getWeakSubjects,
+  generateAIRecommendations,
+} = require('../services/analyticsService');
 
 // ─── GET /api/exams/config ─────────────────────────────────────────────────
 // Frontend uchun direction va subject ro'yxati
@@ -155,6 +159,22 @@ router.get('/history', authMiddleware, async (req, res, next) => {
     const { mode, page = 1 } = req.query;
     const result = await getHistory(req.user._id, mode, parseInt(page) || 1);
     res.json(result);
+  } catch (err) { next(err); }
+});
+
+// ─── GET /api/exams/analysis/weak-subjects ─────────────────────────────────
+router.get('/analysis/weak-subjects', authMiddleware, async (req, res, next) => {
+  try {
+    const weakSubjects = await getWeakSubjects(req.user._id);
+    res.json({ weakSubjects });
+  } catch (err) { next(err); }
+});
+
+// ─── GET /api/exams/analysis/recommendations ───────────────────────────────
+router.get('/analysis/recommendations', authMiddleware, async (req, res, next) => {
+  try {
+    const payload = await generateAIRecommendations(req.user._id);
+    res.json(payload);
   } catch (err) { next(err); }
 });
 

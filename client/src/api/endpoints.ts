@@ -46,6 +46,20 @@ export const examApi = {
     api.get(`/api/exams/sessions/${sessionId}/review`),
   history: (mode?: string, page = 1) =>
     api.get('/api/exams/history', { params: { mode, page } }),
+  weakSubjects: () =>
+    api.get('/api/exams/analysis/weak-subjects'),
+  recommendations: () =>
+    api.get('/api/exams/analysis/recommendations'),
+}
+
+export const profileApi = {
+  certificates: () => api.get('/api/profile/certificates'),
+  addCertificate: (data: {
+    type: 'ielts' | 'cefr' | 'national'
+    subjectId: string
+    level?: string
+    certificateNumber?: string
+  }) => api.post('/api/profile/certificates/add', data),
 }
 
 export const aiApi = {

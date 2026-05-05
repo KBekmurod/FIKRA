@@ -1,6 +1,8 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
+import { examApi, profileApi } from '../api/endpoints';
 import SubscriptionModal from '../components/SubscriptionModal';
 import { useToast } from '../components/Toast';
 export default function ProfilePage() {
@@ -11,7 +13,10 @@ export default function ProfilePage() {
     const [certificates, setCertificates] = useState([]);
     const [certForm, setCertForm] = useState({ type: 'ielts', subjectId: 'ingliz', level: '', certificateNumber: '' });
     const [certLoading, setCertLoading] = useState(false);
+    const [weakSubjects, setWeakSubjects] = useState([]);
+    const [weakLoading, setWeakLoading] = useState(false);
     const { toast } = useToast();
+    const navigate = useNavigate();
     const isSub = user?.effectivePlan && user.effectivePlan !== 'free';
     const planLabel = {
         free: { name: 'Bepul', emoji: '🆓', color: 'var(--txt-3)' },
@@ -47,14 +52,7 @@ export default function ProfilePage() {
     const addCertificate = async () => {
         setCertLoading(true);
         try {
-            const response = await fetch('/api/profile/certificates/add', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('fikra_auth')}` },
-                body: JSON.stringify(certForm),
-            });
-            const data = await response.json();
-            if (!response.ok)
-                throw new Error(data.error || 'Xato');
+            await profileApi.addCertificate(certForm);
             toast('Sertifikat saqlandi! Adminning tasdiqini kutishda...', 'ok');
             setCertForm({ type: 'ielts', subjectId: 'ingliz', level: '', certificateNumber: '' });
             setCertOpen(false);
@@ -65,6 +63,38 @@ export default function ProfilePage() {
         finally {
             setCertLoading(false);
         }
+    };
+    useEffect(() => {
+        let alive = true;
+        setWeakLoading(true);
+        profileApi.certificates()
+            .then(({ data }) => {
+            if (!alive)
+                return;
+            setCertificates(data.certificates || []);
+        })
+            .catch(() => {
+            if (alive)
+                setCertificates([]);
+        });
+        examApi.weakSubjects()
+            .then(({ data }) => {
+            if (!alive)
+                return;
+            setWeakSubjects(data.weakSubjects || []);
+        })
+            .catch(() => {
+            if (alive)
+                setWeakSubjects([]);
+        })
+            .finally(() => {
+            if (alive)
+                setWeakLoading(false);
+        });
+        return () => { alive = false; };
+    }, []);
+    const startDrill = (subject, count = 5) => {
+        navigate(`/test?drill=1&subject=${encodeURIComponent(subject)}&count=${count}`);
     };
     return (_jsxs(_Fragment, { children: [_jsx("div", { className: "header", children: _jsxs("div", { className: "header-logo", children: ["FIKRA", _jsx("span", { children: "." })] }) }), _jsx("div", { style: { height: 6 } }), _jsx("div", { style: { padding: '0 20px' }, children: _jsxs("div", { className: "card", style: { display: 'flex', alignItems: 'center', gap: 14 }, children: [_jsx("div", { style: {
                                 width: 56,
@@ -77,7 +107,12 @@ export default function ProfilePage() {
                                 fontWeight: 800,
                                 fontSize: 22,
                                 flexShrink: 0,
-                            }, children: initials }), _jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsx("div", { style: { fontWeight: 700, fontSize: 16 }, children: user?.firstName || user?.username || 'Foydalanuvchi' }), user?.username && (_jsxs("div", { style: { fontSize: 12, color: 'var(--txt-3)', marginTop: 2 }, children: ["@", user.username] })), _jsxs("div", { style: { fontSize: 11, color: 'var(--y)', marginTop: 4, fontWeight: 700 }, children: ["\u26A1 ", (user?.xp || 0).toLocaleString(), " XP"] })] })] }) }), _jsxs("div", { style: { padding: '12px 20px 0', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }, children: [_jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--acc-l)' }, children: user?.streakDays || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83D\uDD25 Streak" })] }), _jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--g)' }, children: user?.totalGamesPlayed || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83D\uDCDA Test" })] }), _jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--y)' }, children: user?.totalAiRequests || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83E\uDD16 AI" })] })] }), _jsx("div", { className: "section-title", children: "Obuna" }), _jsx("div", { style: { padding: '0 20px' }, children: _jsx("button", { onClick: () => setSubOpen(true), style: {
+                            }, children: initials }), _jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsx("div", { style: { fontWeight: 700, fontSize: 16 }, children: user?.firstName || user?.username || 'Foydalanuvchi' }), user?.username && (_jsxs("div", { style: { fontSize: 12, color: 'var(--txt-3)', marginTop: 2 }, children: ["@", user.username] })), _jsxs("div", { style: { fontSize: 11, color: 'var(--y)', marginTop: 4, fontWeight: 700 }, children: ["\u26A1 ", (user?.xp || 0).toLocaleString(), " XP"] })] })] }) }), _jsxs("div", { style: { padding: '12px 20px 0', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }, children: [_jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--acc-l)' }, children: user?.streakDays || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83D\uDD25 Streak" })] }), _jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--g)' }, children: user?.totalGamesPlayed || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83D\uDCDA Test" })] }), _jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--y)' }, children: user?.totalAiRequests || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83E\uDD16 AI" })] })] }), _jsx("div", { className: "section-title", children: "\uD83D\uDCCA Zaif fanlar" }), _jsx("div", { style: { padding: '0 20px 0' }, children: _jsx("div", { className: "card", children: weakLoading ? (_jsx("div", { style: { fontSize: 12, color: 'var(--txt-3)' }, children: "Tahlil yuklanmoqda..." })) : weakSubjects.length ? (_jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 10 }, children: weakSubjects.slice(0, 3).map(item => (_jsxs("div", { style: { paddingBottom: 10, borderBottom: '1px solid var(--f)' }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }, children: [_jsxs("div", { children: [_jsx("div", { style: { fontWeight: 700, fontSize: 13 }, children: item.subjectName }), _jsxs("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginTop: 2 }, children: [item.correctAnswers, "/", item.totalAnswered, " to'g'ri \u00B7 ", item.accuracy.toFixed(1), "%"] })] }), _jsx("button", { onClick: () => startDrill(item.subject, item.level === 'veryWeak' ? 7 : 5), className: "btn btn-ghost btn-sm", children: "\u26A1 Drill" })] }), _jsx("div", { style: { height: 4, background: 'var(--s2)', borderRadius: 100, marginTop: 8 }, children: _jsx("div", { style: {
+                                            height: '100%',
+                                            width: `${Math.max(10, item.accuracy)}%`,
+                                            background: item.accuracy < 50 ? 'var(--r)' : 'var(--y)',
+                                            borderRadius: 100,
+                                        } }) })] }, item.subject))) })) : (_jsx("div", { style: { fontSize: 12, color: 'var(--txt-3)', lineHeight: 1.6 }, children: "Hali yetarli test tarixi yo'q. Bir nechta test ishlang, keyin zaif fanlar tahlili chiqadi." })) }) }), _jsx("div", { className: "section-title", children: "Obuna" }), _jsx("div", { style: { padding: '0 20px' }, children: _jsx("button", { onClick: () => setSubOpen(true), style: {
                         width: '100%',
                         background: 'var(--s1)',
                         border: `1.5px solid ${isSub ? 'rgba(0,212,170,0.3)' : 'rgba(123,104,238,0.25)'}`,

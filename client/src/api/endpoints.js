@@ -23,6 +23,12 @@ export const examApi = {
     finish: (sessionId) => api.post(`/api/exams/sessions/${sessionId}/finish`),
     review: (sessionId) => api.get(`/api/exams/sessions/${sessionId}/review`),
     history: (mode, page = 1) => api.get('/api/exams/history', { params: { mode, page } }),
+    weakSubjects: () => api.get('/api/exams/analysis/weak-subjects'),
+    recommendations: () => api.get('/api/exams/analysis/recommendations'),
+};
+export const profileApi = {
+    certificates: () => api.get('/api/profile/certificates'),
+    addCertificate: (data) => api.post('/api/profile/certificates/add', data),
 };
 export const aiApi = {
     hint: (question, options, subject, mode = 'hint') => api.post('/api/ai/hint', { question, options, subject, mode }),

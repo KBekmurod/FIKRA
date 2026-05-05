@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
+import { examApi, profileApi } from '../api/endpoints'
 import SubscriptionModal from '../components/SubscriptionModal'
 import InstallPWA from '../components/InstallPWA'
 import { useToast } from '../components/Toast'
@@ -14,15 +16,34 @@ interface Certificate {
   issuedDate: string
 }
 
+interface WeakSubject {
+  subject: string
+  subjectName: string
+  accuracy: number
+  totalAnswered: number
+  correctAnswers: number
+  level: 'strong' | 'medium' | 'weak' | 'veryWeak'
+}
+
+interface CertificateForm {
+  type: 'ielts' | 'cefr' | 'national'
+  subjectId: string
+  level: string
+  certificateNumber: string
+}
+
 export default function ProfilePage() {
   const { user } = useAppStore()
   const [subOpen, setSubOpen] = useState(false)
   const [installOpen, setInstallOpen] = useState(false)
   const [certOpen, setCertOpen] = useState(false)
   const [certificates, setCertificates] = useState<Certificate[]>([])
-  const [certForm, setCertForm] = useState({ type: 'ielts', subjectId: 'ingliz', level: '', certificateNumber: '' })
+  const [certForm, setCertForm] = useState<CertificateForm>({ type: 'ielts', subjectId: 'ingliz', level: '', certificateNumber: '' })
   const [certLoading, setCertLoading] = useState(false)
+  const [weakSubjects, setWeakSubjects] = useState<WeakSubject[]>([])
+  const [weakLoading, setWeakLoading] = useState(false)
   const { toast } = useToast()
+  const navigate = useNavigate()
 
   const isSub = user?.effectivePlan && user.effectivePlan !== 'free'
   const planLabel: Record<string, { name: string; emoji: string; color: string }> = {
@@ -62,13 +83,7 @@ export default function ProfilePage() {
   const addCertificate = async () => {
     setCertLoading(true)
     try {
-      const response = await fetch('/api/profile/certificates/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('fikra_auth')}` },
-        body: JSON.stringify(certForm),
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Xato')
+      await profileApi.addCertificate(certForm)
       toast('Sertifikat saqlandi! Adminning tasdiqini kutishda...', 'ok')
       setCertForm({ type: 'ielts', subjectId: 'ingliz', level: '', certificateNumber: '' })
       setCertOpen(false)
@@ -77,6 +92,37 @@ export default function ProfilePage() {
     } finally {
       setCertLoading(false)
     }
+  }
+
+  useEffect(() => {
+    let alive = true
+    setWeakLoading(true)
+    profileApi.certificates()
+      .then(({ data }) => {
+        if (!alive) return
+        setCertificates(data.certificates || [])
+      })
+      .catch(() => {
+        if (alive) setCertificates([])
+      })
+
+    examApi.weakSubjects()
+      .then(({ data }) => {
+        if (!alive) return
+        setWeakSubjects(data.weakSubjects || [])
+      })
+      .catch(() => {
+        if (alive) setWeakSubjects([])
+      })
+      .finally(() => {
+        if (alive) setWeakLoading(false)
+      })
+
+    return () => { alive = false }
+  }, [])
+
+  const startDrill = (subject: string, count = 5) => {
+    navigate(`/test?drill=1&subject=${encodeURIComponent(subject)}&count=${count}`)
   }
 
   return (
@@ -137,6 +183,49 @@ export default function ProfilePage() {
             {user?.totalAiRequests || 0}
           </div>
           <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>🤖 AI</div>
+        </div>
+      </div>
+
+      {/* Weakness Drill */}
+      <div className="section-title">📊 Zaif fanlar</div>
+      <div style={{ padding: '0 20px 0' }}>
+        <div className="card">
+          {weakLoading ? (
+            <div style={{ fontSize: 12, color: 'var(--txt-3)' }}>Tahlil yuklanmoqda...</div>
+          ) : weakSubjects.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {weakSubjects.slice(0, 3).map(item => (
+                <div key={item.subject} style={{ paddingBottom: 10, borderBottom: '1px solid var(--f)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>{item.subjectName}</div>
+                      <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 2 }}>
+                        {item.correctAnswers}/{item.totalAnswered} to'g'ri · {item.accuracy.toFixed(1)}%
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => startDrill(item.subject, item.level === 'veryWeak' ? 7 : 5)}
+                      className="btn btn-ghost btn-sm"
+                    >
+                      ⚡ Drill
+                    </button>
+                  </div>
+                  <div style={{ height: 4, background: 'var(--s2)', borderRadius: 100, marginTop: 8 }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${Math.max(10, item.accuracy)}%`,
+                      background: item.accuracy < 50 ? 'var(--r)' : 'var(--y)',
+                      borderRadius: 100,
+                    }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--txt-3)', lineHeight: 1.6 }}>
+              Hali yetarli test tarixi yo'q. Bir nechta test ishlang, keyin zaif fanlar tahlili chiqadi.
+            </div>
+          )}
         </div>
       </div>
 

@@ -2,6 +2,21 @@ const ExamSession  = require('../models/ExamSession');
 const UserAnswer   = require('../models/UserAnswer');
 const mongoose     = require('mongoose');
 
+const SUBJECT_NAMES = {
+  uztil: 'Ona tili',
+  math: 'Matematika',
+  tarix: "O'zbekiston tarixi",
+  bio: 'Biologiya',
+  kimyo: 'Kimyo',
+  fizika: 'Fizika',
+  ingliz: 'Ingliz tili',
+  inform: 'Informatika',
+  iqtisod: 'Iqtisodiyot',
+  rus: 'Rus tili',
+  geo: 'Geografiya',
+  adab: 'Adabiyot',
+};
+
 // Validate that a value is a valid MongoDB ObjectId
 function assertObjectId(value, label) {
   if (!mongoose.Types.ObjectId.isValid(value)) {
@@ -143,7 +158,104 @@ async function getUserProgress(userId) {
   };
 }
 
+// ─── 3. Weak subject analytics ─────────────────────────────────────────────
+async function getWeakSubjects(userId) {
+  assertObjectId(userId, 'userId');
+
+  const answers = await UserAnswer.find({ userId })
+    .populate({ path: 'questionId', select: 'subject' })
+    .lean();
+
+  if (!answers.length) return [];
+
+  const subjectMap = {};
+  for (const answer of answers) {
+    const subject = answer.questionId?.subject || 'unknown';
+    if (!subjectMap[subject]) subjectMap[subject] = { total: 0, correct: 0 };
+    subjectMap[subject].total += 1;
+    if (answer.isCorrect) subjectMap[subject].correct += 1;
+  }
+
+  const items = Object.entries(subjectMap).map(([subject, stats]) => {
+    const accuracy = stats.total > 0
+      ? parseFloat(((stats.correct / stats.total) * 100).toFixed(1))
+      : 0;
+
+    let level = 'strong';
+    if (accuracy < 30) level = 'veryWeak';
+    else if (accuracy < 50) level = 'weak';
+    else if (accuracy < 75) level = 'medium';
+
+    return {
+      subject,
+      subjectName: SUBJECT_NAMES[subject] || subject,
+      accuracy,
+      totalAnswered: stats.total,
+      correctAnswers: stats.correct,
+      level,
+    };
+  });
+
+  return items.sort((a, b) => a.accuracy - b.accuracy);
+}
+
+// ─── 4. AI tavsiyalar ───────────────────────────────────────────────────────
+async function generateAIRecommendations(userId) {
+  assertObjectId(userId, 'userId');
+
+  const weakSubjects = await getWeakSubjects(userId);
+  const progress = await getUserProgress(userId);
+  const topicAnalytics = await getUserTopicAnalytics(userId);
+
+  const weakAreas = weakSubjects.slice(0, 3);
+  const drillTargets = weakAreas.map(item => ({
+    subject: item.subject,
+    subjectName: item.subjectName,
+    questionCount: item.level === 'veryWeak' ? 7 : 5,
+    accuracy: item.accuracy,
+    level: item.level,
+  }));
+
+  if (!weakAreas.length) {
+    return {
+      summary: 'Hozircha sezilarli zaiflik topilmadi. Shu uslubni saqlang.',
+      weakAreas: [],
+      drillTargets: [],
+      recommendations: [
+        'Aralash testlar bilan ritmni saqlang.',
+        'Eng yuqori ball olish uchun vaqtni nazorat qiling.',
+      ],
+      progress,
+      topicAnalytics,
+    };
+  }
+
+  const recommendations = [];
+  recommendations.push(`${weakAreas[0].subjectName} bo'yicha mini-test ishlang — ${weakAreas[0].accuracy}% to'g'ri javob.`);
+  if (weakAreas[1]) {
+    recommendations.push(`${weakAreas[1].subjectName} ham e'tibor talab qiladi — ${weakAreas[1].accuracy}% natija.`);
+  }
+  if (progress.growthTrend > 0) {
+    recommendations.push(`So'nggi natijalar +${progress.growthTrend}% o'sishni ko'rsatmoqda. Shu ritmni davom ettiring.`);
+  } else if (progress.growthTrend < 0) {
+    recommendations.push(`So'nggi natijalarda ${Math.abs(progress.growthTrend)}% pasayish bor. Takror va drill kerak.`);
+  } else {
+    recommendations.push("Hozircha trend neytral. Bir necha drill sessiya foydali bo'ladi.");
+  }
+
+  return {
+    summary: `Eng zaif yo'nalishlar: ${weakAreas.map(item => item.subjectName).join(', ')}.`,
+    weakAreas,
+    drillTargets,
+    recommendations,
+    progress,
+    topicAnalytics,
+  };
+}
+
 module.exports = {
   getUserTopicAnalytics,
   getUserProgress,
+  getWeakSubjects,
+  generateAIRecommendations,
 };
