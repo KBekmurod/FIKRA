@@ -6,6 +6,7 @@ import { useToast } from '../components/Toast';
 export default function ProfilePage() {
     const { user } = useAppStore();
     const [subOpen, setSubOpen] = useState(false);
+    const [installOpen, setInstallOpen] = useState(false);
     const { toast } = useToast();
     const isSub = user?.effectivePlan && user.effectivePlan !== 'free';
     const planLabel = {
@@ -61,7 +62,122 @@ export default function ProfilePage() {
                         textAlign: 'left',
                     }, children: _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 12 }, children: [_jsx("div", { style: { fontSize: 28 }, children: plan.emoji }), _jsxs("div", { style: { flex: 1 }, children: [_jsxs("div", { style: { fontWeight: 700, fontSize: 14, color: plan.color }, children: [plan.name, " ", isSub ? 'faol' : 'rejim'] }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginTop: 3 }, children: isSub
                                             ? `${daysLeft} kun qoldi`
-                                            : 'AI imkoniyatlarni cheksiz oching' })] }), _jsx("div", { style: { fontSize: 11, color: 'var(--acc-l)', fontWeight: 700 }, children: isSub ? 'Uzaytirish ↗' : 'Obuna ↗' })] }) }) }), _jsx("div", { style: { padding: '12px 20px 0' }, children: _jsxs("div", { className: "card", children: [_jsx("div", { style: { fontWeight: 700, fontSize: 12, marginBottom: 10, color: 'var(--txt-2)' }, children: "Bugungi AI limit" }), [
+                                            : 'AI imkoniyatlarni cheksiz oching' })] }), _jsx("div", { style: { fontSize: 11, color: 'var(--acc-l)', fontWeight: 700 }, children: isSub ? 'Uzaytirish ↗' : 'Obuna ↗' })] }) }) }), _jsx("div", { className: "section-title", children: "\uD83D\uDE80 Ilovani boshqaruvi" }), _jsx("div", { style: { padding: '0 20px' }, children: _jsxs("button", { onClick: () => setInstallOpen(true), style: {
+                        width: '100%',
+                        background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
+                        border: 'none',
+                        borderRadius: 'var(--br)',
+                        padding: 16,
+                        cursor: 'pointer',
+                        color: 'white',
+                        textAlign: 'left',
+                        fontWeight: 700,
+                        fontSize: 14,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        transition: 'transform 0.2s'
+                    }, onMouseEnter: (e) => (e.currentTarget.style.transform = 'scale(1.02)'), onMouseLeave: (e) => (e.currentTarget.style.transform = 'scale(1)'), children: ["\uD83D\uDCF1 Ilovani o'rnating / Yangilash", _jsx("span", { style: { marginLeft: 'auto' }, children: "\u2197" })] }) }), installOpen && (_jsx("div", { style: {
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    zIndex: 2000
+                }, onClick: () => setInstallOpen(false), children: _jsxs("div", { onClick: (e) => e.stopPropagation(), style: {
+                        width: '100%',
+                        background: 'var(--bg)',
+                        borderTopLeftRadius: '20px',
+                        borderTopRightRadius: '20px',
+                        padding: '20px',
+                        maxHeight: '80vh',
+                        overflowY: 'auto'
+                    }, children: [_jsxs("div", { style: {
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '20px'
+                            }, children: [_jsx("h2", { style: { margin: 0, fontSize: '20px' }, children: "\uD83D\uDCF1 Ilovani o'rnating" }), _jsx("button", { onClick: () => setInstallOpen(false), style: {
+                                        background: 'none',
+                                        border: 'none',
+                                        fontSize: '20px',
+                                        cursor: 'pointer',
+                                        color: 'var(--txt-2)'
+                                    }, children: "\u2715" })] }), _jsxs("div", { style: {
+                                background: 'var(--s2)',
+                                padding: '15px',
+                                borderRadius: '10px',
+                                marginBottom: '15px'
+                            }, children: [_jsx("p", { style: { margin: '0 0 10px 0', fontWeight: 'bold', fontSize: '12px' }, children: "\uD83D\uDCCC Ilovaning URL manzili:" }), _jsxs("div", { style: {
+                                        background: 'var(--bg)',
+                                        padding: '10px',
+                                        borderRadius: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '10px',
+                                        borderLeft: '3px solid var(--acc)'
+                                    }, children: [_jsx("code", { style: {
+                                                fontSize: '11px',
+                                                color: 'var(--acc)',
+                                                flex: 1,
+                                                wordBreak: 'break-all',
+                                                fontFamily: 'monospace'
+                                            }, children: window.location.origin }), _jsx("button", { onClick: () => {
+                                                navigator.clipboard.writeText(window.location.origin);
+                                                toast('✓ URL nusxalandi!', 'ok');
+                                            }, style: {
+                                                padding: '8px 12px',
+                                                background: 'var(--acc)',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '6px',
+                                                fontSize: '12px',
+                                                fontWeight: 'bold',
+                                                cursor: 'pointer',
+                                                whiteSpace: 'nowrap'
+                                            }, children: "\uD83D\uDCCB Nusxa" })] })] }), _jsxs("div", { style: {
+                                background: 'var(--s2)',
+                                padding: '15px',
+                                borderRadius: '10px',
+                                marginBottom: '15px'
+                            }, children: [_jsx("p", { style: {
+                                        margin: '0 0 12px 0',
+                                        fontWeight: 'bold',
+                                        fontSize: '12px'
+                                    }, children: "\uD83D\uDCF1 Bosqichma-bosqich (Telegram ichidan):" }), _jsxs("ol", { style: {
+                                        margin: 0,
+                                        paddingLeft: '20px',
+                                        fontSize: '13px',
+                                        lineHeight: '1.8',
+                                        color: 'var(--txt-2)'
+                                    }, children: [_jsxs("li", { children: [_jsx("strong", { children: "Chrome brauzerini oching" }), " (Telegram brauzer emas)"] }), _jsxs("li", { children: ["URL nusxasini ", _jsx("strong", { children: "manzil sariyasiga paste qiling" })] }), _jsxs("li", { children: [_jsx("strong", { children: "3 nuqta tugmasini bosing" }), " (\u22EE) o\u02BBng burchakda"] }), _jsxs("li", { children: [_jsx("strong", { children: "\"Ekranga qo\u02BBshish\"" }), " yoki ", _jsx("strong", { children: "\"O'rnatish\"" }), " bosing"] }), _jsxs("li", { children: [_jsx("strong", { children: "\u2705 Tayyor!" }), " Ilovasi smartfonyungizda paydo bo\u02BBladi"] })] })] }), _jsx("button", { onClick: () => {
+                                window.open(window.location.origin, '_blank');
+                                setInstallOpen(false);
+                            }, style: {
+                                width: '100%',
+                                padding: '12px',
+                                background: 'var(--acc)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '10px',
+                                fontWeight: 'bold',
+                                fontSize: '14px',
+                                cursor: 'pointer',
+                                marginBottom: '8px'
+                            }, children: "\uD83C\uDF10 Chrome-da ochish" }), _jsx("button", { onClick: () => setInstallOpen(false), style: {
+                                width: '100%',
+                                padding: '12px',
+                                background: 'var(--s2)',
+                                color: 'var(--txt-2)',
+                                border: 'none',
+                                borderRadius: '10px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer'
+                            }, children: "Yopish" })] }) })), _jsx("div", { style: { padding: '12px 20px 0' }, children: _jsxs("div", { className: "card", children: [_jsx("div", { style: { fontWeight: 700, fontSize: 12, marginBottom: 10, color: 'var(--txt-2)' }, children: "Bugungi AI limit" }), [
                             { key: 'hints', name: '💡 AI Tushuntirish', limit: user?.aiLimits?.hints, used: user?.aiUsage?.hints },
                             { key: 'chats', name: '💬 AI Chat', limit: user?.aiLimits?.chats, used: user?.aiUsage?.chats },
                             { key: 'docs', name: '📄 Hujjat', limit: user?.aiLimits?.docs, used: user?.aiUsage?.docs },

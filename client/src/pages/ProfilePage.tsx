@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useAppStore } from '../store'
 import SubscriptionModal from '../components/SubscriptionModal'
+import InstallPWA from '../components/InstallPWA'
 import { useToast } from '../components/Toast'
 
 export default function ProfilePage() {
   const { user } = useAppStore()
   const [subOpen, setSubOpen] = useState(false)
+  const [installOpen, setInstallOpen] = useState(false)
   const { toast } = useToast()
 
   const isSub = user?.effectivePlan && user.effectivePlan !== 'free'
@@ -138,6 +140,226 @@ export default function ProfilePage() {
           </div>
         </button>
       </div>
+
+      {/* Install App Button */}
+      <div className="section-title">🚀 Ilovani boshqaruvi</div>
+      <div style={{ padding: '0 20px' }}>
+        <button
+          onClick={() => setInstallOpen(true)}
+          style={{
+            width: '100%',
+            background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
+            border: 'none',
+            borderRadius: 'var(--br)',
+            padding: 16,
+            cursor: 'pointer',
+            color: 'white',
+            textAlign: 'left',
+            fontWeight: 700,
+            fontSize: 14,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            transition: 'transform 0.2s'
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.02)')}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+        >
+          📱 Ilovani o'rnating / Yangilash
+          <span style={{ marginLeft: 'auto' }}>↗</span>
+        </button>
+      </div>
+
+      {/* Install Modal */}
+      {installOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            zIndex: 2000
+          }}
+          onClick={() => setInstallOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              background: 'var(--bg)',
+              borderTopLeftRadius: '20px',
+              borderTopRightRadius: '20px',
+              padding: '20px',
+              maxHeight: '80vh',
+              overflowY: 'auto'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px'
+              }}
+            >
+              <h2 style={{ margin: 0, fontSize: '20px' }}>📱 Ilovani o'rnating</h2>
+              <button
+                onClick={() => setInstallOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  color: 'var(--txt-2)'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              style={{
+                background: 'var(--s2)',
+                padding: '15px',
+                borderRadius: '10px',
+                marginBottom: '15px'
+              }}
+            >
+              <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', fontSize: '12px' }}>
+                📌 Ilovaning URL manzili:
+              </p>
+              <div
+                style={{
+                  background: 'var(--bg)',
+                  padding: '10px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  borderLeft: '3px solid var(--acc)'
+                }}
+              >
+                <code
+                  style={{
+                    fontSize: '11px',
+                    color: 'var(--acc)',
+                    flex: 1,
+                    wordBreak: 'break-all',
+                    fontFamily: 'monospace'
+                  }}
+                >
+                  {window.location.origin}
+                </code>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.origin)
+                    toast('✓ URL nusxalandi!', 'ok')
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    background: 'var(--acc)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  📋 Nusxa
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: 'var(--s2)',
+                padding: '15px',
+                borderRadius: '10px',
+                marginBottom: '15px'
+              }}
+            >
+              <p
+                style={{
+                  margin: '0 0 12px 0',
+                  fontWeight: 'bold',
+                  fontSize: '12px'
+                }}
+              >
+                📱 Bosqichma-bosqich (Telegram ichidan):
+              </p>
+              <ol
+                style={{
+                  margin: 0,
+                  paddingLeft: '20px',
+                  fontSize: '13px',
+                  lineHeight: '1.8',
+                  color: 'var(--txt-2)'
+                }}
+              >
+                <li>
+                  <strong>Chrome brauzerini oching</strong> (Telegram brauzer emas)
+                </li>
+                <li>
+                  URL nusxasini <strong>manzil sariyasiga paste qiling</strong>
+                </li>
+                <li>
+                  <strong>3 nuqta tugmasini bosing</strong> (⋮) oʻng burchakda
+                </li>
+                <li>
+                  <strong>"Ekranga qoʻshish"</strong> yoki <strong>"O'rnatish"</strong> bosing
+                </li>
+                <li>
+                  <strong>✅ Tayyor!</strong> Ilovasi smartfonyungizda paydo boʻladi
+                </li>
+              </ol>
+            </div>
+
+            <button
+              onClick={() => {
+                window.open(window.location.origin, '_blank')
+                setInstallOpen(false)
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'var(--acc)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                cursor: 'pointer',
+                marginBottom: '8px'
+              }}
+            >
+              🌐 Chrome-da ochish
+            </button>
+
+            <button
+              onClick={() => setInstallOpen(false)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'var(--s2)',
+                color: 'var(--txt-2)',
+                border: 'none',
+                borderRadius: '10px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Yopish
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Limit indikator */}
       <div style={{ padding: '12px 20px 0' }}>
