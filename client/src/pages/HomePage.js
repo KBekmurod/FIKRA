@@ -50,7 +50,21 @@ export default function HomePage() {
                             gap: 12,
                             color: 'var(--txt)',
                             cursor: 'pointer',
-                        }, children: [_jsx("div", { style: { fontSize: 28 }, children: "\uD83E\uDD16" }), _jsxs("div", { style: { flex: 1, textAlign: 'left' }, children: [_jsx("div", { style: { fontWeight: 700, fontSize: 14 }, children: "AI yordamchi" }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }, children: "Chat \u00B7 Hujjat yaratish \u00B7 Rasm" })] }), _jsx("div", { style: { fontSize: 18, color: 'var(--txt-3)' }, children: "\u2192" })] })] }), !isSub && (_jsx("div", { style: { padding: '16px 20px 0' }, children: _jsxs("button", { onClick: () => setSubOpen(true), style: {
+                        }, children: [_jsx("div", { style: { fontSize: 28 }, children: "\uD83E\uDD16" }), _jsxs("div", { style: { flex: 1, textAlign: 'left' }, children: [_jsx("div", { style: { fontWeight: 700, fontSize: 14 }, children: "AI yordamchi" }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }, children: "Chat \u00B7 Hujjat yaratish \u00B7 Rasm" })] }), _jsx("div", { style: { fontSize: 18, color: 'var(--txt-3)' }, children: "\u2192" })] }), _jsxs("button", { onClick: () => {
+                            // Odatda Service Worker ulanishida bu trigger bo'ladi
+                            // (Xozircha UI uchun asos)
+                            alert("Ilovani browser menyusidan 'Add to Home Screen' orqali o'rnating!");
+                        }, style: {
+                            background: 'var(--s2)',
+                            border: '1px dashed var(--acc-l)',
+                            borderRadius: 'var(--br)',
+                            padding: '16px 18px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12,
+                            color: 'var(--txt)',
+                            cursor: 'pointer',
+                        }, children: [_jsx("div", { style: { fontSize: 28 }, children: "\uD83D\uDCF2" }), _jsxs("div", { style: { flex: 1, textAlign: 'left' }, children: [_jsx("div", { style: { fontWeight: 700, fontSize: 14, color: 'var(--acc-l)' }, children: "Ilovani o'rnatib olish" }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }, children: "Telefon ekranidan Internetsiz va tezgina kiring" })] })] })] }), !isSub && (_jsx("div", { style: { padding: '16px 20px 0' }, children: _jsxs("button", { onClick: () => setSubOpen(true), style: {
                         width: '100%',
                         background: 'linear-gradient(135deg, rgba(123,104,238,0.12), rgba(255,204,68,0.08))',
                         border: '1px solid rgba(123,104,238,0.25)',

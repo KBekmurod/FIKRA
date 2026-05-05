@@ -116,6 +116,34 @@ export default function HomePage() {
           </div>
           <div style={{ fontSize: 18, color: 'var(--txt-3)' }}>→</div>
         </button>
+
+        {/* PWA O'rnatish (Install App) tugmasi - agar Service Worker ishlayotgan va hali o'rnatilmagan bo'lsa */}
+        <button
+          onClick={() => {
+             // Odatda Service Worker ulanishida bu trigger bo'ladi
+             // (Xozircha UI uchun asos)
+             alert("Ilovani browser menyusidan 'Add to Home Screen' orqali o'rnating!");
+          }}
+          style={{
+            background: 'var(--s2)',
+            border: '1px dashed var(--acc-l)',
+            borderRadius: 'var(--br)',
+            padding: '16px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            color: 'var(--txt)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: 28 }}>📲</div>
+          <div style={{ flex: 1, textAlign: 'left' }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--acc-l)' }}>Ilovani o'rnatib olish</div>
+            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
+              Telefon ekranidan Internetsiz va tezgina kiring
+            </div>
+          </div>
+        </button>
       </div>
 
       {/* Obuna chaqiruv */}
