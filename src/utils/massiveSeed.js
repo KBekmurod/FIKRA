@@ -1,19 +1,21 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 const TestQuestion = require('../models/TestQuestion');
-require('dotenv').config();
 
-async function connectDB() {
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/fikra';
-  await mongoose.connect(uri);
-  console.log('✅ MongoDB ga ulandi');
-}
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/fikra';
 
+// Helpers
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 function shuffle(array) {
-  return array.sort(() => Math.random() - 0.5);
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 // 1. Matematika generatori
@@ -183,38 +185,103 @@ const STATIC_QUESTIONS = [
   { subject: 'ingliz', block: 'mutaxassislik', question: 'What is the past tense of "buy"?', options: ['buyed', 'bring', 'bought', 'buying'], answer: 2, explanation: 'The past form of irregular verb "buy" is "bought".' }
 ];
 
-async function run() {
-  await connectDB();
-  console.log('🧹 Eski savollar tozalanmoqda...');
-  await TestQuestion.deleteMany({});
-  
-  let allQuestions = [];
-  
-  // 1. Matematika majburiy (500 ta)
-  allQuestions = allQuestions.concat(generateMath(500, 'majburiy'));
-  // 2. Matematika mutaxassislik (500 ta)
-  allQuestions = allQuestions.concat(generateMath(500, 'mutaxassislik'));
-  // 3. Fizika mutaxassislik (500 ta)
-  allQuestions = allQuestions.concat(generatePhysics(500));
-  // 4. Kimyo mutaxassislik (500 ta)
-  allQuestions = allQuestions.concat(generateChemistry(500));
-  
-  // 5. Statik savollarni gumanitar fanlarga tarqatish (Har birini nusxalab 10-20 marta qo'shamiz fake variation uchun)
-  // Ammo takrorlanmasligi uchun biz so'zlarni biroz o'zgartira olamiz, lekin hozir shunchaki STATICni yuboramiz.
-  allQuestions = allQuestions.concat(STATIC_QUESTIONS);
-
-  console.log(`🚀 Jami ${allQuestions.length} ta savol tayyorlandi. DB ga yozilmoqda...`);
-  
-  const chunkSize = 1000;
-  for (let i = 0; i < allQuestions.length; i += chunkSize) {
-    const chunk = allQuestions.slice(i, i + chunkSize);
-    await TestQuestion.insertMany(chunk);
-    console.log(`   ${i + chunk.length} ta savol yozildi...`);
+// generateOptions helper
+function generateOptions(correctAnswer, offset = 5) {
+  const options = new Set([correctAnswer.toString()]);
+  while (options.size < 4) {
+    const fake = (Number(correctAnswer) + randomInt(-offset, offset)).toString();
+    options.add(fake);
   }
-  
-  console.log('✅ Barcha savollar muvaffaqiyatli yuklandi!');
-  process.exit(0);
+  const shuffledOption = shuffle(Array.from(options));
+  return {
+    options: shuffledOption,
+    answer: shuffledOption.indexOf(correctAnswer.toString())
+  };
 }
 
-run().catch(console.error);
+async function runMassiveSeed() {
+  try {
+    await mongoose.connect(MONGODB_URI);
+    console.log('✅ MongoDB ga ulangan. Massive test generatsiyasi boshlandi...');
 
+    const newQuestions = [];
+
+    // MATEMATIKA: MAJBURIY (500 ta)
+    for (let i = 0; i < 500; i++) {
+      const A = randomInt(2, 9);
+      const X = randomInt(5, 50);
+      const B = randomInt(1, 99);
+      const C = A * X + B;
+      const optData = generateOptions(X, 10);
+      newQuestions.push({
+        subject: 'math', block: 'majburiy',
+        question: `Noma'lum sonni toping: ${A}x + ${B} = ${C}`,
+        options: optData.options, answer: optData.answer,
+        difficulty: 'easy', explanation: `${A}x = ${C} - ${B} => x = ${X}`
+      });
+    }
+
+    // MATEMATIKA: MUTAXASSISLIK (500 ta)
+    for (let i = 0; i < 500; i++) {
+      const a1 = randomInt(1, 30);
+      const d = randomInt(3, 15);
+      const n = randomInt(10, 50);
+      const an = a1 + (n - 1) * d;
+      const optData = generateOptions(an, 20);
+      newQuestions.push({
+        subject: 'math', block: 'mutaxassislik',
+        question: `Arifmetik progressiyaning birinchi hadi a1 = ${a1}, ayirmasi d = ${d}. Uning ${n}-hadini toping.`,
+        options: optData.options, answer: optData.answer,
+        difficulty: 'hard', explanation: `a_n = a1 + (n-1)d => ${an}`
+      });
+    }
+
+    // FIZIKA: MUTAXASSISLIK
+    for (let i = 0; i < 250; i++) {
+      const m = randomInt(2, 60);
+      const a = randomInt(2, 25);
+      const F = m * a;
+      const optData = generateOptions(F, 30);
+      newQuestions.push({ subject: 'fizika', block: 'mutaxassislik', question: `Massasi ${m} kg bo'lgan jismga qanday kuch (N) ta'sir qilsa, u ${a} m/s² tezlanish bilan harakatlanadi?`, options: optData.options, answer: optData.answer, difficulty: 'medium', explanation: `F = m * a = ${F}` });
+    }
+    for (let i = 0; i < 250; i++) {
+      const m = randomInt(1, 20) * 2;
+      const v = randomInt(5, 40);
+      const Ek = (m * Math.pow(v, 2)) / 2;
+      const optData = generateOptions(Ek, 100);
+      newQuestions.push({ subject: 'fizika', block: 'mutaxassislik', question: `Massasi ${m} kg bo'lgan jism ${v} m/s tezlik bilan harakatlanmoqda. Uning kinetik energiyasini (J) toping.`, options: optData.options, answer: optData.answer, difficulty: 'hard', explanation: `E_k = m*v^2/2 = ${Ek}` });
+    }
+
+    // KIMYO: MUTAXASSISLIK
+    const molecules = [ { name: 'Suv (H2O)', M: 18 }, { name: 'CO2', M: 44 }, { name: 'NaCl', M: 58.5 }, { name: 'H2SO4', M: 98 }, { name: 'CaCO3', M: 100 }, { name: 'Glukoza', M: 180 } ];
+    for (let i = 0; i < 500; i++) {
+      const mol = molecules[randomInt(0, molecules.length - 1)];
+      const n = randomInt(2, 20);
+      const m = mol.M * n;
+      const optData = generateOptions(m, 50);
+      optData.options = optData.options.map(o => Math.round(Number(o)).toString());
+      newQuestions.push({ subject: 'kimyo', block: 'mutaxassislik', question: `${n} mol ${mol.name} moddasining massasi qancha (g)?`, options: optData.options, answer: optData.options.indexOf(Math.round(m).toString()) !== -1 ? optData.options.indexOf(Math.round(m).toString()) : optData.answer, difficulty: 'medium', explanation: `m = n * M = ${m}` });
+    }
+
+    // Add static questions
+    newQuestions.push(...STATIC_QUESTIONS);
+
+    // Bulk insert
+    const BATCH_SIZE = 500;
+    let inserted = 0;
+    for (let i = 0; i < newQuestions.length; i += BATCH_SIZE) {
+      const batch = newQuestions.slice(i, i + BATCH_SIZE);
+      await TestQuestion.insertMany(batch);
+      inserted += batch.length;
+      console.log(`... ${inserted} ta savol yuklandi`);
+    }
+
+    console.log(`✅ Bazaga jami ${inserted} ta savol yuklandi.`);
+    process.exit(0);
+  } catch (err) {
+    console.error('Xatolik:', err);
+    process.exit(1);
+  }
+}
+
+if (require.main === module) runMassiveSeed();
