@@ -11,6 +11,28 @@ const aiUsageSchema = new mongoose.Schema({
   calories:{ type: Number, default: 0 },   // Kaloriya tahlili
 }, { _id: false });
 
+// ─── Sertifikat (IELTS, CEFR, milliy) ────────────────────────────────────────
+// Abituriyent imtihondan ozod va to'la ball oladi
+const certificateSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['ielts', 'cefr', 'national'],  // ielts, cefr=ingliz, national=fan
+    required: true,
+  },
+  subjectId: { type: String, required: true },   // 'ingliz', 'bio', 'kimyo'...
+  level: { type: String, default: '' },          // IELTS band yoki CEFR level
+  certificateNumber: { type: String, default: '' },
+  issuedDate: { type: Date, default: Date.now },
+  expiresDate: { type: Date, default: null },     // null = cheksiz
+  verifiedBy: { type: String, default: null },    // Admin username
+  verifiedAt: { type: Date, default: null },
+  verificationStatus: {
+    type: String,
+    enum: ['pending', 'verified', 'rejected'],
+    default: 'pending',
+  },
+}, { _id: true, timestamps: true });
+
 const userSchema = new mongoose.Schema({
   telegramId: {
     type: Number,
@@ -61,6 +83,9 @@ const userSchema = new mongoose.Schema({
   // ─── Referral (token bonusisiz, faqat statistika) ────────────────────────
   referredBy: { type: Number, default: null },
   referralCount: { type: Number, default: 0 },
+
+  // ─── Sertifikatlar (IELTS, CEFR, milliy) ────────────────────────────────
+  certificates: { type: [certificateSchema], default: [] },
 
   isActive: { type: Boolean, default: true },
 }, {

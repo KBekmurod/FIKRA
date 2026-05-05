@@ -4,10 +4,24 @@ import SubscriptionModal from '../components/SubscriptionModal'
 import InstallPWA from '../components/InstallPWA'
 import { useToast } from '../components/Toast'
 
+interface Certificate {
+  _id: string
+  type: 'ielts' | 'cefr' | 'national'
+  subjectId: string
+  level: string
+  certificateNumber: string
+  verificationStatus: 'pending' | 'verified' | 'rejected'
+  issuedDate: string
+}
+
 export default function ProfilePage() {
   const { user } = useAppStore()
   const [subOpen, setSubOpen] = useState(false)
   const [installOpen, setInstallOpen] = useState(false)
+  const [certOpen, setCertOpen] = useState(false)
+  const [certificates, setCertificates] = useState<Certificate[]>([])
+  const [certForm, setCertForm] = useState({ type: 'ielts', subjectId: 'ingliz', level: '', certificateNumber: '' })
+  const [certLoading, setCertLoading] = useState(false)
   const { toast } = useToast()
 
   const isSub = user?.effectivePlan && user.effectivePlan !== 'free'
@@ -42,6 +56,26 @@ export default function ProfilePage() {
       tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(text)}`)
     } else if (navigator.share) {
       navigator.share({ text, url: refLink }).catch(() => {})
+    }
+  }
+
+  const addCertificate = async () => {
+    setCertLoading(true)
+    try {
+      const response = await fetch('/api/profile/certificates/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('fikra_auth')}` },
+        body: JSON.stringify(certForm),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Xato')
+      toast('Sertifikat saqlandi! Adminning tasdiqini kutishda...', 'ok')
+      setCertForm({ type: 'ielts', subjectId: 'ingliz', level: '', certificateNumber: '' })
+      setCertOpen(false)
+    } catch (err: any) {
+      toast(err.message || 'Xato', 'err')
+    } finally {
+      setCertLoading(false)
     }
   }
 
@@ -402,6 +436,221 @@ export default function ProfilePage() {
           })}
         </div>
       </div>
+
+      {/* Sertifikatlar */}
+      <div className="section-title">📜 Sertifikatlar</div>
+      <div style={{ padding: '0 20px 24px' }}>
+        <button
+          onClick={() => setCertOpen(true)}
+          style={{
+            width: '100%',
+            background: 'var(--s1)',
+            border: '1.5px dashed rgba(123,104,238,0.4)',
+            borderRadius: 'var(--br)',
+            padding: 16,
+            cursor: 'pointer',
+            color: 'var(--acc)',
+            textAlign: 'center',
+            fontWeight: 700,
+            fontSize: 14,
+            marginBottom: 12,
+          }}
+        >
+          ＋ Sertifikat qo'shish
+        </button>
+        
+        {certificates.length > 0 && (
+          <div className="card">
+            {certificates.map((cert, idx) => (
+              <div key={idx} style={{ padding: '10px 0', borderBottom: idx < certificates.length - 1 ? '1px solid var(--f)' : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt)' }}>
+                      {cert.type === 'ielts' ? 'IELTS' : cert.type === 'cefr' ? 'CEFR' : 'Milliy'} — {cert.subjectId}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 2 }}>
+                      {cert.level && `Level: ${cert.level}`}
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    background: cert.verificationStatus === 'verified' ? 'rgba(0,212,170,0.15)' : cert.verificationStatus === 'pending' ? 'rgba(241,196,15,0.15)' : 'rgba(231,76,60,0.15)',
+                    color: cert.verificationStatus === 'verified' ? 'var(--g)' : cert.verificationStatus === 'pending' ? 'var(--y)' : 'var(--r)',
+                  }}>
+                    {cert.verificationStatus === 'verified' ? '✓ Tasdiqlangan' : cert.verificationStatus === 'pending' ? '⏳ Kutilmoqda' : '✕ Rad etildi'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {certificates.length === 0 && (
+          <div style={{
+            padding: 16,
+            background: 'var(--s1)',
+            borderRadius: 'var(--br)',
+            textAlign: 'center',
+            color: 'var(--txt-3)',
+            fontSize: 12,
+          }}>
+            Sertifikat qo'shilmagan. Sertifikat qo'shsangiz, belgilangan fanlardan avtomatik to'la ball olasiz.
+          </div>
+        )}
+      </div>
+
+      {/* Certificate Modal */}
+      {certOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            zIndex: 2000
+          }}
+          onClick={() => setCertOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              background: 'var(--bg)',
+              borderTopLeftRadius: '20px',
+              borderTopRightRadius: '20px',
+              padding: '20px',
+              maxHeight: '80vh',
+              overflowY: 'auto'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, fontSize: '20px' }}>📜 Sertifikat qo'shish</h2>
+              <button onClick={() => setCertOpen(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--txt-2)' }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt-2)' }}>Sertifikat turi</label>
+                <select
+                  value={certForm.type}
+                  onChange={(e) => setCertForm({ ...certForm, type: e.target.value as any })}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    marginTop: 6,
+                    borderRadius: 'var(--br2)',
+                    border: '1px solid var(--f)',
+                    background: 'var(--bg)',
+                    color: 'var(--txt)',
+                    fontSize: 14,
+                  }}
+                >
+                  <option value="ielts">IELTS (ingliz tili)</option>
+                  <option value="cefr">CEFR (ingliz tili sertifikati)</option>
+                  <option value="national">Milliy sertifikat</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt-2)' }}>Fan</label>
+                <select
+                  value={certForm.subjectId}
+                  onChange={(e) => setCertForm({ ...certForm, subjectId: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    marginTop: 6,
+                    borderRadius: 'var(--br2)',
+                    border: '1px solid var(--f)',
+                    background: 'var(--bg)',
+                    color: 'var(--txt)',
+                    fontSize: 14,
+                  }}
+                >
+                  <option value="ingliz">Ingliz tili</option>
+                  <option value="uztil">Ona tili</option>
+                  <option value="math">Matematika</option>
+                  <option value="tarix">O'zbekiston tarixi</option>
+                  <option value="bio">Biologiya</option>
+                  <option value="kimyo">Kimyo</option>
+                  <option value="fizika">Fizika</option>
+                  <option value="inform">Informatika</option>
+                  <option value="iqtisod">Iqtisodiyot</option>
+                  <option value="rus">Rus tili</option>
+                  <option value="geo">Geografiya</option>
+                  <option value="adab">Adabiyot</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt-2)' }}>Level/Band (ixtiyoriy)</label>
+                <input
+                  type="text"
+                  placeholder="IELTS: 7.5, CEFR: C1"
+                  value={certForm.level}
+                  onChange={(e) => setCertForm({ ...certForm, level: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    marginTop: 6,
+                    borderRadius: 'var(--br2)',
+                    border: '1px solid var(--f)',
+                    background: 'var(--bg)',
+                    color: 'var(--txt)',
+                    fontSize: 14,
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt-2)' }}>Sertifikat raqami (ixtiyoriy)</label>
+                <input
+                  type="text"
+                  placeholder="Certificate number"
+                  value={certForm.certificateNumber}
+                  onChange={(e) => setCertForm({ ...certForm, certificateNumber: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    marginTop: 6,
+                    borderRadius: 'var(--br2)',
+                    border: '1px solid var(--f)',
+                    background: 'var(--bg)',
+                    color: 'var(--txt)',
+                    fontSize: 14,
+                  }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={addCertificate}
+              disabled={certLoading}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'var(--acc)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                cursor: certLoading ? 'not-allowed' : 'pointer',
+                opacity: certLoading ? 0.7 : 1,
+              }}
+            >
+              {certLoading ? '⏳ Saqlanimoqda...' : '✓ Saqlash'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Referral */}
       <div className="section-title">Do'stni taklif qiling</div>

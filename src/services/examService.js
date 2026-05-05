@@ -1,6 +1,7 @@
 const ExamSession  = require('../models/ExamSession');
 const UserAnswer   = require('../models/UserAnswer');
 const TestQuestion = require('../models/TestQuestion');
+const User         = require('../models/User');
 const mongoose     = require('mongoose');
 
 // ─── DTM 2026 Konfiguratsiya ───────────────────────────────────────────────
@@ -260,6 +261,18 @@ async function finishExamSession(sessionId, userId) {
   if (String(session.userId) !== String(userId)) throw new Error('Ruxsat yoq');
   if (session.status === 'completed') throw new Error('Allaqachon yakunlangan');
 
+  // Sertifikatlarni olish (verified bo'lganlar)
+  const user = await User.findById(userId).select('certificates');
+  const certifiedSubjects = {};
+  if (user && user.certificates) {
+    for (const cert of user.certificates) {
+      if (cert.verificationStatus === 'verified' && 
+          (!cert.expiresDate || cert.expiresDate > new Date())) {
+        certifiedSubjects[cert.subjectId] = true;
+      }
+    }
+  }
+
   const answers = await UserAnswer.find({ sessionId });
 
   // Fan bo'yicha to'g'ri javoblar soni
@@ -270,18 +283,32 @@ async function finishExamSession(sessionId, userId) {
     else correctBySubject[a.subjectId].wrong++;
   }
 
-  // Breakdown yangilash
+  // Breakdown yangilash (sertifikatlarni hisobga olish)
   let totalScore = 0;
   const breakdown = session.subjectBreakdown.map(sb => {
-    const stats = correctBySubject[sb.subjectId] || { correct: 0, wrong: 0 };
-    const score = parseFloat((stats.correct * sb.weight).toFixed(2));
+    let score, correct, wrong;
+    
+    if (certifiedSubjects[sb.subjectId]) {
+      // Sertifikat bo'lsa, to'la ball
+      score = sb.maxScore;
+      correct = sb.questionCount;
+      wrong = 0;
+    } else {
+      // Sertifikat yo'q bo'lsa, imtihon natijalari
+      const stats = correctBySubject[sb.subjectId] || { correct: 0, wrong: 0 };
+      score = parseFloat((stats.correct * sb.weight).toFixed(2));
+      correct = stats.correct;
+      wrong = stats.wrong;
+    }
+    
     totalScore += score;
     return {
       ...sb.toObject(),
-      correct: stats.correct,
-      wrong: stats.wrong,
+      correct,
+      wrong,
       score,
       maxScore: sb.maxScore,
+      certified: certifiedSubjects[sb.subjectId] ? true : false,
     };
   });
 

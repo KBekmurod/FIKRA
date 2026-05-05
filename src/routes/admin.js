@@ -347,4 +347,122 @@ router.get('/revenue', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── GET /api/admin/certificates ────────────────────────────────────────────
+// Tasdiqlanishi kerak bo'lgan sertifikatlar
+router.get('/certificates', adminAuth, async (req, res) => {
+  try {
+    const { status = 'pending', page = 1, limit = 20 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const users = await User.find()
+      .select('_id telegramId username firstName certificates')
+      .lean();
+
+    // Sertifikatlarni foydalanuvchi bilan birga ol
+    let allCerts = [];
+    for (const user of users) {
+      for (const cert of user.certificates || []) {
+        allCerts.push({
+          certId: cert._id,
+          userId: user._id,
+          telegramId: user.telegramId,
+          userName: user.username || user.firstName,
+          type: cert.type,
+          subjectId: cert.subjectId,
+          level: cert.level,
+          certificateNumber: cert.certificateNumber,
+          issuedDate: cert.issuedDate,
+          verificationStatus: cert.verificationStatus,
+          createdAt: cert.createdAt,
+        });
+      }
+    }
+
+    // Statusga qarab filtr qil
+    if (status) {
+      allCerts = allCerts.filter(c => c.verificationStatus === status);
+    }
+
+    // Tartibi bo'yicha sort qil (eng yangilari avval)
+    allCerts = allCerts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const total = allCerts.length;
+    const certs = allCerts.slice(skip, skip + parseInt(limit));
+
+    res.json({
+      certificates: certs,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / parseInt(limit)),
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── POST /api/admin/certificates/:userId/:certId/verify ───────────────────
+// Sertifikatni tasdiqlash
+router.post('/certificates/:userId/:certId/verify', adminAuth, async (req, res) => {
+  try {
+    const { userId, certId } = req.params;
+    const adminName = req.query.admin || 'unknown';
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User topilmadi' });
+
+    const cert = user.certificates.find(c => c._id.toString() === certId);
+    if (!cert) return res.status(404).json({ error: 'Sertifikat topilmadi' });
+
+    cert.verificationStatus = 'verified';
+    cert.verifiedBy = adminName;
+    cert.verifiedAt = new Date();
+
+    await user.save();
+
+    res.json({ success: true, message: 'Sertifikat tasdiqlandi', certificate: cert });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── POST /api/admin/certificates/:userId/:certId/reject ───────────────────
+// Sertifikatni rad etish
+router.post('/certificates/:userId/:certId/reject', adminAuth, async (req, res) => {
+  try {
+    const { userId, certId } = req.params;
+    const { reason } = req.body;
+    const adminName = req.query.admin || 'unknown';
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User topilmadi' });
+
+    const cert = user.certificates.find(c => c._id.toString() === certId);
+    if (!cert) return res.status(404).json({ error: 'Sertifikat topilmadi' });
+
+    cert.verificationStatus = 'rejected';
+    cert.verifiedBy = adminName;
+    cert.verifiedAt = new Date();
+    cert.rejectionReason = reason || '';
+
+    await user.save();
+
+    res.json({ success: true, message: 'Sertifikat rad etildi', certificate: cert });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── DELETE /api/admin/certificates/:userId/:certId ──────────────────────────
+// Sertifikatni o'chirish
+router.delete('/certificates/:userId/:certId', adminAuth, async (req, res) => {
+  try {
+    const { userId, certId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User topilmadi' });
+
+    const certIndex = user.certificates.findIndex(c => c._id.toString() === certId);
+    if (certIndex < 0) return res.status(404).json({ error: 'Sertifikat topilmadi' });
+
+    user.certificates.splice(certIndex, 1);
+    await user.save();
+
+    res.json({ success: true, message: 'Sertifikat o\'chirildi' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

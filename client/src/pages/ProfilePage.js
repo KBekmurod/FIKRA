@@ -7,6 +7,10 @@ export default function ProfilePage() {
     const { user } = useAppStore();
     const [subOpen, setSubOpen] = useState(false);
     const [installOpen, setInstallOpen] = useState(false);
+    const [certOpen, setCertOpen] = useState(false);
+    const [certificates, setCertificates] = useState([]);
+    const [certForm, setCertForm] = useState({ type: 'ielts', subjectId: 'ingliz', level: '', certificateNumber: '' });
+    const [certLoading, setCertLoading] = useState(false);
     const { toast } = useToast();
     const isSub = user?.effectivePlan && user.effectivePlan !== 'free';
     const planLabel = {
@@ -38,6 +42,28 @@ export default function ProfilePage() {
         }
         else if (navigator.share) {
             navigator.share({ text, url: refLink }).catch(() => { });
+        }
+    };
+    const addCertificate = async () => {
+        setCertLoading(true);
+        try {
+            const response = await fetch('/api/profile/certificates/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('fikra_auth')}` },
+                body: JSON.stringify(certForm),
+            });
+            const data = await response.json();
+            if (!response.ok)
+                throw new Error(data.error || 'Xato');
+            toast('Sertifikat saqlandi! Adminning tasdiqini kutishda...', 'ok');
+            setCertForm({ type: 'ielts', subjectId: 'ingliz', level: '', certificateNumber: '' });
+            setCertOpen(false);
+        }
+        catch (err) {
+            toast(err.message || 'Xato', 'err');
+        }
+        finally {
+            setCertLoading(false);
         }
     };
     return (_jsxs(_Fragment, { children: [_jsx("div", { className: "header", children: _jsxs("div", { className: "header-logo", children: ["FIKRA", _jsx("span", { children: "." })] }) }), _jsx("div", { style: { height: 6 } }), _jsx("div", { style: { padding: '0 20px' }, children: _jsxs("div", { className: "card", style: { display: 'flex', alignItems: 'center', gap: 14 }, children: [_jsx("div", { style: {
@@ -195,7 +221,98 @@ export default function ProfilePage() {
                                                 borderRadius: 100,
                                                 transition: 'width 0.3s',
                                             } }) }))] }, item.key));
-                        })] }) }), _jsx("div", { className: "section-title", children: "Do'stni taklif qiling" }), _jsx("div", { style: { padding: '0 20px 24px' }, children: _jsxs("div", { className: "card", children: [_jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)', marginBottom: 8 }, children: "Sizning havolangiz" }), _jsx("div", { style: {
+                        })] }) }), _jsx("div", { className: "section-title", children: "\uD83D\uDCDC Sertifikatlar" }), _jsxs("div", { style: { padding: '0 20px 24px' }, children: [_jsx("button", { onClick: () => setCertOpen(true), style: {
+                            width: '100%',
+                            background: 'var(--s1)',
+                            border: '1.5px dashed rgba(123,104,238,0.4)',
+                            borderRadius: 'var(--br)',
+                            padding: 16,
+                            cursor: 'pointer',
+                            color: 'var(--acc)',
+                            textAlign: 'center',
+                            fontWeight: 700,
+                            fontSize: 14,
+                            marginBottom: 12,
+                        }, children: "\uFF0B Sertifikat qo'shish" }), certificates.length > 0 && (_jsx("div", { className: "card", children: certificates.map((cert, idx) => (_jsx("div", { style: { padding: '10px 0', borderBottom: idx < certificates.length - 1 ? '1px solid var(--f)' : 'none' }, children: _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between' }, children: [_jsxs("div", { children: [_jsxs("div", { style: { fontSize: 12, fontWeight: 700, color: 'var(--txt)' }, children: [cert.type === 'ielts' ? 'IELTS' : cert.type === 'cefr' ? 'CEFR' : 'Milliy', " \u2014 ", cert.subjectId] }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginTop: 2 }, children: cert.level && `Level: ${cert.level}` })] }), _jsx("div", { style: {
+                                            padding: '4px 8px',
+                                            borderRadius: 6,
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                            background: cert.verificationStatus === 'verified' ? 'rgba(0,212,170,0.15)' : cert.verificationStatus === 'pending' ? 'rgba(241,196,15,0.15)' : 'rgba(231,76,60,0.15)',
+                                            color: cert.verificationStatus === 'verified' ? 'var(--g)' : cert.verificationStatus === 'pending' ? 'var(--y)' : 'var(--r)',
+                                        }, children: cert.verificationStatus === 'verified' ? '✓ Tasdiqlangan' : cert.verificationStatus === 'pending' ? '⏳ Kutilmoqda' : '✕ Rad etildi' })] }) }, idx))) })), certificates.length === 0 && (_jsx("div", { style: {
+                            padding: 16,
+                            background: 'var(--s1)',
+                            borderRadius: 'var(--br)',
+                            textAlign: 'center',
+                            color: 'var(--txt-3)',
+                            fontSize: 12,
+                        }, children: "Sertifikat qo'shilmagan. Sertifikat qo'shsangiz, belgilangan fanlardan avtomatik to'la ball olasiz." }))] }), certOpen && (_jsx("div", { style: {
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    zIndex: 2000
+                }, onClick: () => setCertOpen(false), children: _jsxs("div", { onClick: (e) => e.stopPropagation(), style: {
+                        width: '100%',
+                        background: 'var(--bg)',
+                        borderTopLeftRadius: '20px',
+                        borderTopRightRadius: '20px',
+                        padding: '20px',
+                        maxHeight: '80vh',
+                        overflowY: 'auto'
+                    }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }, children: [_jsx("h2", { style: { margin: 0, fontSize: '20px' }, children: "\uD83D\uDCDC Sertifikat qo'shish" }), _jsx("button", { onClick: () => setCertOpen(false), style: { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--txt-2)' }, children: "\u2715" })] }), _jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }, children: [_jsxs("div", { children: [_jsx("label", { style: { fontSize: 12, fontWeight: 700, color: 'var(--txt-2)' }, children: "Sertifikat turi" }), _jsxs("select", { value: certForm.type, onChange: (e) => setCertForm({ ...certForm, type: e.target.value }), style: {
+                                                width: '100%',
+                                                padding: '10px',
+                                                marginTop: 6,
+                                                borderRadius: 'var(--br2)',
+                                                border: '1px solid var(--f)',
+                                                background: 'var(--bg)',
+                                                color: 'var(--txt)',
+                                                fontSize: 14,
+                                            }, children: [_jsx("option", { value: "ielts", children: "IELTS (ingliz tili)" }), _jsx("option", { value: "cefr", children: "CEFR (ingliz tili sertifikati)" }), _jsx("option", { value: "national", children: "Milliy sertifikat" })] })] }), _jsxs("div", { children: [_jsx("label", { style: { fontSize: 12, fontWeight: 700, color: 'var(--txt-2)' }, children: "Fan" }), _jsxs("select", { value: certForm.subjectId, onChange: (e) => setCertForm({ ...certForm, subjectId: e.target.value }), style: {
+                                                width: '100%',
+                                                padding: '10px',
+                                                marginTop: 6,
+                                                borderRadius: 'var(--br2)',
+                                                border: '1px solid var(--f)',
+                                                background: 'var(--bg)',
+                                                color: 'var(--txt)',
+                                                fontSize: 14,
+                                            }, children: [_jsx("option", { value: "ingliz", children: "Ingliz tili" }), _jsx("option", { value: "uztil", children: "Ona tili" }), _jsx("option", { value: "math", children: "Matematika" }), _jsx("option", { value: "tarix", children: "O'zbekiston tarixi" }), _jsx("option", { value: "bio", children: "Biologiya" }), _jsx("option", { value: "kimyo", children: "Kimyo" }), _jsx("option", { value: "fizika", children: "Fizika" }), _jsx("option", { value: "inform", children: "Informatika" }), _jsx("option", { value: "iqtisod", children: "Iqtisodiyot" }), _jsx("option", { value: "rus", children: "Rus tili" }), _jsx("option", { value: "geo", children: "Geografiya" }), _jsx("option", { value: "adab", children: "Adabiyot" })] })] }), _jsxs("div", { children: [_jsx("label", { style: { fontSize: 12, fontWeight: 700, color: 'var(--txt-2)' }, children: "Level/Band (ixtiyoriy)" }), _jsx("input", { type: "text", placeholder: "IELTS: 7.5, CEFR: C1", value: certForm.level, onChange: (e) => setCertForm({ ...certForm, level: e.target.value }), style: {
+                                                width: '100%',
+                                                padding: '10px',
+                                                marginTop: 6,
+                                                borderRadius: 'var(--br2)',
+                                                border: '1px solid var(--f)',
+                                                background: 'var(--bg)',
+                                                color: 'var(--txt)',
+                                                fontSize: 14,
+                                            } })] }), _jsxs("div", { children: [_jsx("label", { style: { fontSize: 12, fontWeight: 700, color: 'var(--txt-2)' }, children: "Sertifikat raqami (ixtiyoriy)" }), _jsx("input", { type: "text", placeholder: "Certificate number", value: certForm.certificateNumber, onChange: (e) => setCertForm({ ...certForm, certificateNumber: e.target.value }), style: {
+                                                width: '100%',
+                                                padding: '10px',
+                                                marginTop: 6,
+                                                borderRadius: 'var(--br2)',
+                                                border: '1px solid var(--f)',
+                                                background: 'var(--bg)',
+                                                color: 'var(--txt)',
+                                                fontSize: 14,
+                                            } })] })] }), _jsx("button", { onClick: addCertificate, disabled: certLoading, style: {
+                                width: '100%',
+                                padding: '12px',
+                                background: 'var(--acc)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '10px',
+                                fontWeight: 'bold',
+                                fontSize: '14px',
+                                cursor: certLoading ? 'not-allowed' : 'pointer',
+                                opacity: certLoading ? 0.7 : 1,
+                            }, children: certLoading ? '⏳ Saqlanimoqda...' : '✓ Saqlash' })] }) })), _jsx("div", { className: "section-title", children: "Do'stni taklif qiling" }), _jsx("div", { style: { padding: '0 20px 24px' }, children: _jsxs("div", { className: "card", children: [_jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)', marginBottom: 8 }, children: "Sizning havolangiz" }), _jsx("div", { style: {
                                 background: 'var(--s2)',
                                 border: '1px solid var(--f)',
                                 borderRadius: 'var(--br2)',
