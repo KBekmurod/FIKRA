@@ -8,6 +8,7 @@ import ProfilePage from './pages/ProfilePage'
 import AuthPage from './pages/AuthPage'
 import InstallPWA from './components/InstallPWA'
 import { ToastProvider } from './components/Toast'
+import { flushOfflineResultQueue } from './utils/offlineSync'
 
 function FullLoader() {
   return (
@@ -73,7 +74,18 @@ export default function App() {
         refreshUser()
       }
     }, 30000)
-    return () => clearInterval(t)
+
+    const syncOfflineResults = () => {
+      flushOfflineResultQueue().catch(() => {})
+    }
+
+    syncOfflineResults()
+    window.addEventListener('online', syncOfflineResults)
+
+    return () => {
+      clearInterval(t)
+      window.removeEventListener('online', syncOfflineResults)
+    }
   }, [])
 
   if (!bootstrapped || loading) return <FullLoader />

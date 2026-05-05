@@ -13,6 +13,7 @@ import {
   type ExamConfigCache,
   type OfflineSessionData,
 } from '../utils/offlinePractice'
+import { enqueueOfflineResult } from '../utils/offlineSync'
 
 // ─── Turlar ────────────────────────────────────────────────────────────────
 type Screen =
@@ -583,6 +584,17 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }: any) {
 
     if (offline) {
       const offlineResult = calculateOfflineResult(sessionData as OfflineSessionData, offlineAnswers)
+      enqueueOfflineResult({
+        gameType: sessionData.mode === 'dtm' ? 'dtm' : 'subject',
+        subject: sessionData.mode === 'subject'
+          ? (sessionData.subjectBreakdown?.map((item: any) => item.subjectId).join(',') || undefined)
+          : undefined,
+        direction: sessionData.direction,
+        ballAmount: Math.round(offlineResult.totalScore),
+        maxBall: Math.round(offlineResult.maxTotalScore),
+        correctCount: Object.values(offlineAnswers).filter(item => item.isCorrect).length,
+        totalQuestions: questions.length,
+      })
       onFinish(offlineResult)
       return
     }

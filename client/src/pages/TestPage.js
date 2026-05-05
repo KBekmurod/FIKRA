@@ -5,6 +5,7 @@ import { examApi, aiApi, testApi } from '../api/endpoints';
 import { useToast } from '../components/Toast';
 import SubscriptionModal from '../components/SubscriptionModal';
 import { buildOfflineDtmSession, buildOfflineSubjectSession, calculateOfflineResult, getCachedExamConfig, saveCachedExamConfig, warmOfflineQuestionBank, } from '../utils/offlinePractice';
+import { enqueueOfflineResult } from '../utils/offlineSync';
 const SUBJECT_EMOJI = {
     uztil: '🔤', math: '➕', tarix: '🏛️', bio: '🧬', kimyo: '⚗️',
     fizika: '⚛️', ingliz: '🇬🇧', inform: '💻', iqtisod: '💰', rus: '🇷🇺',
@@ -272,6 +273,17 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }) {
             clearInterval(timerRef.current);
         if (offline) {
             const offlineResult = calculateOfflineResult(sessionData, offlineAnswers);
+            enqueueOfflineResult({
+                gameType: sessionData.mode === 'dtm' ? 'dtm' : 'subject',
+                subject: sessionData.mode === 'subject'
+                    ? (sessionData.subjectBreakdown?.map((item) => item.subjectId).join(',') || undefined)
+                    : undefined,
+                direction: sessionData.direction,
+                ballAmount: Math.round(offlineResult.totalScore),
+                maxBall: Math.round(offlineResult.maxTotalScore),
+                correctCount: Object.values(offlineAnswers).filter(item => item.isCorrect).length,
+                totalQuestions: questions.length,
+            });
             onFinish(offlineResult);
             return;
         }

@@ -9,6 +9,7 @@ import ProfilePage from './pages/ProfilePage';
 import AuthPage from './pages/AuthPage';
 import InstallPWA from './components/InstallPWA';
 import { ToastProvider } from './components/Toast';
+import { flushOfflineResultQueue } from './utils/offlineSync';
 function FullLoader() {
     return (_jsxs("div", { className: "full-loader", children: [_jsxs("div", { className: "full-loader-text", children: ["FIKRA", _jsx("span", { children: "." })] }), _jsx("div", { className: "spin" })] }));
 }
@@ -50,7 +51,15 @@ export default function App() {
                 refreshUser();
             }
         }, 30000);
-        return () => clearInterval(t);
+        const syncOfflineResults = () => {
+            flushOfflineResultQueue().catch(() => { });
+        };
+        syncOfflineResults();
+        window.addEventListener('online', syncOfflineResults);
+        return () => {
+            clearInterval(t);
+            window.removeEventListener('online', syncOfflineResults);
+        };
     }, []);
     if (!bootstrapped || loading)
         return _jsx(FullLoader, {});
