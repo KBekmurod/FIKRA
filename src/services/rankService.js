@@ -72,7 +72,7 @@ async function addXp(userId, telegramId, amount, source, meta = {}) {
   if (!amount || amount <= 0) return null;
 
   // Foydalanuvchini olish
-  const userBefore = await User.findById(userId).select('xp rank rankLevel streakDays plan');
+  const userBefore = await User.findById(userId).select('xp rank rankLevel streakDays plan planExpiresAt');
   if (!userBefore) return null;
 
   // Multiplier (streak, obuna)

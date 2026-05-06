@@ -167,6 +167,9 @@ router.post('/login', authLimiter, async (req, res, next) => {
       if (tgUser.first_name && user.firstName !== tgUser.first_name) {
         user.firstName = tgUser.first_name; dirty = true;
       }
+      if (tgUser.last_name !== undefined && user.lastName !== (tgUser.last_name || '')) {
+        user.lastName = tgUser.last_name || ''; dirty = true;
+      }
       if (dirty) await user.save();
     }
 
@@ -194,6 +197,9 @@ router.post('/refresh', async (req, res) => {
     if (!refreshToken) return res.status(400).json({ error: 'Refresh token kerak' });
 
     const jwt = require('jsonwebtoken');
+    if (!process.env.JWT_REFRESH_SECRET) {
+      return res.status(500).json({ error: 'Server konfiguratsiya xatosi' });
+    }
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
     const user = await User.findById(decoded.userId);
@@ -316,6 +322,61 @@ router.post('/google', authLimiter, async (req, res, next) => {
       accessToken,
       refreshToken,
       user: { ..._serializeUser(user, rankProgress), isNew },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /api/auth/link-telegram ────────────────────────────────────────────
+// Chrome'dan (phone/Google) kirgan user Telegram WebApp'da ochilganda
+// uning mavjud akkauntiga telegramId'ni ulaydi.
+// Auth: Bearer token (mavjud login) + body: { initData }
+router.post('/link-telegram', authLimiter, authMiddleware, async (req, res, next) => {
+  try {
+    const { initData } = req.body;
+    if (!initData) return res.status(400).json({ error: 'initData kerak' });
+
+    const tgUser = verifyTelegramInitData(initData);
+    if (!tgUser) return res.status(401).json({ error: 'Telegram initData yaroqsiz' });
+
+    const user = req.user;
+
+    // Bu telegramId boshqa userda mavjudmi?
+    const existing = await User.findOne({ telegramId: tgUser.id });
+    if (existing && String(existing._id) !== String(user._id)) {
+      // Boshqa user allaqachon bu telegramId bilan — xato
+      return res.status(409).json({
+        error: 'Bu Telegram akkaunt allaqachon boshqa hisob bilan bog\'liq',
+        code: 'TELEGRAM_ALREADY_LINKED',
+      });
+    }
+
+    // O'zida allaqachon bog'liq bo'lsa — ham muvaffaqiyatli
+    if (user.telegramId === tgUser.id) {
+      const { getProgress } = require('../services/rankService');
+      const rankProgress = getProgress(user.xp || 0);
+      return res.json({ success: true, alreadyLinked: true, user: _serializeUser(user, rankProgress) });
+    }
+
+    // telegramId va Telegram ma'lumotlarini ulash
+    user.telegramId = tgUser.id;
+    if (!user.username && tgUser.username) user.username = tgUser.username;
+    if (!user.firstName && tgUser.first_name) user.firstName = tgUser.first_name;
+    if (!user.lastName && tgUser.last_name) user.lastName = tgUser.last_name;
+    if (!user.photoUrl && tgUser.photo_url) user.photoUrl = tgUser.photo_url;
+    await user.save();
+
+    // Yangi token — telegramId qo'shilgan holda
+    const { accessToken, refreshToken } = generateTokens(user._id, tgUser.id);
+    const { getProgress } = require('../services/rankService');
+    const rankProgress = getProgress(user.xp || 0);
+
+    res.json({
+      success: true,
+      accessToken,
+      refreshToken,
+      user: _serializeUser(user, rankProgress),
     });
   } catch (err) {
     next(err);

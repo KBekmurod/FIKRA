@@ -31,29 +31,44 @@ api.interceptors.request.use(config => {
   return config
 })
 
-let _refreshing = false
+// ─── Refresh token race condition'ni oldini oluvchi queue ────────────────────
+let _refreshPromise: Promise<string | null> | null = null
+
+async function refreshAccessToken(): Promise<string | null> {
+  const auth = getStoredAuth()
+  if (!auth?.refresh) return null
+  try {
+    const r = await axios.post(`${API_BASE}/api/auth/refresh`, { refreshToken: auth.refresh })
+    if (r.data.accessToken) {
+      setAuth(r.data.accessToken, r.data.refreshToken ?? auth.refresh, auth.tgId)
+      return r.data.accessToken
+    }
+    return null
+  } catch {
+    clearAuth()
+    return null
+  }
+}
+
 api.interceptors.response.use(
   res => res,
   async (err: AxiosError) => {
     const cfg: any = err.config
-    const auth = getStoredAuth()
-    if (err.response?.status === 401 && auth?.refresh && !cfg.__retry) {
+    if (err.response?.status === 401 && !cfg.__retry) {
       cfg.__retry = true
-      if (_refreshing) return Promise.reject(err)
-      _refreshing = true
-      try {
-        const r = await axios.post(`${API_BASE}/api/auth/refresh`, { refreshToken: auth.refresh })
-        if (r.data.accessToken) {
-          setAuth(r.data.accessToken, r.data.refreshToken, auth.tgId)
-          cfg.headers.Authorization = `Bearer ${r.data.accessToken}`
-          return api.request(cfg)
-        }
-      } catch {
-        clearAuth()
-        window.location.reload()
-      } finally {
-        _refreshing = false
+      // Bir vaqtda ko'p refresh so'rovi kelsa — bitta promise'ni kutamiz
+      if (!_refreshPromise) {
+        _refreshPromise = refreshAccessToken().finally(() => {
+          _refreshPromise = null
+        })
       }
+      const newToken = await _refreshPromise
+      if (newToken) {
+        cfg.headers.Authorization = `Bearer ${newToken}`
+        return api.request(cfg)
+      }
+      // Token yangilanmadi — sahifani qayta yuklash
+      window.location.reload()
     }
     return Promise.reject(err)
   }

@@ -21,24 +21,42 @@ declare global {
   }
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((set) => ({
   user: null,
   loading: true,
   error: null,
 
   login: async () => {
     set({ loading: true, error: null })
+
     const tg = window.Telegram?.WebApp
     const initData = tg?.initData || ''
     const initUser = tg?.initDataUnsafe?.user
     const tid = initUser?.id
 
-    // Agar Telegramdan kirmasa va saqlangan token bo'lmasa => user: null qoldiramiz (Login pageni ko'rsatish uchun)
     const stored = getStoredAuth()
-    
-    if (stored) {
+
+    // ─── 1-qadam: Saqlangan token bor bo'lsa — uni sinab ko'ramiz ───────────
+    if (stored?.access) {
       try {
         const { data } = await authApi.me()
+
+        // ─── Telegram WebApp'da ochilgan bo'lsa va token bor, lekin
+        //     bu user'da telegramId yo'q (Chrome'dan kirgan) —
+        //     avtomatik link qilish urinishini qilamiz ──────────────────────
+        if (initData && tid && !data.telegramId) {
+          try {
+            const { data: linked } = await authApi.linkTelegram(initData)
+            if (linked.accessToken) {
+              setAuth(linked.accessToken, linked.refreshToken, tid)
+            }
+            set({ user: linked.user, loading: false })
+            return
+          } catch (linkErr: any) {
+            console.warn('[FIKRA] Telegram link failed:', linkErr?.response?.data?.error)
+          }
+        }
+
         set({ user: data, loading: false })
         return
       } catch {
@@ -46,6 +64,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
+    // ─── 2-qadam: Token yo'q, Telegram WebApp bor — Telegram orqali kirish ──
     if (initData && tid) {
       try {
         const refCode = new URLSearchParams(window.location.search).get('ref')
@@ -55,11 +74,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ user: data.user, loading: false })
         return
       } catch (e: any) {
-        console.warn('[FIKRA] Telegram Login error:', e.message)
+        console.warn('[FIKRA] Telegram login error:', e.message)
       }
     }
 
-    // Hech qanday auth topilmadi => Auth page
+    // ─── 3-qadam: Hech qanday auth topilmadi — AuthPage ko'rsatiladi ────────
     set({ user: null, loading: false })
   },
 
@@ -70,5 +89,5 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {}
   },
 
-  logout: () => { clearAuth(); set({ user: null }) }
+  logout: () => { clearAuth(); set({ user: null }) },
 }))

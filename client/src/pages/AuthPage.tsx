@@ -13,7 +13,9 @@ export default function AuthPage() {
   const [lastName, setLastName] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const { refreshUser } = useAppStore()
+  // store'dan to'g'ridan-to'g'ri set qilish uchun refreshUser o'rniga
+  // login qilingandan keyin user'ni store'ga set qilamiz
+  const refreshUser = useAppStore(s => s.refreshUser)
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,6 +25,7 @@ export default function AuthPage() {
       if (isLogin) {
         const { data } = await authApi.loginStandard(phone, password)
         setAuth(data.accessToken, data.refreshToken, data.user.telegramId || 0)
+        // refreshUser() /api/auth/me ga yangi so'rov yuboradi va user'ni store'ga set qiladi
         await refreshUser()
       } else {
         const { data } = await authApi.register(phone, password, firstName, lastName)

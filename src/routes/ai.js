@@ -65,7 +65,10 @@ router.post('/hint',
         ? await ai.explainTestQuestion(question, options || [], subject || '')
         : await ai.getTestHint(question, options || [], subject || '');
 
-      const usedAfter = req.user.getAiUsage('hints') + 1;
+      // incrementAiUsage chaqirilgandan keyin yangilangan qiymatni olish (stale bo'lmasin)
+      const User = require('../models/User');
+      const freshUser = await User.findById(req.user._id).select('aiUsage plan planExpiresAt');
+      const usedAfter = freshUser ? freshUser.getAiUsage('hints') : (req.user.getAiUsage('hints') + 1);
       const limit = req.user.getAiLimit('hints');
       res.json({
         success: true,

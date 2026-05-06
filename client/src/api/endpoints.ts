@@ -18,6 +18,10 @@ export const authApi = {
     api.post<{ accessToken: string; refreshToken: string; user: User }>(
       '/api/auth/google', { token }
     ),
+  linkTelegram: (initData: string) =>
+    api.post<{ success: boolean; accessToken?: string; refreshToken?: string; user: User; alreadyLinked?: boolean }>(
+      '/api/auth/link-telegram', { initData }
+    ),
   me: () => api.get<User>('/api/auth/me'),
   rank: () => api.get('/api/auth/rank'),
 }

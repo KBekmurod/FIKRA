@@ -94,7 +94,11 @@ router.post('/sessions/:id/answer', authMiddleware, async (req, res, next) => {
     if (questionId === undefined || selectedOption === undefined) {
       return res.status(400).json({ error: 'questionId va selectedOption kerak' });
     }
-    const result = await submitAnswer(req.params.id, req.user._id, questionId, selectedOption);
+    const optionIndex = parseInt(selectedOption);
+    if (isNaN(optionIndex) || optionIndex < 0 || optionIndex > 3) {
+      return res.status(400).json({ error: 'selectedOption 0-3 oraligida bo\'lishi kerak' });
+    }
+    const result = await submitAnswer(req.params.id, req.user._id, questionId, optionIndex);
     res.json({ saved: true, isCorrect: result.isCorrect, correctIndex: result.correctIndex, explanation: result.explanation });
   } catch (err) { next(err); }
 });
