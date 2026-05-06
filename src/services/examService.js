@@ -365,4 +365,123 @@ module.exports = {
   finishExamSession,
   getSessionReview,
   getHistory,
+  // Weakness drill generator
+  startWeaknessDrill: async function(userId, options = {}) {
+    const { getUserTopicAnalytics, getWeakSubjects } = require('./analyticsService');
+    assertObjectId(userId, 'userId');
+
+    const topicAnalytics = await getUserTopicAnalytics(userId);
+    // Flatten topics to list { subject, topic, accuracy, total }
+    let topicList = [];
+    for (const sa of topicAnalytics) {
+      for (const t of sa.topics) {
+        topicList.push({ subject: sa.subject, topic: t.topic, accuracy: t.accuracy, total: t.total, isWeak: t.isWeak });
+      }
+    }
+
+    // Prefer explicit weak topics, otherwise fall back to weakest subjects
+    topicList = topicList.filter(t => t.total > 0).sort((a,b) => a.accuracy - b.accuracy);
+
+    const weakTopics = topicList.filter(t => t.isWeak);
+    const targets = [];
+
+    if (weakTopics.length === 0) {
+      // Fallback: pick weakest subjects
+      const weakSubs = await getWeakSubjects(userId);
+      for (const s of weakSubs.slice(0, 3)) {
+        targets.push({ subject: s.subject, topic: null, accuracy: s.accuracy, count: s.level === 'veryWeak' ? 8 : 5 });
+      }
+    } else {
+      for (const t of weakTopics.slice(0, 6)) {
+        targets.push({ subject: t.subject, topic: t.topic, accuracy: t.accuracy, count: t.total >= 5 ? 5 : Math.max(3, t.total) });
+      }
+    }
+
+    // Allow overriding totalQuestions
+    const totalQuestionsOpt = options.totalQuestions || null;
+
+    // Collect questions
+    const allQuestions = [];
+    for (const target of targets) {
+      const want = totalQuestionsOpt ? Math.ceil(totalQuestionsOpt / targets.length) : (target.count || 5);
+      let qs = [];
+      if (target.topic) {
+        qs = await TestQuestion.aggregate([
+          { $match: { subject: target.subject, topic: target.topic } },
+          { $sample: { size: want } },
+        ]);
+      }
+      // Fallback to subject-level if not enough
+      if (!qs || qs.length < want) {
+        const need = Math.max(0, want - (qs ? qs.length : 0));
+        const more = await TestQuestion.aggregate([
+          { $match: { subject: target.subject } },
+          { $sample: { size: need } },
+        ]);
+        qs = (qs || []).concat(more || []);
+      }
+      allQuestions.push(...(qs || []));
+    }
+
+    // If still empty, fallback to random small pack
+    if (!allQuestions.length) {
+      const fallback = await TestQuestion.aggregate([{ $sample: { size: 10 } }]);
+      allQuestions.push(...fallback);
+    }
+
+    // Limit totalQuestions if requested
+    let finalQuestions = allQuestions;
+    if (options.totalQuestions) finalQuestions = finalQuestions.slice(0, options.totalQuestions);
+
+    const questionIds = finalQuestions.map(q => q._id);
+
+    // Build a topic-based breakdown (group by subject/topic)
+    const subjectBreakdown = [];
+    const groupKey = (q) => `${q.subject}__${q.topic || 'general'}`;
+    const groups = {};
+    for (const q of finalQuestions) {
+      const k = groupKey(q);
+      if (!groups[k]) groups[k] = { subjectId: q.subject, topic: q.topic || 'general', questionCount: 0, weight: 1 };
+      groups[k].questionCount += 1;
+    }
+    for (const k of Object.keys(groups)) {
+      const g = groups[k];
+      subjectBreakdown.push({
+        subjectId: g.subjectId,
+        subjectName: SUBJECT_META[g.subjectId]?.name || g.subjectId,
+        block: 'drill',
+        weight: g.weight,
+        questionCount: g.questionCount,
+        correct: 0, wrong: 0, score: 0, maxScore: parseFloat((g.questionCount * g.weight).toFixed(2)),
+      });
+    }
+
+    const maxTotalScore = subjectBreakdown.reduce((s, x) => s + x.maxScore, 0);
+
+    const durationSeconds = options.durationSeconds || Math.max(10 * 60, finalQuestions.length * 90);
+
+    const session = await ExamSession.create({
+      userId,
+      mode: 'drill',
+      direction: null,
+      selectedSubjects: Object.keys(groups),
+      questionIds,
+      durationSeconds,
+      status: 'in_progress',
+      startTime: new Date(),
+      subjectBreakdown,
+      maxTotalScore: parseFloat(maxTotalScore.toFixed(2)),
+    });
+
+    const safeQuestions = finalQuestions.map(q => ({
+      _id: q._id,
+      subject: q.subject,
+      question: q.question,
+      options: q.options,
+      difficulty: q.difficulty,
+      topic: q.topic,
+    }));
+
+    return { session, questions: safeQuestions };
+  }
 };

@@ -11,6 +11,7 @@ const {
   COMPULSORY_SUBJECTS,
   startDtmSession,
   startSubjectSession,
+  // startWeaknessDrill will be added dynamically
   submitAnswer,
   finishExamSession,
   getSessionReview,
@@ -175,6 +176,23 @@ router.get('/analysis/recommendations', authMiddleware, async (req, res, next) =
   try {
     const payload = await generateAIRecommendations(req.user._id);
     res.json(payload);
+  } catch (err) { next(err); }
+});
+
+// ─── POST /api/exams/start-weakness-drill ─────────────────────────────────
+router.post('/start-weakness-drill', authMiddleware, async (req, res, next) => {
+  try {
+    const { totalQuestions, durationSeconds } = req.body || {};
+    const { startWeaknessDrill } = require('../services/examService');
+    const result = await startWeaknessDrill(req.user._id, { totalQuestions, durationSeconds });
+    res.json({
+      sessionId: result.session._id,
+      mode: 'drill',
+      durationSeconds: result.session.durationSeconds,
+      subjectBreakdown: result.session.subjectBreakdown,
+      maxTotalScore: result.session.maxTotalScore,
+      questions: result.questions,
+    });
   } catch (err) { next(err); }
 });
 

@@ -54,6 +54,8 @@ export const examApi = {
     api.get('/api/exams/analysis/weak-subjects'),
   recommendations: () =>
     api.get('/api/exams/analysis/recommendations'),
+  startWeaknessDrill: (opts?: { totalQuestions?: number; durationSeconds?: number }) =>
+    api.post('/api/exams/start-weakness-drill', opts || {}),
 }
 
 export const profileApi = {

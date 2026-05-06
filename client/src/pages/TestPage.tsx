@@ -104,6 +104,15 @@ export default function TestPage() {
     })
   }, [config, location.search, navigate])
 
+  // Support starting drill via location.state (from AIPage)
+  useEffect(() => {
+    const state: any = (location as any).state
+    if (state && state.drillSession) {
+      setSessionData(state.drillSession)
+      setScreen('quiz')
+    }
+  }, [location])
+
   const goHome = () => {
     setScreen('home')
     setSessionData(null)

@@ -447,8 +447,14 @@ function AnalysisTab({ onSubOpen }: { onSubOpen: () => void }) {
     return () => { alive = false }
   }, [toast])
 
-  const startDrill = (subject: string, count: number) => {
-    navigate(`/test?drill=1&subject=${encodeURIComponent(subject)}&count=${count}`)
+  const startDrill = async (subject: string, count: number) => {
+    try {
+      const { data } = await examApi.startWeaknessDrill({ totalQuestions: count })
+      // Navigate to Test page with session data in state
+      navigate('/test', { state: { drillSession: data } })
+    } catch (err: any) {
+      toast(err.response?.data?.error || 'Drill boshlashda xatolik', 'err')
+    }
   }
 
   return (
