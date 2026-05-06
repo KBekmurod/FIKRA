@@ -225,4 +225,102 @@ router.get('/rank', authMiddleware, async (req, res) => {
   });
 });
 
+// ─── POST /api/auth/google (Google OAuth) ────────────────────────────────────
+router.post('/google', authLimiter, async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: 'Google token kerak' });
+    }
+
+    // Google token verification
+    const { OAuth2Client } = require('google-auth-library');
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+    if (!googleClientId) {
+      return res.status(500).json({ error: 'Google OAuth konfiguratsiyasi yo\'q' });
+    }
+
+    const client = new OAuth2Client(googleClientId);
+    let ticket;
+    try {
+      ticket = await client.verifyIdToken({
+        idToken: token,
+        audience: googleClientId,
+      });
+    } catch (err) {
+      return res.status(401).json({ error: 'Google token yaroqsiz' });
+    }
+
+    const payload = ticket.getPayload();
+    const googleId = payload.sub;
+    const email = payload.email;
+    const firstName = payload.given_name || '';
+    const lastName = payload.family_name || '';
+    const photoUrl = payload.picture || '';
+
+    // User mavjud bo'lsa yoki yangi bo'lsa
+    let user = await User.findOne({ googleId });
+    let isNew = false;
+
+    if (!user) {
+      // Email orqali ham tekshiramiz
+      user = await User.findOne({ email });
+      if (!user) {
+        // Yangi user yarataramiz
+        user = await User.create({
+          googleId,
+          email,
+          firstName,
+          lastName,
+          photoUrl,
+          googleName: `${firstName} ${lastName}`.trim(),
+        });
+        isNew = true;
+      } else {
+        // Email mavjud edi, googleId'ni qo'shamiz
+        user.googleId = googleId;
+        if (!user.firstName && firstName) user.firstName = firstName;
+        if (!user.lastName && lastName) user.lastName = lastName;
+        if (!user.photoUrl && photoUrl) user.photoUrl = photoUrl;
+        await user.save();
+      }
+    } else {
+      // Google user mavjud — email va profil yangilanishi
+      let dirty = false;
+      if (user.email !== email) {
+        user.email = email;
+        dirty = true;
+      }
+      if (firstName && user.firstName !== firstName) {
+        user.firstName = firstName;
+        dirty = true;
+      }
+      if (lastName && user.lastName !== lastName) {
+        user.lastName = lastName;
+        dirty = true;
+      }
+      if (photoUrl && user.photoUrl !== photoUrl) {
+        user.photoUrl = photoUrl;
+        dirty = true;
+      }
+      if (dirty) await user.save();
+    }
+
+    user.updateStreak();
+    await user.save();
+
+    const { accessToken, refreshToken } = generateTokens(user._id, user.telegramId || null);
+    const { getProgress } = require('../services/rankService');
+    const rankProgress = getProgress(user.xp || 0);
+
+    res.json({
+      accessToken,
+      refreshToken,
+      user: { ..._serializeUser(user, rankProgress), isNew },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

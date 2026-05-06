@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { GoogleOAuthProvider } from '@react-oauth/google'
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useAppStore } from './store'
 import HomePage from './pages/HomePage'
@@ -93,10 +94,12 @@ export default function App() {
   if (!user) {
     return (
       <div className="app">
-        <ToastProvider>
-          <AuthPage />
-          <InstallPWA />
-        </ToastProvider>
+        <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
+          <ToastProvider>
+            <AuthPage />
+            <InstallPWA />
+          </ToastProvider>
+        </GoogleOAuthProvider>
       </div>
     )
   }

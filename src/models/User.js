@@ -49,6 +49,21 @@ const userSchema = new mongoose.Schema({
   password: { 
     type: String, // Hech qachon ochiq saqlanmaydi (Bcrypt ishlatamiz)
   },
+  // ─── Google OAuth ────────────────────────────────────────────────────────
+  googleId: {
+    type: String,
+    sparse: true,
+    unique: true,
+    index: true,
+  },
+  email: {
+    type: String,
+    sparse: true,
+    unique: true,
+    index: true,
+  },
+  googleName: { type: String, default: '' },
+  // ──────────────────────────────────────────────────────────────────────────
   username: { type: String, default: '' },
   firstName: { type: String, default: '' },
   lastName: { type: String, default: '' },

@@ -14,6 +14,10 @@ export const authApi = {
     api.post<{ accessToken: string; refreshToken: string; user: User }>(
       '/api/auth/register', { phone, password, firstName, lastName }
     ),
+  googleLogin: (token: string) =>
+    api.post<{ accessToken: string; refreshToken: string; user: User }>(
+      '/api/auth/google', { token }
+    ),
   me: () => api.get<User>('/api/auth/me'),
   rank: () => api.get('/api/auth/rank'),
 }
