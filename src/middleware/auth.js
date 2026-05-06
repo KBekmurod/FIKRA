@@ -120,7 +120,7 @@ function requirePlan(minPlan) {
 }
 
 // ─── AI kunlik limit tekshirish (atomic increment) ───────────────────────────
-// kind: 'hints' | 'chats' | 'docs' | 'images' | 'calories' | 'games'
+// kind: 'hints' | 'chats' | 'docs' | 'images'
 // Muvaffaqiyatli o'tsa, req.aiKind ga yoziladi (keyinroq incrementAiUsage chaqirish uchun)
 function requireAiAccess(kind) {
   return async (req, res, next) => {
@@ -179,7 +179,7 @@ async function incrementAiUsage(userId, kind) {
             // Yangi kun — reset
             {
               date: todayKey,
-              hints: 0, chats: 0, docs: 0, images: 0, calories: 0, games: 0,
+              hints: 0, chats: 0, docs: 0, images: 0,
               [kind]: 1,
             },
           ],

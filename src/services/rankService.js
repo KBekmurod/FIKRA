@@ -108,30 +108,10 @@ logger.info(`XP added: user=${telegramId} +${finalXp}xp (base ${amount} x${multi
   };
 }
 
-// ─── Leaderboard uchun top XP ────────────────────────────────────────────────
-async function getTopByXp(limit = 50) {
-  const users = await User.find({ isActive: true })
-    .select('telegramId firstName xp rank rankLevel')
-    .sort({ xp: -1 })
-    .limit(limit)
-    .lean();
-  return users.map((u, i) => ({
-    rank: i + 1,
-    telegramId: u.telegramId,
-    username: u.firstName || 'Anonim',
-    xp: u.xp || 0,
-    rankId: u.rank,
-    rankLevel: u.rankLevel,
-    ...getRankByXp(u.xp || 0), // emoji, color, name
-    score: u.xp || 0, // reyting uchun
-  }));
-}
-
 module.exports = {
   RANKS,
   getRankByXp,
   getNextRank,
   getProgress,
   addXp,
-  getTopByXp,
 };

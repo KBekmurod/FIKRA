@@ -17,9 +17,8 @@ function _serializeUser(user, rankProgress) {
   const todayKey = User.todayKey();
   const aiUsage = user.aiUsage?.date === todayKey
     ? { hints: user.aiUsage.hints || 0, chats: user.aiUsage.chats || 0,
-        docs: user.aiUsage.docs || 0, images: user.aiUsage.images || 0,
-        calories: user.aiUsage.calories || 0, games: user.aiUsage.games || 0 }
-    : { hints: 0, chats: 0, docs: 0, images: 0, calories: 0, games: 0 };
+        docs: user.aiUsage.docs || 0, images: user.aiUsage.images || 0 }
+    : { hints: 0, chats: 0, docs: 0, images: 0 };
 
   const effective = user.effectivePlan();
   const limits = User.PLAN_LIMITS[effective] || User.PLAN_LIMITS.free;

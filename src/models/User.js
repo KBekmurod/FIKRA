@@ -8,7 +8,6 @@ const aiUsageSchema = new mongoose.Schema({
   chats: { type: Number, default: 0 },     // AI Chat xabar
   docs:  { type: Number, default: 0 },     // AI Hujjat
   images:{ type: Number, default: 0 },     // AI Rasm
-  calories:{ type: Number, default: 0 },   // Kaloriya tahlili
 }, { _id: false });
 
 // ─── Sertifikat (IELTS, CEFR, milliy) ────────────────────────────────────────
@@ -107,11 +106,6 @@ const userSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// ─── Plan limitlari (kunlik) ─────────────────────────────────────────────────
-//   free:  test cheksiz, hints=5, qolgani=0, o'yin=3 partiya
-//   basic: hints cheksiz, chat=50, qolgani=0, o'yin cheksiz
-//   pro:   chat cheksiz, doc=10, image=20, o'yin cheksiz
-//   vip:   hammasi cheksiz
 // Plan limitlari (kunlik)
 //   free:  test cheksiz + hint 5/kun + chat 10/kun + doc 2/kun
 //   basic: hint cheksiz + chat 50/kun + doc 10/kun + image 5/kun
