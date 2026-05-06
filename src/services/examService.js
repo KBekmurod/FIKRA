@@ -464,7 +464,7 @@ module.exports = {
       userId,
       mode: 'drill',
       direction: null,
-      selectedSubjects: Object.keys(groups),
+      selectedSubjects: [...new Set(finalQuestions.map(q => q.subject))],
       questionIds,
       durationSeconds,
       status: 'in_progress',

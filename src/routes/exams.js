@@ -2,9 +2,11 @@
 // /api/exams/*
 const express = require('express');
 const router  = express.Router();
+const fs = require('fs');
 const { authMiddleware }   = require('../middleware/auth');
 const { addXp }            = require('../services/rankService');
 const User                 = require('../models/User');
+const { generateMandateArtifacts, getMandateFilePath } = require('../services/certificateService');
 const {
   DIRECTION_MAP,
   SUBJECT_META,
@@ -112,6 +114,28 @@ router.post('/sessions/:id/finish', authMiddleware, async (req, res, next) => {
       mode: s.mode, totalScore: s.totalScore,
     }).catch(() => null);
 
+    const freshUser = await User.findById(req.user._id).select('username firstName lastName phone').lean();
+    let certificate = null;
+    try {
+      const generated = await generateMandateArtifacts({
+        user: freshUser || req.user,
+        session: s,
+        result: {
+          totalScore: s.totalScore,
+          maxTotalScore: s.maxTotalScore,
+          endTime: s.endTime,
+        },
+      });
+      certificate = generated ? {
+        certificateNumber: generated.certificateNumber,
+        title: generated.title,
+        pngUrl: generated.pngUrl,
+        pdfUrl: generated.pdfUrl,
+      } : null;
+    } catch (certErr) {
+      console.error('[certificate] generation failed:', certErr.message);
+    }
+
     res.json({
       sessionId:    s._id,
       mode:         s.mode,
@@ -123,7 +147,34 @@ router.post('/sessions/:id/finish', authMiddleware, async (req, res, next) => {
       startTime:    s.startTime,
       endTime:      s.endTime,
       xp: xpResult ? { added: xpResult.xpAdded, total: xpResult.xpAfter, levelUp: xpResult.levelUp } : null,
+      certificate,
     });
+  } catch (err) { next(err); }
+});
+
+// ─── GET /api/exams/sessions/:id/certificate/:format ────────────────────────
+router.get('/sessions/:id/certificate/:format', authMiddleware, async (req, res, next) => {
+  try {
+    const { id, format } = req.params;
+    if (!['pdf', 'png'].includes(format)) {
+      return res.status(400).json({ error: 'Invalid format' });
+    }
+
+    const session = await require('../models/ExamSession').findById(id);
+    if (!session) return res.status(404).json({ error: 'Sessiya topilmadi' });
+    if (String(session.userId) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Ruxsat yoq' });
+    }
+
+    const filePath = await getMandateFilePath({ userId: req.user._id, sessionId: id, format });
+    if (!filePath || !fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Sertifikat topilmadi' });
+    }
+
+    const downloadName = `${String(session._id).slice(-8)}-${format}.${format}`;
+    res.setHeader('Content-Type', format === 'png' ? 'image/png' : 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
+    return res.sendFile(filePath);
   } catch (err) { next(err); }
 });
 

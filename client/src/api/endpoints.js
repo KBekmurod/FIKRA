@@ -3,6 +3,7 @@ export const authApi = {
     login: (initData, referralCode) => api.post('/api/auth/login', { initData, referralCode }),
     loginStandard: (phone, password) => api.post('/api/auth/login-standard', { phone, password }),
     register: (phone, password, firstName, lastName) => api.post('/api/auth/register', { phone, password, firstName, lastName }),
+    googleLogin: (token) => api.post('/api/auth/google', { token }),
     me: () => api.get('/api/auth/me'),
     rank: () => api.get('/api/auth/rank'),
 };
@@ -25,6 +26,7 @@ export const examApi = {
     history: (mode, page = 1) => api.get('/api/exams/history', { params: { mode, page } }),
     weakSubjects: () => api.get('/api/exams/analysis/weak-subjects'),
     recommendations: () => api.get('/api/exams/analysis/recommendations'),
+    startWeaknessDrill: (opts) => api.post('/api/exams/start-weakness-drill', opts || {}),
 };
 export const profileApi = {
     certificates: () => api.get('/api/profile/certificates'),

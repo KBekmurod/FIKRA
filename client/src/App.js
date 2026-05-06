@@ -1,5 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from './store';
 import HomePage from './pages/HomePage';
@@ -64,7 +65,7 @@ export default function App() {
     if (!bootstrapped || loading)
         return _jsx(FullLoader, {});
     if (!user) {
-        return (_jsx("div", { className: "app", children: _jsxs(ToastProvider, { children: [_jsx(AuthPage, {}), _jsx(InstallPWA, {})] }) }));
+        return (_jsx("div", { className: "app", children: _jsx(GoogleOAuthProvider, { clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '', children: _jsxs(ToastProvider, { children: [_jsx(AuthPage, {}), _jsx(InstallPWA, {})] }) }) }));
     }
     return (_jsx("div", { className: "app", children: _jsxs(ToastProvider, { children: [_jsx("div", { className: "app-content", children: _jsxs(Routes, { children: [_jsx(Route, { path: "/", element: _jsx(HomePage, {}) }), _jsx(Route, { path: "/test/*", element: _jsx(TestPage, {}) }), _jsx(Route, { path: "/ai/*", element: _jsx(AIPage, {}) }), _jsx(Route, { path: "/profile", element: _jsx(ProfilePage, {}) })] }) }), _jsx(BottomNav, {}), _jsx(InstallPWA, {})] }) }));
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
 import { examApi, aiApi, testApi } from '../api/endpoints'
+import { getStoredAuth } from '../api/client'
 import { useToast } from '../components/Toast'
 import SubscriptionModal from '../components/SubscriptionModal'
 import {
@@ -37,6 +38,12 @@ interface SessionResult {
   sessionId: string; mode: string; totalScore: number; maxTotalScore: number;
   percent: number; subjectBreakdown: SubjectBreakdown[]; direction?: string; directionName?: string;
   xp?: { added: number; total: number; levelUp: boolean } | null
+  certificate?: {
+    certificateNumber: string
+    title: string
+    pngUrl: string
+    pdfUrl: string
+  } | null
 }
 
 const SUBJECT_EMOJI: Record<string, string> = {
@@ -854,8 +861,28 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }: any) {
 // ═══════════════════════════════════════════════════════════════════════════
 function ResultScreen({ result, onBack, onHistory, onReview }: any) {
   const { totalScore, maxTotalScore, percent, subjectBreakdown, mode, xp } = result
+  const certificate = result.certificate || null
   const emoji = percent >= 80 ? '🏆' : percent >= 60 ? '👏' : percent >= 40 ? '💪' : '📖'
   const grade = percent >= 90 ? "A'lo" : percent >= 75 ? 'Yaxshi' : percent >= 50 ? "O'rtacha" : "Yana o'qing"
+
+  const downloadCertificate = async (format: 'pdf' | 'png') => {
+    if (!certificate) return
+    const url = format === 'pdf' ? certificate.pdfUrl : certificate.pngUrl
+    const auth = getStoredAuth()
+    const response = await fetch(url, {
+      headers: auth?.access ? { Authorization: `Bearer ${auth.access}` } : {},
+    })
+    if (!response.ok) throw new Error('Sertifikat yuklab olinmadi')
+    const blob = await response.blob()
+    const objectUrl = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = `fikra-mandat-${certificate.certificateNumber}.${format}`
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(objectUrl)
+  }
 
   return (
     <>
@@ -953,6 +980,22 @@ function ResultScreen({ result, onBack, onHistory, onReview }: any) {
           <button onClick={onReview} className="btn btn-primary btn-block">
             🔍 Xatolarni ko'rish
           </button>
+          {certificate && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button
+                onClick={() => downloadCertificate('pdf').catch(() => {})}
+                className="btn btn-ghost btn-block"
+              >
+                📄 PDF Manda
+              </button>
+              <button
+                onClick={() => downloadCertificate('png').catch(() => {})}
+                className="btn btn-ghost btn-block"
+              >
+                🖼 PNG Manda
+              </button>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onHistory} className="btn btn-ghost btn-block">📁 Tarix</button>
             <button onClick={onBack} className="btn btn-ghost btn-block">🏠 Bosh sahifa</button>

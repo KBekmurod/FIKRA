@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
 import { examApi, aiApi, testApi } from '../api/endpoints';
+import { getStoredAuth } from '../api/client';
 import { useToast } from '../components/Toast';
 import SubscriptionModal from '../components/SubscriptionModal';
 import { buildOfflineDtmSession, buildOfflineSubjectSession, calculateOfflineResult, getCachedExamConfig, saveCachedExamConfig, warmOfflineQuestionBank, } from '../utils/offlinePractice';
@@ -67,6 +68,14 @@ export default function TestPage() {
             durationSeconds: Math.max(10 * 60, count * 90),
         });
     }, [config, location.search, navigate]);
+    // Support starting drill via location.state (from AIPage)
+    useEffect(() => {
+        const state = location.state;
+        if (state && state.drillSession) {
+            setSessionData(state.drillSession);
+            setScreen('quiz');
+        }
+    }, [location]);
     const goHome = () => {
         setScreen('home');
         setSessionData(null);
@@ -449,8 +458,29 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }) {
 // ═══════════════════════════════════════════════════════════════════════════
 function ResultScreen({ result, onBack, onHistory, onReview }) {
     const { totalScore, maxTotalScore, percent, subjectBreakdown, mode, xp } = result;
+    const certificate = result.certificate || null;
     const emoji = percent >= 80 ? '🏆' : percent >= 60 ? '👏' : percent >= 40 ? '💪' : '📖';
     const grade = percent >= 90 ? "A'lo" : percent >= 75 ? 'Yaxshi' : percent >= 50 ? "O'rtacha" : "Yana o'qing";
+    const downloadCertificate = async (format) => {
+        if (!certificate)
+            return;
+        const url = format === 'pdf' ? certificate.pdfUrl : certificate.pngUrl;
+        const auth = getStoredAuth();
+        const response = await fetch(url, {
+            headers: auth?.access ? { Authorization: `Bearer ${auth.access}` } : {},
+        });
+        if (!response.ok)
+            throw new Error('Sertifikat yuklab olinmadi');
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = `fikra-mandat-${certificate.certificateNumber}.${format}`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(objectUrl);
+    };
     return (_jsxs(_Fragment, { children: [_jsx("div", { className: "header", children: _jsxs("div", { className: "header-logo", children: ["FIKRA", _jsx("span", { children: "." })] }) }), _jsxs("div", { style: { padding: '8px 20px 20px' }, children: [_jsxs("div", { style: {
                             background: 'linear-gradient(135deg, rgba(123,104,238,0.15), rgba(0,212,170,0.08))',
                             border: '1px solid rgba(123,104,238,0.25)', borderRadius: 16,
@@ -470,7 +500,7 @@ function ResultScreen({ result, onBack, onHistory, onReview }) {
                                                 background: subPct >= 70 ? 'var(--g)' : subPct >= 50 ? 'var(--y)' : 'var(--r)',
                                                 transition: 'width 0.5s',
                                             } }) }), _jsxs("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: ["\u2713 ", s.correct, " to'g'ri \u00B7 \u2717 ", s.wrong, " xato \u00B7 ", subPct, "%"] })] }, s.subjectId));
-                        }) }), _jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: 8 }, children: [_jsx("button", { onClick: onReview, className: "btn btn-primary btn-block", children: "\uD83D\uDD0D Xatolarni ko'rish" }), _jsxs("div", { style: { display: 'flex', gap: 8 }, children: [_jsx("button", { onClick: onHistory, className: "btn btn-ghost btn-block", children: "\uD83D\uDCC1 Tarix" }), _jsx("button", { onClick: onBack, className: "btn btn-ghost btn-block", children: "\uD83C\uDFE0 Bosh sahifa" })] })] })] })] }));
+                        }) }), _jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: 8 }, children: [_jsx("button", { onClick: onReview, className: "btn btn-primary btn-block", children: "\uD83D\uDD0D Xatolarni ko'rish" }), certificate && (_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }, children: [_jsx("button", { onClick: () => downloadCertificate('pdf').catch(() => { }), className: "btn btn-ghost btn-block", children: "\uD83D\uDCC4 PDF Manda" }), _jsx("button", { onClick: () => downloadCertificate('png').catch(() => { }), className: "btn btn-ghost btn-block", children: "\uD83D\uDDBC PNG Manda" })] })), _jsxs("div", { style: { display: 'flex', gap: 8 }, children: [_jsx("button", { onClick: onHistory, className: "btn btn-ghost btn-block", children: "\uD83D\uDCC1 Tarix" }), _jsx("button", { onClick: onBack, className: "btn btn-ghost btn-block", children: "\uD83C\uDFE0 Bosh sahifa" })] })] })] })] }));
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // HistoryScreen

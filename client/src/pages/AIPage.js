@@ -236,8 +236,15 @@ function AnalysisTab({ onSubOpen }) {
         });
         return () => { alive = false; };
     }, [toast]);
-    const startDrill = (subject, count) => {
-        navigate(`/test?drill=1&subject=${encodeURIComponent(subject)}&count=${count}`);
+    const startDrill = async (subject, count) => {
+        try {
+            const { data } = await examApi.startWeaknessDrill({ totalQuestions: count });
+            // Navigate to Test page with session data in state
+            navigate('/test', { state: { drillSession: data } });
+        }
+        catch (err) {
+            toast(err.response?.data?.error || 'Drill boshlashda xatolik', 'err');
+        }
     };
     return (_jsxs("div", { style: { padding: '0 20px 20px' }, children: [_jsxs("div", { className: "card", style: { marginBottom: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 14, marginBottom: 6 }, children: "\uD83D\uDCC8 Tarixdan tavsiyalar" }), loading ? (_jsx("div", { style: { color: 'var(--txt-3)', fontSize: 12 }, children: "Tahlil tayyorlanmoqda..." })) : data ? (_jsxs(_Fragment, { children: [_jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.6 }, children: data.summary }), data.progress && (_jsxs("div", { style: { marginTop: 10, fontSize: 11, color: 'var(--txt-3)' }, children: ["O'rtacha ball: ", data.progress.overallAvg.toFixed(2), " \u00B7 So'nggi trend: ", data.progress.growthTrend >= 0 ? '+' : '', data.progress.growthTrend, "%"] }))] })) : (_jsx("div", { style: { color: 'var(--txt-3)', fontSize: 12 }, children: "Hozircha ma'lumot yo'q." }))] }), !loading && data && data.recommendations.length > 0 && (_jsxs("div", { className: "card", style: { marginBottom: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 14, marginBottom: 8 }, children: "\uD83D\uDCA1 AI tavsiyalar" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 8 }, children: data.recommendations.map((item, idx) => (_jsxs("div", { style: { fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.6 }, children: ["\u2022 ", item] }, idx))) })] })), !loading && data && data.drillTargets.length > 0 && (_jsxs("div", { className: "card", children: [_jsx("div", { style: { fontWeight: 800, fontSize: 14, marginBottom: 8 }, children: "\u26A1 Drill rejimi" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 10 }, children: data.drillTargets.map(target => (_jsx("div", { style: { paddingBottom: 10, borderBottom: '1px solid var(--f)' }, children: _jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }, children: [_jsxs("div", { children: [_jsx("div", { style: { fontWeight: 700, fontSize: 13 }, children: target.subjectName }), _jsxs("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginTop: 2 }, children: [target.accuracy, "% to'g'rilik \u00B7 ", target.questionCount, " savol"] })] }), _jsx("button", { className: "btn btn-primary btn-sm", onClick: () => startDrill(target.subject, target.questionCount), children: "Mashq" })] }) }, target.subject))) })] })), !loading && data && data.weakAreas.length === 0 && (_jsxs("div", { className: "card", children: [_jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.7 }, children: "Hali sezilarli zaif fan topilmadi. Istasangiz, kengaytirilgan testlar ishlang." }), _jsx("button", { className: "btn btn-primary btn-block btn-lg", onClick: onSubOpen, style: { marginTop: 10 }, children: "Obuna yoki AI limit" })] }))] }));
 }
