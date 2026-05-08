@@ -246,11 +246,36 @@ router.get('/questions', adminAuth, async (req, res) => {
 // ─── POST /api/admin/questions ───────────────────────────────────────────────
 router.post('/questions', adminAuth, async (req, res) => {
   try {
-    const { question, options, answer, explanation, subject, block } = req.body;
-    if (!question || !options || options.length < 2 || answer === undefined || !subject) {
-      return res.status(400).json({ error: 'Majburiy maydonlar: question, options (≥2), answer, subject' });
+    const { question, options, answer, explanation, subject, block, difficulty, topic } = req.body;
+
+    // ── Majburiy maydon tekshiruvlari ──────────────────────────────────────
+    if (!question || question.trim().length < 5) {
+      return res.status(400).json({ error: 'question: kamida 5 ta belgi bo\'lishi kerak' });
     }
-    const q = await TestQuestion.create({ question, options, answer, explanation, subject, block: block || 'majburiy' });
+    if (!Array.isArray(options) || options.length !== 4) {
+      return res.status(400).json({ error: 'options: aynan 4 ta variant bo\'lishi kerak' });
+    }
+    const badOpt = options.find(o => typeof o !== 'string' || o.trim().length === 0 || o.length > 400);
+    if (badOpt !== undefined) {
+      return res.status(400).json({ error: 'Har bir variant bo\'sh bo\'lmagan string (max 400 belgi) bo\'lishi kerak' });
+    }
+    if (typeof answer !== 'number' || answer < 0 || answer > 3) {
+      return res.status(400).json({ error: 'answer: 0-3 orasida bo\'lishi kerak' });
+    }
+    if (!subject) {
+      return res.status(400).json({ error: 'subject majburiy' });
+    }
+
+    const q = await TestQuestion.create({
+      question: question.trim(),
+      options: options.map(o => o.trim()),
+      answer,
+      explanation: explanation?.trim() || '',
+      subject,
+      block: block || 'mutaxassislik',
+      difficulty: difficulty || 'medium',
+      topic: topic?.trim() || '',
+    });
     res.json({ success: true, question: q });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -465,4 +490,110 @@ router.delete('/certificates/:userId/:certId', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── GET /api/admin/questions/stats ──────────────────────────────────────
+// Fan bo'yicha savol statistikasi
+router.get('/questions/stats', adminAuth, async (req, res) => {
+  try {
+    const stats = await TestQuestion.aggregate([
+      { $group: { _id: { subject: '$subject', block: '$block' }, count: { $sum: 1 } } },
+      { $sort: { '_id.subject': 1 } },
+    ]);
+    const total = await TestQuestion.countDocuments();
+
+    const bySubject = {};
+    for (const s of stats) {
+      const subj = s._id.subject;
+      if (!bySubject[subj]) bySubject[subj] = { total: 0, majburiy: 0, mutaxassislik: 0 };
+      bySubject[subj].total += s.count;
+      bySubject[subj][s._id.block] = (bySubject[subj][s._id.block] || 0) + s.count;
+    }
+
+    res.json({ total, bySubject });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── DELETE /api/admin/questions/bulk ─────────────────────────────────────
+// Bir nechta savollarni o'chirish
+router.delete('/questions/bulk', adminAuth, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids massivi kerak' });
+    }
+    const result = await TestQuestion.deleteMany({ _id: { $in: ids } });
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── DELETE /api/admin/questions/by-subject ──────────────────────────────
+// Fan bo'yicha barcha savollarni o'chirish
+router.delete('/questions/by-subject', adminAuth, async (req, res) => {
+  try {
+    const { subject, block } = req.body;
+    if (!subject) return res.status(400).json({ error: 'subject kerak' });
+    const filter = { subject };
+    if (block) filter.block = block;
+    const result = await TestQuestion.deleteMany(filter);
+    res.json({ success: true, deleted: result.deletedCount, subject });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── DELETE /api/admin/questions/all ─────────────────────────────────────
+// Barcha savollarni o'chirish (xavfli — confirm kerak)
+router.delete('/questions/all', adminAuth, async (req, res) => {
+  try {
+    const { confirm } = req.body;
+    if (confirm !== 'DELETE_ALL_QUESTIONS') {
+      return res.status(400).json({ error: 'confirm: "DELETE_ALL_QUESTIONS" yuborish kerak' });
+    }
+    const result = await TestQuestion.deleteMany({});
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── POST /api/admin/questions/seed ──────────────────────────────────────
+// seedQuestions.js dagi savollarni MongoDB ga yuklash
+// Takroriy savollar yuklanmaydi (question + subject kombinatsiyasi bo'yicha)
+router.post('/questions/seed', adminAuth, async (req, res) => {
+  try {
+    const { mode = 'skip_duplicates' } = req.body;
+    // seedQuestions.js dagi QUESTIONS massivini to'g'ridan-to'g'ri import qilamiz
+    const { QUESTIONS } = require('../utils/seedQuestions');
+
+    let inserted = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    if (mode === 'replace_all') {
+      // Hammasini o'chirib yangi yuklash
+      await TestQuestion.deleteMany({});
+      const result = await TestQuestion.insertMany(QUESTIONS, { ordered: false });
+      inserted = result.length;
+    } else {
+      // Takroriy savollarni o'tkazib yuborish
+      for (const q of QUESTIONS) {
+        try {
+          const exists = await TestQuestion.findOne({
+            subject: q.subject,
+            question: q.question.trim().slice(0, 100),
+          });
+          if (exists) { skipped++; continue; }
+          await TestQuestion.create(q);
+          inserted++;
+        } catch { errors++; }
+      }
+    }
+
+    res.json({
+      success: true,
+      total: QUESTIONS.length,
+      inserted,
+      skipped,
+      errors,
+      message: `${inserted} ta savol yuklandi, ${skipped} ta o'tkazib yuborildi`,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
+

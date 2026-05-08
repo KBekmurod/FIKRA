@@ -269,6 +269,22 @@ select option{background:var(--s2)}
 
     <!-- SAVOLLAR -->
     <div class="page" id="page-questions">
+      <!-- Statistika paneli -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--f)" id="q-stats-panel">
+        <div style="text-align:center;padding:8px;background:var(--s2);border-radius:8px;border:1px solid var(--f)">
+          <div style="font-size:20px;font-weight:900;color:var(--acc)" id="qs-total">—</div>
+          <div style="font-size:9px;color:var(--m);margin-top:2px">Jami</div>
+        </div>
+        <div id="qs-by-subject" style="display:contents"></div>
+      </div>
+      <!-- Amallar -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+        <button class="btn btn-g btn-sm" onclick="showSeedModal()">🌱 Seed yuklash</button>
+        <button class="btn btn-ghost btn-sm" onclick="showBulkDeleteModal()">🗑 Ommaviy o'chirish</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-acc btn-sm" onclick="showAddQuestion()">+ Savol qo'shish</button>
+        <button class="btn btn-ghost btn-sm" onclick="showCSVImport()">📥 CSV import</button>
+      </div>
       <div class="table-wrap">
         <div class="filters">
           <input placeholder="🔍 Savol matni..." id="q-search" oninput="debounce(loadQuestions,600)()">
@@ -280,9 +296,12 @@ select option{background:var(--s2)}
             <option value="bio">Biologiya</option>
             <option value="kimyo">Kimyo</option>
             <option value="fizika">Fizika</option>
-            <option value="ingliz">Ingliz</option>
+            <option value="ingliz">Ingliz tili</option>
             <option value="inform">Informatika</option>
             <option value="iqtisod">Iqtisodiyot</option>
+            <option value="rus">Rus tili</option>
+            <option value="geo">Geografiya</option>
+            <option value="adab">Adabiyot</option>
           </select>
           <select id="q-block" onchange="loadQuestions()">
             <option value="">Barcha blok</option>
@@ -378,7 +397,7 @@ function reload() {
   else if (_currentPage === 'users') loadUsers();
   else if (_currentPage === 'subscriptions') loadSubs();
   else if (_currentPage === 'orders') loadOrders();
-  else if (_currentPage === 'questions') loadQuestions();
+  else if (_currentPage === 'questions') { loadQuestions(); loadQStats(); }
 }
 
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
@@ -596,6 +615,7 @@ async function loadQuestions(page) {
   const q = document.getElementById('q-search').value;
   const subject = document.getElementById('q-subject').value;
   const block = document.getElementById('q-block').value;
+  if (!_qPage || _qPage === 1) loadQStats().catch(() => {});
   try {
     const d = await req(`/questions?q=${encodeURIComponent(q)}&subject=${subject}&block=${block}&page=${_qPage}&limit=20`);
     document.getElementById('q-tbody').innerHTML = d.questions.map(q => `<tr>
@@ -636,7 +656,7 @@ function showAddQuestion(q = {}) {
         </select></div>
       <div class="form-group"><label>Fan</label>
         <select id="qf-sub" style="width:100%">
-          ${['uztil','math','tarix','bio','kimyo','fizika','ingliz','inform','iqtisod'].map(s =>
+          ${['uztil','math','tarix','bio','kimyo','fizika','ingliz','inform','iqtisod','rus','geo','adab'].map(s =>
             `<option value="${s}" ${q.subject===s?'selected':''}>${s}</option>`).join('')}
         </select></div>
       <div class="form-group"><label>Blok</label>
@@ -813,6 +833,134 @@ function debounce(fn, delay) {
     _timers[key] = setTimeout(() => fn(), delay);
   };
 }
+
+// ─── FAN STATISTIKASI ─────────────────────────────────────────────────────
+const SUBJECT_NAMES_MAP = {
+  uztil:'Ona tili', math:'Matematika', tarix:'Tarix',
+  bio:'Biologiya', kimyo:'Kimyo', fizika:'Fizika',
+  ingliz:'Ingliz', inform:'Informatika', iqtisod:'Iqtisodiyot',
+  rus:'Rus tili', geo:'Geografiya', adab:'Adabiyot',
+};
+const MIN_Q_COUNTS = {
+  uztil:50, math:50, tarix:50,
+  bio:100, kimyo:100, fizika:100, ingliz:100,
+  inform:100, iqtisod:80, rus:80, geo:80, adab:80,
+};
+
+async function loadQStats() {
+  try {
+    const d = await req('/questions/stats');
+    document.getElementById('qs-total').textContent = d.total.toLocaleString();
+    const subjects = ['uztil','math','tarix','bio','kimyo','fizika','ingliz','inform','iqtisod','rus','geo','adab'];
+    document.getElementById('qs-by-subject').innerHTML = subjects.map(s => {
+      const count = d.bySubject[s]?.total || 0;
+      const min = MIN_Q_COUNTS[s] || 50;
+      const ok = count >= min;
+      return `<div style="text-align:center;padding:7px 4px;background:var(--s2);border-radius:7px;border:1px solid ${ok?'rgba(0,212,170,0.2)':'rgba(255,95,126,0.25)'}">
+        <div style="font-size:15px;font-weight:800;color:${ok?'var(--g)':'var(--r)'}">${count}</div>
+        <div style="font-size:8px;color:var(--m);margin-top:1px;line-height:1.2">${SUBJECT_NAMES_MAP[s]||s}</div>
+        <div style="font-size:7px;color:${ok?'var(--g)':'var(--r)'};margin-top:1px">${ok?'✓ OK':'min:'+min}</div>
+      </div>`;
+    }).join('');
+  } catch(e) { /* silent */ }
+}
+
+// ─── SEED YUKLASH ─────────────────────────────────────────────────────────
+function showSeedModal() {
+  showModal(`
+    <h3>🌱 Seed savollarni yuklash</h3>
+    <p style="font-size:12px;color:var(--m);line-height:1.6;margin-bottom:14px">
+      <code>seedQuestions.js</code> faylidagi savollarni MongoDB ga yuklaydi.<br>
+      Takroriy savollar o'tkazib yuboriladi.
+    </p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+      <label style="display:flex;align-items:flex-start;gap:10px;padding:11px 13px;background:var(--s2);border-radius:8px;border:1px solid rgba(0,212,170,0.2);cursor:pointer">
+        <input type="radio" name="seed-mode" value="skip_duplicates" checked style="margin-top:2px">
+        <div>
+          <div style="font-weight:700;font-size:13px;color:var(--g)">✓ Takroriy savollarni o'tkazib yuborish</div>
+          <div style="font-size:11px;color:var(--m);margin-top:2px">Xavfsiz: mavjud savollar o'zgartirilmaydi</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:flex-start;gap:10px;padding:11px 13px;background:var(--s2);border-radius:8px;border:1px solid rgba(255,95,126,0.2);cursor:pointer">
+        <input type="radio" name="seed-mode" value="replace_all" style="margin-top:2px">
+        <div>
+          <div style="font-weight:700;font-size:13px;color:var(--r)">⚠️ Hammasini o'chirib yangilash</div>
+          <div style="font-size:11px;color:var(--m);margin-top:2px">Xavfli: barcha eski savollar o'chiriladi!</div>
+        </div>
+      </label>
+    </div>
+    <div id="seed-progress" style="display:none;padding:10px 12px;background:var(--s2);border-radius:8px;margin-bottom:12px;font-size:12px;color:var(--m)">
+      ⏳ Yuklanmoqda...
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeModal()">Bekor</button>
+      <button class="btn btn-g" onclick="doSeed()">🌱 Yuklash</button>
+    </div>
+  `);
+}
+
+async function doSeed() {
+  const mode = document.querySelector('input[name="seed-mode"]:checked')?.value || 'skip_duplicates';
+  if (mode === 'replace_all' && !confirm('⚠️ DIQQAT! Barcha mavjud savollar o\'chiriladi. Davom etasizmi?')) return;
+  const prog = document.getElementById('seed-progress');
+  prog.style.display = 'block';
+  prog.innerHTML = '⏳ Yuklanmoqda, kuting...';
+  try {
+    const r = await req('/questions/seed', { method: 'POST', body: { mode } });
+    prog.style.display = 'none';
+    toast('✅ ' + r.inserted + ' ta yuklandi, ' + r.skipped + ' ta o\'tkazildi', 'ok');
+    closeModal(); loadQuestions(); loadQStats();
+  } catch(e) {
+    prog.innerHTML = '❌ Xato: ' + esc(e.message);
+    toast(e.message, 'err');
+  }
+}
+
+// ─── OMMAVIY O'CHIRISH ────────────────────────────────────────────────────
+function showBulkDeleteModal() {
+  const subjects = [
+    {id:'uztil',n:'Ona tili'},{id:'math',n:'Matematika'},{id:'tarix',n:'Tarix'},
+    {id:'bio',n:'Biologiya'},{id:'kimyo',n:'Kimyo'},{id:'fizika',n:'Fizika'},
+    {id:'ingliz',n:'Ingliz tili'},{id:'inform',n:'Informatika'},
+    {id:'iqtisod',n:'Iqtisodiyot'},{id:'rus',n:'Rus tili'},
+    {id:'geo',n:'Geografiya'},{id:'adab',n:'Adabiyot'},
+  ];
+  showModal(`
+    <h3>🗑 Ommaviy o'chirish</h3>
+    <p style="font-size:12px;color:var(--m);margin-bottom:12px">Fan bo'yicha yoki barcha savollarni o'chirish:</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:12px;max-height:220px;overflow-y:auto">
+      ${subjects.map(s => `<button onclick="deleteBySubject('${s.id}','${s.n}')" class="btn btn-ghost btn-sm" style="justify-content:flex-start">🗑 ${s.n}</button>`).join('')}
+    </div>
+    <div style="border-top:1px solid var(--f);padding-top:12px;margin-bottom:10px">
+      <button onclick="deleteAllQuestions()" style="width:100%;padding:11px;background:rgba(255,95,126,0.1);border:1px solid rgba(255,95,126,0.3);border-radius:8px;color:var(--r);font-weight:700;font-size:12px;cursor:pointer">
+        ⚠️ BARCHA savollarni o'chirish
+      </button>
+    </div>
+    <div style="display:flex;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeModal()">Yopish</button>
+    </div>
+  `);
+}
+
+async function deleteBySubject(subject, name) {
+  if (!confirm('"' + name + '" fanidagi barcha savollar o\'chirilsinmi?')) return;
+  try {
+    const r = await req('/questions/by-subject', { method: 'DELETE', body: { subject } });
+    toast('✅ ' + r.deleted + ' ta o\'chirildi (' + name + ')', 'ok');
+    closeModal(); loadQuestions(); loadQStats();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function deleteAllQuestions() {
+  const input = prompt('Barcha savollarni o\'chirish uchun "DELETE_ALL_QUESTIONS" deb yozing:');
+  if (input !== 'DELETE_ALL_QUESTIONS') { toast('Bekor qilindi', 'info'); return; }
+  try {
+    const r = await req('/questions/all', { method: 'DELETE', body: { confirm: 'DELETE_ALL_QUESTIONS' } });
+    toast('✅ ' + r.deleted + ' ta o\'chirildi', 'ok');
+    closeModal(); loadQuestions(); loadQStats();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
 </script>
 </body>
 </html>

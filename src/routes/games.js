@@ -35,11 +35,20 @@ router.get('/test/offline-pack', authMiddleware, async (req, res, next) => {
     if (block) query.block = block;
     const lim = Math.min(Math.max(parseInt(limit) || 10, 1), 50);
 
-    const questions = await TestQuestion.aggregate([
+    const raw = await TestQuestion.aggregate([
       { $match: query },
       { $sample: { size: lim } },
       { $project: { question: 1, options: 1, subject: 1, block: 1, answer: 1, explanation: 1 } },
     ]);
+
+    // Noto'g'ri formatdagi savollarni filtrlash
+    const questions = raw.filter(q =>
+      q.question?.trim().length > 4 &&
+      Array.isArray(q.options) && q.options.length === 4 &&
+      q.options.every(o => typeof o === 'string' && o.trim().length > 0) &&
+      typeof q.answer === 'number' && q.answer >= 0 && q.answer <= 3
+    );
+
     res.json(questions);
   } catch (err) { next(err); }
 });

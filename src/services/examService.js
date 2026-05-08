@@ -50,12 +50,25 @@ function assertObjectId(val, label) {
   }
 }
 
+// ─── Savollarni tekshirish va tozalash ────────────────────────────────────
+// Bu funksiya DB dan kelgan har bir savolni tekshiradi.
+// Noto'g'ri formatdagi savollar sessiyaga kirmaydi.
+function sanitizeQuestions(questions) {
+  return questions.filter(q => {
+    if (!q || !q.question || q.question.trim().length < 5) return false;
+    if (!Array.isArray(q.options) || q.options.length !== 4) return false;
+    if (!q.options.every(o => typeof o === 'string' && o.trim().length > 0)) return false;
+    if (typeof q.answer !== 'number' || q.answer < 0 || q.answer > 3) return false;
+    return true;
+  });
+}
+
 async function fetchRandom(subjectId, count) {
   const q = await TestQuestion.aggregate([
     { $match: { subject: subjectId } },
     { $sample: { size: count } },
   ]);
-  return q;
+  return sanitizeQuestions(q);
 }
 
 // ─── 1. DTM sessiyasi boshlash ─────────────────────────────────────────────
@@ -122,13 +135,14 @@ async function startDtmSession(userId, direction) {
 
   // Clientga saf savollar (javobi yo'q)
   const safeQuestions = allQ.map(q => ({
-    _id:        q._id,
-    subject:    q.subject,
-    block:      getBlock(q.subject, direction.toLowerCase()),
-    question:   q.question,
-    options:    q.options,
-    difficulty: q.difficulty,
-    topic:      q.topic,
+    _id:         q._id,
+    subject:     q.subject,
+    subjectName: SUBJECT_META[q.subject]?.name || q.subject,
+    block:       getBlock(q.subject, direction.toLowerCase()),
+    question:    q.question,
+    options:     q.options,
+    difficulty:  q.difficulty,
+    topic:       q.topic,
   }));
 
   return { session, questions: safeQuestions, directionName: dirInfo.name };

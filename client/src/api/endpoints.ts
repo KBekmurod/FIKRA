@@ -48,6 +48,8 @@ export const examApi = {
     api.post('/api/exams/start-subject', { subjects, advanced }),
   answer: (sessionId: string, questionId: string, selectedOption: number) =>
     api.post(`/api/exams/sessions/${sessionId}/answer`, { questionId, selectedOption }),
+  batchAnswer: (sessionId: string, answers: Array<{ questionId: string; selectedOption: number }>) =>
+    api.post(`/api/exams/sessions/${sessionId}/batch-answer`, { answers }),
   finish: (sessionId: string) =>
     api.post(`/api/exams/sessions/${sessionId}/finish`),
   review: (sessionId: string) =>

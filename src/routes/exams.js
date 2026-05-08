@@ -103,6 +103,32 @@ router.post('/sessions/:id/answer', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ─── POST /api/exams/sessions/:id/batch-answer ────────────────────────────
+// Test oxirida barcha javoblarni bir vaqtda saqlash (navigatsiya erkinligi uchun)
+// body: { answers: [{ questionId, selectedOption }] }
+router.post('/sessions/:id/batch-answer', authMiddleware, async (req, res, next) => {
+  try {
+    const { answers } = req.body;
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({ error: 'answers massivi kerak' });
+    }
+
+    const results = [];
+    for (const ans of answers) {
+      const { questionId, selectedOption } = ans;
+      if (!questionId || selectedOption === undefined) continue;
+      const optionIndex = parseInt(selectedOption);
+      if (isNaN(optionIndex) || optionIndex < 0 || optionIndex > 3) continue;
+      try {
+        const result = await submitAnswer(req.params.id, req.user._id, questionId, optionIndex);
+        results.push({ questionId, isCorrect: result.isCorrect, correctIndex: result.correctIndex, explanation: result.explanation });
+      } catch { /* bitta savol xato bo'lsa davom etaveradi */ }
+    }
+
+    res.json({ saved: results.length, results });
+  } catch (err) { next(err); }
+});
+
 // ─── POST /api/exams/sessions/:id/finish ──────────────────────────────────
 router.post('/sessions/:id/finish', authMiddleware, async (req, res, next) => {
   try {

@@ -117,9 +117,11 @@ app.get('/api/config', (req, res) => {
 
 // ─── Admin panel (himoyalangan) ───────────────────────────────────────────────
 app.get('/admin', (req, res) => {
-  // Basic referer check — to'liq himoya ADMIN_SECRET orqali
+  // Birinchi build papkasida qidiramiz, bo'lmasa src/admin da
   const adminFile = path.join(publicDir, 'admin.html');
+  const adminSrc  = path.join(__dirname, 'admin', 'admin.html');
   if (fs.existsSync(adminFile)) res.sendFile(adminFile);
+  else if (fs.existsSync(adminSrc)) res.sendFile(adminSrc);
   else res.status(404).send('Admin panel topilmadi');
 });
 
