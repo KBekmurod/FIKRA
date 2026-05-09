@@ -28,42 +28,45 @@ api.interceptors.request.use(config => {
         config.headers.Authorization = `Bearer ${auth.access}`;
     return config;
 });
-// ─── Refresh token race condition'ni oldini oluvchi queue ────────────────────
-let _refreshPromise = null;
-async function refreshAccessToken() {
-    const auth = getStoredAuth();
-    if (!auth?.refresh)
-        return null;
-    try {
-        const r = await axios.post(`${API_BASE}/api/auth/refresh`, { refreshToken: auth.refresh });
-        if (r.data.accessToken) {
-            setAuth(r.data.accessToken, r.data.refreshToken ?? auth.refresh, auth.tgId);
-            return r.data.accessToken;
-        }
-        return null;
-    }
-    catch {
-        clearAuth();
-        return null;
-    }
-}
+let _refreshing = false;
+let _refreshCallbacks = [];
 api.interceptors.response.use(res => res, async (err) => {
     const cfg = err.config;
-    if (err.response?.status === 401 && !cfg.__retry) {
+    const auth = getStoredAuth();
+    if (err.response?.status === 401 && auth?.refresh && !cfg.__retry) {
         cfg.__retry = true;
-        // Bir vaqtda ko'p refresh so'rovi kelsa — bitta promise'ni kutamiz
-        if (!_refreshPromise) {
-            _refreshPromise = refreshAccessToken().finally(() => {
-                _refreshPromise = null;
+        // Agar allaqachon refresh bo'lmoqda bo'lsa — kutish
+        if (_refreshing) {
+            return new Promise((resolve, reject) => {
+                _refreshCallbacks.push((token) => {
+                    cfg.headers.Authorization = `Bearer ${token}`;
+                    resolve(api.request(cfg));
+                });
             });
         }
-        const newToken = await _refreshPromise;
-        if (newToken) {
-            cfg.headers.Authorization = `Bearer ${newToken}`;
-            return api.request(cfg);
+        _refreshing = true;
+        try {
+            const r = await axios.post(`${API_BASE}/api/auth/refresh`, { refreshToken: auth.refresh });
+            if (r.data.accessToken) {
+                setAuth(r.data.accessToken, r.data.refreshToken || auth.refresh, auth.tgId);
+                cfg.headers.Authorization = `Bearer ${r.data.accessToken}`;
+                // Kutgan so'rovlarni ham bajarish
+                _refreshCallbacks.forEach(cb => cb(r.data.accessToken));
+                _refreshCallbacks = [];
+                return api.request(cfg);
+            }
         }
-        // Token yangilanmadi — sahifani qayta yuklash
-        window.location.reload();
+        catch {
+            // Token yangilash muvaffaqiyatsiz — faqat auth tozalash, reload EMAS
+            clearAuth();
+            _refreshCallbacks = [];
+            // Ilovani saqlash: foydalanuvchini login sahifasiga yubormaymiz,
+            // store.login() qayta chaqirilishi uchun event yuboramiz
+            window.dispatchEvent(new CustomEvent('fikra:auth-expired'));
+        }
+        finally {
+            _refreshing = false;
+        }
     }
     return Promise.reject(err);
 });

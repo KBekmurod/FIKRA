@@ -2,27 +2,27 @@
 // /api/exams/*
 const express = require('express');
 const router  = express.Router();
-const fs = require('fs');
 const { authMiddleware }   = require('../middleware/auth');
 const { addXp }            = require('../services/rankService');
 const User                 = require('../models/User');
-const { generateMandateArtifacts, getMandateFilePath } = require('../services/certificateService');
 const {
   DIRECTION_MAP,
   SUBJECT_META,
   COMPULSORY_SUBJECTS,
   startDtmSession,
   startSubjectSession,
-  // startWeaknessDrill will be added dynamically
   submitAnswer,
   finishExamSession,
   getSessionReview,
   getHistory,
+  deleteSession,
+  repeatSession,
+  getCabinetData,
+  startCabinetMiniTest,
 } = require('../services/examService');
-const {
-  getWeakSubjects,
-  generateAIRecommendations,
-} = require('../services/analyticsService');
+const ai = require('../services/aiService');
+const UserAnswer = require('../models/UserAnswer');
+const { logger } = require('../utils/logger');
 
 // ─── GET /api/exams/config ─────────────────────────────────────────────────
 // Frontend uchun direction va subject ro'yxati
@@ -94,38 +94,8 @@ router.post('/sessions/:id/answer', authMiddleware, async (req, res, next) => {
     if (questionId === undefined || selectedOption === undefined) {
       return res.status(400).json({ error: 'questionId va selectedOption kerak' });
     }
-    const optionIndex = parseInt(selectedOption);
-    if (isNaN(optionIndex) || optionIndex < 0 || optionIndex > 3) {
-      return res.status(400).json({ error: 'selectedOption 0-3 oraligida bo\'lishi kerak' });
-    }
-    const result = await submitAnswer(req.params.id, req.user._id, questionId, optionIndex);
+    const result = await submitAnswer(req.params.id, req.user._id, questionId, selectedOption);
     res.json({ saved: true, isCorrect: result.isCorrect, correctIndex: result.correctIndex, explanation: result.explanation });
-  } catch (err) { next(err); }
-});
-
-// ─── POST /api/exams/sessions/:id/batch-answer ────────────────────────────
-// Test oxirida barcha javoblarni bir vaqtda saqlash (navigatsiya erkinligi uchun)
-// body: { answers: [{ questionId, selectedOption }] }
-router.post('/sessions/:id/batch-answer', authMiddleware, async (req, res, next) => {
-  try {
-    const { answers } = req.body;
-    if (!Array.isArray(answers) || answers.length === 0) {
-      return res.status(400).json({ error: 'answers massivi kerak' });
-    }
-
-    const results = [];
-    for (const ans of answers) {
-      const { questionId, selectedOption } = ans;
-      if (!questionId || selectedOption === undefined) continue;
-      const optionIndex = parseInt(selectedOption);
-      if (isNaN(optionIndex) || optionIndex < 0 || optionIndex > 3) continue;
-      try {
-        const result = await submitAnswer(req.params.id, req.user._id, questionId, optionIndex);
-        results.push({ questionId, isCorrect: result.isCorrect, correctIndex: result.correctIndex, explanation: result.explanation });
-      } catch { /* bitta savol xato bo'lsa davom etaveradi */ }
-    }
-
-    res.json({ saved: results.length, results });
   } catch (err) { next(err); }
 });
 
@@ -144,28 +114,6 @@ router.post('/sessions/:id/finish', authMiddleware, async (req, res, next) => {
       mode: s.mode, totalScore: s.totalScore,
     }).catch(() => null);
 
-    const freshUser = await User.findById(req.user._id).select('username firstName lastName phone').lean();
-    let certificate = null;
-    try {
-      const generated = await generateMandateArtifacts({
-        user: freshUser || req.user,
-        session: s,
-        result: {
-          totalScore: s.totalScore,
-          maxTotalScore: s.maxTotalScore,
-          endTime: s.endTime,
-        },
-      });
-      certificate = generated ? {
-        certificateNumber: generated.certificateNumber,
-        title: generated.title,
-        pngUrl: generated.pngUrl,
-        pdfUrl: generated.pdfUrl,
-      } : null;
-    } catch (certErr) {
-      console.error('[certificate] generation failed:', certErr.message);
-    }
-
     res.json({
       sessionId:    s._id,
       mode:         s.mode,
@@ -177,38 +125,12 @@ router.post('/sessions/:id/finish', authMiddleware, async (req, res, next) => {
       startTime:    s.startTime,
       endTime:      s.endTime,
       xp: xpResult ? { added: xpResult.xpAdded, total: xpResult.xpAfter, levelUp: xpResult.levelUp } : null,
-      certificate,
     });
   } catch (err) { next(err); }
 });
 
-// ─── GET /api/exams/sessions/:id/certificate/:format ────────────────────────
-router.get('/sessions/:id/certificate/:format', authMiddleware, async (req, res, next) => {
-  try {
-    const { id, format } = req.params;
-    if (!['pdf', 'png'].includes(format)) {
-      return res.status(400).json({ error: 'Invalid format' });
-    }
-
-    const session = await require('../models/ExamSession').findById(id);
-    if (!session) return res.status(404).json({ error: 'Sessiya topilmadi' });
-    if (String(session.userId) !== String(req.user._id)) {
-      return res.status(403).json({ error: 'Ruxsat yoq' });
-    }
-
-    const filePath = await getMandateFilePath({ userId: req.user._id, sessionId: id, format });
-    if (!filePath || !fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Sertifikat topilmadi' });
-    }
-
-    const downloadName = `${String(session._id).slice(-8)}-${format}.${format}`;
-    res.setHeader('Content-Type', format === 'png' ? 'image/png' : 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
-    return res.sendFile(filePath);
-  } catch (err) { next(err); }
-});
-
 // ─── GET /api/exams/sessions/:id/review ────────────────────────────────────
+// SNAPSHOT'dan o'qiydi — admin TestQuestion'ni o'chirsa ham, foydalanuvchi tarixi mavjud
 router.get('/sessions/:id/review', authMiddleware, async (req, res, next) => {
   try {
     const { session, answers } = await getSessionReview(req.params.id, req.user._id);
@@ -220,13 +142,16 @@ router.get('/sessions/:id/review', authMiddleware, async (req, res, next) => {
         startTime: session.startTime, endTime: session.endTime,
       },
       answers: answers.map(a => ({
-        questionId: a.questionId?._id,
-        question:   a.questionId?.question,
-        options:    a.questionId?.options,
-        correctIndex: a.questionId?.answer,
-        explanation:  a.questionId?.explanation,
-        subject:    a.questionId?.subject,
-        topic:      a.questionId?.topic,
+        // _id berib yuboramiz — frontend cabinet uchun
+        _id: a._id,
+        questionId: a.questionId,
+        // Snapshot maydonlardan o'qish (eski sessiyalarda bo'lmasligi mumkin)
+        question:   a.questionText || '',
+        options:    a.questionOptions || [],
+        correctIndex: a.correctAnswer >= 0 ? a.correctAnswer : null,
+        explanation:  a.explanation || '',
+        subject:    a.subjectId,
+        topic:      a.topic || '',
         selectedOption: a.selectedOption,
         isCorrect:  a.isCorrect,
         subjectId:  a.subjectId,
@@ -244,37 +169,125 @@ router.get('/history', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── GET /api/exams/analysis/weak-subjects ─────────────────────────────────
-router.get('/analysis/weak-subjects', authMiddleware, async (req, res, next) => {
+
+// ─── DELETE /api/exams/sessions/:id — Sessiyani o'chirish ──────────────────
+router.delete('/sessions/:id', authMiddleware, async (req, res, next) => {
   try {
-    const weakSubjects = await getWeakSubjects(req.user._id);
-    res.json({ weakSubjects });
+    const result = await deleteSession(req.params.id, req.user._id);
+    res.json({ success: true, ...result });
   } catch (err) { next(err); }
 });
 
-// ─── GET /api/exams/analysis/recommendations ───────────────────────────────
-router.get('/analysis/recommendations', authMiddleware, async (req, res, next) => {
+// ─── POST /api/exams/sessions/:id/repeat — Testni qayta ishlash ───────────
+router.post('/sessions/:id/repeat', authMiddleware, async (req, res, next) => {
   try {
-    const payload = await generateAIRecommendations(req.user._id);
-    res.json(payload);
+    const result = await repeatSession(req.params.id, req.user._id);
+    res.json({
+      sessionId:    result.session._id,
+      mode:         result.session.mode,
+      direction:    result.session.direction,
+      directionName:result.directionName,
+      durationSeconds: result.session.durationSeconds,
+      subjectBreakdown: result.session.subjectBreakdown,
+      maxTotalScore: result.session.maxTotalScore,
+      questions:    result.questions,
+      isRepeat:     true,
+    });
   } catch (err) { next(err); }
 });
 
-// ─── POST /api/exams/start-weakness-drill ─────────────────────────────────
-router.post('/start-weakness-drill', authMiddleware, async (req, res, next) => {
+// ─── GET /api/exams/cabinet — AI Kabinet ma'lumotlari ─────────────────────
+router.get('/cabinet', authMiddleware, async (req, res, next) => {
   try {
-    const { totalQuestions, durationSeconds } = req.body || {};
-    const { startWeaknessDrill } = require('../services/examService');
-    const result = await startWeaknessDrill(req.user._id, { totalQuestions, durationSeconds });
+    const { subject, limit } = req.query;
+    const data = await getCabinetData(req.user._id, {
+      subjectId: subject || null,
+      limit: limit ? parseInt(limit) : 100,
+    });
+    res.json(data);
+  } catch (err) { next(err); }
+});
+
+// ─── GET /api/exams/cabinet/wrong/:answerId/explain — Bitta xato tahlili ──
+router.get('/cabinet/wrong/:answerId/explain', authMiddleware, async (req, res, next) => {
+  try {
+    const ans = await UserAnswer.findById(req.params.answerId);
+    if (!ans) return res.status(404).json({ error: 'Javob topilmadi' });
+    if (String(ans.userId) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Ruxsat yo\'q' });
+    }
+    if (ans.isCorrect) return res.status(400).json({ error: 'Bu javob to\'g\'ri edi' });
+
+    // AI orqali tahlil — snapshot ma'lumotlardan foydalanamiz
+    const subjectName = SUBJECT_META[ans.subjectId]?.name || ans.subjectId;
+    const explanation = await ai.explainWrongAnswer(
+      ans.questionText,
+      ans.questionOptions,
+      ans.correctAnswer,
+      ans.selectedOption,
+      subjectName,
+      ans.topic
+    );
+
+    res.json({
+      success: true,
+      explanation,
+      question: ans.questionText,
+      options: ans.questionOptions,
+      correctAnswer: ans.correctAnswer,
+      userSelection: ans.selectedOption,
+      subject: ans.subjectId,
+      subjectName,
+      topic: ans.topic,
+      // Asl tushuntirish (admin yozgan, agar bo\'lsa)
+      originalExplanation: ans.explanation,
+    });
+  } catch (err) {
+    logger.error('cabinet explain error:', err.message);
+    next(err);
+  }
+});
+
+// ─── POST /api/exams/cabinet/mini-test — Xato savollardan mini test ───────
+router.post('/cabinet/mini-test', authMiddleware, async (req, res, next) => {
+  try {
+    const { subject, limit } = req.body;
+    const result = await startCabinetMiniTest(req.user._id, {
+      subjectId: subject || null,
+      limit: limit ? Math.min(parseInt(limit), 30) : 10,
+    });
     res.json({
       sessionId: result.session._id,
-      mode: 'drill',
+      mode: 'subject',
+      isCabinet: true,
       durationSeconds: result.session.durationSeconds,
       subjectBreakdown: result.session.subjectBreakdown,
       maxTotalScore: result.session.maxTotalScore,
       questions: result.questions,
     });
-  } catch (err) { next(err); }
+  } catch (err) {
+    logger.error('cabinet mini-test error:', err.message);
+    next(err);
+  }
+});
+
+// ─── POST /api/exams/cabinet/analysis — Umumiy AI tahlil ─────────────────
+router.post('/cabinet/analysis', authMiddleware, async (req, res, next) => {
+  try {
+    const data = await getCabinetData(req.user._id);
+    if (data.empty) {
+      return res.json({ success: false, message: data.message });
+    }
+    const analysis = await ai.analyzeUserPerformance(data.stats);
+    res.json({
+      success: true,
+      analysis,
+      stats: data.stats,
+    });
+  } catch (err) {
+    logger.error('cabinet analysis error:', err.message);
+    next(err);
+  }
 });
 
 module.exports = router;

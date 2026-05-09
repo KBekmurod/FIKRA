@@ -8,7 +8,6 @@ const fs      = require('fs');
 const { connectDB }    = require('./utils/db');
 const { logger }       = require('./utils/logger');
 const { errorHandler } = require('./middleware/errorHandler');
-const { apiLimiter }   = require('./middleware/rateLimit');
 
 const authRoutes  = require('./routes/auth');
 const gameRoutes  = require('./routes/games');
@@ -16,7 +15,6 @@ const aiRoutes    = require('./routes/ai');
 const subRoutes   = require('./routes/subscription');
 const adminRoutes = require('./routes/admin');
 const examRoutes  = require('./routes/exams');
-const profileRoutes = require('./routes/profile');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -43,10 +41,25 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Railway: /app/public/  (package.json bilan bir papkada)
 const publicDir = path.join(__dirname, '..', 'public');
 if (fs.existsSync(publicDir)) {
-  // PWA uchun service worker Endi mavjud, shuning uchun bu to'siq olib tashlandi
-  // app.get('/service-worker.js', (req, res) => res.status(204).end());
-  app.get('/manifest.json',     (req, res) => res.status(204).end());
-  app.get('/favicon.ico',       (req, res) => res.status(204).end());
+  // PWA fayllar uchun to'g'ri header'lar
+  app.get('/manifest.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/manifest+json');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.sendFile(path.join(publicDir, 'manifest.json'));
+  });
+  app.get('/sw.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); // SW har doim yangi
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.sendFile(path.join(publicDir, 'sw.js'));
+  });
+  // Eski service-worker.js URL ham ishlaydi (backward compat)
+  app.get('/service-worker.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.sendFile(path.join(publicDir, 'sw.js'));
+  });
 
   app.use(express.static(publicDir, {
     maxAge: '7d', // Static cache 7 kun
@@ -62,14 +75,12 @@ if (fs.existsSync(publicDir)) {
 }
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api', apiLimiter);
-app.use('/api/auth',    authRoutes);
-app.use('/api/games',   gameRoutes);
-app.use('/api/ai',      aiRoutes);
-app.use('/api/sub',     subRoutes);
-app.use('/api/admin',   adminRoutes);
-app.use('/api/exams',   examRoutes);
-app.use('/api/profile', profileRoutes);
+app.use('/api/auth',   authRoutes);
+app.use('/api/games',  gameRoutes);
+app.use('/api/ai',     aiRoutes);
+app.use('/api/sub',    subRoutes);
+app.use('/api/admin',  adminRoutes);
+app.use('/api/exams',  examRoutes);
 
 // ─── Telegram Bot ─────────────────────────────────────────────────────────────
 require('./bot')(app);
@@ -117,11 +128,9 @@ app.get('/api/config', (req, res) => {
 
 // ─── Admin panel (himoyalangan) ───────────────────────────────────────────────
 app.get('/admin', (req, res) => {
-  // Birinchi build papkasida qidiramiz, bo'lmasa src/admin da
+  // Basic referer check — to'liq himoya ADMIN_SECRET orqali
   const adminFile = path.join(publicDir, 'admin.html');
-  const adminSrc  = path.join(__dirname, 'admin', 'admin.html');
   if (fs.existsSync(adminFile)) res.sendFile(adminFile);
-  else if (fs.existsSync(adminSrc)) res.sendFile(adminSrc);
   else res.status(404).send('Admin panel topilmadi');
 });
 

@@ -17,8 +17,9 @@ function _serializeUser(user, rankProgress) {
   const todayKey = User.todayKey();
   const aiUsage = user.aiUsage?.date === todayKey
     ? { hints: user.aiUsage.hints || 0, chats: user.aiUsage.chats || 0,
-        docs: user.aiUsage.docs || 0, images: user.aiUsage.images || 0 }
-    : { hints: 0, chats: 0, docs: 0, images: 0 };
+        docs: user.aiUsage.docs || 0, images: user.aiUsage.images || 0,
+        calories: user.aiUsage.calories || 0, games: user.aiUsage.games || 0 }
+    : { hints: 0, chats: 0, docs: 0, images: 0, calories: 0, games: 0 };
 
   const effective = user.effectivePlan();
   const limits = User.PLAN_LIMITS[effective] || User.PLAN_LIMITS.free;
@@ -49,84 +50,7 @@ function _serializeUser(user, rankProgress) {
   };
 }
 
-// ─── POST /api/auth/register (Standard Auth) ──────────────────────────────────
-router.post('/register', authLimiter, async (req, res, next) => {
-  try {
-    const { phone, password, firstName, lastName } = req.body;
-    if (!phone || !password) {
-      return res.status(400).json({ error: 'Telefon raqam va parol kiritilishi shart' });
-    }
-
-    let user = await User.findOne({ phone });
-    if (user) {
-      return res.status(400).json({ error: 'Bu telefon raqami allaqachon ro\'yxatdan o\'tgan' });
-    }
-
-    const bcrypt = require('bcryptjs');
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    user = await User.create({
-      phone,
-      password: passwordHash,
-      firstName: firstName || '',
-      lastName: lastName || '',
-    });
-
-    user.updateStreak();
-    await user.save();
-
-    const { accessToken, refreshToken } = generateTokens(user._id, null); // no telegramId
-    const { getProgress } = require('../services/rankService');
-    const rankProgress = getProgress(user.xp || 0);
-
-    res.json({
-      accessToken,
-      refreshToken,
-      user: { ..._serializeUser(user, rankProgress), isNew: true },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ─── POST /api/auth/login-standard (Standard Auth) ──────────────────────────
-router.post('/login-standard', authLimiter, async (req, res, next) => {
-  try {
-    const { phone, password } = req.body;
-    if (!phone || !password) {
-      return res.status(400).json({ error: 'Telefon raqam va parol kiritilishi shart' });
-    }
-
-    const user = await User.findOne({ phone });
-    if (!user || !user.password) {
-      return res.status(400).json({ error: 'Noto\'g\'ri telefon raqami yoki parol' });
-    }
-
-    const bcrypt = require('bcryptjs');
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: 'Noto\'g\'ri telefon raqami yoki parol' });
-    }
-
-    user.updateStreak();
-    await user.save();
-
-    const { accessToken, refreshToken } = generateTokens(user._id, user.telegramId || null);
-    const { getProgress } = require('../services/rankService');
-    const rankProgress = getProgress(user.xp || 0);
-
-    res.json({
-      accessToken,
-      refreshToken,
-      user: { ..._serializeUser(user, rankProgress), isNew: false },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ─── POST /api/auth/login (Telegram WebApp Auth) ────────────────────────────
+// ─── POST /api/auth/login ────────────────────────────────────────────────────
 router.post('/login', authLimiter, async (req, res, next) => {
   try {
     const { initData, referralCode } = req.body;
@@ -167,9 +91,6 @@ router.post('/login', authLimiter, async (req, res, next) => {
       if (tgUser.first_name && user.firstName !== tgUser.first_name) {
         user.firstName = tgUser.first_name; dirty = true;
       }
-      if (tgUser.last_name !== undefined && user.lastName !== (tgUser.last_name || '')) {
-        user.lastName = tgUser.last_name || ''; dirty = true;
-      }
       if (dirty) await user.save();
     }
 
@@ -197,9 +118,6 @@ router.post('/refresh', async (req, res) => {
     if (!refreshToken) return res.status(400).json({ error: 'Refresh token kerak' });
 
     const jwt = require('jsonwebtoken');
-    if (!process.env.JWT_REFRESH_SECRET) {
-      return res.status(500).json({ error: 'Server konfiguratsiya xatosi' });
-    }
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
     const user = await User.findById(decoded.userId);
@@ -228,159 +146,6 @@ router.get('/rank', authMiddleware, async (req, res) => {
     progress: getProgress(user.xp || 0),
     allRanks: RANKS,
   });
-});
-
-// ─── POST /api/auth/google (Google OAuth) ────────────────────────────────────
-router.post('/google', authLimiter, async (req, res, next) => {
-  try {
-    const { token } = req.body;
-    if (!token) {
-      return res.status(400).json({ error: 'Google token kerak' });
-    }
-
-    // Google token verification
-    const { OAuth2Client } = require('google-auth-library');
-    const googleClientId = process.env.GOOGLE_CLIENT_ID;
-    if (!googleClientId) {
-      return res.status(500).json({ error: 'Google OAuth konfiguratsiyasi yo\'q' });
-    }
-
-    const client = new OAuth2Client(googleClientId);
-    let ticket;
-    try {
-      ticket = await client.verifyIdToken({
-        idToken: token,
-        audience: googleClientId,
-      });
-    } catch (err) {
-      return res.status(401).json({ error: 'Google token yaroqsiz' });
-    }
-
-    const payload = ticket.getPayload();
-    const googleId = payload.sub;
-    const email = payload.email;
-    const firstName = payload.given_name || '';
-    const lastName = payload.family_name || '';
-    const photoUrl = payload.picture || '';
-
-    // User mavjud bo'lsa yoki yangi bo'lsa
-    let user = await User.findOne({ googleId });
-    let isNew = false;
-
-    if (!user) {
-      // Email orqali ham tekshiramiz
-      user = await User.findOne({ email });
-      if (!user) {
-        // Yangi user yarataramiz
-        user = await User.create({
-          googleId,
-          email,
-          firstName,
-          lastName,
-          photoUrl,
-          googleName: `${firstName} ${lastName}`.trim(),
-        });
-        isNew = true;
-      } else {
-        // Email mavjud edi, googleId'ni qo'shamiz
-        user.googleId = googleId;
-        if (!user.firstName && firstName) user.firstName = firstName;
-        if (!user.lastName && lastName) user.lastName = lastName;
-        if (!user.photoUrl && photoUrl) user.photoUrl = photoUrl;
-        await user.save();
-      }
-    } else {
-      // Google user mavjud — email va profil yangilanishi
-      let dirty = false;
-      if (user.email !== email) {
-        user.email = email;
-        dirty = true;
-      }
-      if (firstName && user.firstName !== firstName) {
-        user.firstName = firstName;
-        dirty = true;
-      }
-      if (lastName && user.lastName !== lastName) {
-        user.lastName = lastName;
-        dirty = true;
-      }
-      if (photoUrl && user.photoUrl !== photoUrl) {
-        user.photoUrl = photoUrl;
-        dirty = true;
-      }
-      if (dirty) await user.save();
-    }
-
-    user.updateStreak();
-    await user.save();
-
-    const { accessToken, refreshToken } = generateTokens(user._id, user.telegramId || null);
-    const { getProgress } = require('../services/rankService');
-    const rankProgress = getProgress(user.xp || 0);
-
-    res.json({
-      accessToken,
-      refreshToken,
-      user: { ..._serializeUser(user, rankProgress), isNew },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ─── POST /api/auth/link-telegram ────────────────────────────────────────────
-// Chrome'dan (phone/Google) kirgan user Telegram WebApp'da ochilganda
-// uning mavjud akkauntiga telegramId'ni ulaydi.
-// Auth: Bearer token (mavjud login) + body: { initData }
-router.post('/link-telegram', authLimiter, authMiddleware, async (req, res, next) => {
-  try {
-    const { initData } = req.body;
-    if (!initData) return res.status(400).json({ error: 'initData kerak' });
-
-    const tgUser = verifyTelegramInitData(initData);
-    if (!tgUser) return res.status(401).json({ error: 'Telegram initData yaroqsiz' });
-
-    const user = req.user;
-
-    // Bu telegramId boshqa userda mavjudmi?
-    const existing = await User.findOne({ telegramId: tgUser.id });
-    if (existing && String(existing._id) !== String(user._id)) {
-      // Boshqa user allaqachon bu telegramId bilan — xato
-      return res.status(409).json({
-        error: 'Bu Telegram akkaunt allaqachon boshqa hisob bilan bog\'liq',
-        code: 'TELEGRAM_ALREADY_LINKED',
-      });
-    }
-
-    // O'zida allaqachon bog'liq bo'lsa — ham muvaffaqiyatli
-    if (user.telegramId === tgUser.id) {
-      const { getProgress } = require('../services/rankService');
-      const rankProgress = getProgress(user.xp || 0);
-      return res.json({ success: true, alreadyLinked: true, user: _serializeUser(user, rankProgress) });
-    }
-
-    // telegramId va Telegram ma'lumotlarini ulash
-    user.telegramId = tgUser.id;
-    if (!user.username && tgUser.username) user.username = tgUser.username;
-    if (!user.firstName && tgUser.first_name) user.firstName = tgUser.first_name;
-    if (!user.lastName && tgUser.last_name) user.lastName = tgUser.last_name;
-    if (!user.photoUrl && tgUser.photo_url) user.photoUrl = tgUser.photo_url;
-    await user.save();
-
-    // Yangi token — telegramId qo'shilgan holda
-    const { accessToken, refreshToken } = generateTokens(user._id, tgUser.id);
-    const { getProgress } = require('../services/rankService');
-    const rankProgress = getProgress(user.xp || 0);
-
-    res.json({
-      success: true,
-      accessToken,
-      refreshToken,
-      user: _serializeUser(user, rankProgress),
-    });
-  } catch (err) {
-    next(err);
-  }
 });
 
 module.exports = router;

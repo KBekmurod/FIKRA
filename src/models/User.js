@@ -8,61 +8,16 @@ const aiUsageSchema = new mongoose.Schema({
   chats: { type: Number, default: 0 },     // AI Chat xabar
   docs:  { type: Number, default: 0 },     // AI Hujjat
   images:{ type: Number, default: 0 },     // AI Rasm
+  calories:{ type: Number, default: 0 },   // Kaloriya tahlili
 }, { _id: false });
-
-// ─── Sertifikat (IELTS, CEFR, milliy) ────────────────────────────────────────
-// Abituriyent imtihondan ozod va to'la ball oladi
-const certificateSchema = new mongoose.Schema({
-  type: {
-    type: String,
-    enum: ['ielts', 'cefr', 'national'],  // ielts, cefr=ingliz, national=fan
-    required: true,
-  },
-  subjectId: { type: String, required: true },   // 'ingliz', 'bio', 'kimyo'...
-  level: { type: String, default: '' },          // IELTS band yoki CEFR level
-  certificateNumber: { type: String, default: '' },
-  issuedDate: { type: Date, default: Date.now },
-  expiresDate: { type: Date, default: null },     // null = cheksiz
-  verifiedBy: { type: String, default: null },    // Admin username
-  verifiedAt: { type: Date, default: null },
-  verificationStatus: {
-    type: String,
-    enum: ['pending', 'verified', 'rejected'],
-    default: 'pending',
-  },
-}, { _id: true, timestamps: true });
 
 const userSchema = new mongoose.Schema({
   telegramId: {
     type: Number,
-    sparse: true,
+    required: true,
     unique: true,
     index: true,
   },
-  phone: {
-    type: String,
-    sparse: true,
-    unique: true,
-    index: true,
-  },
-  password: { 
-    type: String, // Hech qachon ochiq saqlanmaydi (Bcrypt ishlatamiz)
-  },
-  // ─── Google OAuth ────────────────────────────────────────────────────────
-  googleId: {
-    type: String,
-    sparse: true,
-    unique: true,
-    index: true,
-  },
-  email: {
-    type: String,
-    sparse: true,
-    unique: true,
-    index: true,
-  },
-  googleName: { type: String, default: '' },
-  // ──────────────────────────────────────────────────────────────────────────
   username: { type: String, default: '' },
   firstName: { type: String, default: '' },
   lastName: { type: String, default: '' },
@@ -98,14 +53,16 @@ const userSchema = new mongoose.Schema({
   referredBy: { type: Number, default: null },
   referralCount: { type: Number, default: 0 },
 
-  // ─── Sertifikatlar (IELTS, CEFR, milliy) ────────────────────────────────
-  certificates: { type: [certificateSchema], default: [] },
-
   isActive: { type: Boolean, default: true },
 }, {
   timestamps: true,
 });
 
+// ─── Plan limitlari (kunlik) ─────────────────────────────────────────────────
+//   free:  test cheksiz, hints=5, qolgani=0, o'yin=3 partiya
+//   basic: hints cheksiz, chat=50, qolgani=0, o'yin cheksiz
+//   pro:   chat cheksiz, doc=10, image=20, o'yin cheksiz
+//   vip:   hammasi cheksiz
 // Plan limitlari (kunlik)
 //   free:  test cheksiz + hint 5/kun + chat 10/kun + doc 2/kun
 //   basic: hint cheksiz + chat 50/kun + doc 10/kun + image 5/kun

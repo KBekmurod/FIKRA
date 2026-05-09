@@ -1,14 +1,10 @@
 import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate as useNavigateRR } from 'react-router-dom';
 import { useAppStore } from '../store';
-import { examApi, aiApi, testApi } from '../api/endpoints';
-import { getStoredAuth } from '../api/client';
+import { examApi, aiApi } from '../api/endpoints';
 import { useToast } from '../components/Toast';
 import SubscriptionModal from '../components/SubscriptionModal';
-import { resolveSubjectName } from '../utils/subjectLabels';
-import { buildOfflineDtmSession, buildOfflineSubjectSession, calculateOfflineResult, getCachedExamConfig, saveCachedExamConfig, warmOfflineQuestionBank, } from '../utils/offlinePractice';
-import { enqueueOfflineResult } from '../utils/offlineSync';
 const SUBJECT_EMOJI = {
     uztil: '🔤', math: '➕', tarix: '🏛️', bio: '🧬', kimyo: '⚗️',
     fizika: '⚛️', ingliz: '🇬🇧', inform: '💻', iqtisod: '💰', rus: '🇷🇺',
@@ -25,58 +21,24 @@ export default function TestPage() {
     const [subOpen, setSubOpen] = useState(false);
     const { toast } = useToast();
     const location = useLocation();
-    const navigate = useNavigate();
-    const drillStartedRef = useRef(false);
     useEffect(() => {
-        let alive = true;
-        const loadConfig = async () => {
+        examApi.config().then(r => setConfig(r.data)).catch(() => { });
+    }, []);
+    // Cabinet quiz: URL /test/cabinet-quiz bo'lsa, localStorage dan sessionData olamiz
+    useEffect(() => {
+        if (location.pathname.includes('cabinet-quiz')) {
             try {
-                const { data } = await examApi.config();
-                if (!alive)
-                    return;
-                setConfig(data);
-                saveCachedExamConfig(data);
-                if (navigator.onLine) {
-                    warmOfflineQuestionBank(data, async (subject, block, limit) => {
-                        const { data: pack } = await testApi.offlinePack(subject, block, limit);
-                        return pack;
-                    }).catch(() => { });
+                const raw = localStorage.getItem('fikra_cabinet_session');
+                if (raw) {
+                    const sess = JSON.parse(raw);
+                    localStorage.removeItem('fikra_cabinet_session');
+                    setSessionData(sess);
+                    setScreen('quiz');
                 }
             }
-            catch {
-                const cached = getCachedExamConfig();
-                if (cached && alive)
-                    setConfig(cached);
-            }
-        };
-        loadConfig();
-    }, []);
-    useEffect(() => {
-        if (!config || drillStartedRef.current)
-            return;
-        const params = new URLSearchParams(location.search);
-        if (params.get('drill') !== '1')
-            return;
-        const subject = params.get('subject');
-        if (!subject)
-            return;
-        const rawCount = parseInt(params.get('count') || '5', 10);
-        const count = Number.isFinite(rawCount) ? Math.min(10, Math.max(1, rawCount)) : 5;
-        drillStartedRef.current = true;
-        navigate('/test', { replace: true });
-        void startSubject([subject], {
-            questionCounts: { [subject]: count },
-            durationSeconds: Math.max(10 * 60, count * 90),
-        });
-    }, [config, location.search, navigate]);
-    // Support starting drill via location.state (from AIPage)
-    useEffect(() => {
-        const state = location.state;
-        if (state && state.drillSession) {
-            setSessionData(state.drillSession);
-            setScreen('quiz');
+            catch { }
         }
-    }, [location]);
+    }, [location.pathname]);
     const goHome = () => {
         setScreen('home');
         setSessionData(null);
@@ -90,13 +52,6 @@ export default function TestPage() {
             setScreen('quiz');
         }
         catch (e) {
-            const offlineSession = config ? buildOfflineDtmSession(config, direction) : null;
-            if (offlineSession) {
-                setSessionData(offlineSession);
-                setScreen('quiz');
-                toast('Oflayn mashq rejimi ishga tushdi', 'ok');
-                return;
-            }
             toast(e.response?.data?.error || 'Xatolik', 'err');
         }
     };
@@ -108,14 +63,6 @@ export default function TestPage() {
             setScreen('quiz');
         }
         catch (e) {
-            const counts = advanced?.questionCounts || undefined;
-            const offlineSession = config ? buildOfflineSubjectSession(config, subjects, counts) : null;
-            if (offlineSession) {
-                setSessionData({ ...offlineSession, advanced });
-                setScreen('quiz');
-                toast('Oflayn mashq rejimi ishga tushdi', 'ok');
-                return;
-            }
             toast(e.response?.data?.error || 'Xatolik', 'err');
         }
     };
@@ -140,7 +87,7 @@ export default function TestPage() {
         return (_jsx(ResultScreen, { result: resultData, onBack: goHome, onHistory: () => setScreen('history'), onReview: () => { setReviewSessionId(resultData.sessionId); setScreen('review'); } }));
     }
     if (screen === 'history') {
-        return (_jsx(HistoryScreen, { mode: historyMode, onModeChange: setHistoryMode, onBack: goHome, onReview: (id) => { setReviewSessionId(id); setScreen('review'); } }));
+        return (_jsx(HistoryScreen, { mode: historyMode, onModeChange: setHistoryMode, onBack: goHome, onReview: (id) => { setReviewSessionId(id); setScreen('review'); }, onRepeat: (data) => { setSessionData(data); setScreen('quiz'); } }));
     }
     if (screen === 'review' && reviewSessionId) {
         return (_jsx(ReviewScreen, { sessionId: reviewSessionId, onBack: () => setScreen('history'), onSubOpen: () => setSubOpen(true) }));
@@ -204,7 +151,7 @@ function DtmSetup({ directions, onStart, onBack }) {
     return (_jsxs(_Fragment, { children: [_jsxs("div", { className: "header", children: [_jsx("button", { onClick: onBack, className: "btn btn-ghost btn-sm", children: "\u2190 Orqaga" }), _jsx("div", { style: { fontWeight: 700, fontSize: 15 }, children: "DTM Testi" }), _jsx("div", { style: { width: 70 } })] }), _jsx("div", { style: { padding: '4px 20px 8px' }, children: _jsx("div", { style: {
                         background: 'rgba(123,104,238,0.07)', border: '1px solid rgba(123,104,238,0.18)',
                         borderRadius: 10, padding: '10px 14px', fontSize: 11, color: 'var(--txt-2)', lineHeight: 1.6,
-                    }, children: "\uD83D\uDD22 Ball formula: (Majburiy\u00D71.1) + (Mutax.1\u00D73.1) + (Mutax.2\u00D72.1) = maks. 189" }) }), _jsx("div", { className: "section-title", children: "Yo'nalishni tanlang" }), _jsxs("div", { style: { padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '50vh', overflowY: 'auto' }, children: [directions.map((d) => (_jsxs("button", { onClick: () => setSelected(d.id), style: {
+                    }, children: "\uD83D\uDD22 Ball formula: (Majburiy\u00D71.1) + (Mutax.1\u00D73.1) + (Mutax.2\u00D72.1) = maks. 189" }) }), _jsx("div", { className: "section-title", children: "Yo'nalishni tanlang" }), _jsxs("div", { className: "scroll-y", style: { padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '50vh' }, children: [directions.map((d) => (_jsxs("button", { onClick: () => setSelected(d.id), style: {
                             padding: '12px 16px', borderRadius: 12, textAlign: 'left', cursor: 'pointer',
                             background: selected === d.id ? 'rgba(123,104,238,0.18)' : 'var(--s1)',
                             border: `1.5px solid ${selected === d.id ? 'rgba(123,104,238,0.5)' : 'var(--f)'}`,
@@ -259,7 +206,7 @@ function SubjectSetup({ subjects, onStart, onBack }) {
                 color: 'var(--txt)', textAlign: 'left', width: '100%',
             }, children: [_jsx("span", { style: { fontSize: 18 }, children: SUBJECT_EMOJI[s.id] || '📘' }), _jsxs("div", { style: { flex: 1 }, children: [_jsx("div", { style: { fontSize: 13, fontWeight: 700 }, children: s.name }), _jsxs("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: [s.defaultCount, " savol \u00B7 ", s.weight, " ball"] })] }), isSelected && (_jsx("span", { style: { color: 'var(--g)', fontSize: 16, fontWeight: 800 }, children: "\u2713" }))] }));
     };
-    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: "header", children: [_jsx("button", { onClick: onBack, className: "btn btn-ghost btn-sm", children: "\u2190 Orqaga" }), _jsx("div", { style: { fontWeight: 700, fontSize: 15 }, children: "Fanlar tanlash" }), _jsxs("div", { style: { fontSize: 12, color: 'var(--g)', fontWeight: 700 }, children: [selected.length, " ta"] })] }), _jsxs("div", { style: { padding: '0 20px', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }, children: [_jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginBottom: 10, paddingTop: 4 }, children: "\uD83D\uDCCC Majburiy fanlar" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }, children: majburiy.map((s) => _jsx(SubjectChip, { s: s }, s.id)) }), _jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginBottom: 10 }, children: "\uD83C\uDFAF Mutaxassislik fanlari" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }, children: mutax.map((s) => _jsx(SubjectChip, { s: s }, s.id)) }), _jsxs("button", { onClick: () => setAdvanced(a => !a), style: {
+    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: "header", children: [_jsx("button", { onClick: onBack, className: "btn btn-ghost btn-sm", children: "\u2190 Orqaga" }), _jsx("div", { style: { fontWeight: 700, fontSize: 15 }, children: "Fanlar tanlash" }), _jsxs("div", { style: { fontSize: 12, color: 'var(--g)', fontWeight: 700 }, children: [selected.length, " ta"] })] }), _jsxs("div", { className: "scroll-y", style: { padding: '0 20px', flex: 1 }, children: [_jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginBottom: 10, paddingTop: 4 }, children: "\uD83D\uDCCC Majburiy fanlar" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }, children: majburiy.map((s) => _jsx(SubjectChip, { s: s }, s.id)) }), _jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginBottom: 10 }, children: "\uD83C\uDFAF Mutaxassislik fanlari" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }, children: mutax.map((s) => _jsx(SubjectChip, { s: s }, s.id)) }), _jsxs("button", { onClick: () => setAdvanced(a => !a), style: {
                             width: '100%', padding: '10px 14px', borderRadius: 10,
                             background: 'var(--s2)', border: '1px solid var(--f)',
                             color: 'var(--txt-2)', fontSize: 12, cursor: 'pointer', textAlign: 'left',
@@ -281,46 +228,64 @@ function SubjectSetup({ subjects, onStart, onBack }) {
                         }, children: [_jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)', marginBottom: 4 }, children: "Testingiz:" }), _jsxs("div", { style: { fontSize: 12, fontWeight: 700, color: 'var(--g)' }, children: [totalQ, " ta savol \u00B7 ~", Math.round(totalQ * 2), " daqiqa"] }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginTop: 3 }, children: selected.map(id => subjects.find((x) => x.id === id)?.name).join(', ') })] })), _jsx("div", { style: { height: 16 } })] }), _jsx("div", { style: { padding: '10px 20px 16px' }, children: _jsx("button", { onClick: handleStart, disabled: selected.length === 0 || loading, className: "btn btn-primary btn-block btn-lg", children: loading ? '⏳ Yuklanmoqda...' : `🚀 Boshlash (${totalQ} savol)` }) })] }));
 }
 // ═══════════════════════════════════════════════════════════════════════════
-// QuizScreen — DTM navigatsiya bilan (o'tkazib yuborish, qaytish, oxirida yuborish)
+// QuizScreen — freeze va scroll muammolari tuzatilgan
 // ═══════════════════════════════════════════════════════════════════════════
 function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }) {
-    const { sessionId, questions, durationSeconds, subjectBreakdown, mode, offline } = sessionData;
-    // Har savol uchun tanlangan variant: null = javob berilmagan
-    const [answers, setAnswers] = useState({});
+    const { sessionId, questions, durationSeconds, subjectBreakdown } = sessionData;
     const [qIdx, setQIdx] = useState(0);
-    const [showNav, setShowNav] = useState(false);
+    const [answers, setAnswers] = useState({});
+    const [selected, setSelected] = useState(null);
+    const [result, setResult] = useState(null);
     const [hint, setHint] = useState(null);
     const [hintLoading, setHintLoading] = useState(false);
     const [finishing, setFinishing] = useState(false);
-    const [showFinishConfirm, setShowFinishConfirm] = useState(false);
     const [timeLeft, setTimeLeft] = useState(durationSeconds);
     const timerRef = useRef(null);
+    // finishingRef: stale closure muammosini hal qiladi (useCallback ichida)
+    const finishingRef = useRef(false);
     const { user } = useAppStore();
     const { toast } = useToast();
-    const totalQ = questions.length;
-    const answeredQ = Object.keys(answers).length;
-    const unanswered = totalQ - answeredQ;
-    const q = questions[qIdx];
-    // Savol format tekshiruvi
-    const isValidQuestion = Boolean(q &&
-        typeof q.question === 'string' && q.question.trim().length > 4 &&
-        Array.isArray(q.options) && q.options.length === 4 &&
-        q.options.every((o) => typeof o === 'string' && o.trim().length > 0));
-    // ─── Taymer ─────────────────────────────────────────────────────────────
+    const handleFinish = useCallback(async () => {
+        if (finishingRef.current)
+            return;
+        finishingRef.current = true;
+        setFinishing(true);
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+        try {
+            const { data } = await examApi.finish(sessionId);
+            onFinish(data);
+        }
+        catch (e) {
+            toast(e.response?.data?.error || 'Xato', 'err');
+            setFinishing(false);
+            finishingRef.current = false;
+        }
+    }, [sessionId, onFinish, toast]);
+    // Taymer — faqat bir marta mount qilinadi, handleFinish dep orqali yangilanadi
     useEffect(() => {
+        if (timerRef.current)
+            clearInterval(timerRef.current);
         timerRef.current = setInterval(() => {
             setTimeLeft((t) => {
                 if (t <= 1) {
                     clearInterval(timerRef.current);
-                    handleSubmit(true);
+                    timerRef.current = null;
+                    handleFinish();
                     return 0;
                 }
                 return t - 1;
             });
         }, 1000);
-        return () => { if (timerRef.current)
-            clearInterval(timerRef.current); };
-    }, []);
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+            }
+        };
+    }, [handleFinish]);
     const formatTime = (sec) => {
         const h = Math.floor(sec / 3600);
         const m = Math.floor((sec % 3600) / 60);
@@ -329,15 +294,24 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }) {
             return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     };
-    // ─── Javobni tanlash (saqlash faqat oxirda) ─────────────────────────────
-    const selectAnswer = (idx) => {
-        setAnswers(prev => ({ ...prev, [qIdx]: idx }));
-        setHint(null);
-    };
-    // ─── AI maslahat ────────────────────────────────────────────────────────
-    const askHint = async () => {
-        if (!q || hintLoading)
+    const q = questions[qIdx];
+    const totalQ = questions.length;
+    const selectAnswer = async (idx) => {
+        if (selected !== null)
             return;
+        setSelected(idx);
+        try {
+            const { data } = await examApi.answer(sessionId, q._id, idx);
+            setResult(data);
+            setAnswers(prev => ({ ...prev, [q._id]: { selected: idx, isCorrect: data.isCorrect, correctIndex: data.correctIndex } }));
+            if (!data.isCorrect && data.explanation)
+                setHint(data.explanation);
+        }
+        catch (e) {
+            toast(e.response?.data?.error || 'Xato', 'err');
+        }
+    };
+    const askHint = async () => {
         setHintLoading(true);
         try {
             const { data } = await aiApi.hint(q.question, q.options, q.subject, 'hint');
@@ -345,7 +319,7 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }) {
         }
         catch (e) {
             if (e.response?.data?.code === 'DAILY_LIMIT_REACHED' || e.response?.data?.code === 'SUBSCRIPTION_REQUIRED') {
-                toast('AI limit tugadi. Obuna oling!', 'err');
+                toast('Bugungi AI limit tugadi. Obuna oling!', 'err');
                 onSubOpen();
             }
             else {
@@ -356,256 +330,64 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }) {
             setHintLoading(false);
         }
     };
-    // ─── Savolni o'tkazib yuborish ──────────────────────────────────────────
-    const skipQuestion = () => {
-        if (qIdx < totalQ - 1) {
-            setQIdx(i => i + 1);
-            setHint(null);
-        }
-    };
-    // ─── Navigatsiya ────────────────────────────────────────────────────────
-    const goTo = (idx) => {
-        setQIdx(idx);
-        setShowNav(false);
+    const nextQ = () => {
+        setSelected(null);
+        setResult(null);
         setHint(null);
+        setQIdx(i => i + 1);
     };
-    // ─── Barcha javoblarni yuborish ──────────────────────────────────────────
-    const handleSubmit = useCallback(async (auto = false) => {
-        if (finishing)
-            return;
-        if (!auto && unanswered > 0 && !showFinishConfirm) {
-            setShowFinishConfirm(true);
-            return;
-        }
-        setFinishing(true);
-        setShowFinishConfirm(false);
-        if (timerRef.current)
-            clearInterval(timerRef.current);
-        if (offline) {
-            // Offline hisoblash
-            const offlineAnswers = {};
-            questions.forEach((qs, i) => {
-                if (answers[i] !== undefined) {
-                    offlineAnswers[qs._id] = { selected: answers[i], isCorrect: answers[i] === qs.answer };
-                }
-            });
-            const offlineResult = calculateOfflineResult(sessionData, offlineAnswers);
-            enqueueOfflineResult({
-                gameType: mode === 'dtm' ? 'dtm' : 'subject',
-                subject: mode === 'subject' ? (subjectBreakdown?.map((s) => s.subjectId).join(',')) : undefined,
-                direction: sessionData.direction,
-                ballAmount: Math.round(offlineResult.totalScore),
-                maxBall: Math.round(offlineResult.maxTotalScore),
-                correctCount: Object.values(offlineAnswers).filter((a) => a.isCorrect).length,
-                totalQuestions: totalQ,
-            });
-            onFinish(offlineResult);
-            return;
-        }
-        try {
-            // Barcha javoblarni batch yuborish
-            const batchData = Object.entries(answers).map(([i, opt]) => ({
-                questionId: questions[parseInt(i)]._id,
-                selectedOption: opt,
-            }));
-            if (batchData.length > 0) {
-                await examApi.batchAnswer(sessionId, batchData);
-            }
-            // Sessiyani yakunlash
-            const { data } = await examApi.finish(sessionId);
-            onFinish(data);
-        }
-        catch (e) {
-            toast(e.response?.data?.error || 'Xato yuz berdi', 'err');
-            setFinishing(false);
-        }
-    }, [finishing, answers, questions, sessionId, offline, unanswered, showFinishConfirm, onFinish, mode, subjectBreakdown, sessionData, totalQ, toast]);
-    // Joriy fan nomi
-    const currentSubjectName = resolveSubjectName(q?.subject, q?.subjectName || subjectBreakdown?.find((s) => s.subjectId === q?.subject)?.subjectName);
+    const currentSubjectName = q?.subjectName
+        || subjectBreakdown?.find((s) => s.subjectId === q?.subject)?.subjectName
+        || q?.subject || '';
     const hintsUsed = user?.aiUsage?.hints ?? 0;
     const hintsLimit = user?.aiLimits?.hints ?? 5;
     const canHint = hintsLimit === null || hintsUsed < hintsLimit;
+    const pct = Math.round((qIdx / totalQ) * 100);
     const timeWarning = timeLeft < 300;
-    const selectedForCurrent = answers[qIdx] ?? null;
-    const pct = Math.round((answeredQ / totalQ) * 100);
-    return (_jsxs("div", { style: { display: 'flex', flexDirection: 'column', height: '100%', padding: '10px 16px 16px', position: 'relative' }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }, children: [_jsx("button", { className: "btn btn-ghost btn-sm", onClick: () => { if (window.confirm('Testdan chiqasizmi? Barcha javoblar yo\'qoladi.'))
-                            onExit(); }, style: { padding: '7px 10px', fontSize: 12 }, children: "\u2190 Chiqish" }), _jsxs("div", { style: { flex: 1, textAlign: 'center' }, children: [_jsxs("div", { style: { fontSize: 12, fontWeight: 800, color: 'var(--txt-2)', lineHeight: 1 }, children: [qIdx + 1, " ", _jsxs("span", { style: { color: 'var(--txt-3)' }, children: ["/ ", totalQ] })] }), currentSubjectName && (_jsx("div", { style: { fontSize: 9, color: 'var(--txt-3)', marginTop: 2, fontWeight: 600 }, children: currentSubjectName }))] }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 6 }, children: [_jsxs("div", { style: {
-                                    fontSize: 13, fontWeight: 800,
-                                    color: timeWarning ? 'var(--r)' : 'var(--txt-2)',
-                                    fontVariantNumeric: 'tabular-nums',
-                                    background: timeWarning ? 'rgba(255,95,126,0.1)' : 'var(--s2)',
-                                    border: `1px solid ${timeWarning ? 'rgba(255,95,126,0.3)' : 'var(--f)'}`,
-                                    padding: '4px 8px', borderRadius: 8,
-                                }, children: ["\u23F1 ", formatTime(timeLeft)] }), _jsxs("button", { onClick: () => setShowNav(true), style: {
-                                    width: 34, height: 34, borderRadius: 8, cursor: 'pointer',
-                                    background: 'var(--s2)', border: '1px solid var(--f)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: 16, color: 'var(--txt-2)',
-                                    position: 'relative',
-                                }, children: ["\u229E", unanswered > 0 && (_jsx("span", { style: {
-                                            position: 'absolute', top: -4, right: -4,
-                                            background: 'var(--y)', color: '#000',
-                                            fontSize: 9, fontWeight: 800, borderRadius: 100,
-                                            minWidth: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            padding: '0 3px',
-                                        }, children: unanswered }))] })] })] }), _jsx("div", { style: { height: 3, background: 'var(--s2)', borderRadius: 100, marginBottom: 12 }, children: _jsx("div", { style: {
-                        height: '100%', background: 'var(--acc)',
-                        width: `${pct}%`, borderRadius: 100, transition: 'width 0.3s',
-                    } }) }), _jsx("div", { style: {
-                    background: 'var(--s1)', border: '1px solid var(--f)',
-                    borderRadius: 14, padding: '14px 16px', marginBottom: 10, flex: '0 0 auto',
-                }, children: _jsx("div", { style: { fontSize: 14, lineHeight: 1.7, fontWeight: 500, whiteSpace: 'pre-wrap' }, children: q?.question || '' }) }), !hint && selectedForCurrent === null && (_jsx("button", { disabled: hintLoading, onClick: canHint ? askHint : onSubOpen, style: {
-                    padding: '9px 14px', borderRadius: 10, marginBottom: 8, cursor: 'pointer',
-                    background: canHint ? 'rgba(0,212,170,0.07)' : 'rgba(255,95,126,0.05)',
-                    border: `1px solid ${canHint ? 'rgba(0,212,170,0.2)' : 'rgba(255,95,126,0.15)'}`,
-                    color: canHint ? 'var(--g)' : 'var(--txt-3)',
-                    fontSize: 12, fontWeight: 700, textAlign: 'left',
-                }, children: hintLoading ? '⏳ Yuklanmoqda...' : canHint ? '💡 AI maslahat (javobni ko\'rsatmaydi)' : '💡 AI limit tugadi · Obuna ↗' })), hint && (_jsx("div", { style: {
-                    background: 'rgba(0,212,170,0.06)', border: '1px solid rgba(0,212,170,0.18)',
-                    borderRadius: 10, padding: '10px 14px', fontSize: 12, lineHeight: 1.65,
-                    marginBottom: 10, color: 'var(--txt)',
-                }, children: hint })), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 8, flex: 1, overflowY: 'auto' }, children: !isValidQuestion ? (_jsx("div", { style: {
-                        padding: 16, borderRadius: 10, background: 'rgba(255,95,126,0.07)',
-                        border: '1px solid rgba(255,95,126,0.2)', color: 'var(--r)',
-                        fontSize: 13, textAlign: 'center',
-                    }, children: "\u26A0\uFE0F Bu savol noto'g'ri formatda. O'tkazib yuboring." })) : q?.options?.map((opt, i) => {
-                    const isSelected = selectedForCurrent === i;
-                    return (_jsxs("button", { onClick: () => selectAnswer(i), style: {
-                            padding: '13px 16px', borderRadius: 12, textAlign: 'left',
-                            fontSize: 14, lineHeight: 1.5, cursor: 'pointer',
-                            transition: 'all 0.15s',
-                            background: isSelected ? 'rgba(123,104,238,0.18)' : 'var(--s1)',
-                            border: `2px solid ${isSelected ? 'var(--acc)' : 'var(--f)'}`,
-                            color: 'var(--txt)',
-                            transform: isSelected ? 'scale(1.01)' : 'scale(1)',
-                        }, children: [_jsx("span", { style: {
-                                    fontWeight: 800,
-                                    color: isSelected ? 'var(--acc-l)' : 'var(--txt-3)',
-                                    marginRight: 10, fontSize: 13,
-                                }, children: ['A', 'B', 'C', 'D'][i] }), opt] }, i));
-                }) }), _jsxs("div", { style: { display: 'flex', gap: 8, marginTop: 12, flexShrink: 0 }, children: [_jsx("button", { onClick: () => { if (qIdx > 0) {
-                            setQIdx(i => i - 1);
-                            setHint(null);
-                        } }, disabled: qIdx === 0, style: {
-                            width: 48, height: 48, borderRadius: 12, cursor: qIdx === 0 ? 'not-allowed' : 'pointer',
-                            background: 'var(--s2)', border: '1px solid var(--f)',
-                            color: qIdx === 0 ? 'var(--txt-3)' : 'var(--txt)',
-                            fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            opacity: qIdx === 0 ? 0.4 : 1,
-                            flexShrink: 0,
-                        }, children: "\u2039" }), qIdx < totalQ - 1 ? (_jsx("button", { onClick: skipQuestion, style: {
-                            flex: 1, height: 48, borderRadius: 12, cursor: 'pointer',
-                            background: selectedForCurrent !== null ? 'var(--acc)' : 'var(--s2)',
-                            border: `1px solid ${selectedForCurrent !== null ? 'var(--acc)' : 'var(--f)'}`,
-                            color: selectedForCurrent !== null ? 'white' : 'var(--txt-2)',
-                            fontSize: 14, fontWeight: 700,
-                        }, children: selectedForCurrent !== null ? 'Keyingi →' : 'O\'tkazib yuborish →' })) : (_jsx("button", { onClick: () => handleSubmit(false), disabled: finishing, style: {
-                            flex: 1, height: 48, borderRadius: 12, cursor: finishing ? 'not-allowed' : 'pointer',
-                            background: 'linear-gradient(135deg, var(--acc), #5b48ce)',
-                            border: 'none', color: 'white', fontSize: 14, fontWeight: 800,
-                            opacity: finishing ? 0.7 : 1,
-                        }, children: finishing ? '⏳ Saqlanmoqda...' : `🏁 Natijani ko'rish (${answeredQ}/${totalQ})` })), qIdx < totalQ - 1 && (_jsx("button", { onClick: () => { setQIdx(i => i + 1); setHint(null); }, style: {
-                            width: 48, height: 48, borderRadius: 12, cursor: 'pointer',
-                            background: 'var(--s2)', border: '1px solid var(--f)',
-                            color: 'var(--txt)', fontSize: 18,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            flexShrink: 0,
-                        }, children: "\u203A" }))] }), qIdx < totalQ - 1 && (_jsx("button", { onClick: () => handleSubmit(false), disabled: finishing, style: {
-                    marginTop: 8, height: 42, borderRadius: 12, cursor: finishing ? 'not-allowed' : 'pointer',
-                    background: answeredQ === totalQ
-                        ? 'linear-gradient(135deg, var(--acc), #5b48ce)'
-                        : 'rgba(123,104,238,0.1)',
-                    border: `1px solid ${answeredQ === totalQ ? 'transparent' : 'rgba(123,104,238,0.25)'}`,
-                    color: answeredQ === totalQ ? 'white' : 'var(--acc-l)',
-                    fontSize: 13, fontWeight: 700, flexShrink: 0,
-                }, children: finishing
-                    ? '⏳ Saqlanmoqda...'
-                    : answeredQ === totalQ
-                        ? `🏁 Barcha ${totalQ} ta savol javoblandi — Natijani ko'rish`
-                        : `⏹ Testni yakunlash (${answeredQ}/${totalQ} javoblandi)` })), showFinishConfirm && (_jsx("div", { style: {
-                    position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.75)',
-                    backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', padding: '0 20px', zIndex: 200, borderRadius: 'inherit',
-                }, children: _jsxs("div", { style: {
-                        background: 'var(--s1)', borderRadius: 18, padding: 24,
-                        border: '1px solid var(--f)', width: '100%', maxWidth: 380,
-                    }, children: [_jsx("div", { style: { fontSize: 32, textAlign: 'center', marginBottom: 12 }, children: "\u26A0\uFE0F" }), _jsxs("div", { style: { fontWeight: 800, fontSize: 16, marginBottom: 8, textAlign: 'center' }, children: [unanswered, " ta savol javobsiz"] }), _jsx("div", { style: { fontSize: 13, color: 'var(--txt-2)', lineHeight: 1.6, textAlign: 'center', marginBottom: 20 }, children: "Javob berilmagan savollar uchun ball berilmaydi. Testni hozir yakunlaysizmi?" }), _jsxs("div", { style: { display: 'flex', gap: 8 }, children: [_jsx("button", { onClick: () => setShowFinishConfirm(false), className: "btn btn-ghost btn-block", style: { height: 46 }, children: "Davom etish" }), _jsx("button", { onClick: () => handleSubmit(false), style: {
-                                        flex: 1, height: 46, borderRadius: 10, cursor: 'pointer',
-                                        background: 'var(--acc)', border: 'none', color: 'white',
-                                        fontWeight: 800, fontSize: 14,
-                                    }, children: "Yakunlash" })] })] }) })), showNav && (_jsxs("div", { style: {
-                    position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)',
-                    backdropFilter: 'blur(10px)', zIndex: 200, borderRadius: 'inherit',
-                    display: 'flex', flexDirection: 'column',
-                }, children: [_jsxs("div", { style: {
-                            padding: '16px 20px 12px', display: 'flex',
-                            alignItems: 'center', justifyContent: 'space-between',
-                            borderBottom: '1px solid var(--f)',
-                        }, children: [_jsxs("div", { children: [_jsx("div", { style: { fontWeight: 800, fontSize: 15 }, children: "Savollar" }), _jsxs("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginTop: 2 }, children: [answeredQ, " / ", totalQ, " javoblandi"] })] }), _jsx("button", { onClick: () => setShowNav(false), style: {
-                                    width: 32, height: 32, borderRadius: '50%', cursor: 'pointer',
-                                    background: 'var(--s2)', border: '1px solid var(--f)',
-                                    color: 'var(--txt)', fontSize: 16,
-                                }, children: "\u2715" })] }), _jsx("div", { style: { padding: '10px 20px', display: 'flex', gap: 16 }, children: [
-                            { color: 'var(--acc)', label: 'Joriy' },
-                            { color: 'var(--g)', label: 'Javoblangan' },
-                            { color: 'var(--s3)', label: 'Javobsiz' },
-                        ].map(l => (_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 5 }, children: [_jsx("div", { style: { width: 10, height: 10, borderRadius: 3, background: l.color } }), _jsx("span", { style: { fontSize: 11, color: 'var(--txt-3)' }, children: l.label })] }, l.label))) }), _jsx("div", { style: { flex: 1, overflowY: 'auto', padding: '0 20px 20px' }, children: (() => {
-                            const groups = {};
-                            questions.forEach((qs, i) => {
-                                const subj = qs.subjectName || resolveSubjectName(qs.subject);
-                                if (!groups[subj])
-                                    groups[subj] = [];
-                                groups[subj].push(i);
-                            });
-                            return Object.entries(groups).map(([subjectName, indices]) => (_jsxs("div", { style: { marginBottom: 16 }, children: [_jsx("div", { style: { fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', marginBottom: 8, letterSpacing: '0.5px' }, children: subjectName.toUpperCase() }), _jsx("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 }, children: indices.map(i => {
-                                            const isCurrent = i === qIdx;
-                                            const isAnswered = answers[i] !== undefined;
-                                            return (_jsx("button", { onClick: () => goTo(i), style: {
-                                                    width: 38, height: 38, borderRadius: 10,
-                                                    cursor: 'pointer', fontWeight: 800, fontSize: 12,
-                                                    border: `2px solid ${isCurrent ? 'var(--acc)' : isAnswered ? 'rgba(0,212,170,0.3)' : 'var(--f)'}`,
-                                                    background: isCurrent
-                                                        ? 'var(--acc)'
-                                                        : isAnswered
-                                                            ? 'rgba(0,212,170,0.12)'
-                                                            : 'var(--s2)',
-                                                    color: isCurrent ? 'white' : isAnswered ? 'var(--g)' : 'var(--txt-3)',
-                                                }, children: i + 1 }, i));
-                                        }) })] }, subjectName)));
-                        })() }), _jsx("div", { style: { padding: '12px 20px', borderTop: '1px solid var(--f)' }, children: _jsxs("button", { onClick: () => { setShowNav(false); handleSubmit(false); }, disabled: finishing, style: {
-                                width: '100%', height: 48, borderRadius: 12, cursor: 'pointer',
-                                background: 'linear-gradient(135deg, var(--acc), #5b48ce)',
-                                border: 'none', color: 'white', fontWeight: 800, fontSize: 14,
-                            }, children: ["\uD83C\uDFC1 Testni yakunlash (", answeredQ, "/", totalQ, ")"] }) })] }))] }));
+    return (_jsxs("div", { className: "quiz-wrap", children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexShrink: 0 }, children: [_jsx("button", { className: "btn btn-ghost btn-sm", onClick: () => { if (window.confirm('Testdan chiqasizmi? Natija saqlanmaydi.'))
+                            onExit(); }, children: "\u2190 Chiqish" }), _jsxs("div", { style: { flex: 1, textAlign: 'center' }, children: [_jsxs("span", { style: { fontSize: 11, fontWeight: 700, color: 'var(--txt-2)' }, children: [qIdx + 1, " / ", totalQ] }), currentSubjectName && (_jsxs("span", { style: { fontSize: 10, color: 'var(--txt-3)', marginLeft: 6 }, children: ["\u00B7 ", currentSubjectName] }))] }), _jsxs("div", { style: {
+                            fontSize: 12, fontWeight: 700,
+                            color: timeWarning ? 'var(--r)' : 'var(--txt-2)',
+                            background: timeWarning ? 'rgba(255,95,126,0.1)' : 'rgba(240,238,255,0.06)',
+                            padding: '4px 8px', borderRadius: 8, fontVariantNumeric: 'tabular-nums',
+                            transition: 'color 0.3s',
+                        }, children: ["\u23F1 ", formatTime(timeLeft)] })] }), _jsx("div", { style: { height: 4, background: 'var(--s2)', borderRadius: 100, marginBottom: 10, flexShrink: 0 }, children: _jsx("div", { style: { height: '100%', background: 'var(--acc)', width: `${pct}%`, borderRadius: 100, transition: 'width 0.4s' } }) }), _jsx("div", { className: "card", style: { marginBottom: 8, flexShrink: 0 }, children: _jsx("div", { style: { fontSize: 13, lineHeight: 1.65, fontWeight: 500, whiteSpace: 'pre-wrap' }, children: q.question }) }), !hint && selected === null && (_jsx("button", { disabled: hintLoading, onClick: canHint ? askHint : onSubOpen, style: {
+                    padding: '9px 12px', borderRadius: 10, marginBottom: 8, cursor: 'pointer',
+                    background: canHint ? 'rgba(0,212,170,0.08)' : 'rgba(255,95,126,0.06)',
+                    border: `1px solid ${canHint ? 'rgba(0,212,170,0.25)' : 'rgba(255,95,126,0.2)'}`,
+                    color: canHint ? 'var(--g)' : 'var(--txt-2)',
+                    fontSize: 12, fontWeight: 700, width: '100%', flexShrink: 0,
+                }, children: hintLoading ? '⏳ Yuklanmoqda...' : canHint ? '💡 AI maslahat (javobsiz)' : '💡 Limit tugadi · Obuna ↗' })), hint && (_jsx("div", { style: {
+                    background: 'rgba(0,212,170,0.07)', border: '1px solid rgba(0,212,170,0.2)',
+                    borderRadius: 10, padding: 10, fontSize: 12, lineHeight: 1.6,
+                    marginBottom: 8, color: 'var(--txt)', flexShrink: 0,
+                }, children: hint })), _jsx("div", { className: "quiz-options", children: q.options.map((opt, i) => {
+                    let bg = 'var(--s2)', border = 'var(--f)';
+                    if (selected !== null) {
+                        if (i === result?.correctIndex) {
+                            bg = 'rgba(0,212,170,0.12)';
+                            border = 'var(--g)';
+                        }
+                        else if (i === selected && !result?.isCorrect) {
+                            bg = 'rgba(255,95,126,0.1)';
+                            border = 'var(--r)';
+                        }
+                    }
+                    return (_jsxs("button", { disabled: selected !== null, onClick: () => selectAnswer(i), style: {
+                            padding: '12px 14px', background: bg, border: `1.5px solid ${border}`,
+                            borderRadius: 10, textAlign: 'left', fontSize: 13, lineHeight: 1.5,
+                            color: 'var(--txt)', cursor: selected !== null ? 'default' : 'pointer',
+                            transition: 'all 0.15s', width: '100%', flexShrink: 0,
+                        }, children: [_jsx("span", { style: { fontWeight: 800, color: 'var(--txt-3)', marginRight: 10 }, children: ['A', 'B', 'C', 'D'][i] }), opt] }, i));
+                }) }), selected !== null && (_jsx("div", { style: { paddingTop: 10, flexShrink: 0 }, children: qIdx + 1 >= totalQ ? (_jsx("button", { onClick: handleFinish, disabled: finishing, className: "btn btn-primary btn-block btn-lg", children: finishing ? '⏳ Saqlanmoqda...' : "🏁 Natijani ko'rish" })) : (_jsx("button", { onClick: nextQ, className: "btn btn-primary btn-block btn-lg", children: "Keyingi savol \u2192" })) }))] }));
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // ResultScreen
 // ═══════════════════════════════════════════════════════════════════════════
 function ResultScreen({ result, onBack, onHistory, onReview }) {
     const { totalScore, maxTotalScore, percent, subjectBreakdown, mode, xp } = result;
-    const certificate = result.certificate || null;
     const emoji = percent >= 80 ? '🏆' : percent >= 60 ? '👏' : percent >= 40 ? '💪' : '📖';
     const grade = percent >= 90 ? "A'lo" : percent >= 75 ? 'Yaxshi' : percent >= 50 ? "O'rtacha" : "Yana o'qing";
-    const downloadCertificate = async (format) => {
-        if (!certificate)
-            return;
-        const url = format === 'pdf' ? certificate.pdfUrl : certificate.pngUrl;
-        const auth = getStoredAuth();
-        const response = await fetch(url, {
-            headers: auth?.access ? { Authorization: `Bearer ${auth.access}` } : {},
-        });
-        if (!response.ok)
-            throw new Error('Sertifikat yuklab olinmadi');
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = objectUrl;
-        anchor.download = `fikra-mandat-${certificate.certificateNumber}.${format}`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(objectUrl);
-    };
     return (_jsxs(_Fragment, { children: [_jsx("div", { className: "header", children: _jsxs("div", { className: "header-logo", children: ["FIKRA", _jsx("span", { children: "." })] }) }), _jsxs("div", { style: { padding: '8px 20px 20px' }, children: [_jsxs("div", { style: {
                             background: 'linear-gradient(135deg, rgba(123,104,238,0.15), rgba(0,212,170,0.08))',
                             border: '1px solid rgba(123,104,238,0.25)', borderRadius: 16,
@@ -619,24 +401,27 @@ function ResultScreen({ result, onBack, onHistory, onReview }) {
                             return (_jsxs("div", { style: {
                                     background: 'var(--s1)', border: '1px solid var(--f)',
                                     borderRadius: 10, padding: '10px 14px',
-                                }, children: [_jsx("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }, children: _jsxs("span", { style: { fontSize: 13, fontWeight: 700 }, children: [SUBJECT_EMOJI[s.subjectId] || '📘', " ", s.subjectName] }) }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }, children: [_jsxs("div", { style: { padding: '8px', background: 'rgba(0,212,170,0.08)', borderRadius: 8, textAlign: 'center' }, children: [_jsx("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginBottom: 2 }, children: "Savol" }), _jsxs("div", { style: { fontSize: 14, fontWeight: 800, color: 'var(--acc-l)' }, children: [s.correct, "/", s.questionCount] })] }), _jsxs("div", { style: { padding: '8px', background: 'rgba(123,104,238,0.08)', borderRadius: 8, textAlign: 'center' }, children: [_jsx("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginBottom: 2 }, children: "Ball" }), _jsxs("div", { style: { fontSize: 14, fontWeight: 800, color: subPct >= 70 ? 'var(--g)' : subPct >= 50 ? 'var(--y)' : 'var(--r)' }, children: [s.score.toFixed(1), "/", s.maxScore.toFixed(1)] })] })] }), _jsx("div", { style: { height: 5, background: 'var(--s3)', borderRadius: 100, marginBottom: 6 }, children: _jsx("div", { style: {
+                                }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 6 }, children: [_jsxs("span", { style: { fontSize: 13, fontWeight: 700 }, children: [SUBJECT_EMOJI[s.subjectId] || '📘', " ", s.subjectName] }), _jsxs("span", { style: { fontSize: 12, fontWeight: 700, color: subPct >= 70 ? 'var(--g)' : subPct >= 50 ? 'var(--y)' : 'var(--r)' }, children: [s.score.toFixed(1), "/", s.maxScore.toFixed(1)] })] }), _jsx("div", { style: { height: 5, background: 'var(--s3)', borderRadius: 100 }, children: _jsx("div", { style: {
                                                 height: '100%', borderRadius: 100,
                                                 width: `${subPct}%`,
                                                 background: subPct >= 70 ? 'var(--g)' : subPct >= 50 ? 'var(--y)' : 'var(--r)',
                                                 transition: 'width 0.5s',
-                                            } }) }), _jsxs("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: ["\u2713 ", s.correct, " to'g'ri \u00B7 \u2717 ", s.wrong, " xato \u00B7 ", subPct, "%"] })] }, s.subjectId));
-                        }) }), _jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: 8 }, children: [_jsx("button", { onClick: onReview, className: "btn btn-primary btn-block", children: "\uD83D\uDD0D Xatolarni ko'rish" }), certificate && (_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }, children: [_jsx("button", { onClick: () => downloadCertificate('pdf').catch(() => { }), className: "btn btn-ghost btn-block", children: "\uD83D\uDCC4 PDF Manda" }), _jsx("button", { onClick: () => downloadCertificate('png').catch(() => { }), className: "btn btn-ghost btn-block", children: "\uD83D\uDDBC PNG Manda" })] })), _jsxs("div", { style: { display: 'flex', gap: 8 }, children: [_jsx("button", { onClick: onHistory, className: "btn btn-ghost btn-block", children: "\uD83D\uDCC1 Tarix" }), _jsx("button", { onClick: onBack, className: "btn btn-ghost btn-block", children: "\uD83C\uDFE0 Bosh sahifa" })] })] })] })] }));
+                                            } }) }), _jsxs("div", { style: { fontSize: 10, color: 'var(--txt-3)', marginTop: 4 }, children: ["\u2713 ", s.correct, " ta to'g'ri \u00B7 \u2717 ", s.wrong, " ta xato \u00B7 ", subPct, "%"] })] }, s.subjectId));
+                        }) }), _jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: 8 }, children: [_jsx("button", { onClick: onReview, className: "btn btn-primary btn-block", children: "\uD83D\uDD0D Xatolarni ko'rish" }), _jsxs("div", { style: { display: 'flex', gap: 8 }, children: [_jsx("button", { onClick: onHistory, className: "btn btn-ghost btn-block", children: "\uD83D\uDCC1 Tarix" }), _jsx("button", { onClick: onBack, className: "btn btn-ghost btn-block", children: "\uD83C\uDFE0 Bosh sahifa" })] })] })] })] }));
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // HistoryScreen
 // ═══════════════════════════════════════════════════════════════════════════
-function HistoryScreen({ mode, onModeChange, onBack, onReview }) {
+function HistoryScreen({ mode, onModeChange, onBack, onReview, onRepeat }) {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [pages, setPages] = useState(1);
+    const [openMenuId, setOpenMenuId] = useState(null);
+    const [confirmDelete, setConfirmDelete] = useState(null);
+    const navigate = useNavigateRR();
     const { toast } = useToast();
-    useEffect(() => {
+    const load = useCallback(() => {
         setLoading(true);
         setItems([]);
         setPage(1);
@@ -644,53 +429,102 @@ function HistoryScreen({ mode, onModeChange, onBack, onReview }) {
             .then(r => { setItems(r.data.items); setPages(r.data.pages); })
             .catch(() => toast('Tarix yuklanmadi', 'err'))
             .finally(() => setLoading(false));
-    }, [mode]);
+    }, [mode, toast]);
+    useEffect(() => { load(); }, [mode, load]);
+    // Menu tashqarisida bosilsa yopish
+    useEffect(() => {
+        if (!openMenuId)
+            return;
+        const onClickOutside = () => setOpenMenuId(null);
+        document.addEventListener('click', onClickOutside);
+        return () => document.removeEventListener('click', onClickOutside);
+    }, [openMenuId]);
     const loadMore = () => {
         const next = page + 1;
         examApi.history(mode, next)
             .then(r => { setItems(prev => [...prev, ...r.data.items]); setPage(next); })
             .catch(() => { });
     };
-    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: "header", children: [_jsx("button", { onClick: onBack, className: "btn btn-ghost btn-sm", children: "\u2190 Orqaga" }), _jsx("div", { style: { fontWeight: 700, fontSize: 15 }, children: "Testlar tarixi" }), _jsx("div", { style: { width: 70 } })] }), _jsx("div", { style: { padding: '0 20px 12px', display: 'flex', gap: 8 }, children: ['dtm', 'subject'].map(m => (_jsx("button", { onClick: () => onModeChange(m), style: {
+    const handleDelete = async (id) => {
+        try {
+            await examApi.deleteSession(id);
+            setItems(prev => prev.filter(x => x._id !== id));
+            toast("O'chirildi", 'ok');
+            setConfirmDelete(null);
+        }
+        catch (e) {
+            toast(e.response?.data?.error || 'Xato', 'err');
+        }
+    };
+    const handleRepeat = async (id) => {
+        setOpenMenuId(null);
+        try {
+            const { data } = await examApi.repeatSession(id);
+            onRepeat(data);
+        }
+        catch (e) {
+            toast(e.response?.data?.error || 'Qayta ishlash imkonsiz', 'err');
+        }
+    };
+    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: "header", children: [_jsx("button", { onClick: onBack, className: "btn btn-ghost btn-sm", children: "\u2190 Orqaga" }), _jsx("div", { style: { fontWeight: 700, fontSize: 15 }, children: "Testlar tarixi" }), _jsx("button", { onClick: () => navigate('/cabinet'), className: "btn btn-ghost btn-sm", title: "AI Kabinet", children: "\uD83C\uDF93" })] }), _jsx("div", { style: { padding: '0 20px 12px', display: 'flex', gap: 8 }, children: ['dtm', 'subject'].map(m => (_jsx("button", { onClick: () => onModeChange(m), style: {
                         flex: 1, padding: '9px 0', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 12,
                         background: mode === m ? 'var(--acc)' : 'var(--s2)',
                         color: mode === m ? 'white' : 'var(--txt-2)',
                         border: `1px solid ${mode === m ? 'var(--acc)' : 'var(--f)'}`,
-                    }, children: m === 'dtm' ? '🎯 DTM' : '📚 Alohida fanlar' }, m))) }), _jsxs("div", { style: { padding: '0 20px', overflowY: 'auto', maxHeight: 'calc(100vh - 180px)' }, children: [loading && (_jsx("div", { style: { textAlign: 'center', color: 'var(--txt-3)', padding: 40 }, children: "Yuklanmoqda..." })), !loading && items.length === 0 && (_jsxs("div", { style: {
+                    }, children: m === 'dtm' ? '🎯 DTM' : "📚 Alohida fanlar" }, m))) }), _jsxs("div", { className: "scroll-y", style: { padding: '0 20px', flex: 1 }, children: [loading && (_jsxs("div", { style: { textAlign: 'center', color: 'var(--txt-3)', padding: 40 }, children: [_jsx("div", { className: "spin", style: { margin: '0 auto 10px' } }), _jsx("div", { style: { fontSize: 12 }, children: "Yuklanmoqda..." })] })), !loading && items.length === 0 && (_jsxs("div", { style: {
                             textAlign: 'center', padding: '40px 20px',
                             background: 'var(--s1)', borderRadius: 14, border: '1px solid var(--f)',
                         }, children: [_jsx("div", { style: { fontSize: 40, marginBottom: 10 }, children: "\uD83D\uDCED" }), _jsx("div", { style: { fontWeight: 700, marginBottom: 4 }, children: "Tarix bo'sh" }), _jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)' }, children: mode === 'dtm' ? "DTM testi o'ting, natijalar bu yerda ko'rinadi" : "Alohida fanlar bo'yicha test o'ting" })] })), items.map((item) => {
                         const date = new Date(item.createdAt);
-                        const dateStr = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
+                        const dateStr = `${date.getDate()}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
+                        const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
                         const pct = item.maxTotalScore > 0 ? Math.round(item.totalScore / item.maxTotalScore * 100) : 0;
                         const subjects = item.subjectBreakdown?.map((s) => s.subjectName).join(', ');
-                        return (_jsxs("div", { onClick: () => onReview(item._id), style: {
+                        const dirNames = {
+                            tibbiyot: 'Tibbiyot', it: 'IT / Dasturlash', iqtisodiyot: 'Iqtisodiyot',
+                            pedagogika: 'Pedagogika', arxitektura: 'Arxitektura', jurnalistika: 'Jurnalistika',
+                            rus_filologiya: 'Rus filologiyasi', kimyo_fan: 'Kimyo fani',
+                            fizika_fan: 'Fizika fani', ingliz_filol: 'Ingliz filologiyasi',
+                            biologiya_fan: 'Biologiya fani',
+                        };
+                        return (_jsxs("div", { style: {
                                 background: 'var(--s1)', border: '1px solid var(--f)',
-                                borderRadius: 12, padding: '12px 14px', marginBottom: 8, cursor: 'pointer',
-                            }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 6 }, children: [_jsx("span", { style: { fontSize: 11, color: 'var(--txt-3)' }, children: dateStr }), _jsxs("span", { style: {
-                                                fontSize: 13, fontWeight: 800,
-                                                color: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
-                                            }, children: [item.totalScore.toFixed(1), " ball \u00B7 ", pct, "%"] })] }), mode === 'dtm' && item.direction && (_jsxs("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 3 }, children: ["\uD83C\uDFAF ", item.subjectBreakdown?.find((s) => s.block === 'mutaxassislik_1')?.subjectId
-                                            ? (() => {
-                                                const dirNames = {
-                                                    tibbiyot: 'Tibbiyot', it: 'IT / Dasturlash', iqtisodiyot: 'Iqtisodiyot',
-                                                    pedagogika: 'Pedagogika', arxitektura: 'Arxitektura', jurnalistika: 'Jurnalistika',
-                                                    rus_filologiya: 'Rus filologiyasi', kimyo_fan: 'Kimyo fani',
-                                                    fizika_fan: 'Fizika fani', ingliz_filol: 'Ingliz filologiyasi',
-                                                    biologiya_fan: 'Biologiya fani',
-                                                };
-                                                return dirNames[item.direction] || item.direction;
-                                            })()
-                                            : item.direction] })), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)' }, children: subjects }), _jsx("div", { style: { height: 4, background: 'var(--s3)', borderRadius: 100, marginTop: 8 }, children: _jsx("div", { style: {
-                                            height: '100%', borderRadius: 100, width: `${pct}%`,
-                                            background: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
-                                        } }) })] }, item._id));
-                    }), page < pages && (_jsx("button", { onClick: loadMore, style: {
+                                borderRadius: 12, padding: '12px 14px', marginBottom: 8,
+                                position: 'relative',
+                            }, children: [_jsxs("div", { onClick: () => onReview(item._id), style: { cursor: 'pointer' }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 8 }, children: [_jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsxs("span", { style: { fontSize: 11, color: 'var(--txt-3)' }, children: [dateStr, " \u00B7 ", timeStr] }), mode === 'dtm' && item.direction && (_jsxs("div", { style: { fontSize: 13, fontWeight: 700, marginTop: 3 }, children: ["\uD83C\uDFAF ", dirNames[item.direction] || item.direction] }))] }), _jsxs("span", { style: {
+                                                        fontSize: 13, fontWeight: 800,
+                                                        color: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
+                                                        whiteSpace: 'nowrap',
+                                                    }, children: [item.totalScore.toFixed(1), " \u00B7 ", pct, "%"] })] }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)', marginBottom: 8,
+                                                display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }, children: subjects }), _jsx("div", { style: { height: 4, background: 'var(--s3)', borderRadius: 100 }, children: _jsx("div", { style: {
+                                                    height: '100%', borderRadius: 100, width: `${pct}%`,
+                                                    background: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
+                                                } }) })] }), _jsx("button", { onClick: (e) => { e.stopPropagation(); setOpenMenuId(openMenuId === item._id ? null : item._id); }, style: {
+                                        position: 'absolute', top: 8, right: 6,
+                                        width: 30, height: 30, borderRadius: 8,
+                                        background: openMenuId === item._id ? 'var(--s3)' : 'transparent',
+                                        border: 'none', color: 'var(--txt-2)', cursor: 'pointer',
+                                        fontSize: 18, lineHeight: 1, fontWeight: 700,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    }, children: "\u22EE" }), openMenuId === item._id && (_jsxs("div", { onClick: (e) => e.stopPropagation(), style: {
+                                        position: 'absolute', top: 38, right: 6, zIndex: 50,
+                                        background: 'var(--s2)', border: '1px solid var(--f)',
+                                        borderRadius: 12, padding: 4, minWidth: 200,
+                                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                                        animation: 'fadeInUp 0.15s ease both',
+                                    }, children: [_jsxs("button", { onClick: () => { onReview(item._id); setOpenMenuId(null); }, style: menuItemStyle, children: [_jsx("span", { style: { fontSize: 16 }, children: "\uD83D\uDC41" }), _jsx("span", { children: "Ko'rish va tahlil" })] }), _jsxs("button", { onClick: () => handleRepeat(item._id), style: menuItemStyle, children: [_jsx("span", { style: { fontSize: 16 }, children: "\uD83D\uDD01" }), _jsx("span", { children: "Qayta ishlash (yangi savollar)" })] }), mode === 'dtm' && (_jsxs("button", { onClick: () => { navigate('/cabinet'); setOpenMenuId(null); }, style: { ...menuItemStyle, color: 'var(--acc-l)' }, children: [_jsx("span", { style: { fontSize: 16 }, children: "\uD83E\uDD16" }), _jsx("span", { children: "AI Kabinetga o'tish" })] })), _jsx("div", { style: { height: 1, background: 'var(--f)', margin: '4px 0' } }), _jsxs("button", { onClick: () => { setConfirmDelete(item._id); setOpenMenuId(null); }, style: { ...menuItemStyle, color: 'var(--r)' }, children: [_jsx("span", { style: { fontSize: 16 }, children: "\uD83D\uDDD1" }), _jsx("span", { children: "O'chirish" })] })] }))] }, item._id));
+                    }), page < pages && !loading && (_jsx("button", { onClick: loadMore, style: {
                             width: '100%', padding: 12, background: 'var(--s2)',
                             border: '1px solid var(--f)', borderRadius: 10, color: 'var(--txt-2)',
                             fontSize: 12, cursor: 'pointer', marginTop: 4, marginBottom: 16,
-                        }, children: "Yana ko'rish \u2193" }))] })] }));
+                        }, children: "Yana ko'rish \u2193" })), _jsx("div", { style: { height: 16 } })] }), confirmDelete && (_jsx("div", { className: "modal-backdrop", onClick: () => setConfirmDelete(null), children: _jsx("div", { className: "modal", onClick: e => e.stopPropagation(), style: { maxWidth: 360, borderRadius: 16, marginBottom: 80 }, children: _jsxs("div", { style: { padding: 20 }, children: [_jsx("div", { style: { fontSize: 36, textAlign: 'center', marginBottom: 10 }, children: "\uD83D\uDDD1" }), _jsx("div", { style: { fontWeight: 800, fontSize: 16, textAlign: 'center', marginBottom: 6 }, children: "Testni o'chirish" }), _jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', textAlign: 'center', marginBottom: 16, lineHeight: 1.5 }, children: "Bu testni va u bilan bog'liq barcha javoblaringizni o'chirasizmi? Kabinetdagi tahlilga ham ta'sir qilishi mumkin." }), _jsxs("div", { style: { display: 'flex', gap: 8 }, children: [_jsx("button", { onClick: () => setConfirmDelete(null), className: "btn btn-ghost btn-block", children: "Bekor" }), _jsx("button", { onClick: () => handleDelete(confirmDelete), className: "btn btn-danger btn-block", children: "O'chirish" })] })] }) }) }))] }));
 }
+const menuItemStyle = {
+    width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+    padding: '10px 12px', border: 'none', background: 'transparent',
+    color: 'var(--txt)', fontSize: 13, cursor: 'pointer',
+    borderRadius: 8, textAlign: 'left',
+};
 // ═══════════════════════════════════════════════════════════════════════════
 // ReviewScreen — sessiya ichki ko'rish
 // ═══════════════════════════════════════════════════════════════════════════
@@ -737,7 +571,7 @@ function ReviewScreen({ sessionId, onBack, onSubOpen }) {
                             color: filterSubject === sid ? 'var(--acc-l)' : 'var(--txt-2)',
                             border: `1px solid ${filterSubject === sid ? 'rgba(123,104,238,0.3)' : 'var(--f)'}`,
                             whiteSpace: 'nowrap',
-                        }, children: [SUBJECT_EMOJI[sid] || '📘', " ", answers.find((a) => a.subjectId === sid)?.subjectName || sid] }, sid)))] }), _jsxs("div", { style: { padding: '0 20px', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }, children: [filtered.map((a, i) => (_jsx(AnswerCard, { answer: a, onSubOpen: onSubOpen }, a.questionId || i))), filtered.length === 0 && (_jsx("div", { style: { textAlign: 'center', color: 'var(--txt-3)', padding: 30, fontSize: 13 }, children: "Savollar topilmadi" })), _jsx("div", { style: { height: 16 } })] })] }));
+                        }, children: [SUBJECT_EMOJI[sid] || '📘', " ", answers.find((a) => a.subjectId === sid)?.subjectName || sid] }, sid)))] }), _jsxs("div", { className: 'scroll-y', style: { padding: '0 20px' }, children: [filtered.map((a, i) => (_jsx(AnswerCard, { answer: a, onSubOpen: onSubOpen }, a.questionId || i))), filtered.length === 0 && (_jsx("div", { style: { textAlign: 'center', color: 'var(--txt-3)', padding: 30, fontSize: 13 }, children: "Savollar topilmadi" })), _jsx("div", { style: { height: 16 } })] })] }));
 }
 function AnswerCard({ answer, onSubOpen }) {
     const [expanded, setExpanded] = useState(!answer.isCorrect);

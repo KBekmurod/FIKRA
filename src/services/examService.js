@@ -1,12 +1,9 @@
 const ExamSession  = require('../models/ExamSession');
 const UserAnswer   = require('../models/UserAnswer');
 const TestQuestion = require('../models/TestQuestion');
-const User         = require('../models/User');
 const mongoose     = require('mongoose');
 
-// ─── DTM 2026 Konfiguratsiya ───────────────────────────────────────────────
-// Agar kelajakda o'zgartirish kerak bo'lsa — faqat shu joyni o'zgartiring
-
+// ─── DTM 2026 Konfiguratsiya ─────────────────────────────────────────────────
 const COMPULSORY_SUBJECTS = [
   { id: 'uztil',  name: "Ona tili",          weight: 1.1, count: 10, block: 'majburiy' },
   { id: 'math',   name: "Matematika",         weight: 1.1, count: 10, block: 'majburiy' },
@@ -28,8 +25,6 @@ const SUBJECT_META = {
   adab:    { name: "Adabiyot",          weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
 };
 
-// Yo'nalish → [mutaxassislik_1, mutaxassislik_2]
-// mutaxassislik_1 = 3.1 ball, mutaxassislik_2 = 2.1 ball
 const DIRECTION_MAP = {
   tibbiyot:      { name: "Tibbiyot",         spec: ['bio',     'kimyo'  ] },
   it:            { name: "IT / Dasturlash",   spec: ['inform',  'fizika' ] },
@@ -50,25 +45,12 @@ function assertObjectId(val, label) {
   }
 }
 
-// ─── Savollarni tekshirish va tozalash ────────────────────────────────────
-// Bu funksiya DB dan kelgan har bir savolni tekshiradi.
-// Noto'g'ri formatdagi savollar sessiyaga kirmaydi.
-function sanitizeQuestions(questions) {
-  return questions.filter(q => {
-    if (!q || !q.question || q.question.trim().length < 5) return false;
-    if (!Array.isArray(q.options) || q.options.length !== 4) return false;
-    if (!q.options.every(o => typeof o === 'string' && o.trim().length > 0)) return false;
-    if (typeof q.answer !== 'number' || q.answer < 0 || q.answer > 3) return false;
-    return true;
-  });
-}
-
 async function fetchRandom(subjectId, count) {
   const q = await TestQuestion.aggregate([
     { $match: { subject: subjectId } },
     { $sample: { size: count } },
   ]);
-  return sanitizeQuestions(q);
+  return q;
 }
 
 // ─── 1. DTM sessiyasi boshlash ─────────────────────────────────────────────
@@ -85,7 +67,6 @@ async function startDtmSession(userId, direction) {
   const spec1Meta = SUBJECT_META[spec1Id];
   const spec2Meta = SUBJECT_META[spec2Id];
 
-  // Savollarni olish
   const compQuestions = (
     await Promise.all(COMPULSORY_SUBJECTS.map(s => fetchRandom(s.id, s.count)))
   ).flat();
@@ -94,9 +75,13 @@ async function startDtmSession(userId, direction) {
   const spec2Questions = await fetchRandom(spec2Id, 30);
 
   const allQ = [...compQuestions, ...spec1Questions, ...spec2Questions];
+
+  if (allQ.length === 0) {
+    throw new Error("Bazada savollar yo'q. Admin paneldan seed yoki import qiling.");
+  }
+
   const questionIds = allQ.map(q => q._id);
 
-  // Subject breakdown (sessiyada saqlanadi)
   const subjectBreakdown = [
     ...COMPULSORY_SUBJECTS.map(s => ({
       subjectId: s.id, subjectName: s.name,
@@ -126,23 +111,21 @@ async function startDtmSession(userId, direction) {
     direction: direction.toLowerCase(),
     selectedSubjects: [spec1Id, spec2Id, 'uztil', 'math', 'tarix'],
     questionIds,
-    durationSeconds: 10800, // 180 daqiqa
+    durationSeconds: 10800,
     status: 'in_progress',
     startTime: new Date(),
     subjectBreakdown,
     maxTotalScore: parseFloat(maxTotalScore.toFixed(2)),
   });
 
-  // Clientga saf savollar (javobi yo'q)
   const safeQuestions = allQ.map(q => ({
-    _id:         q._id,
-    subject:     q.subject,
-    subjectName: SUBJECT_META[q.subject]?.name || q.subject,
-    block:       getBlock(q.subject, direction.toLowerCase()),
-    question:    q.question,
-    options:     q.options,
-    difficulty:  q.difficulty,
-    topic:       q.topic,
+    _id:        q._id,
+    subject:    q.subject,
+    block:      getBlock(q.subject, direction.toLowerCase()),
+    question:   q.question,
+    options:    q.options,
+    difficulty: q.difficulty,
+    topic:      q.topic,
   }));
 
   return { session, questions: safeQuestions, directionName: dirInfo.name };
@@ -160,12 +143,8 @@ function getBlock(subjectId, direction) {
 // ─── 2. Alohida fanlar sessiyasi boshlash ──────────────────────────────────
 async function startSubjectSession(userId, subjects, advanced = {}) {
   assertObjectId(userId, 'userId');
+  if (!subjects || subjects.length === 0) throw new Error('Kamida 1 ta fan tanlang');
 
-  if (!subjects || subjects.length === 0) {
-    throw new Error('Kamida 1 ta fan tanlang');
-  }
-
-  // Har fan uchun meta va savol soni
   const subjectBreakdown = [];
   const allQ = [];
 
@@ -189,12 +168,15 @@ async function startSubjectSession(userId, subjects, advanced = {}) {
     });
   }
 
+  if (allQ.length === 0) {
+    throw new Error("Tanlangan fanlar bo'yicha bazada savollar yo'q.");
+  }
+
   const questionIds = allQ.map(q => q._id);
   const maxTotalScore = parseFloat(
     subjectBreakdown.reduce((s, x) => s + x.maxScore, 0).toFixed(2)
   );
 
-  // Vaqt: advanced.durationSeconds yoki avtomatik (2 daqiqa/savol)
   const totalQ = allQ.length;
   const durationSeconds = advanced.durationSeconds
     ? parseInt(advanced.durationSeconds)
@@ -216,21 +198,16 @@ async function startSubjectSession(userId, subjects, advanced = {}) {
   const safeQuestions = allQ.map(q => {
     const meta = SUBJECT_META[q.subject] || {};
     return {
-      _id:        q._id,
-      subject:    q.subject,
-      subjectName:meta.name || q.subject,
-      block:      'subject',
-      question:   q.question,
-      options:    q.options,
-      difficulty: q.difficulty,
-      topic:      q.topic,
+      _id: q._id, subject: q.subject, subjectName: meta.name || q.subject,
+      block: 'subject', question: q.question, options: q.options,
+      difficulty: q.difficulty, topic: q.topic,
     };
   });
 
   return { session, questions: safeQuestions };
 }
 
-// ─── 3. Javob yuborish ─────────────────────────────────────────────────────
+// ─── 3. Javob yuborish — SNAPSHOT bilan ────────────────────────────────────
 async function submitAnswer(sessionId, userId, questionId, selectedOption) {
   assertObjectId(sessionId, 'sessionId');
   assertObjectId(userId, 'userId');
@@ -248,11 +225,21 @@ async function submitAnswer(sessionId, userId, questionId, selectedOption) {
 
   const isCorrect = testQ.answer === selectedOption;
 
-  // Upsert answer
+  // SNAPSHOT: savol ma'lumotlarini UserAnswer ichida saqlash
+  // Endi admin TestQuestion ni o'chirsa ham, foydalanuvchi tarixi saqlanadi
   await UserAnswer.findOneAndUpdate(
     { sessionId, questionId },
     {
       userId,
+      questionId,
+      // SNAPSHOT — savol ma'lumotlarining nusxasi
+      questionText:    testQ.question,
+      questionOptions: testQ.options,
+      correctAnswer:   testQ.answer,
+      explanation:     testQ.explanation || '',
+      topic:           testQ.topic || '',
+      difficulty:      testQ.difficulty || 'medium',
+      // Foydalanuvchi javobi
       subjectId: testQ.subject,
       selectedOption,
       isCorrect,
@@ -275,21 +262,8 @@ async function finishExamSession(sessionId, userId) {
   if (String(session.userId) !== String(userId)) throw new Error('Ruxsat yoq');
   if (session.status === 'completed') throw new Error('Allaqachon yakunlangan');
 
-  // Sertifikatlarni olish (verified bo'lganlar)
-  const user = await User.findById(userId).select('certificates');
-  const certifiedSubjects = {};
-  if (user && user.certificates) {
-    for (const cert of user.certificates) {
-      if (cert.verificationStatus === 'verified' && 
-          (!cert.expiresDate || cert.expiresDate > new Date())) {
-        certifiedSubjects[cert.subjectId] = true;
-      }
-    }
-  }
-
   const answers = await UserAnswer.find({ sessionId });
 
-  // Fan bo'yicha to'g'ri javoblar soni
   const correctBySubject = {};
   for (const a of answers) {
     if (!correctBySubject[a.subjectId]) correctBySubject[a.subjectId] = { correct: 0, wrong: 0 };
@@ -297,32 +271,15 @@ async function finishExamSession(sessionId, userId) {
     else correctBySubject[a.subjectId].wrong++;
   }
 
-  // Breakdown yangilash (sertifikatlarni hisobga olish)
   let totalScore = 0;
   const breakdown = session.subjectBreakdown.map(sb => {
-    let score, correct, wrong;
-    
-    if (certifiedSubjects[sb.subjectId]) {
-      // Sertifikat bo'lsa, to'la ball
-      score = sb.maxScore;
-      correct = sb.questionCount;
-      wrong = 0;
-    } else {
-      // Sertifikat yo'q bo'lsa, imtihon natijalari
-      const stats = correctBySubject[sb.subjectId] || { correct: 0, wrong: 0 };
-      score = parseFloat((stats.correct * sb.weight).toFixed(2));
-      correct = stats.correct;
-      wrong = stats.wrong;
-    }
-    
+    const stats = correctBySubject[sb.subjectId] || { correct: 0, wrong: 0 };
+    const score = parseFloat((stats.correct * sb.weight).toFixed(2));
     totalScore += score;
     return {
       ...sb.toObject(),
-      correct,
-      wrong,
-      score,
-      maxScore: sb.maxScore,
-      certified: certifiedSubjects[sb.subjectId] ? true : false,
+      correct: stats.correct, wrong: stats.wrong,
+      score, maxScore: sb.maxScore,
     };
   });
 
@@ -335,7 +292,7 @@ async function finishExamSession(sessionId, userId) {
   return { session, breakdown, totalScore: session.totalScore };
 }
 
-// ─── 5. Sessiya ko'rish (review) ───────────────────────────────────────────
+// ─── 5. Sessiya ko'rish — SNAPSHOT'dan o'qiydi ─────────────────────────────
 async function getSessionReview(sessionId, userId) {
   assertObjectId(sessionId, 'sessionId');
 
@@ -343,8 +300,8 @@ async function getSessionReview(sessionId, userId) {
   if (!session) throw new Error('Sessiya topilmadi');
   if (String(session.userId) !== String(userId)) throw new Error('Ruxsat yoq');
 
-  const answers = await UserAnswer.find({ sessionId })
-    .populate('questionId', 'question options answer explanation subject topic difficulty');
+  // SNAPSHOT'dan o'qish — populate kerak emas, savollar UserAnswer ichida saqlangan
+  const answers = await UserAnswer.find({ sessionId }).sort({ createdAt: 1 });
 
   return { session, answers };
 }
@@ -368,7 +325,239 @@ async function getHistory(userId, mode, page = 1, limit = 20) {
   return { items, total, page, pages: Math.ceil(total / limit) };
 }
 
-// ─── Eksport ───────────────────────────────────────────────────────────────
+// ─── 7. Sessiyani o'chirish (foydalanuvchi tomonidan) ──────────────────────
+async function deleteSession(sessionId, userId) {
+  assertObjectId(sessionId, 'sessionId');
+  assertObjectId(userId, 'userId');
+
+  const session = await ExamSession.findById(sessionId);
+  if (!session) throw new Error('Sessiya topilmadi');
+  if (String(session.userId) !== String(userId)) throw new Error('Ruxsat yo\'q');
+
+  // Sessiyaga tegishli javoblarni ham o'chirish
+  await Promise.all([
+    UserAnswer.deleteMany({ sessionId }),
+    ExamSession.deleteOne({ _id: sessionId }),
+  ]);
+
+  return { deleted: true, sessionId };
+}
+
+// ─── 8. Testni qayta ishlash — eski sessiya asosida ───────────────────────
+async function repeatSession(sessionId, userId) {
+  assertObjectId(sessionId, 'sessionId');
+  assertObjectId(userId, 'userId');
+
+  const oldSession = await ExamSession.findById(sessionId);
+  if (!oldSession) throw new Error('Sessiya topilmadi');
+  if (String(oldSession.userId) !== String(userId)) throw new Error('Ruxsat yo\'q');
+
+  // Bir xil format/yo'nalish bilan yangi sessiya yaratish
+  if (oldSession.mode === 'dtm') {
+    return await startDtmSession(userId, oldSession.direction);
+  } else {
+    // Subject mode — savol soni ham eski sessiyadagidek
+    const counts = {};
+    oldSession.subjectBreakdown.forEach(sb => {
+      counts[sb.subjectId] = sb.questionCount;
+    });
+    return await startSubjectSession(userId, oldSession.selectedSubjects, { questionCounts: counts });
+  }
+}
+
+// ─── 9. AI Kabinet — DTM xato qilingan savollar tahlili ──────────────────
+// Faqat DTM rejimidagi sessiyalardan xato javoblarni yig'ib chiqaradi
+async function getCabinetData(userId, options = {}) {
+  assertObjectId(userId, 'userId');
+  const { subjectId = null, limit = 100 } = options;
+
+  // Faqat DTM completed sessiyalar
+  const dtmSessions = await ExamSession.find({
+    userId,
+    mode: 'dtm',
+    status: 'completed',
+  }).select('_id direction subjectBreakdown totalScore maxTotalScore createdAt').sort({ createdAt: -1 });
+
+  if (!dtmSessions.length) {
+    return {
+      empty: true,
+      message: "Hali DTM testlari ishlanmagan. Tarix qismidan birinchi DTM testini o'tkazing.",
+      sessions: [], wrongAnswers: [], stats: {},
+    };
+  }
+
+  const sessionIds = dtmSessions.map(s => s._id);
+
+  // Xato javoblarni topish (snapshot bilan)
+  const wrongFilter = {
+    userId,
+    sessionId: { $in: sessionIds },
+    isCorrect: false,
+  };
+  if (subjectId) wrongFilter.subjectId = subjectId;
+
+  const wrongAnswers = await UserAnswer.find(wrongFilter)
+    .sort({ createdAt: -1 })
+    .limit(limit);
+
+  // Statistika: fan bo'yicha xato soni
+  const subjectStats = {};
+  const blockStats = { majburiy: { correct: 0, wrong: 0, total: 0 },
+                       mutaxassislik_1: { correct: 0, wrong: 0, total: 0 },
+                       mutaxassislik_2: { correct: 0, wrong: 0, total: 0 } };
+
+  // Barcha javoblar (correct + wrong) — to'liq statistika uchun
+  const allAnswers = await UserAnswer.find({
+    userId, sessionId: { $in: sessionIds },
+  }).select('subjectId isCorrect block');
+
+  for (const a of allAnswers) {
+    if (!subjectStats[a.subjectId]) {
+      subjectStats[a.subjectId] = {
+        subjectId: a.subjectId,
+        subjectName: SUBJECT_META[a.subjectId]?.name || a.subjectId,
+        correct: 0, wrong: 0, total: 0, accuracy: 0,
+      };
+    }
+    subjectStats[a.subjectId].total++;
+    if (a.isCorrect) subjectStats[a.subjectId].correct++;
+    else subjectStats[a.subjectId].wrong++;
+
+    if (blockStats[a.block]) {
+      blockStats[a.block].total++;
+      if (a.isCorrect) blockStats[a.block].correct++;
+      else blockStats[a.block].wrong++;
+    }
+  }
+
+  // Aniqlik foizi (accuracy)
+  Object.values(subjectStats).forEach(s => {
+    s.accuracy = s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0;
+  });
+  Object.values(blockStats).forEach(b => {
+    b.accuracy = b.total > 0 ? Math.round((b.correct / b.total) * 100) : 0;
+  });
+
+  // Eng zaif fan (eng past accuracy)
+  const weakestSubject = Object.values(subjectStats)
+    .filter(s => s.total >= 3)
+    .sort((a,b) => a.accuracy - b.accuracy)[0] || null;
+
+  return {
+    empty: false,
+    sessions: dtmSessions,
+    sessionCount: dtmSessions.length,
+    wrongAnswers,
+    wrongCount: wrongAnswers.length,
+    totalAnswered: allAnswers.length,
+    stats: {
+      bySubject: Object.values(subjectStats).sort((a,b) => a.accuracy - b.accuracy),
+      byBlock: blockStats,
+      weakestSubject,
+      overallAccuracy: allAnswers.length > 0
+        ? Math.round((allAnswers.filter(a => a.isCorrect).length / allAnswers.length) * 100)
+        : 0,
+    },
+  };
+}
+
+// ─── 10. Kabinet uchun mini-test (faqat xato qilingan savollar) ──────────
+async function startCabinetMiniTest(userId, options = {}) {
+  assertObjectId(userId, 'userId');
+  const { subjectId = null, limit = 10 } = options;
+
+  // DTM sessiyalardan xato javob bergan savollarni olish
+  const dtmSessions = await ExamSession.find({
+    userId, mode: 'dtm', status: 'completed',
+  }).select('_id');
+
+  if (!dtmSessions.length) {
+    throw new Error('Hali DTM testlari yo\'q');
+  }
+
+  const sessionIds = dtmSessions.map(s => s._id);
+  const wrongFilter = {
+    userId, sessionId: { $in: sessionIds }, isCorrect: false,
+  };
+  if (subjectId) wrongFilter.subjectId = subjectId;
+
+  // Xato javoblarni snapshot bilan olish
+  const wrongAnswers = await UserAnswer.aggregate([
+    { $match: wrongFilter },
+    { $sort: { createdAt: -1 } },
+    // Bir xil savol bir necha marta xato bo'lgan bo'lsa, faqat oxirgisini olamiz
+    { $group: {
+        _id: '$questionId',
+        doc: { $first: '$$ROOT' },
+    }},
+    { $replaceRoot: { newRoot: '$doc' } },
+    { $sample: { size: limit } }, // Random shuffle
+  ]);
+
+  if (!wrongAnswers.length) {
+    throw new Error('Xato qilingan savollar yo\'q. Yaxshi natija!');
+  }
+
+  // Yangi mini-test sessiyasi (mode: 'subject' kabi)
+  // Lekin alohida belgilab qo'yamiz: bu cabinet rejimi
+  const subjectBreakdown = {};
+  wrongAnswers.forEach(a => {
+    if (!subjectBreakdown[a.subjectId]) {
+      const meta = SUBJECT_META[a.subjectId] || {};
+      subjectBreakdown[a.subjectId] = {
+        subjectId: a.subjectId,
+        subjectName: meta.name || a.subjectId,
+        block: 'subject',
+        weight: meta.weight || 1.0,
+        questionCount: 0,
+        correct: 0, wrong: 0, score: 0,
+        maxScore: 0,
+      };
+    }
+    subjectBreakdown[a.subjectId].questionCount++;
+    subjectBreakdown[a.subjectId].maxScore = parseFloat(
+      (subjectBreakdown[a.subjectId].questionCount * subjectBreakdown[a.subjectId].weight).toFixed(2)
+    );
+  });
+
+  const breakdownArr = Object.values(subjectBreakdown);
+  const maxTotalScore = breakdownArr.reduce((s, x) => s + x.maxScore, 0);
+
+  // Snapshot questionId lar — mavjud bo'lsa ishlatamiz
+  // Lekin TestQuestion o'chirilgan bo'lishi mumkin, shuning uchun virtual savollar yaratamiz
+  // savol matni va variantlari snapshot'da bor — shularni clientga yuboramiz
+
+  const session = await ExamSession.create({
+    userId,
+    mode: 'subject', // Cabinet ham subject mode dan foydalanadi
+    direction: null,
+    selectedSubjects: [...new Set(wrongAnswers.map(a => a.subjectId))],
+    questionIds: wrongAnswers.map(a => a.questionId).filter(Boolean),
+    durationSeconds: wrongAnswers.length * 120,
+    status: 'in_progress',
+    startTime: new Date(),
+    subjectBreakdown: breakdownArr,
+    maxTotalScore: parseFloat(maxTotalScore.toFixed(2)),
+  });
+
+  // Snapshot'dan savollarni clientga yuborish (haqiqiy TestQuestion bo'lmasa ham ishlaydi)
+  const safeQuestions = wrongAnswers.map(a => ({
+    _id:        a.questionId || new mongoose.Types.ObjectId(), // virtual id
+    subject:    a.subjectId,
+    subjectName: SUBJECT_META[a.subjectId]?.name || a.subjectId,
+    block:      'subject',
+    question:   a.questionText,
+    options:    a.questionOptions,
+    difficulty: a.difficulty || 'medium',
+    topic:      a.topic || '',
+    // CABINET MAYDONI — bu savol ilgari xato qilingan
+    _wasWrong:  true,
+    _previousSelection: a.selectedOption,
+  }));
+
+  return { session, questions: safeQuestions, isCabinet: true };
+}
+
 module.exports = {
   DIRECTION_MAP,
   SUBJECT_META,
@@ -379,123 +568,8 @@ module.exports = {
   finishExamSession,
   getSessionReview,
   getHistory,
-  // Weakness drill generator
-  startWeaknessDrill: async function(userId, options = {}) {
-    const { getUserTopicAnalytics, getWeakSubjects } = require('./analyticsService');
-    assertObjectId(userId, 'userId');
-
-    const topicAnalytics = await getUserTopicAnalytics(userId);
-    // Flatten topics to list { subject, topic, accuracy, total }
-    let topicList = [];
-    for (const sa of topicAnalytics) {
-      for (const t of sa.topics) {
-        topicList.push({ subject: sa.subject, topic: t.topic, accuracy: t.accuracy, total: t.total, isWeak: t.isWeak });
-      }
-    }
-
-    // Prefer explicit weak topics, otherwise fall back to weakest subjects
-    topicList = topicList.filter(t => t.total > 0).sort((a,b) => a.accuracy - b.accuracy);
-
-    const weakTopics = topicList.filter(t => t.isWeak);
-    const targets = [];
-
-    if (weakTopics.length === 0) {
-      // Fallback: pick weakest subjects
-      const weakSubs = await getWeakSubjects(userId);
-      for (const s of weakSubs.slice(0, 3)) {
-        targets.push({ subject: s.subject, topic: null, accuracy: s.accuracy, count: s.level === 'veryWeak' ? 8 : 5 });
-      }
-    } else {
-      for (const t of weakTopics.slice(0, 6)) {
-        targets.push({ subject: t.subject, topic: t.topic, accuracy: t.accuracy, count: t.total >= 5 ? 5 : Math.max(3, t.total) });
-      }
-    }
-
-    // Allow overriding totalQuestions
-    const totalQuestionsOpt = options.totalQuestions || null;
-
-    // Collect questions
-    const allQuestions = [];
-    for (const target of targets) {
-      const want = totalQuestionsOpt ? Math.ceil(totalQuestionsOpt / targets.length) : (target.count || 5);
-      let qs = [];
-      if (target.topic) {
-        qs = await TestQuestion.aggregate([
-          { $match: { subject: target.subject, topic: target.topic } },
-          { $sample: { size: want } },
-        ]);
-      }
-      // Fallback to subject-level if not enough
-      if (!qs || qs.length < want) {
-        const need = Math.max(0, want - (qs ? qs.length : 0));
-        const more = await TestQuestion.aggregate([
-          { $match: { subject: target.subject } },
-          { $sample: { size: need } },
-        ]);
-        qs = (qs || []).concat(more || []);
-      }
-      allQuestions.push(...(qs || []));
-    }
-
-    // If still empty, fallback to random small pack
-    if (!allQuestions.length) {
-      const fallback = await TestQuestion.aggregate([{ $sample: { size: 10 } }]);
-      allQuestions.push(...fallback);
-    }
-
-    // Limit totalQuestions if requested
-    let finalQuestions = allQuestions;
-    if (options.totalQuestions) finalQuestions = finalQuestions.slice(0, options.totalQuestions);
-
-    const questionIds = finalQuestions.map(q => q._id);
-
-    // Build a topic-based breakdown (group by subject/topic)
-    const subjectBreakdown = [];
-    const groupKey = (q) => `${q.subject}__${q.topic || 'general'}`;
-    const groups = {};
-    for (const q of finalQuestions) {
-      const k = groupKey(q);
-      if (!groups[k]) groups[k] = { subjectId: q.subject, topic: q.topic || 'general', questionCount: 0, weight: 1 };
-      groups[k].questionCount += 1;
-    }
-    for (const k of Object.keys(groups)) {
-      const g = groups[k];
-      subjectBreakdown.push({
-        subjectId: g.subjectId,
-        subjectName: SUBJECT_META[g.subjectId]?.name || g.subjectId,
-        block: 'drill',
-        weight: g.weight,
-        questionCount: g.questionCount,
-        correct: 0, wrong: 0, score: 0, maxScore: parseFloat((g.questionCount * g.weight).toFixed(2)),
-      });
-    }
-
-    const maxTotalScore = subjectBreakdown.reduce((s, x) => s + x.maxScore, 0);
-
-    const durationSeconds = options.durationSeconds || Math.max(10 * 60, finalQuestions.length * 90);
-
-    const session = await ExamSession.create({
-      userId,
-      mode: 'drill',
-      direction: null,
-      selectedSubjects: [...new Set(finalQuestions.map(q => q.subject))],
-      questionIds,
-      durationSeconds,
-      status: 'in_progress',
-      startTime: new Date(),
-      subjectBreakdown,
-      maxTotalScore: parseFloat(maxTotalScore.toFixed(2)),
-    });
-
-    const safeQuestions = finalQuestions.map(q => ({
-      _id: q._id,
-      subject: q.subject,
-      question: q.question,
-      options: q.options,
-      difficulty: q.difficulty,
-      topic: q.topic,
-    }));
-
-    return { session, questions: safeQuestions };
-  }
+  deleteSession,
+  repeatSession,
+  getCabinetData,
+  startCabinetMiniTest,
 };

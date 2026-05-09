@@ -2,39 +2,52 @@
 <html lang="uz">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-  <!-- PWA: Asosiy -->
+  <!-- PWA Meta -->
   <meta name="theme-color" content="#7b68ee" />
-  <meta name="color-scheme" content="dark" />
-  <link rel="manifest" href="/manifest.json" />
-
-  <!-- PWA: iOS (Safari) uchun maxsus -->
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="FIKRA" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="application-name" content="FIKRA" />
+  <meta name="msapplication-TileColor" content="#7b68ee" />
+
+  <!-- SEO -->
+  <meta name="description" content="DTM testlariga tayyorlanish platformasi — AI yordamchi, testlar, o'yinlar" />
+
+  <!-- Icons -->
+  <link rel="icon" type="image/svg+xml" href="/assets/icon-D02iFae2.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
-  <!-- SEO va Social -->
-  <meta name="description" content="O'zbekiston abituriyentlari uchun DTM tayyorlik platformasi — test ishlang, AI yordamchi bilan o'rganing" />
-  <meta name="application-name" content="FIKRA" />
-  <meta name="mobile-web-app-capable" content="yes" />
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json" />
 
-  <!-- Ikonkalar -->
-  <link rel="icon" type="image/png" sizes="32x32" href="/icon-192.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/icon-192.png" />
-  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-
-  <title>FIKRA — DTM Tayyorlik</title>
+  <title>FIKRA — DTM tayyorlik</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script type="module" crossorigin src="/assets/index-Dx7hZjtR.js"></script>
+  <script type="module" crossorigin src="/assets/index-mlABCF48.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/vendor-CX_G6rL_.js">
-  <link rel="stylesheet" crossorigin href="/assets/index-DVwPTzN7.css">
-<link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
+  <link rel="stylesheet" crossorigin href="/assets/index-Dx1VZvkh.css">
+</head>
 <body>
   <div id="root"></div>
+
+  <!-- Service Worker ro'yxatga olish -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then(function (reg) {
+            console.log('[FIKRA] SW registered:', reg.scope);
+          })
+          .catch(function (err) {
+            console.warn('[FIKRA] SW registration failed:', err);
+          });
+      });
+    }
+  </script>
 </body>
 </html>

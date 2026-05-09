@@ -1,22 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate as useNavigateRR } from 'react-router-dom'
 import { useAppStore } from '../store'
-import { examApi, aiApi, testApi } from '../api/endpoints'
-import { getStoredAuth } from '../api/client'
+import { examApi, aiApi } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import SubscriptionModal from '../components/SubscriptionModal'
-import { resolveSubjectName } from '../utils/subjectLabels'
-import {
-  buildOfflineDtmSession,
-  buildOfflineSubjectSession,
-  calculateOfflineResult,
-  getCachedExamConfig,
-  saveCachedExamConfig,
-  warmOfflineQuestionBank,
-  type ExamConfigCache,
-  type OfflineSessionData,
-} from '../utils/offlinePractice'
-import { enqueueOfflineResult } from '../utils/offlineSync'
 
 // ─── Turlar ────────────────────────────────────────────────────────────────
 type Screen =
@@ -39,12 +26,6 @@ interface SessionResult {
   sessionId: string; mode: string; totalScore: number; maxTotalScore: number;
   percent: number; subjectBreakdown: SubjectBreakdown[]; direction?: string; directionName?: string;
   xp?: { added: number; total: number; levelUp: boolean } | null
-  certificate?: {
-    certificateNumber: string
-    title: string
-    pngUrl: string
-    pdfUrl: string
-  } | null
 }
 
 const SUBJECT_EMOJI: Record<string, string> = {
@@ -56,7 +37,7 @@ const SUBJECT_EMOJI: Record<string, string> = {
 // ─── Asosiy komponent ──────────────────────────────────────────────────────
 export default function TestPage() {
   const [screen, setScreen] = useState<Screen>('home')
-  const [config, setConfig] = useState<ExamConfigCache | null>(null)
+  const [config, setConfig] = useState<{ subjects: SubjectMeta[]; directions: DirectionMeta[] } | null>(null)
   const [sessionData, setSessionData] = useState<any>(null)   // quiz uchun
   const [resultData, setResultData] = useState<SessionResult | null>(null)
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null)
@@ -64,62 +45,25 @@ export default function TestPage() {
   const [subOpen, setSubOpen] = useState(false)
   const { toast } = useToast()
   const location = useLocation()
-  const navigate = useNavigate()
-  const drillStartedRef = useRef(false)
 
   useEffect(() => {
-    let alive = true
-
-    const loadConfig = async () => {
-      try {
-        const { data } = await examApi.config()
-        if (!alive) return
-        setConfig(data)
-        saveCachedExamConfig(data)
-
-        if (navigator.onLine) {
-          warmOfflineQuestionBank(data, async (subject, block, limit) => {
-            const { data: pack } = await testApi.offlinePack(subject, block, limit)
-            return pack
-          }).catch(() => {})
-        }
-      } catch {
-        const cached = getCachedExamConfig()
-        if (cached && alive) setConfig(cached)
-      }
-    }
-
-    loadConfig()
+    examApi.config().then(r => setConfig(r.data)).catch(() => {})
   }, [])
 
+  // Cabinet quiz: URL /test/cabinet-quiz bo'lsa, localStorage dan sessionData olamiz
   useEffect(() => {
-    if (!config || drillStartedRef.current) return
-
-    const params = new URLSearchParams(location.search)
-    if (params.get('drill') !== '1') return
-
-    const subject = params.get('subject')
-    if (!subject) return
-
-    const rawCount = parseInt(params.get('count') || '5', 10)
-    const count = Number.isFinite(rawCount) ? Math.min(10, Math.max(1, rawCount)) : 5
-
-    drillStartedRef.current = true
-    navigate('/test', { replace: true })
-    void startSubject([subject], {
-      questionCounts: { [subject]: count },
-      durationSeconds: Math.max(10 * 60, count * 90),
-    })
-  }, [config, location.search, navigate])
-
-  // Support starting drill via location.state (from AIPage)
-  useEffect(() => {
-    const state: any = (location as any).state
-    if (state && state.drillSession) {
-      setSessionData(state.drillSession)
-      setScreen('quiz')
+    if (location.pathname.includes('cabinet-quiz')) {
+      try {
+        const raw = localStorage.getItem('fikra_cabinet_session')
+        if (raw) {
+          const sess = JSON.parse(raw)
+          localStorage.removeItem('fikra_cabinet_session')
+          setSessionData(sess)
+          setScreen('quiz')
+        }
+      } catch {}
     }
-  }, [location])
+  }, [location.pathname])
 
   const goHome = () => {
     setScreen('home')
@@ -133,16 +77,7 @@ export default function TestPage() {
       const { data } = await examApi.startDtm(direction)
       setSessionData(data)
       setScreen('quiz')
-    } catch (e: any) {
-      const offlineSession = config ? buildOfflineDtmSession(config, direction) : null
-      if (offlineSession) {
-        setSessionData(offlineSession)
-        setScreen('quiz')
-        toast('Oflayn mashq rejimi ishga tushdi', 'ok')
-        return
-      }
-      toast(e.response?.data?.error || 'Xatolik', 'err')
-    }
+    } catch (e: any) { toast(e.response?.data?.error || 'Xatolik', 'err') }
   }
 
   // ─── Subject boshlash ──────────────────────────────────────────────────
@@ -151,17 +86,7 @@ export default function TestPage() {
       const { data } = await examApi.startSubject(subjects, advanced)
       setSessionData(data)
       setScreen('quiz')
-    } catch (e: any) {
-      const counts = advanced?.questionCounts || undefined
-      const offlineSession = config ? buildOfflineSubjectSession(config, subjects, counts) : null
-      if (offlineSession) {
-        setSessionData({ ...offlineSession, advanced })
-        setScreen('quiz')
-        toast('Oflayn mashq rejimi ishga tushdi', 'ok')
-        return
-      }
-      toast(e.response?.data?.error || 'Xatolik', 'err')
-    }
+    } catch (e: any) { toast(e.response?.data?.error || 'Xatolik', 'err') }
   }
 
   // ─── Quiz tugadi → natija ──────────────────────────────────────────────
@@ -229,6 +154,7 @@ export default function TestPage() {
         onModeChange={setHistoryMode}
         onBack={goHome}
         onReview={(id: string) => { setReviewSessionId(id); setScreen('review') }}
+        onRepeat={(data: any) => { setSessionData(data); setScreen('quiz') }}
       />
     )
   }
@@ -380,7 +306,7 @@ function DtmSetup({ directions, onStart, onBack }: any) {
       </div>
 
       <div className="section-title">Yo'nalishni tanlang</div>
-      <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '50vh', overflowY: 'auto' }}>
+      <div className="scroll-y" style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '50vh' }}>
         {directions.map((d: DirectionMeta) => (
           <button
             key={d.id}
@@ -508,7 +434,7 @@ function SubjectSetup({ subjects, onStart, onBack }: any) {
         </div>
       </div>
 
-      <div style={{ padding: '0 20px', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+      <div className="scroll-y" style={{ padding: '0 20px', flex: 1 }}>
         <div style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: 10, paddingTop: 4 }}>
           📌 Majburiy fanlar
         </div>
@@ -600,47 +526,58 @@ function SubjectSetup({ subjects, onStart, onBack }: any) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// QuizScreen — DTM navigatsiya bilan (o'tkazib yuborish, qaytish, oxirida yuborish)
+// QuizScreen — freeze va scroll muammolari tuzatilgan
 // ═══════════════════════════════════════════════════════════════════════════
 function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }: any) {
-  const { sessionId, questions, durationSeconds, subjectBreakdown, mode, offline } = sessionData
+  const { sessionId, questions, durationSeconds, subjectBreakdown } = sessionData
 
-  // Har savol uchun tanlangan variant: null = javob berilmagan
-  const [answers, setAnswers] = useState<Record<number, number>>({})
-  const [qIdx, setQIdx]       = useState(0)
-  const [showNav, setShowNav] = useState(false)
-  const [hint, setHint]       = useState<string | null>(null)
+  const [qIdx, setQIdx] = useState(0)
+  const [answers, setAnswers] = useState<Record<string, any>>({})
+  const [selected, setSelected] = useState<number | null>(null)
+  const [result, setResult] = useState<any>(null)
+  const [hint, setHint] = useState<string | null>(null)
   const [hintLoading, setHintLoading] = useState(false)
   const [finishing, setFinishing] = useState(false)
-  const [showFinishConfirm, setShowFinishConfirm] = useState(false)
   const [timeLeft, setTimeLeft] = useState(durationSeconds)
-  const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null)
-  const { user }  = useAppStore()
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // finishingRef: stale closure muammosini hal qiladi (useCallback ichida)
+  const finishingRef = useRef(false)
+  const { user } = useAppStore()
   const { toast } = useToast()
 
-  const totalQ     = questions.length
-  const answeredQ  = Object.keys(answers).length
-  const unanswered = totalQ - answeredQ
-  const q          = questions[qIdx]
+  const handleFinish = useCallback(async () => {
+    if (finishingRef.current) return
+    finishingRef.current = true
+    setFinishing(true)
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    try {
+      const { data } = await examApi.finish(sessionId)
+      onFinish(data)
+    } catch (e: any) {
+      toast(e.response?.data?.error || 'Xato', 'err')
+      setFinishing(false)
+      finishingRef.current = false
+    }
+  }, [sessionId, onFinish, toast])
 
-  // Savol format tekshiruvi
-  const isValidQuestion = Boolean(
-    q &&
-    typeof q.question === 'string' && q.question.trim().length > 4 &&
-    Array.isArray(q.options) && q.options.length === 4 &&
-    q.options.every((o: any) => typeof o === 'string' && o.trim().length > 0)
-  )
-
-  // ─── Taymer ─────────────────────────────────────────────────────────────
+  // Taymer — faqat bir marta mount qilinadi, handleFinish dep orqali yangilanadi
   useEffect(() => {
+    if (timerRef.current) clearInterval(timerRef.current)
     timerRef.current = setInterval(() => {
       setTimeLeft((t: number) => {
-        if (t <= 1) { clearInterval(timerRef.current!); handleSubmit(true); return 0 }
+        if (t <= 1) {
+          clearInterval(timerRef.current!)
+          timerRef.current = null
+          handleFinish()
+          return 0
+        }
         return t - 1
       })
     }, 1000)
-    return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [])
+    return () => {
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    }
+  }, [handleFinish])
 
   const formatTime = (sec: number) => {
     const h = Math.floor(sec / 3600)
@@ -650,235 +587,140 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }: any) {
     return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
   }
 
-  // ─── Javobni tanlash (saqlash faqat oxirda) ─────────────────────────────
-  const selectAnswer = (idx: number) => {
-    setAnswers(prev => ({ ...prev, [qIdx]: idx }))
-    setHint(null)
+  const q = questions[qIdx]
+  const totalQ = questions.length
+
+  const selectAnswer = async (idx: number) => {
+    if (selected !== null) return
+    setSelected(idx)
+    try {
+      const { data } = await examApi.answer(sessionId, q._id, idx)
+      setResult(data)
+      setAnswers(prev => ({ ...prev, [q._id]: { selected: idx, isCorrect: data.isCorrect, correctIndex: data.correctIndex } }))
+      if (!data.isCorrect && data.explanation) setHint(data.explanation)
+    } catch (e: any) {
+      toast(e.response?.data?.error || 'Xato', 'err')
+    }
   }
 
-  // ─── AI maslahat ────────────────────────────────────────────────────────
   const askHint = async () => {
-    if (!q || hintLoading) return
     setHintLoading(true)
     try {
       const { data } = await aiApi.hint(q.question, q.options, q.subject, 'hint')
       setHint(data.hint)
     } catch (e: any) {
       if (e.response?.data?.code === 'DAILY_LIMIT_REACHED' || e.response?.data?.code === 'SUBSCRIPTION_REQUIRED') {
-        toast('AI limit tugadi. Obuna oling!', 'err'); onSubOpen()
-      } else { toast(e.response?.data?.error || 'AI xato', 'err') }
+        toast('Bugungi AI limit tugadi. Obuna oling!', 'err'); onSubOpen()
+      } else {
+        toast(e.response?.data?.error || 'AI xato', 'err')
+      }
     } finally { setHintLoading(false) }
   }
 
-  // ─── Savolni o'tkazib yuborish ──────────────────────────────────────────
-  const skipQuestion = () => {
-    if (qIdx < totalQ - 1) { setQIdx(i => i + 1); setHint(null) }
+  const nextQ = () => {
+    setSelected(null); setResult(null); setHint(null)
+    setQIdx(i => i + 1)
   }
 
-  // ─── Navigatsiya ────────────────────────────────────────────────────────
-  const goTo = (idx: number) => {
-    setQIdx(idx); setShowNav(false); setHint(null)
-  }
-
-  // ─── Barcha javoblarni yuborish ──────────────────────────────────────────
-  const handleSubmit = useCallback(async (auto = false) => {
-    if (finishing) return
-    if (!auto && unanswered > 0 && !showFinishConfirm) {
-      setShowFinishConfirm(true)
-      return
-    }
-    setFinishing(true)
-    setShowFinishConfirm(false)
-    if (timerRef.current) clearInterval(timerRef.current)
-
-    if (offline) {
-      // Offline hisoblash
-      const offlineAnswers: Record<string, { selected: number; isCorrect: boolean }> = {}
-      questions.forEach((qs: any, i: number) => {
-        if (answers[i] !== undefined) {
-          offlineAnswers[qs._id] = { selected: answers[i], isCorrect: answers[i] === qs.answer }
-        }
-      })
-      const offlineResult = calculateOfflineResult(sessionData as OfflineSessionData, offlineAnswers)
-      enqueueOfflineResult({
-        gameType: mode === 'dtm' ? 'dtm' : 'subject',
-        subject: mode === 'subject' ? (subjectBreakdown?.map((s: any) => s.subjectId).join(',')) : undefined,
-        direction: sessionData.direction,
-        ballAmount: Math.round(offlineResult.totalScore),
-        maxBall: Math.round(offlineResult.maxTotalScore),
-        correctCount: Object.values(offlineAnswers).filter((a: any) => a.isCorrect).length,
-        totalQuestions: totalQ,
-      })
-      onFinish(offlineResult)
-      return
-    }
-
-    try {
-      // Barcha javoblarni batch yuborish
-      const batchData = Object.entries(answers).map(([i, opt]) => ({
-        questionId: questions[parseInt(i)]._id,
-        selectedOption: opt,
-      }))
-      if (batchData.length > 0) {
-        await examApi.batchAnswer(sessionId, batchData)
-      }
-      // Sessiyani yakunlash
-      const { data } = await examApi.finish(sessionId)
-      onFinish(data)
-    } catch (e: any) {
-      toast(e.response?.data?.error || 'Xato yuz berdi', 'err')
-      setFinishing(false)
-    }
-  }, [finishing, answers, questions, sessionId, offline, unanswered, showFinishConfirm, onFinish, mode, subjectBreakdown, sessionData, totalQ, toast])
-
-  // Joriy fan nomi
-  const currentSubjectName = resolveSubjectName(
-    q?.subject,
-    q?.subjectName || subjectBreakdown?.find((s: SubjectBreakdown) => s.subjectId === q?.subject)?.subjectName
-  )
+  const currentSubjectName = q?.subjectName
+    || subjectBreakdown?.find((s: SubjectBreakdown) => s.subjectId === q?.subject)?.subjectName
+    || q?.subject || ''
 
   const hintsUsed  = user?.aiUsage?.hints ?? 0
   const hintsLimit = user?.aiLimits?.hints ?? 5
   const canHint    = hintsLimit === null || hintsUsed < (hintsLimit as number)
+
+  const pct = Math.round((qIdx / totalQ) * 100)
   const timeWarning = timeLeft < 300
 
-  const selectedForCurrent = answers[qIdx] ?? null
-  const pct = Math.round((answeredQ / totalQ) * 100)
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '10px 16px 16px', position: 'relative' }}>
-
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+    <div className="quiz-wrap">
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexShrink: 0 }}>
         <button
           className="btn btn-ghost btn-sm"
-          onClick={() => { if (window.confirm('Testdan chiqasizmi? Barcha javoblar yo\'qoladi.')) onExit() }}
-          style={{ padding: '7px 10px', fontSize: 12 }}
+          onClick={() => { if (window.confirm('Testdan chiqasizmi? Natija saqlanmaydi.')) onExit() }}
         >← Chiqish</button>
 
         <div style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--txt-2)', lineHeight: 1 }}>
-            {qIdx + 1} <span style={{ color: 'var(--txt-3)' }}>/ {totalQ}</span>
-          </div>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt-2)' }}>
+            {qIdx + 1} / {totalQ}
+          </span>
           {currentSubjectName && (
-            <div style={{ fontSize: 9, color: 'var(--txt-3)', marginTop: 2, fontWeight: 600 }}>
-              {currentSubjectName}
-            </div>
+            <span style={{ fontSize: 10, color: 'var(--txt-3)', marginLeft: 6 }}>· {currentSubjectName}</span>
           )}
         </div>
 
-        {/* Taymer */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{
-            fontSize: 13, fontWeight: 800,
-            color: timeWarning ? 'var(--r)' : 'var(--txt-2)',
-            fontVariantNumeric: 'tabular-nums',
-            background: timeWarning ? 'rgba(255,95,126,0.1)' : 'var(--s2)',
-            border: `1px solid ${timeWarning ? 'rgba(255,95,126,0.3)' : 'var(--f)'}`,
-            padding: '4px 8px', borderRadius: 8,
-          }}>
-            ⏱ {formatTime(timeLeft)}
-          </div>
-          {/* Navigatsiya ochish tugmasi */}
-          <button
-            onClick={() => setShowNav(true)}
-            style={{
-              width: 34, height: 34, borderRadius: 8, cursor: 'pointer',
-              background: 'var(--s2)', border: '1px solid var(--f)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 16, color: 'var(--txt-2)',
-              position: 'relative',
-            }}
-          >
-            ⊞
-            {unanswered > 0 && (
-              <span style={{
-                position: 'absolute', top: -4, right: -4,
-                background: 'var(--y)', color: '#000',
-                fontSize: 9, fontWeight: 800, borderRadius: 100,
-                minWidth: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: '0 3px',
-              }}>{unanswered}</span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* ── Progress ────────────────────────────────────────────────────── */}
-      <div style={{ height: 3, background: 'var(--s2)', borderRadius: 100, marginBottom: 12 }}>
         <div style={{
-          height: '100%', background: 'var(--acc)',
-          width: `${pct}%`, borderRadius: 100, transition: 'width 0.3s',
-        }} />
-      </div>
-
-      {/* ── Savol kartasi ────────────────────────────────────────────────── */}
-      <div style={{
-        background: 'var(--s1)', border: '1px solid var(--f)',
-        borderRadius: 14, padding: '14px 16px', marginBottom: 10, flex: '0 0 auto',
-      }}>
-        <div style={{ fontSize: 14, lineHeight: 1.7, fontWeight: 500, whiteSpace: 'pre-wrap' }}>
-          {q?.question || ''}
+          fontSize: 12, fontWeight: 700,
+          color: timeWarning ? 'var(--r)' : 'var(--txt-2)',
+          background: timeWarning ? 'rgba(255,95,126,0.1)' : 'rgba(240,238,255,0.06)',
+          padding: '4px 8px', borderRadius: 8, fontVariantNumeric: 'tabular-nums',
+          transition: 'color 0.3s',
+        }}>
+          ⏱ {formatTime(timeLeft)}
         </div>
       </div>
 
-      {/* ── AI maslahat tugmasi ──────────────────────────────────────────── */}
-      {!hint && selectedForCurrent === null && (
+      {/* Progress */}
+      <div style={{ height: 4, background: 'var(--s2)', borderRadius: 100, marginBottom: 10, flexShrink: 0 }}>
+        <div style={{ height: '100%', background: 'var(--acc)', width: `${pct}%`, borderRadius: 100, transition: 'width 0.4s' }} />
+      </div>
+
+      {/* Question */}
+      <div className="card" style={{ marginBottom: 8, flexShrink: 0 }}>
+        <div style={{ fontSize: 13, lineHeight: 1.65, fontWeight: 500, whiteSpace: 'pre-wrap' }}>
+          {q.question}
+        </div>
+      </div>
+
+      {/* Hint button */}
+      {!hint && selected === null && (
         <button
           disabled={hintLoading}
           onClick={canHint ? askHint : onSubOpen}
           style={{
-            padding: '9px 14px', borderRadius: 10, marginBottom: 8, cursor: 'pointer',
-            background: canHint ? 'rgba(0,212,170,0.07)' : 'rgba(255,95,126,0.05)',
-            border: `1px solid ${canHint ? 'rgba(0,212,170,0.2)' : 'rgba(255,95,126,0.15)'}`,
-            color: canHint ? 'var(--g)' : 'var(--txt-3)',
-            fontSize: 12, fontWeight: 700, textAlign: 'left',
+            padding: '9px 12px', borderRadius: 10, marginBottom: 8, cursor: 'pointer',
+            background: canHint ? 'rgba(0,212,170,0.08)' : 'rgba(255,95,126,0.06)',
+            border: `1px solid ${canHint ? 'rgba(0,212,170,0.25)' : 'rgba(255,95,126,0.2)'}`,
+            color: canHint ? 'var(--g)' : 'var(--txt-2)',
+            fontSize: 12, fontWeight: 700, width: '100%', flexShrink: 0,
           }}
         >
-          {hintLoading ? '⏳ Yuklanmoqda...' : canHint ? '💡 AI maslahat (javobni ko\'rsatmaydi)' : '💡 AI limit tugadi · Obuna ↗'}
+          {hintLoading ? '⏳ Yuklanmoqda...' : canHint ? '💡 AI maslahat (javobsiz)' : '💡 Limit tugadi · Obuna ↗'}
         </button>
       )}
 
-      {/* ── AI hint matni ────────────────────────────────────────────────── */}
+      {/* Hint text */}
       {hint && (
         <div style={{
-          background: 'rgba(0,212,170,0.06)', border: '1px solid rgba(0,212,170,0.18)',
-          borderRadius: 10, padding: '10px 14px', fontSize: 12, lineHeight: 1.65,
-          marginBottom: 10, color: 'var(--txt)',
+          background: 'rgba(0,212,170,0.07)', border: '1px solid rgba(0,212,170,0.2)',
+          borderRadius: 10, padding: 10, fontSize: 12, lineHeight: 1.6,
+          marginBottom: 8, color: 'var(--txt)', flexShrink: 0,
         }}>{hint}</div>
       )}
 
-      {/* ── Javob variantlari ────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, overflowY: 'auto' }}>
-        {!isValidQuestion ? (
-          <div style={{
-            padding: 16, borderRadius: 10, background: 'rgba(255,95,126,0.07)',
-            border: '1px solid rgba(255,95,126,0.2)', color: 'var(--r)',
-            fontSize: 13, textAlign: 'center',
-          }}>
-            ⚠️ Bu savol noto'g'ri formatda. O'tkazib yuboring.
-          </div>
-        ) : q?.options?.map((opt: string, i: number) => {
-          const isSelected = selectedForCurrent === i
+      {/* Options — scrollable */}
+      <div className="quiz-options">
+        {q.options.map((opt: string, i: number) => {
+          let bg = 'var(--s2)', border = 'var(--f)'
+          if (selected !== null) {
+            if (i === result?.correctIndex) { bg = 'rgba(0,212,170,0.12)'; border = 'var(--g)' }
+            else if (i === selected && !result?.isCorrect) { bg = 'rgba(255,95,126,0.1)'; border = 'var(--r)' }
+          }
           return (
             <button
               key={i}
+              disabled={selected !== null}
               onClick={() => selectAnswer(i)}
               style={{
-                padding: '13px 16px', borderRadius: 12, textAlign: 'left',
-                fontSize: 14, lineHeight: 1.5, cursor: 'pointer',
-                transition: 'all 0.15s',
-                background: isSelected ? 'rgba(123,104,238,0.18)' : 'var(--s1)',
-                border: `2px solid ${isSelected ? 'var(--acc)' : 'var(--f)'}`,
-                color: 'var(--txt)',
-                transform: isSelected ? 'scale(1.01)' : 'scale(1)',
+                padding: '12px 14px', background: bg, border: `1.5px solid ${border}`,
+                borderRadius: 10, textAlign: 'left', fontSize: 13, lineHeight: 1.5,
+                color: 'var(--txt)', cursor: selected !== null ? 'default' : 'pointer',
+                transition: 'all 0.15s', width: '100%', flexShrink: 0,
               }}
             >
-              <span style={{
-                fontWeight: 800,
-                color: isSelected ? 'var(--acc-l)' : 'var(--txt-3)',
-                marginRight: 10, fontSize: 13,
-              }}>
+              <span style={{ fontWeight: 800, color: 'var(--txt-3)', marginRight: 10 }}>
                 {['A', 'B', 'C', 'D'][i]}
               </span>
               {opt}
@@ -887,265 +729,32 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }: any) {
         })}
       </div>
 
-      {/* ── Quyi navigatsiya ─────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexShrink: 0 }}>
-        {/* Oldingi savol */}
-        <button
-          onClick={() => { if (qIdx > 0) { setQIdx(i => i - 1); setHint(null) } }}
-          disabled={qIdx === 0}
-          style={{
-            width: 48, height: 48, borderRadius: 12, cursor: qIdx === 0 ? 'not-allowed' : 'pointer',
-            background: 'var(--s2)', border: '1px solid var(--f)',
-            color: qIdx === 0 ? 'var(--txt-3)' : 'var(--txt)',
-            fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            opacity: qIdx === 0 ? 0.4 : 1,
-            flexShrink: 0,
-          }}
-        >‹</button>
-
-        {/* O'tkazib yuborish yoki Keyingi */}
-        {qIdx < totalQ - 1 ? (
-          <button
-            onClick={skipQuestion}
-            style={{
-              flex: 1, height: 48, borderRadius: 12, cursor: 'pointer',
-              background: selectedForCurrent !== null ? 'var(--acc)' : 'var(--s2)',
-              border: `1px solid ${selectedForCurrent !== null ? 'var(--acc)' : 'var(--f)'}`,
-              color: selectedForCurrent !== null ? 'white' : 'var(--txt-2)',
-              fontSize: 14, fontWeight: 700,
-            }}
-          >
-            {selectedForCurrent !== null ? 'Keyingi →' : 'O\'tkazib yuborish →'}
-          </button>
-        ) : (
-          <button
-            onClick={() => handleSubmit(false)}
-            disabled={finishing}
-            style={{
-              flex: 1, height: 48, borderRadius: 12, cursor: finishing ? 'not-allowed' : 'pointer',
-              background: 'linear-gradient(135deg, var(--acc), #5b48ce)',
-              border: 'none', color: 'white', fontSize: 14, fontWeight: 800,
-              opacity: finishing ? 0.7 : 1,
-            }}
-          >
-            {finishing ? '⏳ Saqlanmoqda...' : `🏁 Natijani ko'rish (${answeredQ}/${totalQ})`}
-          </button>
-        )}
-
-        {/* Keyingi savol (faqat oxirgi savol emasda) */}
-        {qIdx < totalQ - 1 && (
-          <button
-            onClick={() => { setQIdx(i => i + 1); setHint(null) }}
-            style={{
-              width: 48, height: 48, borderRadius: 12, cursor: 'pointer',
-              background: 'var(--s2)', border: '1px solid var(--f)',
-              color: 'var(--txt)', fontSize: 18,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >›</button>
-        )}
-      </div>
-
-      {/* ── Yakunlash tugmasi (har doim ko'rinadigan, oxirgi savol emas) ── */}
-      {qIdx < totalQ - 1 && (
-        <button
-          onClick={() => handleSubmit(false)}
-          disabled={finishing}
-          style={{
-            marginTop: 8, height: 42, borderRadius: 12, cursor: finishing ? 'not-allowed' : 'pointer',
-            background: answeredQ === totalQ
-              ? 'linear-gradient(135deg, var(--acc), #5b48ce)'
-              : 'rgba(123,104,238,0.1)',
-            border: `1px solid ${answeredQ === totalQ ? 'transparent' : 'rgba(123,104,238,0.25)'}`,
-            color: answeredQ === totalQ ? 'white' : 'var(--acc-l)',
-            fontSize: 13, fontWeight: 700, flexShrink: 0,
-          }}
-        >
-          {finishing
-            ? '⏳ Saqlanmoqda...'
-            : answeredQ === totalQ
-              ? `🏁 Barcha ${totalQ} ta savol javoblandi — Natijani ko'rish`
-              : `⏹ Testni yakunlash (${answeredQ}/${totalQ} javoblandi)`
-          }
-        </button>
-      )}
-
-      {/* ── Yakunlash dialog (javobsiz savollar bor) ────────────────────── */}
-      {showFinishConfirm && (
-        <div style={{
-          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.75)',
-          backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', padding: '0 20px', zIndex: 200, borderRadius: 'inherit',
-        }}>
-          <div style={{
-            background: 'var(--s1)', borderRadius: 18, padding: 24,
-            border: '1px solid var(--f)', width: '100%', maxWidth: 380,
-          }}>
-            <div style={{ fontSize: 32, textAlign: 'center', marginBottom: 12 }}>⚠️</div>
-            <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8, textAlign: 'center' }}>
-              {unanswered} ta savol javobsiz
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--txt-2)', lineHeight: 1.6, textAlign: 'center', marginBottom: 20 }}>
-              Javob berilmagan savollar uchun ball berilmaydi. Testni hozir yakunlaysizmi?
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => setShowFinishConfirm(false)}
-                className="btn btn-ghost btn-block"
-                style={{ height: 46 }}
-              >
-                Davom etish
-              </button>
-              <button
-                onClick={() => handleSubmit(false)}
-                style={{
-                  flex: 1, height: 46, borderRadius: 10, cursor: 'pointer',
-                  background: 'var(--acc)', border: 'none', color: 'white',
-                  fontWeight: 800, fontSize: 14,
-                }}
-              >
-                Yakunlash
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Navigatsiya grid (barcha savollar) ──────────────────────────── */}
-      {showNav && (
-        <div style={{
-          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)',
-          backdropFilter: 'blur(10px)', zIndex: 200, borderRadius: 'inherit',
-          display: 'flex', flexDirection: 'column',
-        }}>
-          {/* Nav header */}
-          <div style={{
-            padding: '16px 20px 12px', display: 'flex',
-            alignItems: 'center', justifyContent: 'space-between',
-            borderBottom: '1px solid var(--f)',
-          }}>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 15 }}>Savollar</div>
-              <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 2 }}>
-                {answeredQ} / {totalQ} javoblandi
-              </div>
-            </div>
-            <button
-              onClick={() => setShowNav(false)}
-              style={{
-                width: 32, height: 32, borderRadius: '50%', cursor: 'pointer',
-                background: 'var(--s2)', border: '1px solid var(--f)',
-                color: 'var(--txt)', fontSize: 16,
-              }}
-            >✕</button>
-          </div>
-
-          {/* Legenda */}
-          <div style={{ padding: '10px 20px', display: 'flex', gap: 16 }}>
-            {[
-              { color: 'var(--acc)', label: 'Joriy' },
-              { color: 'var(--g)', label: 'Javoblangan' },
-              { color: 'var(--s3)', label: 'Javobsiz' },
-            ].map(l => (
-              <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <div style={{ width: 10, height: 10, borderRadius: 3, background: l.color }} />
-                <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>{l.label}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Grid */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px' }}>
-            {/* Fan guruhlari bo'yicha ko'rsatish */}
-            {(() => {
-              const groups: Record<string, number[]> = {}
-              questions.forEach((qs: any, i: number) => {
-                const subj = qs.subjectName || resolveSubjectName(qs.subject)
-                if (!groups[subj]) groups[subj] = []
-                groups[subj].push(i)
-              })
-              return Object.entries(groups).map(([subjectName, indices]) => (
-                <div key={subjectName} style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', marginBottom: 8, letterSpacing: '0.5px' }}>
-                    {subjectName.toUpperCase()}
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {indices.map(i => {
-                      const isCurrent  = i === qIdx
-                      const isAnswered = answers[i] !== undefined
-                      return (
-                        <button
-                          key={i}
-                          onClick={() => goTo(i)}
-                          style={{
-                            width: 38, height: 38, borderRadius: 10,
-                            cursor: 'pointer', fontWeight: 800, fontSize: 12,
-                            border: `2px solid ${isCurrent ? 'var(--acc)' : isAnswered ? 'rgba(0,212,170,0.3)' : 'var(--f)'}`,
-                            background: isCurrent
-                              ? 'var(--acc)'
-                              : isAnswered
-                                ? 'rgba(0,212,170,0.12)'
-                                : 'var(--s2)',
-                            color: isCurrent ? 'white' : isAnswered ? 'var(--g)' : 'var(--txt-3)',
-                          }}
-                        >
-                          {i + 1}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))
-            })()}
-          </div>
-
-          {/* Nav yakunlash */}
-          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--f)' }}>
-            <button
-              onClick={() => { setShowNav(false); handleSubmit(false) }}
-              disabled={finishing}
-              style={{
-                width: '100%', height: 48, borderRadius: 12, cursor: 'pointer',
-                background: 'linear-gradient(135deg, var(--acc), #5b48ce)',
-                border: 'none', color: 'white', fontWeight: 800, fontSize: 14,
-              }}
-            >
-              🏁 Testni yakunlash ({answeredQ}/{totalQ})
+      {/* Action */}
+      {selected !== null && (
+        <div style={{ paddingTop: 10, flexShrink: 0 }}>
+          {qIdx + 1 >= totalQ ? (
+            <button onClick={handleFinish} disabled={finishing} className="btn btn-primary btn-block btn-lg">
+              {finishing ? '⏳ Saqlanmoqda...' : "🏁 Natijani ko'rish"}
             </button>
-          </div>
+          ) : (
+            <button onClick={nextQ} className="btn btn-primary btn-block btn-lg">
+              Keyingi savol →
+            </button>
+          )}
         </div>
       )}
     </div>
   )
 }
+
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ResultScreen
 // ═══════════════════════════════════════════════════════════════════════════
 function ResultScreen({ result, onBack, onHistory, onReview }: any) {
   const { totalScore, maxTotalScore, percent, subjectBreakdown, mode, xp } = result
-  const certificate = result.certificate || null
   const emoji = percent >= 80 ? '🏆' : percent >= 60 ? '👏' : percent >= 40 ? '💪' : '📖'
   const grade = percent >= 90 ? "A'lo" : percent >= 75 ? 'Yaxshi' : percent >= 50 ? "O'rtacha" : "Yana o'qing"
-
-  const downloadCertificate = async (format: 'pdf' | 'png') => {
-    if (!certificate) return
-    const url = format === 'pdf' ? certificate.pdfUrl : certificate.pngUrl
-    const auth = getStoredAuth()
-    const response = await fetch(url, {
-      headers: auth?.access ? { Authorization: `Bearer ${auth.access}` } : {},
-    })
-    if (!response.ok) throw new Error('Sertifikat yuklab olinmadi')
-    const blob = await response.blob()
-    const objectUrl = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = objectUrl
-    anchor.download = `fikra-mandat-${certificate.certificateNumber}.${format}`
-    document.body.appendChild(anchor)
-    anchor.click()
-    anchor.remove()
-    URL.revokeObjectURL(objectUrl)
-  }
 
   return (
     <>
@@ -1197,30 +806,15 @@ function ResultScreen({ result, onBack, onHistory, onReview }: any) {
                 background: 'var(--s1)', border: '1px solid var(--f)',
                 borderRadius: 10, padding: '10px 14px',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                   <span style={{ fontSize: 13, fontWeight: 700 }}>
                     {SUBJECT_EMOJI[s.subjectId] || '📘'} {s.subjectName}
                   </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: subPct >= 70 ? 'var(--g)' : subPct >= 50 ? 'var(--y)' : 'var(--r)' }}>
+                    {s.score.toFixed(1)}/{s.maxScore.toFixed(1)}
+                  </span>
                 </div>
-                
-                {/* Test count and score display */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-                  <div style={{ padding: '8px', background: 'rgba(0,212,170,0.08)', borderRadius: 8, textAlign: 'center' }}>
-                    <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 2 }}>Savol</div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--acc-l)' }}>
-                      {s.correct}/{s.questionCount}
-                    </div>
-                  </div>
-                  <div style={{ padding: '8px', background: 'rgba(123,104,238,0.08)', borderRadius: 8, textAlign: 'center' }}>
-                    <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 2 }}>Ball</div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: subPct >= 70 ? 'var(--g)' : subPct >= 50 ? 'var(--y)' : 'var(--r)' }}>
-                      {s.score.toFixed(1)}/{s.maxScore.toFixed(1)}
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Progress bar */}
-                <div style={{ height: 5, background: 'var(--s3)', borderRadius: 100, marginBottom: 6 }}>
+                <div style={{ height: 5, background: 'var(--s3)', borderRadius: 100 }}>
                   <div style={{
                     height: '100%', borderRadius: 100,
                     width: `${subPct}%`,
@@ -1228,10 +822,8 @@ function ResultScreen({ result, onBack, onHistory, onReview }: any) {
                     transition: 'width 0.5s',
                   }} />
                 </div>
-                
-                {/* Details */}
-                <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>
-                  ✓ {s.correct} to'g'ri · ✗ {s.wrong} xato · {subPct}%
+                <div style={{ fontSize: 10, color: 'var(--txt-3)', marginTop: 4 }}>
+                  ✓ {s.correct} ta to'g'ri · ✗ {s.wrong} ta xato · {subPct}%
                 </div>
               </div>
             )
@@ -1243,22 +835,6 @@ function ResultScreen({ result, onBack, onHistory, onReview }: any) {
           <button onClick={onReview} className="btn btn-primary btn-block">
             🔍 Xatolarni ko'rish
           </button>
-          {certificate && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button
-                onClick={() => downloadCertificate('pdf').catch(() => {})}
-                className="btn btn-ghost btn-block"
-              >
-                📄 PDF Manda
-              </button>
-              <button
-                onClick={() => downloadCertificate('png').catch(() => {})}
-                className="btn btn-ghost btn-block"
-              >
-                🖼 PNG Manda
-              </button>
-            </div>
-          )}
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onHistory} className="btn btn-ghost btn-block">📁 Tarix</button>
             <button onClick={onBack} className="btn btn-ghost btn-block">🏠 Bosh sahifa</button>
@@ -1272,14 +848,17 @@ function ResultScreen({ result, onBack, onHistory, onReview }: any) {
 // ═══════════════════════════════════════════════════════════════════════════
 // HistoryScreen
 // ═══════════════════════════════════════════════════════════════════════════
-function HistoryScreen({ mode, onModeChange, onBack, onReview }: any) {
+function HistoryScreen({ mode, onModeChange, onBack, onReview, onRepeat }: any) {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const navigate = useNavigateRR()
   const { toast } = useToast()
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setLoading(true)
     setItems([])
     setPage(1)
@@ -1287,7 +866,17 @@ function HistoryScreen({ mode, onModeChange, onBack, onReview }: any) {
       .then(r => { setItems(r.data.items); setPages(r.data.pages) })
       .catch(() => toast('Tarix yuklanmadi', 'err'))
       .finally(() => setLoading(false))
-  }, [mode])
+  }, [mode, toast])
+
+  useEffect(() => { load() }, [mode, load])
+
+  // Menu tashqarisida bosilsa yopish
+  useEffect(() => {
+    if (!openMenuId) return
+    const onClickOutside = () => setOpenMenuId(null)
+    document.addEventListener('click', onClickOutside)
+    return () => document.removeEventListener('click', onClickOutside)
+  }, [openMenuId])
 
   const loadMore = () => {
     const next = page + 1
@@ -1296,12 +885,35 @@ function HistoryScreen({ mode, onModeChange, onBack, onReview }: any) {
       .catch(() => {})
   }
 
+  const handleDelete = async (id: string) => {
+    try {
+      await examApi.deleteSession(id)
+      setItems(prev => prev.filter(x => x._id !== id))
+      toast("O'chirildi", 'ok')
+      setConfirmDelete(null)
+    } catch (e: any) {
+      toast(e.response?.data?.error || 'Xato', 'err')
+    }
+  }
+
+  const handleRepeat = async (id: string) => {
+    setOpenMenuId(null)
+    try {
+      const { data } = await examApi.repeatSession(id)
+      onRepeat(data)
+    } catch (e: any) {
+      toast(e.response?.data?.error || 'Qayta ishlash imkonsiz', 'err')
+    }
+  }
+
   return (
     <>
       <div className="header">
         <button onClick={onBack} className="btn btn-ghost btn-sm">← Orqaga</button>
         <div style={{ fontWeight: 700, fontSize: 15 }}>Testlar tarixi</div>
-        <div style={{ width: 70 }} />
+        <button onClick={() => navigate('/cabinet')} className="btn btn-ghost btn-sm" title="AI Kabinet">
+          🎓
+        </button>
       </div>
 
       {/* Tabs */}
@@ -1317,14 +929,17 @@ function HistoryScreen({ mode, onModeChange, onBack, onReview }: any) {
               border: `1px solid ${mode === m ? 'var(--acc)' : 'var(--f)'}`,
             }}
           >
-            {m === 'dtm' ? '🎯 DTM' : '📚 Alohida fanlar'}
+            {m === 'dtm' ? '🎯 DTM' : "📚 Alohida fanlar"}
           </button>
         ))}
       </div>
 
-      <div style={{ padding: '0 20px', overflowY: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
+      <div className="scroll-y" style={{ padding: '0 20px', flex: 1 }}>
         {loading && (
-          <div style={{ textAlign: 'center', color: 'var(--txt-3)', padding: 40 }}>Yuklanmoqda...</div>
+          <div style={{ textAlign: 'center', color: 'var(--txt-3)', padding: 40 }}>
+            <div className="spin" style={{ margin: '0 auto 10px' }} />
+            <div style={{ fontSize: 12 }}>Yuklanmoqda...</div>
+          </div>
         )}
 
         {!loading && items.length === 0 && (
@@ -1342,57 +957,123 @@ function HistoryScreen({ mode, onModeChange, onBack, onReview }: any) {
 
         {items.map((item: any) => {
           const date = new Date(item.createdAt)
-          const dateStr = `${date.getDate()}.${date.getMonth()+1}.${date.getFullYear()}`
+          const dateStr = `${date.getDate()}.${String(date.getMonth()+1).padStart(2,'0')}.${date.getFullYear()}`
+          const timeStr = `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`
           const pct = item.maxTotalScore > 0 ? Math.round(item.totalScore / item.maxTotalScore * 100) : 0
           const subjects = item.subjectBreakdown?.map((s: SubjectBreakdown) => s.subjectName).join(', ')
+
+          const dirNames: Record<string, string> = {
+            tibbiyot: 'Tibbiyot', it: 'IT / Dasturlash', iqtisodiyot: 'Iqtisodiyot',
+            pedagogika: 'Pedagogika', arxitektura: 'Arxitektura', jurnalistika: 'Jurnalistika',
+            rus_filologiya: 'Rus filologiyasi', kimyo_fan: 'Kimyo fani',
+            fizika_fan: 'Fizika fani', ingliz_filol: 'Ingliz filologiyasi',
+            biologiya_fan: 'Biologiya fani',
+          }
 
           return (
             <div
               key={item._id}
-              onClick={() => onReview(item._id)}
               style={{
                 background: 'var(--s1)', border: '1px solid var(--f)',
-                borderRadius: 12, padding: '12px 14px', marginBottom: 8, cursor: 'pointer',
+                borderRadius: 12, padding: '12px 14px', marginBottom: 8,
+                position: 'relative',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>{dateStr}</span>
-                <span style={{
-                  fontSize: 13, fontWeight: 800,
-                  color: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
-                }}>
-                  {item.totalScore.toFixed(1)} ball · {pct}%
-                </span>
+              {/* Asosiy zona — bossa review ochiladi */}
+              <div onClick={() => onReview(item._id)} style={{ cursor: 'pointer' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>{dateStr} · {timeStr}</span>
+                    {mode === 'dtm' && item.direction && (
+                      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 3 }}>
+                        🎯 {dirNames[item.direction] || item.direction}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{
+                    fontSize: 13, fontWeight: 800,
+                    color: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {item.totalScore.toFixed(1)} · {pct}%
+                  </span>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--txt-2)', marginBottom: 8,
+                              display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {subjects}
+                </div>
+
+                <div style={{ height: 4, background: 'var(--s3)', borderRadius: 100 }}>
+                  <div style={{
+                    height: '100%', borderRadius: 100, width: `${pct}%`,
+                    background: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
+                  }} />
+                </div>
               </div>
-              {mode === 'dtm' && item.direction && (
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3 }}>
-                  🎯 {item.subjectBreakdown?.find((s: SubjectBreakdown) => s.block === 'mutaxassislik_1')?.subjectId
-                    ? (() => {
-                        const dirNames: Record<string, string> = {
-                          tibbiyot: 'Tibbiyot', it: 'IT / Dasturlash', iqtisodiyot: 'Iqtisodiyot',
-                          pedagogika: 'Pedagogika', arxitektura: 'Arxitektura', jurnalistika: 'Jurnalistika',
-                          rus_filologiya: 'Rus filologiyasi', kimyo_fan: 'Kimyo fani',
-                          fizika_fan: 'Fizika fani', ingliz_filol: 'Ingliz filologiyasi',
-                          biologiya_fan: 'Biologiya fani',
-                        }
-                        return dirNames[item.direction] || item.direction
-                      })()
-                    : item.direction}
+
+              {/* 3-nuqta menu tugmasi */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === item._id ? null : item._id) }}
+                style={{
+                  position: 'absolute', top: 8, right: 6,
+                  width: 30, height: 30, borderRadius: 8,
+                  background: openMenuId === item._id ? 'var(--s3)' : 'transparent',
+                  border: 'none', color: 'var(--txt-2)', cursor: 'pointer',
+                  fontSize: 18, lineHeight: 1, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >⋮</button>
+
+              {/* Menu */}
+              {openMenuId === item._id && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: 'absolute', top: 38, right: 6, zIndex: 50,
+                    background: 'var(--s2)', border: '1px solid var(--f)',
+                    borderRadius: 12, padding: 4, minWidth: 200,
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                    animation: 'fadeInUp 0.15s ease both',
+                  }}
+                >
+                  <button
+                    onClick={() => { onReview(item._id); setOpenMenuId(null) }}
+                    style={menuItemStyle}
+                  >
+                    <span style={{ fontSize: 16 }}>👁</span>
+                    <span>Ko'rish va tahlil</span>
+                  </button>
+                  <button
+                    onClick={() => handleRepeat(item._id)}
+                    style={menuItemStyle}
+                  >
+                    <span style={{ fontSize: 16 }}>🔁</span>
+                    <span>Qayta ishlash (yangi savollar)</span>
+                  </button>
+                  {mode === 'dtm' && (
+                    <button
+                      onClick={() => { navigate('/cabinet'); setOpenMenuId(null) }}
+                      style={{ ...menuItemStyle, color: 'var(--acc-l)' }}
+                    >
+                      <span style={{ fontSize: 16 }}>🤖</span>
+                      <span>AI Kabinetga o'tish</span>
+                    </button>
+                  )}
+                  <div style={{ height: 1, background: 'var(--f)', margin: '4px 0' }} />
+                  <button
+                    onClick={() => { setConfirmDelete(item._id); setOpenMenuId(null) }}
+                    style={{ ...menuItemStyle, color: 'var(--r)' }}
+                  >
+                    <span style={{ fontSize: 16 }}>🗑</span>
+                    <span>O'chirish</span>
+                  </button>
                 </div>
               )}
-              <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>{subjects}</div>
-
-              <div style={{ height: 4, background: 'var(--s3)', borderRadius: 100, marginTop: 8 }}>
-                <div style={{
-                  height: '100%', borderRadius: 100, width: `${pct}%`,
-                  background: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
-                }} />
-              </div>
             </div>
           )
         })}
 
-        {page < pages && (
+        {page < pages && !loading && (
           <button
             onClick={loadMore}
             style={{
@@ -1404,9 +1085,39 @@ function HistoryScreen({ mode, onModeChange, onBack, onReview }: any) {
             Yana ko'rish ↓
           </button>
         )}
+        <div style={{ height: 16 }} />
       </div>
+
+      {/* O'chirish confirmation */}
+      {confirmDelete && (
+        <div className="modal-backdrop" onClick={() => setConfirmDelete(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 360, borderRadius: 16, marginBottom: 80 }}>
+            <div style={{ padding: 20 }}>
+              <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 10 }}>🗑</div>
+              <div style={{ fontWeight: 800, fontSize: 16, textAlign: 'center', marginBottom: 6 }}>
+                Testni o'chirish
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--txt-2)', textAlign: 'center', marginBottom: 16, lineHeight: 1.5 }}>
+                Bu testni va u bilan bog'liq barcha javoblaringizni o'chirasizmi?
+                Kabinetdagi tahlilga ham ta'sir qilishi mumkin.
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setConfirmDelete(null)} className="btn btn-ghost btn-block">Bekor</button>
+                <button onClick={() => handleDelete(confirmDelete)} className="btn btn-danger btn-block">O'chirish</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
+}
+
+const menuItemStyle: React.CSSProperties = {
+  width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+  padding: '10px 12px', border: 'none', background: 'transparent',
+  color: 'var(--txt)', fontSize: 13, cursor: 'pointer',
+  borderRadius: 8, textAlign: 'left',
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1501,7 +1212,7 @@ function ReviewScreen({ sessionId, onBack, onSubOpen }: any) {
         ))}
       </div>
 
-      <div style={{ padding: '0 20px', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+      <div className='scroll-y' style={{ padding: '0 20px' }}>
         {filtered.map((a: any, i: number) => (
           <AnswerCard key={a.questionId || i} answer={a} onSubOpen={onSubOpen} />
         ))}

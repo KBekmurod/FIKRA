@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const testQuestionSchema = new mongoose.Schema({
   subject: {
     type: String,
-    enum: ['uztil', 'math', 'tarix', 'bio', 'kimyo', 'fizika', 'ingliz', 'rus', 'inform', 'iqtisod', 'geo', 'adab'],
+    enum: ['uztil', 'math', 'tarix', 'bio', 'kimyo', 'fizika', 'ingliz', 'rus', 'inform', 'iqtisod'],
     required: true,
     index: true,
   },
@@ -16,20 +16,7 @@ const testQuestionSchema = new mongoose.Schema({
   options: {
     type: [String],
     required: true,
-    validate: {
-      validator: function(v) {
-        return (
-          Array.isArray(v) &&
-          v.length === 4 &&
-          v.every(opt =>
-            typeof opt === 'string' &&
-            opt.trim().length > 0 &&
-            opt.length <= 400
-          )
-        );
-      },
-      message: 'options: 4 ta bo\'sh bo\'lmagan string (max 400 belgi) bo\'lishi shart',
-    },
+    validate: v => v.length === 4,
   },
   answer: {
     type: Number, // 0-3 index

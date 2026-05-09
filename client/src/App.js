@@ -1,22 +1,20 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useEffect, useState } from 'react';
-import { GoogleOAuthProvider } from '@react-oauth/google';
+import { useEffect, useRef, useState } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from './store';
 import HomePage from './pages/HomePage';
 import TestPage from './pages/TestPage';
 import AIPage from './pages/AIPage';
 import ProfilePage from './pages/ProfilePage';
-import AuthPage from './pages/AuthPage';
-import InstallPWA from './components/InstallPWA';
+import CabinetPage from './pages/CabinetPage';
 import { ToastProvider } from './components/Toast';
-import { flushOfflineResultQueue } from './utils/offlineSync';
 function FullLoader() {
     return (_jsxs("div", { className: "full-loader", children: [_jsxs("div", { className: "full-loader-text", children: ["FIKRA", _jsx("span", { children: "." })] }), _jsx("div", { className: "spin" })] }));
 }
 const NAV_ITEMS = [
     { path: '/', icon: '🏠', label: 'Bosh' },
     { path: '/test', icon: '📚', label: 'Test' },
+    { path: '/cabinet', icon: '🎓', label: 'Kabinet' },
     { path: '/ai', icon: '🤖', label: 'AI' },
     { path: '/profile', icon: '👤', label: 'Profil' },
 ];
@@ -38,34 +36,60 @@ function BottomNav() {
 export default function App() {
     const { user, loading, login, refreshUser } = useAppStore();
     const [bootstrapped, setBootstrapped] = useState(false);
+    const pollRef = useRef(null);
     useEffect(() => {
         login().finally(() => setBootstrapped(true));
         // Config olish
-        fetch('/api/config').then(r => r.json()).then(c => {
+        fetch('/api/config')
+            .then(r => r.json())
+            .then(c => {
             ;
             window.BOT_USERNAME = c.botUsername;
             window.ADMIN_USERNAME = c.adminUsername;
-        }).catch(() => { });
-        // Polling — har 30 sek user ma'lumotlarini yangilash
-        const t = setInterval(() => {
-            if (useAppStore.getState().user) {
-                refreshUser();
-            }
-        }, 30000);
-        const syncOfflineResults = () => {
-            flushOfflineResultQueue().catch(() => { });
+        })
+            .catch(() => { });
+        // Polling — faqat tab active bo'lganda ishlaydi (UI freeze oldini olish)
+        // 60s ga oshirdik (30s juda tez edi va freeze keltirar edi)
+        const startPoll = () => {
+            stopPoll();
+            pollRef.current = setInterval(() => {
+                // Faqat document visible bo'lganda refresh
+                if (!document.hidden) {
+                    refreshUser();
+                }
+            }, 60000);
         };
-        syncOfflineResults();
-        window.addEventListener('online', syncOfflineResults);
+        const stopPoll = () => {
+            if (pollRef.current) {
+                clearInterval(pollRef.current);
+                pollRef.current = null;
+            }
+        };
+        startPoll();
+        // Visibility change: tab yashirilganda polling to'xtatish
+        const onVisChange = () => {
+            if (document.hidden) {
+                stopPoll();
+            }
+            else {
+                // Tab qayta ko'rindi — darhol bir refresh, keyin polling qayta boshlash
+                refreshUser();
+                startPoll();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisChange);
+        // Auth expired event (token yangilanmasa)
+        const onAuthExpired = () => {
+            login();
+        };
+        window.addEventListener('fikra:auth-expired', onAuthExpired);
         return () => {
-            clearInterval(t);
-            window.removeEventListener('online', syncOfflineResults);
+            stopPoll();
+            document.removeEventListener('visibilitychange', onVisChange);
+            window.removeEventListener('fikra:auth-expired', onAuthExpired);
         };
     }, []);
     if (!bootstrapped || loading)
         return _jsx(FullLoader, {});
-    if (!user) {
-        return (_jsx("div", { className: "app", children: _jsx(GoogleOAuthProvider, { clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '', children: _jsxs(ToastProvider, { children: [_jsx(AuthPage, {}), _jsx(InstallPWA, {})] }) }) }));
-    }
-    return (_jsx("div", { className: "app", children: _jsxs(ToastProvider, { children: [_jsx("div", { className: "app-content", children: _jsxs(Routes, { children: [_jsx(Route, { path: "/", element: _jsx(HomePage, {}) }), _jsx(Route, { path: "/test/*", element: _jsx(TestPage, {}) }), _jsx(Route, { path: "/ai/*", element: _jsx(AIPage, {}) }), _jsx(Route, { path: "/profile", element: _jsx(ProfilePage, {}) })] }) }), _jsx(BottomNav, {}), _jsx(InstallPWA, {})] }) }));
+    return (_jsx("div", { className: "app", children: _jsxs(ToastProvider, { children: [_jsx("div", { className: "app-content", children: _jsxs(Routes, { children: [_jsx(Route, { path: "/", element: _jsx(HomePage, {}) }), _jsx(Route, { path: "/test/*", element: _jsx(TestPage, {}) }), _jsx(Route, { path: "/cabinet/*", element: _jsx(CabinetPage, {}) }), _jsx(Route, { path: "/ai/*", element: _jsx(AIPage, {}) }), _jsx(Route, { path: "/profile", element: _jsx(ProfilePage, {}) })] }) }), _jsx(BottomNav, {})] }) }));
 }

@@ -1,4 +1,6 @@
 const axios = require('axios');
+const { logger } = require('../utils/logger');
+const ChatHistory = require('../models/ChatHistory');
 
 // ─── Lazy DeepSeek client ──────────────────────────────────────────────────
 // Required env variable: DEEPSEEK_API_KEY — DeepSeek API kaliti
@@ -88,6 +90,50 @@ Tushuntirish 4-7 jumla, ortiqcha gap yo'q. Markdown ishlatma. Asosiy qoida nomin
   return res.choices[0].message.content;
 }
 
+// ─── AI Chat xotira bilan (stateful) ──────────────────────────────────────
+const MAX_CONTEXT_MESSAGES = 20;
+
+async function chatWithMemory(userId, message) {
+  // findOneAndUpdate upsert: foydalanuvchi tarixini topamiz yoki yangisini yaratamiz
+  const history = await ChatHistory.findOneAndUpdate(
+    { userId },
+    { $setOnInsert: { userId, messages: [] } },
+    { upsert: true, new: true }
+  );
+
+  // Kontekst uchun oxirgi MAX_CONTEXT_MESSAGES ta xabarni olamiz
+  const recentMessages = history.messages.slice(-MAX_CONTEXT_MESSAGES).map(m => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  const messagesToSend = [
+    {
+      role: 'system',
+      content: "Sen FIKRA — DTM testlariga tayyorlovchi AI yordamchisan. O'zbek tilida samimiy, aniq va foydali javob ber.",
+    },
+    ...recentMessages,
+    { role: 'user', content: message },
+  ];
+
+  const response = await deepseek().chat.completions.create({
+    model: 'deepseek-chat',
+    messages: messagesToSend,
+    max_tokens: 1000,
+    temperature: 0.7,
+  });
+
+  const assistantReply = response.choices[0].message.content;
+
+  // Foydalanuvchi xabari va AI javobini tarixga saqlaymiz
+  history.messages.push({ role: 'user', content: message });
+  history.messages.push({ role: 'assistant', content: assistantReply });
+  // Save history without blocking the reply on failure
+  history.save().catch(err => logger.error('Failed to save chat history:', err.message));
+
+  return assistantReply;
+}
+
 // ─── Rasm yaratish (Gemini 2.0 Flash Exp) ──────────────────────────────────
 // Required env variable: GEMINI_API_KEY — Google Gemini API kaliti
 async function generateImage(prompt) {
@@ -104,10 +150,110 @@ async function generateImage(prompt) {
   return { base64: img.inlineData.data, mimeType: img.inlineData.mimeType };
 }
 
+// ─── Kaloriya tahlili (Gemini 2.5 Flash vision) ────────────────────────────
+async function analyzeCalorie(imageBase64, mimeType = 'image/jpeg') {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key || key === 'placeholder') throw new Error('GEMINI_API_KEY sozlanmagan');
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+  const response = await axios.post(url, {
+    contents: [{
+      parts: [
+        { inlineData: { mimeType, data: imageBase64 } },
+        { text: `Bu ovqat rasmini tahlil qil. Faqat JSON: {"foodName":"...","calories":0,"protein":0,"fat":0,"carbs":0,"tips":"..."}` }
+      ]
+    }],
+  }, { timeout: 30000 });
+  const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('Tahlil natijasi olishda xatolik');
+  return JSON.parse(match[0]);
+}
+
 module.exports = {
   streamChat,
   generateDocument,
+  chatWithMemory,
   getTestHint,
   explainTestQuestion,
   generateImage,
+  analyzeCalorie,
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AI KABINET — Xato qilingan savollar tahlili
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Xato qilingan savol uchun batafsil tahlil
+async function explainWrongAnswer(question, options, correctAnswer, userSelection, subject, topic) {
+  const optsText = options.map((o, i) => {
+    const marker = i === correctAnswer ? '✓ TO\'G\'RI' : (i === userSelection ? '✗ SIZ TANLADINGIZ' : '');
+    return `${['A','B','C','D'][i]}) ${o}${marker ? ' ['+marker+']' : ''}`;
+  }).join('\n');
+
+  const res = await deepseek().chat.completions.create({
+    model: 'deepseek-chat',
+    messages: [{
+      role: 'system',
+      content: `Sen FIKRA — abituriyentlarga DTM testlariga tayyorlovchi AI o'qituvchisan.
+Foydalanuvchi xato javob bergan. Vazifang: aynan SHU XATOSINI tushuntirish va to'g'ri yo'lni o'zbek tilida sodda, samimiy tushuntirish.
+Format: 4-7 jumla. Markdown YO'Q.
+1. Avval to'g'ri javob nima ekanligini va NIMA UCHUN to'g'ri ekanligini ayt
+2. Keyin foydalanuvchi tanlagan variant nimaga noto'g'ri ekanligini sodda tushuntir
+3. Mavzuga oid asosiy qoidani esga sol
+4. Kichik maslahat bilan tugat — keyingi safar shu xatoni qilmaslik uchun nima qilish kerak`
+    }, {
+      role: 'user',
+      content: `${subject ? subject.toUpperCase() + ' fanidan' : ''}${topic ? ' ('+topic+')' : ''} savol:\n\n"${question}"\n\nVariantlar:\n${optsText}\n\nXatosini tushuntir.`,
+    }],
+    max_tokens: 600,
+    temperature: 0.5,
+  });
+  return res.choices[0].message.content;
+}
+
+// Foydalanuvchining umumiy zaifligini tahlil qilish
+async function analyzeUserPerformance(stats) {
+  const { bySubject, byBlock, weakestSubject, overallAccuracy } = stats;
+
+  const subjectsList = bySubject
+    .filter(s => s.total >= 2)
+    .slice(0, 6)
+    .map(s => `- ${s.subjectName}: ${s.accuracy}% aniqlik (${s.correct}/${s.total})`)
+    .join('\n');
+
+  const res = await deepseek().chat.completions.create({
+    model: 'deepseek-chat',
+    messages: [{
+      role: 'system',
+      content: `Sen FIKRA — abituriyent uchun shaxsiy tayyorgarlik maslahatchisi.
+Vazifang: foydalanuvchining DTM test natijalariga qarab QISQA, AYNI MUAMMOGA YO'NALTIRILGAN tahlil va maslahat berish.
+Format: 5-7 jumla. Markdown yo'q. Samimiy ohang.`,
+    }, {
+      role: 'user',
+      content: `Mening DTM testlaridagi natijalarim:
+
+Umumiy aniqlik: ${overallAccuracy}%
+
+Fanlar:
+${subjectsList}
+
+${weakestSubject ? `Eng zaif fan: ${weakestSubject.subjectName} (${weakestSubject.accuracy}%)` : ''}
+
+Bloklar:
+- Majburiy: ${byBlock.majburiy.accuracy}% (${byBlock.majburiy.correct}/${byBlock.majburiy.total})
+- Mutax. 1 (3.1 ball): ${byBlock.mutaxassislik_1.accuracy}% (${byBlock.mutaxassislik_1.correct}/${byBlock.mutaxassislik_1.total})
+- Mutax. 2 (2.1 ball): ${byBlock.mutaxassislik_2.accuracy}% (${byBlock.mutaxassislik_2.correct}/${byBlock.mutaxassislik_2.total})
+
+Menga aytib ber:
+1. Eng katta zaifligim qaysi sohada va nima qilishim kerak
+2. Qaysi fanga ko'proq vaqt sarflashim kerak
+3. Bitta aniq amaliy maslahat`,
+    }],
+    max_tokens: 700,
+    temperature: 0.6,
+  });
+  return res.choices[0].message.content;
+}
+
+module.exports.explainWrongAnswer = explainWrongAnswer;
+module.exports.analyzeUserPerformance = analyzeUserPerformance;

@@ -202,9 +202,73 @@ router.post('/activate', async (req, res) => {
   }
 });
 
-// ─── ESLATMA: P2P tasdiqlash/rad etish endpointlari /api/admin/ route'iga ko'chirilgan.
-// /api/admin/orders/:orderId/confirm va /api/admin/orders/:orderId/reject
-// Bu yerda eski duplikat endpointlar olib tashlandi.
+// ─── P2P tasdiqlash (admin) ──────────────────────────────────────────────────
+router.post('/admin/confirm-p2p', async (req, res) => {
+  try {
+    const { orderId, adminSecret, note } = req.body;
+    if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) return res.sendStatus(403);
+
+    const order = await PendingOrder.findOne({ orderId });
+    if (!order) return res.status(404).json({ error: 'Buyurtma topilmadi' });
+    if (order.status !== 'pending') return res.status(400).json({ error: `Status: ${order.status}` });
+
+    const plan = PLANS[order.planId];
+    if (!plan) return res.status(400).json({ error: 'Plan topilmadi' });
+
+    const user = await User.findOne({ telegramId: order.telegramId });
+    if (!user) return res.status(404).json({ error: 'User topilmadi' });
+
+    await _activatePlan(user, plan, null);
+
+    order.status = 'confirmed';
+    order.confirmedAt = new Date();
+    order.note = note || '';
+    await order.save();
+
+    // Foydalanuvchiga xabar
+    const botToken = process.env.BOT_TOKEN;
+    if (botToken) {
+      axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        chat_id: order.telegramId,
+        text: `✅ *${plan.name} ${plan.period}* obunangiz faollashtirildi!\n\nID: <code>${orderId}</code>\n\nRahmat! FIKRA'da muvaffaqiyatlar! 🎓`,
+        parse_mode: 'HTML',
+      }).catch(() => {});
+    }
+
+    logger.info(`P2P confirmed: orderId=${orderId} telegramId=${order.telegramId} plan=${order.planId}`);
+    res.json({ success: true, plan: plan.id, telegramId: order.telegramId });
+  } catch (err) {
+    logger.error('confirm-p2p:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── P2P rad etish (admin) ───────────────────────────────────────────────────
+router.post('/admin/reject-p2p', async (req, res) => {
+  try {
+    const { orderId, adminSecret, reason } = req.body;
+    if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) return res.sendStatus(403);
+
+    const order = await PendingOrder.findOne({ orderId });
+    if (!order || order.status !== 'pending') return res.status(400).json({ error: 'Buyurtma topilmadi yoki allaqachon qayta ishlangan' });
+
+    order.status = 'rejected';
+    order.rejectedReason = reason || '';
+    await order.save();
+
+    const botToken = process.env.BOT_TOKEN;
+    if (botToken) {
+      axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        chat_id: order.telegramId,
+        text: `❌ Buyurtma (${orderId}) rad etildi.\n${reason ? 'Sabab: ' + reason : ''}\n\nSavollar uchun admin bilan bog'laning.`,
+      }).catch(() => {});
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ─── Ichki plan aktivlashtirish ──────────────────────────────────────────────
 async function _activatePlan(user, plan, chargeId) {

@@ -1,18 +1,11 @@
 import api from './client';
 export const authApi = {
     login: (initData, referralCode) => api.post('/api/auth/login', { initData, referralCode }),
-    loginStandard: (phone, password) => api.post('/api/auth/login-standard', { phone, password }),
-    register: (phone, password, firstName, lastName) => api.post('/api/auth/register', { phone, password, firstName, lastName }),
-    googleLogin: (token) => api.post('/api/auth/google', { token }),
-    linkTelegram: (initData) => api.post('/api/auth/link-telegram', { initData }),
     me: () => api.get('/api/auth/me'),
     rank: () => api.get('/api/auth/rank'),
 };
 export const testApi = {
     questions: (subject, block, limit = 10) => api.get('/api/games/test/questions', { params: { subject, block, limit } }),
-    offlinePack: (subject, block, limit = 10) => api.get('/api/games/test/offline-pack', {
-        params: { subject, block, limit }
-    }),
     checkAnswer: (questionId, selectedIndex) => api.post('/api/games/test/check-answer', { questionId, selectedIndex }),
     result: (data) => api.post('/api/games/test/result', data),
 };
@@ -22,17 +15,17 @@ export const examApi = {
     startDtm: (direction) => api.post('/api/exams/start-dtm', { direction }),
     startSubject: (subjects, advanced) => api.post('/api/exams/start-subject', { subjects, advanced }),
     answer: (sessionId, questionId, selectedOption) => api.post(`/api/exams/sessions/${sessionId}/answer`, { questionId, selectedOption }),
-    batchAnswer: (sessionId, answers) => api.post(`/api/exams/sessions/${sessionId}/batch-answer`, { answers }),
     finish: (sessionId) => api.post(`/api/exams/sessions/${sessionId}/finish`),
     review: (sessionId) => api.get(`/api/exams/sessions/${sessionId}/review`),
     history: (mode, page = 1) => api.get('/api/exams/history', { params: { mode, page } }),
-    weakSubjects: () => api.get('/api/exams/analysis/weak-subjects'),
-    recommendations: () => api.get('/api/exams/analysis/recommendations'),
-    startWeaknessDrill: (opts) => api.post('/api/exams/start-weakness-drill', opts || {}),
-};
-export const profileApi = {
-    certificates: () => api.get('/api/profile/certificates'),
-    addCertificate: (data) => api.post('/api/profile/certificates/add', data),
+    // ─── Sessiya boshqaruvi ─────────────────────────────────────────────
+    deleteSession: (sessionId) => api.delete(`/api/exams/sessions/${sessionId}`),
+    repeatSession: (sessionId) => api.post(`/api/exams/sessions/${sessionId}/repeat`),
+    // ─── AI Kabinet ─────────────────────────────────────────────────────
+    cabinet: (subject) => api.get('/api/exams/cabinet', { params: subject ? { subject } : {} }),
+    cabinetExplain: (answerId) => api.get(`/api/exams/cabinet/wrong/${answerId}/explain`),
+    cabinetAnalysis: () => api.post('/api/exams/cabinet/analysis'),
+    cabinetMiniTest: (subject, limit = 10) => api.post('/api/exams/cabinet/mini-test', { subject, limit }),
 };
 export const aiApi = {
     hint: (question, options, subject, mode = 'hint') => api.post('/api/ai/hint', { question, options, subject, mode }),

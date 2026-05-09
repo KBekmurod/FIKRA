@@ -6,22 +6,6 @@ export const authApi = {
     api.post<{ accessToken: string; refreshToken: string; user: User }>(
       '/api/auth/login', { initData, referralCode }
     ),
-  loginStandard: (phone: string, password: string) =>
-    api.post<{ accessToken: string; refreshToken: string; user: User }>(
-      '/api/auth/login-standard', { phone, password }
-    ),
-  register: (phone: string, password: string, firstName: string, lastName: string) =>
-    api.post<{ accessToken: string; refreshToken: string; user: User }>(
-      '/api/auth/register', { phone, password, firstName, lastName }
-    ),
-  googleLogin: (token: string) =>
-    api.post<{ accessToken: string; refreshToken: string; user: User }>(
-      '/api/auth/google', { token }
-    ),
-  linkTelegram: (initData: string) =>
-    api.post<{ success: boolean; accessToken?: string; refreshToken?: string; user: User; alreadyLinked?: boolean }>(
-      '/api/auth/link-telegram', { initData }
-    ),
   me: () => api.get<User>('/api/auth/me'),
   rank: () => api.get('/api/auth/rank'),
 }
@@ -29,10 +13,6 @@ export const authApi = {
 export const testApi = {
   questions: (subject: string, block?: string, limit = 10) =>
     api.get<Question[]>('/api/games/test/questions', { params: { subject, block, limit } }),
-  offlinePack: (subject: string, block?: string, limit = 10) =>
-    api.get<(Question & { answer: number; explanation?: string })[]>('/api/games/test/offline-pack', {
-      params: { subject, block, limit }
-    }),
   checkAnswer: (questionId: string, selectedIndex: number) =>
     api.post<CheckResult>('/api/games/test/check-answer', { questionId, selectedIndex }),
   result: (data: any) =>
@@ -48,30 +28,26 @@ export const examApi = {
     api.post('/api/exams/start-subject', { subjects, advanced }),
   answer: (sessionId: string, questionId: string, selectedOption: number) =>
     api.post(`/api/exams/sessions/${sessionId}/answer`, { questionId, selectedOption }),
-  batchAnswer: (sessionId: string, answers: Array<{ questionId: string; selectedOption: number }>) =>
-    api.post(`/api/exams/sessions/${sessionId}/batch-answer`, { answers }),
   finish: (sessionId: string) =>
     api.post(`/api/exams/sessions/${sessionId}/finish`),
   review: (sessionId: string) =>
     api.get(`/api/exams/sessions/${sessionId}/review`),
   history: (mode?: string, page = 1) =>
     api.get('/api/exams/history', { params: { mode, page } }),
-  weakSubjects: () =>
-    api.get('/api/exams/analysis/weak-subjects'),
-  recommendations: () =>
-    api.get('/api/exams/analysis/recommendations'),
-  startWeaknessDrill: (opts?: { totalQuestions?: number; durationSeconds?: number }) =>
-    api.post('/api/exams/start-weakness-drill', opts || {}),
-}
-
-export const profileApi = {
-  certificates: () => api.get('/api/profile/certificates'),
-  addCertificate: (data: {
-    type: 'ielts' | 'cefr' | 'national'
-    subjectId: string
-    level?: string
-    certificateNumber?: string
-  }) => api.post('/api/profile/certificates/add', data),
+  // ─── Sessiya boshqaruvi ─────────────────────────────────────────────
+  deleteSession: (sessionId: string) =>
+    api.delete(`/api/exams/sessions/${sessionId}`),
+  repeatSession: (sessionId: string) =>
+    api.post(`/api/exams/sessions/${sessionId}/repeat`),
+  // ─── AI Kabinet ─────────────────────────────────────────────────────
+  cabinet: (subject?: string) =>
+    api.get('/api/exams/cabinet', { params: subject ? { subject } : {} }),
+  cabinetExplain: (answerId: string) =>
+    api.get(`/api/exams/cabinet/wrong/${answerId}/explain`),
+  cabinetAnalysis: () =>
+    api.post('/api/exams/cabinet/analysis'),
+  cabinetMiniTest: (subject?: string, limit = 10) =>
+    api.post('/api/exams/cabinet/mini-test', { subject, limit }),
 }
 
 export const aiApi = {

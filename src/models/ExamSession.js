@@ -23,7 +23,7 @@ const examSessionSchema = new mongoose.Schema({
 
   mode: {
     type: String,
-    enum: ['dtm', 'subject', 'drill'],
+    enum: ['dtm', 'subject'],
     required: true,
     index: true,
   },

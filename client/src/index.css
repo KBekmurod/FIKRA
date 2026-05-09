@@ -1,4 +1,4 @@
-/* FIKRA v3 — Toza, sodda dizayn */
+/* FIKRA v3 — Production CSS */
 :root {
   --bg: #0a0a14;
   --s1: #14142a;
@@ -16,9 +16,14 @@
   --br: 14px;
   --br2: 10px;
   --br3: 6px;
+
+  /* Real viewport height (keyboard-safe) — main.tsx da set qilinadi */
+  --vh: 1vh;
+  --real-100vh: calc(var(--vh, 1vh) * 100);
 }
 
-* {
+/* ─── Reset ─────────────────────────────────────────────────────────── */
+*, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -26,64 +31,99 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+html {
+  /* iOS overscroll bounce oldini olish */
+  overscroll-behavior: none;
+  background: var(--bg);
+}
+
+body {
   background: var(--bg);
   color: var(--txt);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.5;
-  height: 100%;
+  /* height: 100% EMAS — overscroll muammo keltirar edi */
+  min-height: var(--real-100vh);
   overscroll-behavior: none;
-  overscroll-behavior-y: contain;
-  /* Pull-to-refresh o'chirish */
-  overflow: hidden;
+  /* iOS momentum scroll */
+  -webkit-overflow-scrolling: touch;
 }
 
 #root {
-  min-height: 100vh;
+  min-height: var(--real-100vh);
   display: flex;
   flex-direction: column;
 }
 
 button { font-family: inherit; cursor: pointer; }
-input, textarea, select { font-family: inherit; outline: none; }
+input, textarea, select {
+  font-family: inherit;
+  outline: none;
+  /* iOS input zoom oldini olish (font-size >= 16px bo'lishi kerak yoki bu trick) */
+  font-size: max(16px, 1em);
+}
 
-/* ─── Layout ────────────────────────────────────────────────── */
+/* ─── Layout ─────────────────────────────────────────────────────────── */
 .app {
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
-  min-height: 100vh;
+  min-height: var(--real-100vh);
   background: var(--bg);
   display: flex;
   flex-direction: column;
   position: relative;
 }
 
+/* Desktop: telefon ramkasi */
 @media (min-width: 600px) {
-  body { background: #03030a; padding: 20px 0 40px; }
+  body {
+    background: #03030a;
+    /* padding: 20px — bu ilovani qisqartirib, scroll kelib chiqar edi */
+  }
   .app {
     max-width: 420px;
-    min-height: calc(100vh - 60px);
+    /* min-height: calc(100vh - 60px) — o'chirildi, real vh ishlatamiz */
+    min-height: calc(var(--real-100vh) - 0px);
     border-radius: 24px;
     overflow: hidden;
     box-shadow: 0 0 0 1px rgba(240,238,255,0.06), 0 30px 80px rgba(0,0,0,0.5);
+    margin: 0 auto;
+  }
+  /* Desktop nav joyi */
+  .nav {
+    max-width: 420px !important;
+    border-radius: 0 0 24px 24px !important;
   }
 }
 
 .app-content {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 80px;
+  overflow-x: hidden;
+  padding-bottom: 80px; /* nav height */
+  /* iOS momentum scroll — scroll freeze muammosi hal qiladi */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
-.app-content::-webkit-scrollbar { display: none; }
 
-/* ─── Header ────────────────────────────────────────────────── */
+/* Scrollbar yashirish */
+.app-content::-webkit-scrollbar { display: none; }
+.app-content { scrollbar-width: none; }
+
+/* ─── Header ─────────────────────────────────────────────────────────── */
 .header {
-  padding: 16px 20px 8px;
+  padding: 14px 20px 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* Sticky header — sahifa scroll bo'lganda ham ko'rinib turadi */
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg);
+  /* Yumshoq bottom border */
 }
 .header-logo {
   font-weight: 800;
@@ -108,7 +148,7 @@ input, textarea, select { font-family: inherit; outline: none; }
 .plan-pill:hover { border-color: var(--acc); }
 .plan-pill.active { color: var(--y); border-color: rgba(255, 204, 68, 0.3); }
 
-/* ─── Bottom Nav ────────────────────────────────────────────── */
+/* ─── Bottom Nav ─────────────────────────────────────────────────────── */
 .nav {
   position: fixed;
   bottom: 0;
@@ -118,18 +158,12 @@ input, textarea, select { font-family: inherit; outline: none; }
   margin: 0 auto;
   background: rgba(10, 10, 20, 0.96);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--f);
   display: flex;
-  padding: 6px 4px 22px;
+  /* safe-area-inset-bottom — iPhone home indicator uchun */
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
   z-index: 100;
-}
-
-@media (min-width: 600px) {
-  .nav {
-    max-width: 420px;
-    border-radius: 0 0 24px 24px;
-    bottom: 40px;
-  }
 }
 
 .nav-item {
@@ -137,27 +171,30 @@ input, textarea, select { font-family: inherit; outline: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 8px 4px;
+  gap: 2px;
+  padding: 7px 2px;
   border-radius: 10px;
   background: transparent;
   border: none;
   color: var(--txt-3);
   transition: all 0.15s;
+  /* Minimum touch target: 44x44px */
+  min-height: 44px;
+  justify-content: center;
 }
 .nav-item.active {
   color: var(--acc-l);
   background: rgba(123, 104, 238, 0.1);
 }
 .nav-item:active { transform: scale(0.92); }
-.nav-icon { font-size: 20px; }
+.nav-icon { font-size: 18px; line-height: 1; }
 .nav-label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
 }
 
-/* ─── Cards ─────────────────────────────────────────────────── */
+/* ─── Cards ──────────────────────────────────────────────────────────── */
 .card {
   background: var(--s1);
   border: 1px solid var(--f);
@@ -175,7 +212,7 @@ input, textarea, select { font-family: inherit; outline: none; }
   padding: 16px 20px 8px;
 }
 
-/* ─── Buttons ───────────────────────────────────────────────── */
+/* ─── Buttons ────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -189,16 +226,14 @@ input, textarea, select { font-family: inherit; outline: none; }
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
+  /* Minimum touch target */
+  min-height: 44px;
 }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 .btn:active:not(:disabled) { transform: scale(0.97); }
 
-.btn-primary {
-  background: var(--acc);
-  color: white;
-}
+.btn-primary { background: var(--acc); color: white; }
 .btn-primary:hover:not(:disabled) { background: var(--acc-l); }
-
 .btn-success { background: var(--g); color: #00271e; }
 .btn-danger { background: var(--r); color: white; }
 .btn-ghost {
@@ -207,32 +242,38 @@ input, textarea, select { font-family: inherit; outline: none; }
   border: 1px solid var(--f);
 }
 .btn-block { width: 100%; }
-.btn-sm { padding: 7px 12px; font-size: 11px; }
+.btn-sm { padding: 7px 12px; font-size: 11px; min-height: 36px; }
 .btn-lg { padding: 14px 20px; font-size: 14px; }
 
-/* ─── Input ─────────────────────────────────────────────────── */
+/* ─── Input ──────────────────────────────────────────────────────────── */
 .input, .textarea, .select {
   width: 100%;
   background: var(--s2);
   border: 1px solid var(--f);
   border-radius: var(--br2);
-  padding: 13px 16px;
+  padding: 11px 14px;
   color: var(--txt);
-  font-size: 16px; /* iOS zoom oldini olish: min 16px */
+  font-size: 16px; /* iOS zoom oldini olish uchun 16px+ */
   transition: border-color 0.15s;
 }
 .input:focus, .textarea:focus, .select:focus { border-color: var(--acc); }
-.textarea { resize: none; min-height: 80px; }
+.textarea {
+  resize: none;
+  min-height: 80px;
+  /* iOS momentum scroll textarea ichida */
+  -webkit-overflow-scrolling: touch;
+}
 
-/* ─── Loading ───────────────────────────────────────────────── */
+/* ─── Loading ────────────────────────────────────────────────────────── */
 .spin {
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--f);
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid var(--f);
   border-top-color: var(--acc);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   display: inline-block;
+  flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -243,21 +284,22 @@ input, textarea, select { font-family: inherit; outline: none; }
   align-items: center;
   justify-content: center;
   background: var(--bg);
-  z-index: 1000;
+  z-index: 9999;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 .full-loader-text {
   font-weight: 800;
-  font-size: 22px;
+  font-size: 26px;
   letter-spacing: -0.5px;
 }
 .full-loader-text span { color: var(--acc); }
 
-/* ─── Toast ─────────────────────────────────────────────────── */
+/* ─── Toast ──────────────────────────────────────────────────────────── */
 .toast {
   position: fixed;
-  bottom: 100px;
+  /* nav height + safe area dan yuqori */
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   background: var(--s2);
@@ -269,24 +311,29 @@ input, textarea, select { font-family: inherit; outline: none; }
   z-index: 9999;
   animation: toastIn 0.25s ease;
   box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-  max-width: 90%;
+  max-width: calc(100% - 40px);
+  white-space: nowrap;
+  pointer-events: none;
 }
 @keyframes toastIn {
-  from { opacity: 0; transform: translate(-50%, 30px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from { opacity: 0; transform: translate(-50%, 20px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
 }
 
-/* ─── Modal ─────────────────────────────────────────────────── */
+/* ─── Modal ──────────────────────────────────────────────────────────── */
 .modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   z-index: 1000;
   animation: fadeIn 0.2s ease;
+  /* Tap outside → close uchun */
+  -webkit-tap-highlight-color: transparent;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
@@ -295,11 +342,17 @@ input, textarea, select { font-family: inherit; outline: none; }
   border-radius: 20px 20px 0 0;
   width: 100%;
   max-width: 480px;
-  max-height: 85vh;
+  /* safe-area-inset-bottom uchun extra padding */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  max-height: 90vh;
   overflow-y: auto;
-  animation: slideUp 0.25s ease;
+  -webkit-overflow-scrolling: touch;
+  animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 }
-@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
 
 .modal-header {
   padding: 16px 20px;
@@ -310,28 +363,35 @@ input, textarea, select { font-family: inherit; outline: none; }
   position: sticky;
   top: 0;
   background: var(--s1);
+  z-index: 2;
 }
 .modal-title { font-weight: 800; font-size: 17px; }
 .modal-close {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--s2);
   border: 1px solid var(--f);
   color: var(--txt-2);
-  font-size: 17px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 .modal-body { padding: 18px 20px; }
 
-/* ─── Empty state ───────────────────────────────────────────── */
+/* ─── Empty state ────────────────────────────────────────────────────── */
 .empty {
   padding: 60px 20px;
   text-align: center;
   color: var(--txt-3);
   font-size: 13px;
+  line-height: 1.7;
 }
 
-/* ─── Badge ─────────────────────────────────────────────────── */
+/* ─── Badge ──────────────────────────────────────────────────────────── */
 .badge {
   display: inline-block;
   padding: 3px 8px;
@@ -341,6 +401,77 @@ input, textarea, select { font-family: inherit; outline: none; }
 }
 .badge-purple { background: rgba(123, 104, 238, 0.15); color: var(--acc-l); }
 .badge-yellow { background: rgba(255, 204, 68, 0.15); color: var(--y); }
-.badge-green { background: rgba(0, 212, 170, 0.15); color: var(--g); }
-.badge-red { background: rgba(255, 95, 126, 0.15); color: var(--r); }
-.badge-gray { background: var(--f); color: var(--txt-2); }
+.badge-green  { background: rgba(0, 212, 170, 0.15);  color: var(--g); }
+.badge-red    { background: rgba(255, 95, 126, 0.15); color: var(--r); }
+.badge-gray   { background: var(--f); color: var(--txt-2); }
+
+/* ─── Scrollable containers (generic) ───────────────────────────────── */
+.scroll-y {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+.scroll-y::-webkit-scrollbar { display: none; }
+.scroll-y { scrollbar-width: none; }
+
+/* ─── Telegram WebApp specific ───────────────────────────────────────── */
+/* Telegram'da safe area yo'q bo'lishi mumkin — fallback */
+@supports not (padding: env(safe-area-inset-bottom)) {
+  .nav { padding-bottom: 10px; }
+  .modal { padding-bottom: 0; }
+}
+
+/* ─── Animations ─────────────────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up { animation: fadeInUp 0.25s ease both; }
+
+/* ─── Quiz screen specific ───────────────────────────────────────────── */
+.quiz-wrap {
+  display: flex;
+  flex-direction: column;
+  /* Keyboard ochilganda ham ishlashi uchun real vh */
+  height: calc(var(--real-100vh) - 64px); /* nav height */
+  padding: 12px 16px 0;
+  overflow: hidden;
+}
+.quiz-options {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  /* Pastda action tugmasi uchun joy */
+  padding-bottom: 8px;
+}
+.quiz-options::-webkit-scrollbar { display: none; }
+
+/* ─── Chat specific ──────────────────────────────────────────────────── */
+.chat-wrap {
+  display: flex;
+  flex-direction: column;
+  /* Keyboard ochilganda shrink qiladi */
+  height: calc(var(--real-100vh) - 180px);
+  min-height: 300px;
+}
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 20px 12px;
+}
+.chat-messages::-webkit-scrollbar { display: none; }
+.chat-input-bar {
+  padding: 8px 20px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  background: var(--bg);
+  border-top: 1px solid var(--f);
+}

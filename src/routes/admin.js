@@ -243,39 +243,56 @@ router.get('/questions', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── GET /api/admin/questions/stats — Fan bo'yicha statistika ───────────────
+router.get('/questions/stats', adminAuth, async (req, res) => {
+  try {
+    const stats = await TestQuestion.aggregate([
+      {
+        $group: {
+          _id: '$subject',
+          count: { $sum: 1 },
+          withExplanation: { $sum: { $cond: [{ $and: [{ $ifNull: ['$explanation', false] }, { $ne: ['$explanation', ''] }] }, 1, 0] } },
+        }
+      },
+      { $sort: { _id: 1 } },
+    ]);
+    const total = stats.reduce((s, x) => s + x.count, 0);
+    res.json({ stats, total });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+
+// ─── GET /api/admin/questions/export — CSV eksport ──────────────────────────
+router.get('/questions/export', adminAuth, async (req, res) => {
+  try {
+    const { subject } = req.query;
+    const filter = subject ? { subject } : {};
+    const questions = await TestQuestion.find(filter).lean();
+    const header = 'question;optionA;optionB;optionC;optionD;answer;subject;block;explanation';
+    const rows = questions.map(q => [
+      q.question.replace(/;/g, ',').replace(/\n/g, ' '),
+      ...(q.options || ['','','','']).map(o => String(o).replace(/;/g, ',')),
+      q.answer,
+      q.subject,
+      q.block || 'majburiy',
+      (q.explanation || '').replace(/;/g, ',').replace(/\n/g, ' '),
+    ].join(';'));
+    const csv = [header, ...rows].join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="fikra_questions_${subject||'all'}_${Date.now()}.csv"`);
+    res.send('\ufeff' + csv); // BOM for Excel UTF-8
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+
 // ─── POST /api/admin/questions ───────────────────────────────────────────────
 router.post('/questions', adminAuth, async (req, res) => {
   try {
-    const { question, options, answer, explanation, subject, block, difficulty, topic } = req.body;
-
-    // ── Majburiy maydon tekshiruvlari ──────────────────────────────────────
-    if (!question || question.trim().length < 5) {
-      return res.status(400).json({ error: 'question: kamida 5 ta belgi bo\'lishi kerak' });
+    const { question, options, answer, explanation, subject, block } = req.body;
+    if (!question || !options || options.length < 2 || answer === undefined || !subject) {
+      return res.status(400).json({ error: 'Majburiy maydonlar: question, options (≥2), answer, subject' });
     }
-    if (!Array.isArray(options) || options.length !== 4) {
-      return res.status(400).json({ error: 'options: aynan 4 ta variant bo\'lishi kerak' });
-    }
-    const badOpt = options.find(o => typeof o !== 'string' || o.trim().length === 0 || o.length > 400);
-    if (badOpt !== undefined) {
-      return res.status(400).json({ error: 'Har bir variant bo\'sh bo\'lmagan string (max 400 belgi) bo\'lishi kerak' });
-    }
-    if (typeof answer !== 'number' || answer < 0 || answer > 3) {
-      return res.status(400).json({ error: 'answer: 0-3 orasida bo\'lishi kerak' });
-    }
-    if (!subject) {
-      return res.status(400).json({ error: 'subject majburiy' });
-    }
-
-    const q = await TestQuestion.create({
-      question: question.trim(),
-      options: options.map(o => o.trim()),
-      answer,
-      explanation: explanation?.trim() || '',
-      subject,
-      block: block || 'mutaxassislik',
-      difficulty: difficulty || 'medium',
-      topic: topic?.trim() || '',
-    });
+    const q = await TestQuestion.create({ question, options, answer, explanation, subject, block: block || 'majburiy' });
     res.json({ success: true, question: q });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -288,6 +305,23 @@ router.put('/questions/:id', adminAuth, async (req, res) => {
     res.json({ success: true, question: q });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+
+
+// ─── DELETE /api/admin/questions/all — Barchasini o'chirish ─────────────────
+router.delete('/questions/all', adminAuth, async (req, res) => {
+  try {
+    const { subject, confirm } = req.body;
+    if (confirm !== 'DELETE_ALL') {
+      return res.status(400).json({ error: 'confirm: "DELETE_ALL" yuborish kerak' });
+    }
+    const filter = subject ? { subject } : {};
+    const result = await TestQuestion.deleteMany(filter);
+    logger.info(`Admin: ${result.deletedCount} ta savol o'chirildi (subject=${subject||'all'})`);
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 
 // ─── DELETE /api/admin/questions/:id ─────────────────────────────────────────
 router.delete('/questions/:id', adminAuth, async (req, res) => {
@@ -372,228 +406,82 @@ router.get('/revenue', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ─── GET /api/admin/certificates ────────────────────────────────────────────
-// Tasdiqlanishi kerak bo'lgan sertifikatlar
-router.get('/certificates', adminAuth, async (req, res) => {
+module.exports = router;
+
+// ─── GET /api/admin/revenue ──────────────────────────────────────────────────
+// Daromad kalkulyatori
+router.get('/revenue', adminAuth, async (req, res) => {
   try {
-    const { status = 'pending', page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { deepseekCostPer1k = 0.27, geminiCostPer1k = 0.1 } = req.query;
 
-    const users = await User.find()
-      .select('_id telegramId username firstName certificates')
-      .lean();
-
-    // Sertifikatlarni foydalanuvchi bilan birga ol
-    let allCerts = [];
-    for (const user of users) {
-      for (const cert of user.certificates || []) {
-        allCerts.push({
-          certId: cert._id,
-          userId: user._id,
-          telegramId: user.telegramId,
-          userName: user.username || user.firstName,
-          type: cert.type,
-          subjectId: cert.subjectId,
-          level: cert.level,
-          certificateNumber: cert.certificateNumber,
-          issuedDate: cert.issuedDate,
-          verificationStatus: cert.verificationStatus,
-          createdAt: cert.createdAt,
-        });
-      }
-    }
-
-    // Statusga qarab filtr qil
-    if (status) {
-      allCerts = allCerts.filter(c => c.verificationStatus === status);
-    }
-
-    // Tartibi bo'yicha sort qil (eng yangilari avval)
-    allCerts = allCerts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    const total = allCerts.length;
-    const certs = allCerts.slice(skip, skip + parseInt(limit));
-
-    res.json({
-      certificates: certs,
-      total,
-      page: parseInt(page),
-      pages: Math.ceil(total / parseInt(limit)),
-    });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── POST /api/admin/certificates/:userId/:certId/verify ───────────────────
-// Sertifikatni tasdiqlash
-router.post('/certificates/:userId/:certId/verify', adminAuth, async (req, res) => {
-  try {
-    const { userId, certId } = req.params;
-    const adminName = req.query.admin || 'unknown';
-
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User topilmadi' });
-
-    const cert = user.certificates.find(c => c._id.toString() === certId);
-    if (!cert) return res.status(404).json({ error: 'Sertifikat topilmadi' });
-
-    cert.verificationStatus = 'verified';
-    cert.verifiedBy = adminName;
-    cert.verifiedAt = new Date();
-
-    await user.save();
-
-    res.json({ success: true, message: 'Sertifikat tasdiqlandi', certificate: cert });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── POST /api/admin/certificates/:userId/:certId/reject ───────────────────
-// Sertifikatni rad etish
-router.post('/certificates/:userId/:certId/reject', adminAuth, async (req, res) => {
-  try {
-    const { userId, certId } = req.params;
-    const { reason } = req.body;
-    const adminName = req.query.admin || 'unknown';
-
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User topilmadi' });
-
-    const cert = user.certificates.find(c => c._id.toString() === certId);
-    if (!cert) return res.status(404).json({ error: 'Sertifikat topilmadi' });
-
-    cert.verificationStatus = 'rejected';
-    cert.verifiedBy = adminName;
-    cert.verifiedAt = new Date();
-    cert.rejectionReason = reason || '';
-
-    await user.save();
-
-    res.json({ success: true, message: 'Sertifikat rad etildi', certificate: cert });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── DELETE /api/admin/certificates/:userId/:certId ──────────────────────────
-// Sertifikatni o'chirish
-router.delete('/certificates/:userId/:certId', adminAuth, async (req, res) => {
-  try {
-    const { userId, certId } = req.params;
-
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User topilmadi' });
-
-    const certIndex = user.certificates.findIndex(c => c._id.toString() === certId);
-    if (certIndex < 0) return res.status(404).json({ error: 'Sertifikat topilmadi' });
-
-    user.certificates.splice(certIndex, 1);
-    await user.save();
-
-    res.json({ success: true, message: 'Sertifikat o\'chirildi' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── GET /api/admin/questions/stats ──────────────────────────────────────
-// Fan bo'yicha savol statistikasi
-router.get('/questions/stats', adminAuth, async (req, res) => {
-  try {
-    const stats = await TestQuestion.aggregate([
-      { $group: { _id: { subject: '$subject', block: '$block' }, count: { $sum: 1 } } },
-      { $sort: { '_id.subject': 1 } },
+    const [
+      confirmedOrders, activeUsers,
+    ] = await Promise.all([
+      PendingOrder.find({ status: 'confirmed' }),
+      User.find({ plan: { $ne: 'free' }, planExpiresAt: { $gt: new Date() } }).select('plan planId'),
     ]);
-    const total = await TestQuestion.countDocuments();
 
-    const bySubject = {};
-    for (const s of stats) {
-      const subj = s._id.subject;
-      if (!bySubject[subj]) bySubject[subj] = { total: 0, majburiy: 0, mutaxassislik: 0 };
-      bySubject[subj].total += s.count;
-      bySubject[subj][s._id.block] = (bySubject[subj][s._id.block] || 0) + s.count;
-    }
+    // P2P daromad (UZS)
+    const p2pRevenue = confirmedOrders.reduce((sum, o) => sum + (o.priceUZS || 0), 0);
 
-    res.json({ total, bySubject });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
+    // Stars daromad (Stars'ni UZS ga: ~70 so'm per star taxminan)
+    // Stars → USD: 1 Stars ≈ $0.013 (Telegram narxi)
+    // USD → UZS: 1 USD ≈ 12700 UZS (taxminan)
+    const STAR_TO_UZS = 165; // 1 Stars ≈ 165 UZS
+    const starsOrdersRevenue = confirmedOrders
+      .filter(o => o.paymentType === 'stars')
+      .reduce((sum, o) => sum + (o.priceStars || 0) * STAR_TO_UZS, 0);
 
-// ─── DELETE /api/admin/questions/bulk ─────────────────────────────────────
-// Bir nechta savollarni o'chirish
-router.delete('/questions/bulk', adminAuth, async (req, res) => {
-  try {
-    const { ids } = req.body;
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ error: 'ids massivi kerak' });
-    }
-    const result = await TestQuestion.deleteMany({ _id: { $in: ids } });
-    res.json({ success: true, deleted: result.deletedCount });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
+    // Jami AI so'rovlar (taxminiy xarajat)
+    const totalAiReqs = await User.aggregate([
+      { $group: { _id: null, total: { $sum: '$totalAiRequests' } } }
+    ]);
+    const totalReqs = totalAiReqs[0]?.total || 0;
+    // Taxminan har 1000 so'rovda: 60% DeepSeek, 40% Gemini
+    const dsTokensCost = (totalReqs * 0.6 / 1000) * parseFloat(deepseekCostPer1k);
+    const gmTokensCost = (totalReqs * 0.4 / 1000) * parseFloat(geminiCostPer1k);
+    const totalApiCostUSD = dsTokensCost + gmTokensCost;
+    const totalApiCostUZS = totalApiCostUSD * 12700;
 
-// ─── DELETE /api/admin/questions/by-subject ──────────────────────────────
-// Fan bo'yicha barcha savollarni o'chirish
-router.delete('/questions/by-subject', adminAuth, async (req, res) => {
-  try {
-    const { subject, block } = req.body;
-    if (!subject) return res.status(400).json({ error: 'subject kerak' });
-    const filter = { subject };
-    if (block) filter.block = block;
-    const result = await TestQuestion.deleteMany(filter);
-    res.json({ success: true, deleted: result.deletedCount, subject });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── DELETE /api/admin/questions/all ─────────────────────────────────────
-// Barcha savollarni o'chirish (xavfli — confirm kerak)
-router.delete('/questions/all', adminAuth, async (req, res) => {
-  try {
-    const { confirm } = req.body;
-    if (confirm !== 'DELETE_ALL_QUESTIONS') {
-      return res.status(400).json({ error: 'confirm: "DELETE_ALL_QUESTIONS" yuborish kerak' });
-    }
-    const result = await TestQuestion.deleteMany({});
-    res.json({ success: true, deleted: result.deletedCount });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── POST /api/admin/questions/seed ──────────────────────────────────────
-// seedQuestions.js dagi savollarni MongoDB ga yuklash
-// Takroriy savollar yuklanmaydi (question + subject kombinatsiyasi bo'yicha)
-router.post('/questions/seed', adminAuth, async (req, res) => {
-  try {
-    const { mode = 'skip_duplicates' } = req.body;
-    // seedQuestions.js dagi QUESTIONS massivini to'g'ridan-to'g'ri import qilamiz
-    const { QUESTIONS } = require('../utils/seedQuestions');
-
-    let inserted = 0;
-    let skipped = 0;
-    let errors = 0;
-
-    if (mode === 'replace_all') {
-      // Hammasini o'chirib yangi yuklash
-      await TestQuestion.deleteMany({});
-      const result = await TestQuestion.insertMany(QUESTIONS, { ordered: false });
-      inserted = result.length;
-    } else {
-      // Takroriy savollarni o'tkazib yuborish
-      for (const q of QUESTIONS) {
-        try {
-          const exists = await TestQuestion.findOne({
-            subject: q.subject,
-            question: q.question.trim().slice(0, 100),
-          });
-          if (exists) { skipped++; continue; }
-          await TestQuestion.create(q);
-          inserted++;
-        } catch { errors++; }
-      }
-    }
+    // Plan taqsimoti
+    const planDist = { basic: 0, pro: 0, vip: 0 };
+    activeUsers.forEach(u => { if (planDist[u.plan] !== undefined) planDist[u.plan]++; });
 
     res.json({
-      success: true,
-      total: QUESTIONS.length,
-      inserted,
-      skipped,
-      errors,
-      message: `${inserted} ta savol yuklandi, ${skipped} ta o'tkazib yuborildi`,
+      revenue: {
+        p2p: p2pRevenue,
+        stars: Math.round(starsOrdersRevenue),
+        total: p2pRevenue + Math.round(starsOrdersRevenue),
+      },
+      costs: {
+        apiUSD: +totalApiCostUSD.toFixed(2),
+        apiUZS: Math.round(totalApiCostUZS),
+      },
+      profit: {
+        uzs: (p2pRevenue + Math.round(starsOrdersRevenue)) - Math.round(totalApiCostUZS),
+      },
+      orders: { total: confirmedOrders.length },
+      aiRequests: totalReqs,
+      activeSubs: activeUsers.length,
+      planDistribution: planDist,
+      note: 'API xarajat taxminiy. Aniq hisob uchun DeepSeek/Gemini dashboard\'ini tekshiring.',
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;
 
+// ─── POST /api/admin/questions/seed — Seed savollarni yuklash ───────────────
+router.post('/questions/seed', adminAuth, async (req, res) => {
+  try {
+    const { seedQuestions } = require('../utils/seedQuestions');
+    await seedQuestions();
+    const total = await TestQuestion.countDocuments();
+    const stats = await TestQuestion.aggregate([
+      { $group: { _id: '$subject', count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]);
+    logger.info(`Admin: seed qilindi, jami ${total} ta savol`);
+    res.json({ success: true, total, stats });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
