@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { usePwaInstall } from '../App'
 import { useAppStore } from '../store'
 import SubscriptionModal from '../components/SubscriptionModal'
 import { useToast } from '../components/Toast'
@@ -7,6 +8,11 @@ export default function ProfilePage() {
   const { user } = useAppStore()
   const [subOpen, setSubOpen] = useState(false)
   const { toast } = useToast()
+  const { canInstall, install } = usePwaInstall()
+
+  // Ochilish soni
+  const openCount = parseInt(localStorage.getItem('fikra_open_count') || '0', 10)
+  const showInstallBanner = canInstall && openCount >= 3
 
   const isSub = user?.effectivePlan && user.effectivePlan !== 'free'
   const planLabel: Record<string, { name: string; emoji: string; color: string }> = {
@@ -75,9 +81,7 @@ export default function ProfilePage() {
                 @{user.username}
               </div>
             )}
-            <div style={{ fontSize: 11, color: 'var(--y)', marginTop: 4, fontWeight: 700 }}>
-              ⚡ {(user?.xp || 0).toLocaleString()} XP
-            </div>
+
           </div>
         </div>
       </div>
@@ -105,6 +109,34 @@ export default function ProfilePage() {
       </div>
 
       {/* Plan card */}
+      {/* PWA install banner — 3+ ochishdan keyin ko'rinadi */}
+      {showInstallBanner && (
+        <div style={{ padding: '8px 20px 0' }}>
+          <button
+            onClick={install}
+            style={{
+              width: '100%',
+              background: 'linear-gradient(135deg, rgba(0,212,170,0.12), rgba(123,104,238,0.08))',
+              border: '1px solid rgba(0,212,170,0.3)',
+              borderRadius: 14, padding: '14px 16px',
+              display: 'flex', alignItems: 'center', gap: 12,
+              color: 'var(--txt)', cursor: 'pointer', textAlign: 'left',
+            }}
+          >
+            <div style={{ fontSize: 28 }}>📲</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--g)' }}>
+                Ilovani o'rnatish
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
+                Telefonga yuklab oling — tezroq, offline ham ishlaydi
+              </div>
+            </div>
+            <div style={{ color: 'var(--g)', fontSize: 18, fontWeight: 800 }}>↓</div>
+          </button>
+        </div>
+      )}
+
       <div className="section-title">Obuna</div>
       <div style={{ padding: '0 20px' }}>
         <button

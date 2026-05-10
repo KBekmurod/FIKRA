@@ -11,25 +11,35 @@ export const useAppStore = create((set, get) => ({
         const initData = tg?.initData || '';
         const initUser = tg?.initDataUnsafe?.user;
         const tid = initUser?.id;
-        // Demo mode (brauzerda to'g'ridan-to'g'ri kirish)
+        // Brauzerdan to'g'ridan-to'g'ri kirish (Telegram WebApp yo'q)
         if (!initData || !tid) {
-            set({
-                user: {
-                    telegramId: 0,
-                    firstName: 'Demo Foydalanuvchi',
-                    plan: 'free',
-                    effectivePlan: 'free',
-                    streakDays: 3,
-                    xp: 150,
-                    totalGamesPlayed: 5,
-                    totalAiRequests: 2,
-                    aiUsage: { hints: 2, chats: 3, docs: 0, images: 0 },
-                    aiLimits: { hints: 5, chats: 10, docs: 2, images: 0 },
-                    _demo: true,
-                },
-                loading: false,
-            });
-            return;
+            // Serverga bot WebApp'siz login qilib ko'rish
+            // (development va test uchun qulay)
+            try {
+                const { data } = await authApi.login('browser_test');
+                set({ user: data.user, loading: false });
+                return;
+            }
+            catch {
+                // Server ham rад etsa — anonymous rejim
+                set({
+                    user: {
+                        telegramId: 0,
+                        firstName: 'Telegram orqali kiring',
+                        plan: 'free',
+                        effectivePlan: 'free',
+                        streakDays: 0,
+                        xp: 0,
+                        totalGamesPlayed: 0,
+                        totalAiRequests: 0,
+                        aiUsage: { hints: 0, chats: 0, docs: 0, images: 0 },
+                        aiLimits: { hints: 5, chats: 10, docs: 2, images: 0 },
+                        _demo: true,
+                    },
+                    loading: false,
+                });
+                return;
+            }
         }
         // Saqlangan token bilan urinib ko'rish
         const stored = getStoredAuth();

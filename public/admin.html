@@ -790,7 +790,7 @@ function showDeleteAllModal() {
     </div>
     <div class="form-group">
       <label>Tasdiqlash uchun <b>O'CHIRISH</b> yozing</label>
-      <input id="del-confirm-input" placeholder="O'CHIRISH" style="width:100%" oninput="document.getElementById('del-confirm-btn').disabled=this.value!==\'O\'CHIRISH\'">
+      <input id="del-confirm-input" placeholder="O'CHIRISH" style="width:100%" oninput="checkDelConfirm(this.value)">
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
       <button class="btn btn-ghost" onclick="closeModal()">Bekor</button>
@@ -1016,6 +1016,12 @@ function renderPg(containerId, currentPage, totalPages, onClick) {
   }
   html += `<button class="pg-btn" ${currentPage>=totalPages?'disabled':''} onclick="(${onClick.toString()})(${currentPage+1})">›</button>`;
   el.innerHTML = html;
+}
+
+// O'chirish tasdiqlash
+function checkDelConfirm(val) {
+  const btn = document.getElementById('del-confirm-btn');
+  if (btn) btn.disabled = (val !== "O'CHIRISH");
 }
 
 const _timers = {};

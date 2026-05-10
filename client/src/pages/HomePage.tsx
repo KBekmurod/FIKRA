@@ -156,7 +156,7 @@ export default function HomePage() {
       <div style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
         <div className="card" style={{ textAlign: 'center', padding: 14 }}>
           <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--acc-l)' }}>
-            {user?.xp || 0}
+
           </div>
           <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>XP</div>
         </div>

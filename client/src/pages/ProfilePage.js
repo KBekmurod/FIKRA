@@ -1,5 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useState } from 'react';
+import { usePwaInstall } from '../App';
 import { useAppStore } from '../store';
 import SubscriptionModal from '../components/SubscriptionModal';
 import { useToast } from '../components/Toast';
@@ -7,6 +8,10 @@ export default function ProfilePage() {
     const { user } = useAppStore();
     const [subOpen, setSubOpen] = useState(false);
     const { toast } = useToast();
+    const { canInstall, install } = usePwaInstall();
+    // Ochilish soni
+    const openCount = parseInt(localStorage.getItem('fikra_open_count') || '0', 10);
+    const showInstallBanner = canInstall && openCount >= 3;
     const isSub = user?.effectivePlan && user.effectivePlan !== 'free';
     const planLabel = {
         free: { name: 'Bepul', emoji: '🆓', color: 'var(--txt-3)' },
@@ -50,7 +55,14 @@ export default function ProfilePage() {
                                 fontWeight: 800,
                                 fontSize: 22,
                                 flexShrink: 0,
-                            }, children: initials }), _jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsx("div", { style: { fontWeight: 700, fontSize: 16 }, children: user?.firstName || user?.username || 'Foydalanuvchi' }), user?.username && (_jsxs("div", { style: { fontSize: 12, color: 'var(--txt-3)', marginTop: 2 }, children: ["@", user.username] })), _jsxs("div", { style: { fontSize: 11, color: 'var(--y)', marginTop: 4, fontWeight: 700 }, children: ["\u26A1 ", (user?.xp || 0).toLocaleString(), " XP"] })] })] }) }), _jsxs("div", { style: { padding: '12px 20px 0', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }, children: [_jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--acc-l)' }, children: user?.streakDays || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83D\uDD25 Streak" })] }), _jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--g)' }, children: user?.totalGamesPlayed || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83D\uDCDA Test" })] }), _jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--y)' }, children: user?.totalAiRequests || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83E\uDD16 AI" })] })] }), _jsx("div", { className: "section-title", children: "Obuna" }), _jsx("div", { style: { padding: '0 20px' }, children: _jsx("button", { onClick: () => setSubOpen(true), style: {
+                            }, children: initials }), _jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsx("div", { style: { fontWeight: 700, fontSize: 16 }, children: user?.firstName || user?.username || 'Foydalanuvchi' }), user?.username && (_jsxs("div", { style: { fontSize: 12, color: 'var(--txt-3)', marginTop: 2 }, children: ["@", user.username] }))] })] }) }), _jsxs("div", { style: { padding: '12px 20px 0', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }, children: [_jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--acc-l)' }, children: user?.streakDays || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83D\uDD25 Streak" })] }), _jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--g)' }, children: user?.totalGamesPlayed || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83D\uDCDA Test" })] }), _jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--y)' }, children: user?.totalAiRequests || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83E\uDD16 AI" })] })] }), showInstallBanner && (_jsx("div", { style: { padding: '8px 20px 0' }, children: _jsxs("button", { onClick: install, style: {
+                        width: '100%',
+                        background: 'linear-gradient(135deg, rgba(0,212,170,0.12), rgba(123,104,238,0.08))',
+                        border: '1px solid rgba(0,212,170,0.3)',
+                        borderRadius: 14, padding: '14px 16px',
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        color: 'var(--txt)', cursor: 'pointer', textAlign: 'left',
+                    }, children: [_jsx("div", { style: { fontSize: 28 }, children: "\uD83D\uDCF2" }), _jsxs("div", { style: { flex: 1 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 14, color: 'var(--g)' }, children: "Ilovani o'rnatish" }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }, children: "Telefonga yuklab oling \u2014 tezroq, offline ham ishlaydi" })] }), _jsx("div", { style: { color: 'var(--g)', fontSize: 18, fontWeight: 800 }, children: "\u2193" })] }) })), _jsx("div", { className: "section-title", children: "Obuna" }), _jsx("div", { style: { padding: '0 20px' }, children: _jsx("button", { onClick: () => setSubOpen(true), style: {
                         width: '100%',
                         background: 'var(--s1)',
                         border: `1.5px solid ${isSub ? 'rgba(0,212,170,0.3)' : 'rgba(123,104,238,0.25)'}`,

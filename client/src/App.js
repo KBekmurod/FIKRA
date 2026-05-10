@@ -11,6 +11,31 @@ import { ToastProvider } from './components/Toast';
 function FullLoader() {
     return (_jsxs("div", { className: "full-loader", children: [_jsxs("div", { className: "full-loader-text", children: ["FIKRA", _jsx("span", { children: "." })] }), _jsx("div", { className: "spin" })] }));
 }
+// PWA install banner — 3 ta session (ochish/yopish) dan keyin profile'da ko'rsatiladi
+// Bu komponent AppContent ichida ishlatilmaydi, faqat profile sahifasida
+export function usePwaInstall() {
+    const [canInstall, setCanInstall] = useState(false);
+    const [deferredPrompt, setDeferredPrompt] = useState(null);
+    useEffect(() => {
+        // Telegram WebApp ichida PWA install kerak emas
+        const tg = window.Telegram?.WebApp;
+        if (tg?.initData)
+            return;
+        const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); setCanInstall(true); };
+        window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+    const install = async () => {
+        if (!deferredPrompt)
+            return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted')
+            setCanInstall(false);
+        setDeferredPrompt(null);
+    };
+    return { canInstall, install };
+}
 const NAV_ITEMS = [
     { path: '/', icon: '🏠', label: 'Bosh' },
     { path: '/test', icon: '📚', label: 'Test' },
@@ -37,6 +62,14 @@ export default function App() {
     const { user, loading, login, refreshUser } = useAppStore();
     const [bootstrapped, setBootstrapped] = useState(false);
     const pollRef = useRef(null);
+    // Session counter — har safar ilova ochilganda +1
+    // 3 tagacha: splash screen qayta-qayta ko'rinadi
+    // 3 dan keyin: faqat bir marta (birinchi ochilishda) ko'rinadi
+    useEffect(() => {
+        const KEY = 'fikra_open_count';
+        const prev = parseInt(localStorage.getItem(KEY) || '0', 10);
+        localStorage.setItem(KEY, String(prev + 1));
+    }, []);
     useEffect(() => {
         login().finally(() => setBootstrapped(true));
         // Config olish
