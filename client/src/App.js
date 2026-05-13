@@ -3,21 +3,25 @@ import { useEffect, useRef, useState } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from './store';
 import HomePage from './pages/HomePage';
+import SubjectsPage from './pages/SubjectsPage';
+import SubjectDetailPage from './pages/SubjectDetailPage';
+import MaterialAddPage from './pages/MaterialAddPage';
+import MaterialEditPage from './pages/MaterialEditPage';
+import PersonalTestRunPage from './pages/PersonalTestRunPage';
+import PersonalTestResultPage from './pages/PersonalTestResultPage';
 import TestPage from './pages/TestPage';
 import AIPage from './pages/AIPage';
 import ProfilePage from './pages/ProfilePage';
 import CabinetPage from './pages/CabinetPage';
+import LevelPage from './pages/LevelPage';
 import { ToastProvider } from './components/Toast';
 function FullLoader() {
     return (_jsxs("div", { className: "full-loader", children: [_jsxs("div", { className: "full-loader-text", children: ["FIKRA", _jsx("span", { children: "." })] }), _jsx("div", { className: "spin" })] }));
 }
-// PWA install banner — 3 ta session (ochish/yopish) dan keyin profile'da ko'rsatiladi
-// Bu komponent AppContent ichida ishlatilmaydi, faqat profile sahifasida
 export function usePwaInstall() {
     const [canInstall, setCanInstall] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState(null);
     useEffect(() => {
-        // Telegram WebApp ichida PWA install kerak emas
         const tg = window.Telegram?.WebApp;
         if (tg?.initData)
             return;
@@ -36,11 +40,12 @@ export function usePwaInstall() {
     };
     return { canInstall, install };
 }
+// ─── v2: Yangi navigatsiya ─────────────────────────────────────────────────
 const NAV_ITEMS = [
     { path: '/', icon: '🏠', label: 'Bosh' },
-    { path: '/test', icon: '📚', label: 'Test' },
-    { path: '/cabinet', icon: '🎓', label: 'Kabinet' },
+    { path: '/subjects', icon: '📚', label: 'Fanlar' },
     { path: '/ai', icon: '🤖', label: 'AI' },
+    { path: '/level', icon: '📊', label: 'Daraja' },
     { path: '/profile', icon: '👤', label: 'Profil' },
 ];
 function BottomNav() {
@@ -59,12 +64,9 @@ function BottomNav() {
         }) }));
 }
 export default function App() {
-    const { user, loading, login, refreshUser } = useAppStore();
+    const { loading, login, refreshUser } = useAppStore();
     const [bootstrapped, setBootstrapped] = useState(false);
     const pollRef = useRef(null);
-    // Session counter — har safar ilova ochilganda +1
-    // 3 tagacha: splash screen qayta-qayta ko'rinadi
-    // 3 dan keyin: faqat bir marta (birinchi ochilishda) ko'rinadi
     useEffect(() => {
         const KEY = 'fikra_open_count';
         const prev = parseInt(localStorage.getItem(KEY) || '0', 10);
@@ -72,7 +74,6 @@ export default function App() {
     }, []);
     useEffect(() => {
         login().finally(() => setBootstrapped(true));
-        // Config olish
         fetch('/api/config')
             .then(r => r.json())
             .then(c => {
@@ -81,15 +82,11 @@ export default function App() {
             window.ADMIN_USERNAME = c.adminUsername;
         })
             .catch(() => { });
-        // Polling — faqat tab active bo'lganda ishlaydi (UI freeze oldini olish)
-        // 60s ga oshirdik (30s juda tez edi va freeze keltirar edi)
         const startPoll = () => {
             stopPoll();
             pollRef.current = setInterval(() => {
-                // Faqat document visible bo'lganda refresh
-                if (!document.hidden) {
+                if (!document.hidden)
                     refreshUser();
-                }
             }, 60000);
         };
         const stopPoll = () => {
@@ -99,22 +96,16 @@ export default function App() {
             }
         };
         startPoll();
-        // Visibility change: tab yashirilganda polling to'xtatish
         const onVisChange = () => {
-            if (document.hidden) {
+            if (document.hidden)
                 stopPoll();
-            }
             else {
-                // Tab qayta ko'rindi — darhol bir refresh, keyin polling qayta boshlash
                 refreshUser();
                 startPoll();
             }
         };
         document.addEventListener('visibilitychange', onVisChange);
-        // Auth expired event (token yangilanmasa)
-        const onAuthExpired = () => {
-            login();
-        };
+        const onAuthExpired = () => login();
         window.addEventListener('fikra:auth-expired', onAuthExpired);
         return () => {
             stopPoll();
@@ -124,5 +115,5 @@ export default function App() {
     }, []);
     if (!bootstrapped || loading)
         return _jsx(FullLoader, {});
-    return (_jsx("div", { className: "app", children: _jsxs(ToastProvider, { children: [_jsx("div", { className: "app-content", children: _jsxs(Routes, { children: [_jsx(Route, { path: "/", element: _jsx(HomePage, {}) }), _jsx(Route, { path: "/test/*", element: _jsx(TestPage, {}) }), _jsx(Route, { path: "/cabinet/*", element: _jsx(CabinetPage, {}) }), _jsx(Route, { path: "/ai/*", element: _jsx(AIPage, {}) }), _jsx(Route, { path: "/profile", element: _jsx(ProfilePage, {}) })] }) }), _jsx(BottomNav, {})] }) }));
+    return (_jsx("div", { className: "app", children: _jsxs(ToastProvider, { children: [_jsx("div", { className: "app-content", children: _jsxs(Routes, { children: [_jsx(Route, { path: "/", element: _jsx(HomePage, {}) }), _jsx(Route, { path: "/subjects", element: _jsx(SubjectsPage, {}) }), _jsx(Route, { path: "/subjects/:subjectId", element: _jsx(SubjectDetailPage, {}) }), _jsx(Route, { path: "/subjects/:subjectId/add", element: _jsx(MaterialAddPage, {}) }), _jsx(Route, { path: "/materials/:id/edit", element: _jsx(MaterialEditPage, {}) }), _jsx(Route, { path: "/personal-tests/:id/run", element: _jsx(PersonalTestRunPage, {}) }), _jsx(Route, { path: "/personal-tests/:id/result", element: _jsx(PersonalTestResultPage, {}) }), _jsx(Route, { path: "/level", element: _jsx(LevelPage, {}) }), _jsx(Route, { path: "/test/*", element: _jsx(TestPage, {}) }), _jsx(Route, { path: "/cabinet/*", element: _jsx(CabinetPage, {}) }), _jsx(Route, { path: "/ai/*", element: _jsx(AIPage, {}) }), _jsx(Route, { path: "/profile", element: _jsx(ProfilePage, {}) })] }) }), _jsx(BottomNav, {})] }) }));
 }

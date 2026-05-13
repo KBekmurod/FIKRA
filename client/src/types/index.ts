@@ -9,34 +9,10 @@ export interface User {
   effectivePlan?: Plan
   planExpiresAt?: string | null
   isSubscribed?: boolean
-  streakDays?: number
-  totalGamesPlayed?: number
-  totalAiRequests?: number
-  xp?: number
-  rank?: RankProgress | null
   aiUsage?: Record<string, number>
   aiLimits?: Record<string, number | null>
   isNew?: boolean
   _demo?: boolean
-}
-
-export interface Rank {
-  id: string
-  level: number
-  name: string
-  emoji: string
-  minXp: number
-  color: string
-  glow: string
-}
-
-export interface RankProgress {
-  current: Rank
-  next: Rank | null
-  percent: number
-  xpInLevel?: number
-  xpToNext?: number
-  currentXp?: number
 }
 
 export interface Question {
@@ -122,4 +98,111 @@ export interface ExamQuestion {
   options: string[]
   difficulty?: string
   topic?: string
+}
+
+// ─── v2: Materials ────────────────────────────────────────────────────────
+export type MaterialSource = 'text' | 'ocr' | 'file'
+
+export interface StudyMaterial {
+  _id: string
+  userId: string
+  subjectId: string
+  source: MaterialSource
+  title: string
+  content: string
+  charCount: number
+  sourceMeta?: {
+    fileName?: string
+    fileMime?: string
+    fileSizeKb?: number
+    pageCount?: number
+    ocrRawLength?: number
+  }
+  testGenCount?: number
+  isActive?: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MaterialLimits {
+  plan: Plan
+  textMaterials: { limit: number | null }
+  ocrUploads:    { limit: number | null; used: number }
+  fileUploads:   { limit: number | null; used: number }
+  testsGen:      { limit: number | null; used: number }
+  rules: {
+    maxTextChars: number
+    minTextChars: number
+    maxImageBytes: number
+    maxFileBytes: number
+    maxFilePages: number
+    allowedImageMimes: string[]
+    allowedFileMimes: string[]
+  }
+}
+
+export interface SubjectsSummary {
+  [subjectId: string]: {
+    count: number
+    totalChars: number
+    bySource: { text: number; ocr: number; file: number }
+  }
+}
+
+// ─── v2: Personal Tests ───────────────────────────────────────────────────
+export interface PtQuestion {
+  idx: number
+  question: string
+  options: string[]
+  topic?: string
+}
+
+export interface PersonalTest {
+  _id: string
+  userId: string
+  subjectId: string
+  subjectName: string
+  materialIds: string[]
+  totalQuestions: number
+  totalCorrect: number
+  scorePercent: number
+  status: 'in_progress' | 'completed' | 'abandoned'
+  testType: 'material' | 'mini'
+  startTime: string
+  endTime?: string
+  createdAt: string
+}
+
+// ─── v2: Level (beta/delta/alfa) ──────────────────────────────────────────
+export type Grade = 'beta' | 'delta' | 'alfa'
+
+export interface UserLevelData {
+  currentVersion: number
+  currentGrade: Grade
+  currentMonth: string
+  standardTests: { correct: number; total: number }
+  personalTests: { correct: number; total: number }
+  miniTests:     { correct: number; total: number }
+  accuracyPercent: number
+  nextVersionInfo: {
+    isMax: boolean
+    nextVersion?: number
+    nextGrade?: Grade
+    requiredAccuracy?: number
+    currentAccuracy?: number
+    questionsAnswered?: number
+    questionsNeeded?: number
+    testSource?: string
+    isReady?: boolean
+  }
+}
+
+export interface LevelHistoryItem {
+  monthKey: string
+  maxVersion: number
+  grade: Grade
+  standardTests: { correct: number; total: number }
+  personalTests: { correct: number; total: number }
+  miniTests:     { correct: number; total: number }
+  endedAt: string
 }

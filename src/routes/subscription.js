@@ -2,7 +2,6 @@ const express = require('express');
 const axios   = require('axios');
 const router  = express.Router();
 const { authMiddleware } = require('../middleware/auth');
-const { addXp } = require('../services/rankService');
 const User         = require('../models/User');
 const PendingOrder = require('../models/PendingOrder');
 const { logger }   = require('../utils/logger');
@@ -282,7 +281,6 @@ async function _activatePlan(user, plan, chargeId) {
   if (chargeId) updateOps.$push = { planChargeIds: chargeId };
 
   await User.findByIdAndUpdate(user._id, updateOps);
-  addXp(user._id, user.telegramId, 100, 'subscription', { planId: plan.id }).catch(() => {});
 }
 
 module.exports = router;

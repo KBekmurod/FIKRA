@@ -1,15 +1,18 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePwaInstall } from '../App';
 import { useAppStore } from '../store';
+import { materialApi, levelApi } from '../api/endpoints';
+import { GRADE_META } from '../constants/subjects';
 import SubscriptionModal from '../components/SubscriptionModal';
 import { useToast } from '../components/Toast';
 export default function ProfilePage() {
     const { user } = useAppStore();
     const [subOpen, setSubOpen] = useState(false);
-    const { toast } = useToast();
+    const toast = useToast();
     const { canInstall, install } = usePwaInstall();
-    // Ochilish soni
+    const [matLimits, setMatLimits] = useState(null);
+    const [level, setLevel] = useState(null);
     const openCount = parseInt(localStorage.getItem('fikra_open_count') || '0', 10);
     const showInstallBanner = canInstall && openCount >= 3;
     const isSub = user?.effectivePlan && user.effectivePlan !== 'free';
@@ -27,10 +30,14 @@ export default function ProfilePage() {
     const refLink = user?.telegramId
         ? `https://t.me/${window.BOT_USERNAME || 'fikraai_bot'}?start=ref_${user.telegramId}`
         : '';
+    useEffect(() => {
+        materialApi.limits().then(({ data }) => setMatLimits(data)).catch(() => { });
+        levelApi.current().then(({ data }) => setLevel(data)).catch(() => { });
+    }, []);
     const copyRef = () => {
         if (!refLink)
             return;
-        navigator.clipboard.writeText(refLink).then(() => toast('Havola nusxalandi!', 'ok'));
+        navigator.clipboard.writeText(refLink).then(() => toast.success('Havola nusxalandi!'));
     };
     const shareRef = () => {
         if (!refLink)
@@ -44,18 +51,27 @@ export default function ProfilePage() {
             navigator.share({ text, url: refLink }).catch(() => { });
         }
     };
+    const grade = level?.currentGrade || 'beta';
+    const gradeMeta = GRADE_META[grade];
+    const versionInGrade = level ? (grade === 'beta' ? level.currentVersion
+        : grade === 'delta' ? level.currentVersion - 3
+            : level.currentVersion - 7) : 1;
     return (_jsxs(_Fragment, { children: [_jsx("div", { className: "header", children: _jsxs("div", { className: "header-logo", children: ["FIKRA", _jsx("span", { children: "." })] }) }), _jsx("div", { style: { height: 6 } }), _jsx("div", { style: { padding: '0 20px' }, children: _jsxs("div", { className: "card", style: { display: 'flex', alignItems: 'center', gap: 14 }, children: [_jsx("div", { style: {
-                                width: 56,
-                                height: 56,
-                                borderRadius: 16,
+                                width: 56, height: 56, borderRadius: 16,
                                 background: 'linear-gradient(135deg, var(--acc), var(--r))',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontWeight: 800,
-                                fontSize: 22,
-                                flexShrink: 0,
-                            }, children: initials }), _jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsx("div", { style: { fontWeight: 700, fontSize: 16 }, children: user?.firstName || user?.username || 'Foydalanuvchi' }), user?.username && (_jsxs("div", { style: { fontSize: 12, color: 'var(--txt-3)', marginTop: 2 }, children: ["@", user.username] }))] })] }) }), _jsxs("div", { style: { padding: '12px 20px 0', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }, children: [_jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--acc-l)' }, children: user?.streakDays || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83D\uDD25 Streak" })] }), _jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--g)' }, children: user?.totalGamesPlayed || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83D\uDCDA Test" })] }), _jsxs("div", { className: "card", style: { textAlign: 'center', padding: 12 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 22, color: 'var(--y)' }, children: user?.totalAiRequests || 0 }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: "\uD83E\uDD16 AI" })] })] }), showInstallBanner && (_jsx("div", { style: { padding: '8px 20px 0' }, children: _jsxs("button", { onClick: install, style: {
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontWeight: 800, fontSize: 22, flexShrink: 0,
+                            }, children: initials }), _jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsx("div", { style: { fontWeight: 700, fontSize: 16 }, children: user?.firstName || user?.username || 'Foydalanuvchi' }), user?.username && (_jsxs("div", { style: { fontSize: 12, color: 'var(--txt-3)', marginTop: 2 }, children: ["@", user.username] })), level && (_jsxs("div", { style: {
+                                        marginTop: 6,
+                                        display: 'inline-block',
+                                        padding: '3px 9px',
+                                        background: gradeMeta.bgColor,
+                                        border: `1px solid ${gradeMeta.color}40`,
+                                        borderRadius: 8,
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        color: gradeMeta.color,
+                                    }, children: [gradeMeta.icon, " ", gradeMeta.name, " ", versionInGrade] }))] })] }) }), showInstallBanner && (_jsx("div", { style: { padding: '12px 20px 0' }, children: _jsxs("button", { onClick: install, style: {
                         width: '100%',
                         background: 'linear-gradient(135deg, rgba(0,212,170,0.12), rgba(123,104,238,0.08))',
                         border: '1px solid rgba(0,212,170,0.3)',
@@ -71,11 +87,9 @@ export default function ProfilePage() {
                         cursor: 'pointer',
                         color: 'var(--txt)',
                         textAlign: 'left',
-                    }, children: _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 12 }, children: [_jsx("div", { style: { fontSize: 28 }, children: plan.emoji }), _jsxs("div", { style: { flex: 1 }, children: [_jsxs("div", { style: { fontWeight: 700, fontSize: 14, color: plan.color }, children: [plan.name, " ", isSub ? 'faol' : 'rejim'] }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginTop: 3 }, children: isSub
-                                            ? `${daysLeft} kun qoldi`
-                                            : 'AI imkoniyatlarni cheksiz oching' })] }), _jsx("div", { style: { fontSize: 11, color: 'var(--acc-l)', fontWeight: 700 }, children: isSub ? 'Uzaytirish ↗' : 'Obuna ↗' })] }) }) }), _jsx("div", { style: { padding: '12px 20px 0' }, children: _jsxs("div", { className: "card", children: [_jsx("div", { style: { fontWeight: 700, fontSize: 12, marginBottom: 10, color: 'var(--txt-2)' }, children: "Bugungi AI limit" }), [
-                            { key: 'hints', name: '💡 AI Tushuntirish', limit: user?.aiLimits?.hints, used: user?.aiUsage?.hints },
-                            { key: 'chats', name: '💬 AI Chat', limit: user?.aiLimits?.chats, used: user?.aiUsage?.chats },
+                    }, children: _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 12 }, children: [_jsx("div", { style: { fontSize: 28 }, children: plan.emoji }), _jsxs("div", { style: { flex: 1 }, children: [_jsxs("div", { style: { fontWeight: 700, fontSize: 14, color: plan.color }, children: [plan.name, " ", isSub ? 'faol' : 'rejim'] }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginTop: 3 }, children: isSub ? `${daysLeft} kun qoldi` : 'Imkoniyatlarni cheksiz oching' })] }), _jsx("div", { style: { fontSize: 11, color: 'var(--acc-l)', fontWeight: 700 }, children: isSub ? 'Uzaytirish ↗' : 'Obuna ↗' })] }) }) }), _jsx("div", { style: { padding: '12px 20px 0' }, children: _jsxs("div", { className: "card", children: [_jsx("div", { style: { fontWeight: 700, fontSize: 12, marginBottom: 10, color: 'var(--txt-2)' }, children: "Bugungi AI limit" }), [
+                            { key: 'hints', name: '💡 Tushuntirish', limit: user?.aiLimits?.hints, used: user?.aiUsage?.hints },
+                            { key: 'chats', name: '💬 Chat', limit: user?.aiLimits?.chats, used: user?.aiUsage?.chats },
                             { key: 'docs', name: '📄 Hujjat', limit: user?.aiLimits?.docs, used: user?.aiUsage?.docs },
                             { key: 'images', name: '🎨 Rasm', limit: user?.aiLimits?.images, used: user?.aiUsage?.images },
                         ].map(item => {
@@ -91,7 +105,32 @@ export default function ProfilePage() {
                                                 borderRadius: 100,
                                                 transition: 'width 0.3s',
                                             } }) }))] }, item.key));
-                        })] }) }), _jsx("div", { className: "section-title", children: "Do'stni taklif qiling" }), _jsx("div", { style: { padding: '0 20px 24px' }, children: _jsxs("div", { className: "card", children: [_jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)', marginBottom: 8 }, children: "Sizning havolangiz" }), _jsx("div", { style: {
+                        })] }) }), matLimits && (_jsx("div", { style: { padding: '12px 20px 0' }, children: _jsxs("div", { className: "card", children: [_jsx("div", { style: { fontWeight: 700, fontSize: 12, marginBottom: 10, color: 'var(--txt-2)' }, children: "\uD83D\uDCDA Material limitlari (bugun)" }), [
+                            { key: 'ocrUploads', name: '📷 OCR rasm', obj: matLimits.ocrUploads },
+                            { key: 'fileUploads', name: '📁 Fayl', obj: matLimits.fileUploads },
+                            { key: 'testsGen', name: '🤖 AI Test', obj: matLimits.testsGen },
+                        ].map(item => {
+                            const limit = item.obj.limit;
+                            const used = item.obj.used;
+                            const isUnlimited = limit === null;
+                            const isLocked = limit === 0;
+                            const pct = isUnlimited ? 0 : isLocked ? 0 : Math.min(100, (used / limit) * 100);
+                            return (_jsxs("div", { style: { marginBottom: 10 }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }, children: [_jsx("span", { children: item.name }), _jsx("span", { style: { color: isLocked ? 'var(--r)' : 'var(--txt-2)', fontWeight: 700 }, children: isLocked ? 'Yopiq' : isUnlimited ? '∞ Cheksiz' : `${used}/${limit}` })] }), !isLocked && !isUnlimited && (_jsx("div", { style: { height: 4, background: 'var(--s2)', borderRadius: 100 }, children: _jsx("div", { style: {
+                                                height: '100%',
+                                                background: pct >= 100 ? 'var(--r)' : 'var(--g)',
+                                                width: `${pct}%`,
+                                                borderRadius: 100,
+                                                transition: 'width 0.3s',
+                                            } }) }))] }, item.key));
+                        }), matLimits.plan === 'free' && (_jsx("div", { style: {
+                                marginTop: 6,
+                                padding: 10,
+                                background: 'rgba(255,204,68,0.08)',
+                                border: '1px solid rgba(255,204,68,0.2)',
+                                borderRadius: 10,
+                                fontSize: 11,
+                                color: 'var(--txt-2)',
+                            }, children: "\uD83D\uDCA1 Pro tarifda har fanga 20 ta material, kuniga 15 OCR va 12 fayl yuklash" }))] }) })), _jsx("div", { className: "section-title", children: "Do'stni taklif qiling" }), _jsx("div", { style: { padding: '0 20px 24px' }, children: _jsxs("div", { className: "card", children: [_jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)', marginBottom: 8 }, children: "Sizning havolangiz" }), _jsx("div", { style: {
                                 background: 'var(--s2)',
                                 border: '1px solid var(--f)',
                                 borderRadius: 'var(--br2)',

@@ -179,12 +179,12 @@ async function incrementAiUsage(userId, kind) {
             // Yangi kun — reset
             {
               date: todayKey,
-              hints: 0, chats: 0, docs: 0, images: 0, calories: 0, games: 0,
+              hints: 0, chats: 0, docs: 0, images: 0, calories: 0,
+              ocrUploads: 0, fileUploads: 0, testsGen: 0,
               [kind]: 1,
             },
           ],
         },
-        totalAiRequests: { $add: [{ $ifNull: ['$totalAiRequests', 0] }, 1] },
       },
     }],
     { new: true }

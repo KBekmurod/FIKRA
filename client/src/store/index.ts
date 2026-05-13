@@ -21,7 +21,7 @@ declare global {
   }
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((set) => ({
   user: null,
   loading: true,
   error: null,
@@ -33,27 +33,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     const initUser = tg?.initDataUnsafe?.user
     const tid = initUser?.id
 
-    // Brauzerdan to'g'ridan-to'g'ri kirish (Telegram WebApp yo'q)
     if (!initData || !tid) {
-      // Serverga bot WebApp'siz login qilib ko'rish
-      // (development va test uchun qulay)
       try {
         const { data } = await authApi.login('browser_test')
         set({ user: data.user, loading: false })
         return
       } catch {
-        // Server ham rад etsa — anonymous rejim
         set({
           user: {
             telegramId: 0,
             firstName: 'Telegram orqali kiring',
             plan: 'free',
             effectivePlan: 'free',
-            streakDays: 0,
-            xp: 0,
-            totalGamesPlayed: 0,
-            totalAiRequests: 0,
-            aiUsage: { hints: 0, chats: 0, docs: 0, images: 0 },
+            aiUsage: {},
             aiLimits: { hints: 5, chats: 10, docs: 2, images: 0 },
             _demo: true,
           } as any,
@@ -63,7 +55,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
-    // Saqlangan token bilan urinib ko'rish
     const stored = getStoredAuth()
     if (stored && stored.tgId === tid) {
       try {
@@ -79,7 +70,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       clearAuth()
     }
 
-    // Login
     try {
       const refCode = new URLSearchParams(window.location.search).get('ref')
         || tg?.initDataUnsafe?.start_param
@@ -89,7 +79,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ user: data.user, loading: false })
     } catch (e: any) {
       console.warn('[FIKRA] Login error:', e.message)
-      // Fallback: demo rejim (server xatosi bo'lsa)
       set({
         user: {
           telegramId: tid || 0,
@@ -97,10 +86,6 @@ export const useAppStore = create<AppState>((set, get) => ({
           username: initUser?.username,
           plan: 'free',
           effectivePlan: 'free',
-          streakDays: 0,
-          xp: 0,
-          totalGamesPlayed: 0,
-          totalAiRequests: 0,
           aiUsage: {},
           aiLimits: { hints: 5, chats: 10, docs: 2, images: 0 },
         } as any,
@@ -111,14 +96,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   refreshUser: async () => {
-    // Agar token yo'q bo'lsa — refresh qilmaymiz
     if (!getStoredAuth()) return
     try {
       const { data } = await authApi.me()
       set({ user: data })
-    } catch {
-      // 401 bo'lsa client.ts interceptor hal qiladi
-    }
+    } catch { /* interceptor handles 401 */ }
   },
 
   logout: () => { clearAuth(); set({ user: null }) }

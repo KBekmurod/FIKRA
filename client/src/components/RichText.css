@@ -1,0 +1,57 @@
+/* ─── Rich Text styles ─────────────────────────────────────────────────── */
+
+.rich-text {
+  font-size: inherit;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* KaTeX inline math */
+.rich-text .math-inline {
+  display: inline-block;
+  vertical-align: middle;
+  padding: 0 2px;
+}
+
+/* KaTeX block math (display mode) */
+.rich-text .math-block {
+  display: block;
+  text-align: center;
+  margin: 8px 0;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+
+/* KaTeX overrides for dark theme */
+.rich-text .katex {
+  font-size: 1.05em;
+  color: var(--txt);
+}
+
+.rich-text .katex-display {
+  margin: 6px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Rasm massivi */
+.rich-text-images {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.rich-text-img {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--f);
+  background: var(--s2);
+}
+
+/* 2 ta yoki ko'p rasm bo'lsa, grid */
+.rich-text-images:has(.rich-text-img:nth-child(2)) {
+  grid-template-columns: repeat(2, 1fr);
+}

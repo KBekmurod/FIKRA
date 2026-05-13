@@ -9,12 +9,15 @@ const { connectDB }    = require('./utils/db');
 const { logger }       = require('./utils/logger');
 const { errorHandler } = require('./middleware/errorHandler');
 
-const authRoutes  = require('./routes/auth');
-const gameRoutes  = require('./routes/games');
-const aiRoutes    = require('./routes/ai');
-const subRoutes   = require('./routes/subscription');
-const adminRoutes = require('./routes/admin');
-const examRoutes  = require('./routes/exams');
+const authRoutes          = require('./routes/auth');
+const gameRoutes          = require('./routes/games');
+const aiRoutes            = require('./routes/ai');
+const subRoutes           = require('./routes/subscription');
+const adminRoutes         = require('./routes/admin');
+const examRoutes          = require('./routes/exams');
+const materialRoutes      = require('./routes/materials');
+const personalTestRoutes  = require('./routes/personalTests');
+const levelRoutes         = require('./routes/level');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -75,12 +78,15 @@ if (fs.existsSync(publicDir)) {
 }
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/auth',   authRoutes);
-app.use('/api/games',  gameRoutes);
-app.use('/api/ai',     aiRoutes);
-app.use('/api/sub',    subRoutes);
-app.use('/api/admin',  adminRoutes);
-app.use('/api/exams',  examRoutes);
+app.use('/api/auth',           authRoutes);
+app.use('/api/games',          gameRoutes);
+app.use('/api/ai',             aiRoutes);
+app.use('/api/sub',            subRoutes);
+app.use('/api/admin',          adminRoutes);
+app.use('/api/exams',          examRoutes);
+app.use('/api/materials',      materialRoutes);
+app.use('/api/personal-tests', personalTestRoutes);
+app.use('/api/level',          levelRoutes);
 
 // ─── Telegram Bot ─────────────────────────────────────────────────────────────
 require('./bot')(app);

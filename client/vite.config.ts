@@ -52,7 +52,10 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        manualChunks: { vendor: ['react', 'react-dom', 'react-router-dom'] },
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          katex: ['katex'],
+        },
       },
     },
   },

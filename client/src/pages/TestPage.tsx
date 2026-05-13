@@ -4,6 +4,8 @@ import { useAppStore } from '../store'
 import { examApi, aiApi } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import SubscriptionModal from '../components/SubscriptionModal'
+import RichText from '../components/RichText'
+import '../components/RichText.css'
 
 // ─── Turlar ────────────────────────────────────────────────────────────────
 type Screen =
@@ -25,7 +27,7 @@ interface SubjectBreakdown {
 interface SessionResult {
   sessionId: string; mode: string; totalScore: number; maxTotalScore: number;
   percent: number; subjectBreakdown: SubjectBreakdown[]; direction?: string; directionName?: string;
-  xp?: { added: number; total: number; levelUp: boolean } | null
+  level?: { versionBefore: number; versionAfter: number; levelUp: boolean; gradeBefore: string; gradeAfter: string } | null
 }
 
 const SUBJECT_EMOJI: Record<string, string> = {
@@ -670,7 +672,7 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }: any) {
       {/* Question */}
       <div className="card" style={{ marginBottom: 8, flexShrink: 0 }}>
         <div style={{ fontSize: 13, lineHeight: 1.65, fontWeight: 500, whiteSpace: 'pre-wrap' }}>
-          {q.question}
+          <RichText content={q.question} />
         </div>
       </div>
 
@@ -723,7 +725,7 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }: any) {
               <span style={{ fontWeight: 800, color: 'var(--txt-3)', marginRight: 10 }}>
                 {['A', 'B', 'C', 'D'][i]}
               </span>
-              {opt}
+              <RichText content={opt} inline />
             </button>
           )
         })}
@@ -752,7 +754,7 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }: any) {
 // ResultScreen
 // ═══════════════════════════════════════════════════════════════════════════
 function ResultScreen({ result, onBack, onHistory, onReview }: any) {
-  const { totalScore, maxTotalScore, percent, subjectBreakdown, mode, xp } = result
+  const { totalScore, maxTotalScore, percent, subjectBreakdown, mode, level } = result
   const emoji = percent >= 80 ? '🏆' : percent >= 60 ? '👏' : percent >= 40 ? '💪' : '📖'
   const grade = percent >= 90 ? "A'lo" : percent >= 75 ? 'Yaxshi' : percent >= 50 ? "O'rtacha" : "Yana o'qing"
 
@@ -787,9 +789,14 @@ function ResultScreen({ result, onBack, onHistory, onReview }: any) {
             </div>
           )}
 
-          {xp && (
-            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--y)' }}>
-              ⚡ +{xp.added} XP qo'shildi{xp.levelUp ? ' · 🎉 Yangi daraja!' : ''}
+          {level && level.levelUp && (
+            <div style={{
+              marginTop: 12, padding: '8px 14px',
+              background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)',
+              borderRadius: 100, display: 'inline-block',
+              fontSize: 12, fontWeight: 700, color: 'var(--y)',
+            }}>
+              🎉 Yangi daraja: v{level.versionAfter}!
             </div>
           )}
         </div>
@@ -1263,7 +1270,7 @@ function AnswerCard({ answer, onSubOpen }: { answer: any; onSubOpen: () => void 
         }}>
           {answer.isCorrect ? '✓' : '✗'}
         </span>
-        <div style={{ fontSize: 12, lineHeight: 1.5, flex: 1 }}>{answer.question}</div>
+        <div style={{ fontSize: 12, lineHeight: 1.5, flex: 1 }}><RichText content={answer.question} /></div>
         <span style={{ color: 'var(--txt-3)', fontSize: 14 }}>{expanded ? '▲' : '▼'}</span>
       </div>
 
@@ -1276,7 +1283,7 @@ function AnswerCard({ answer, onSubOpen }: { answer: any; onSubOpen: () => void 
             else if (i === answer.selectedOption && !answer.isCorrect) { color = 'var(--r)'; icon = '✗ ' }
             return (
               <div key={i} style={{ fontSize: 12, color, marginBottom: 4, lineHeight: 1.5 }}>
-                {icon}<span style={{ fontWeight: 700 }}>{['A','B','C','D'][i]})</span> {opt}
+                {icon}<span style={{ fontWeight: 700 }}>{['A','B','C','D'][i]})</span> <RichText content={opt} inline />
               </div>
             )
           })}

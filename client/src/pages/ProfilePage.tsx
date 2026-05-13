@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react'
 import { usePwaInstall } from '../App'
 import { useAppStore } from '../store'
+import { materialApi, levelApi } from '../api/endpoints'
+import { GRADE_META } from '../constants/subjects'
+import type { MaterialLimits, UserLevelData } from '../types'
 import SubscriptionModal from '../components/SubscriptionModal'
 import { useToast } from '../components/Toast'
 
 export default function ProfilePage() {
   const { user } = useAppStore()
   const [subOpen, setSubOpen] = useState(false)
-  const { toast } = useToast()
+  const toast = useToast()
   const { canInstall, install } = usePwaInstall()
 
-  // Ochilish soni
+  const [matLimits, setMatLimits] = useState<MaterialLimits | null>(null)
+  const [level, setLevel] = useState<UserLevelData | null>(null)
+
   const openCount = parseInt(localStorage.getItem('fikra_open_count') || '0', 10)
   const showInstallBanner = canInstall && openCount >= 3
 
@@ -22,7 +27,6 @@ export default function ProfilePage() {
     vip:   { name: 'VIP',    emoji: '💎', color: 'var(--g)' },
   }
   const plan = planLabel[user?.effectivePlan || 'free']
-
   const initials = (user?.firstName || 'F').slice(0, 2).toUpperCase()
 
   const daysLeft = user?.planExpiresAt
@@ -33,9 +37,14 @@ export default function ProfilePage() {
     ? `https://t.me/${(window as any).BOT_USERNAME || 'fikraai_bot'}?start=ref_${user.telegramId}`
     : ''
 
+  useEffect(() => {
+    materialApi.limits().then(({ data }) => setMatLimits(data)).catch(() => {})
+    levelApi.current().then(({ data }) => setLevel(data)).catch(() => {})
+  }, [])
+
   const copyRef = () => {
     if (!refLink) return
-    navigator.clipboard.writeText(refLink).then(() => toast('Havola nusxalandi!', 'ok'))
+    navigator.clipboard.writeText(refLink).then(() => toast.success('Havola nusxalandi!'))
   }
 
   const shareRef = () => {
@@ -49,6 +58,14 @@ export default function ProfilePage() {
     }
   }
 
+  const grade = level?.currentGrade || 'beta'
+  const gradeMeta = GRADE_META[grade as keyof typeof GRADE_META]
+  const versionInGrade = level ? (
+    grade === 'beta' ? level.currentVersion
+    : grade === 'delta' ? level.currentVersion - 3
+    : level.currentVersion - 7
+  ) : 1
+
   return (
     <>
       <div className="header">
@@ -61,16 +78,10 @@ export default function ProfilePage() {
       <div style={{ padding: '0 20px' }}>
         <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{
-            width: 56,
-            height: 56,
-            borderRadius: 16,
+            width: 56, height: 56, borderRadius: 16,
             background: 'linear-gradient(135deg, var(--acc), var(--r))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: 22,
-            flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 800, fontSize: 22, flexShrink: 0,
           }}>{initials}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 16 }}>
@@ -81,37 +92,28 @@ export default function ProfilePage() {
                 @{user.username}
               </div>
             )}
-
+            {level && (
+              <div style={{
+                marginTop: 6,
+                display: 'inline-block',
+                padding: '3px 9px',
+                background: gradeMeta.bgColor,
+                border: `1px solid ${gradeMeta.color}40`,
+                borderRadius: 8,
+                fontSize: 11,
+                fontWeight: 700,
+                color: gradeMeta.color,
+              }}>
+                {gradeMeta.icon} {gradeMeta.name} {versionInGrade}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{ padding: '12px 20px 0', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-        <div className="card" style={{ textAlign: 'center', padding: 12 }}>
-          <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--acc-l)' }}>
-            {user?.streakDays || 0}
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>🔥 Streak</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: 12 }}>
-          <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--g)' }}>
-            {user?.totalGamesPlayed || 0}
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>📚 Test</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: 12 }}>
-          <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--y)' }}>
-            {user?.totalAiRequests || 0}
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>🤖 AI</div>
-        </div>
-      </div>
-
-      {/* Plan card */}
-      {/* PWA install banner — 3+ ochishdan keyin ko'rinadi */}
+      {/* PWA install banner */}
       {showInstallBanner && (
-        <div style={{ padding: '8px 20px 0' }}>
+        <div style={{ padding: '12px 20px 0' }}>
           <button
             onClick={install}
             style={{
@@ -137,6 +139,7 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* Obuna */}
       <div className="section-title">Obuna</div>
       <div style={{ padding: '0 20px' }}>
         <button
@@ -159,9 +162,7 @@ export default function ProfilePage() {
                 {plan.name} {isSub ? 'faol' : 'rejim'}
               </div>
               <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 3 }}>
-                {isSub
-                  ? `${daysLeft} kun qoldi`
-                  : 'AI imkoniyatlarni cheksiz oching'}
+                {isSub ? `${daysLeft} kun qoldi` : 'Imkoniyatlarni cheksiz oching'}
               </div>
             </div>
             <div style={{ fontSize: 11, color: 'var(--acc-l)', fontWeight: 700 }}>
@@ -171,17 +172,17 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {/* Limit indikator */}
+      {/* AI limitlar */}
       <div style={{ padding: '12px 20px 0' }}>
         <div className="card">
           <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 10, color: 'var(--txt-2)' }}>
             Bugungi AI limit
           </div>
           {[
-            { key: 'hints',  name: '💡 AI Tushuntirish', limit: user?.aiLimits?.hints, used: user?.aiUsage?.hints },
-            { key: 'chats',  name: '💬 AI Chat',         limit: user?.aiLimits?.chats, used: user?.aiUsage?.chats },
-            { key: 'docs',   name: '📄 Hujjat',           limit: user?.aiLimits?.docs,  used: user?.aiUsage?.docs  },
-            { key: 'images', name: '🎨 Rasm',             limit: user?.aiLimits?.images, used: user?.aiUsage?.images },
+            { key: 'hints',  name: '💡 Tushuntirish', limit: user?.aiLimits?.hints, used: user?.aiUsage?.hints },
+            { key: 'chats',  name: '💬 Chat',         limit: user?.aiLimits?.chats, used: user?.aiUsage?.chats },
+            { key: 'docs',   name: '📄 Hujjat',       limit: user?.aiLimits?.docs,  used: user?.aiUsage?.docs  },
+            { key: 'images', name: '🎨 Rasm',         limit: user?.aiLimits?.images, used: user?.aiUsage?.images },
           ].map(item => {
             const used = item.used ?? 0
             const limit = item.limit
@@ -212,6 +213,62 @@ export default function ProfilePage() {
           })}
         </div>
       </div>
+
+      {/* Material limitlar */}
+      {matLimits && (
+        <div style={{ padding: '12px 20px 0' }}>
+          <div className="card">
+            <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 10, color: 'var(--txt-2)' }}>
+              📚 Material limitlari (bugun)
+            </div>
+            {[
+              { key: 'ocrUploads',  name: '📷 OCR rasm',  obj: matLimits.ocrUploads },
+              { key: 'fileUploads', name: '📁 Fayl',      obj: matLimits.fileUploads },
+              { key: 'testsGen',    name: '🤖 AI Test',   obj: matLimits.testsGen },
+            ].map(item => {
+              const limit = item.obj.limit
+              const used = item.obj.used
+              const isUnlimited = limit === null
+              const isLocked = limit === 0
+              const pct = isUnlimited ? 0 : isLocked ? 0 : Math.min(100, (used / (limit as number)) * 100)
+              return (
+                <div key={item.key} style={{ marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
+                    <span>{item.name}</span>
+                    <span style={{ color: isLocked ? 'var(--r)' : 'var(--txt-2)', fontWeight: 700 }}>
+                      {isLocked ? 'Yopiq' : isUnlimited ? '∞ Cheksiz' : `${used}/${limit}`}
+                    </span>
+                  </div>
+                  {!isLocked && !isUnlimited && (
+                    <div style={{ height: 4, background: 'var(--s2)', borderRadius: 100 }}>
+                      <div style={{
+                        height: '100%',
+                        background: pct >= 100 ? 'var(--r)' : 'var(--g)',
+                        width: `${pct}%`,
+                        borderRadius: 100,
+                        transition: 'width 0.3s',
+                      }} />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            {matLimits.plan === 'free' && (
+              <div style={{
+                marginTop: 6,
+                padding: 10,
+                background: 'rgba(255,204,68,0.08)',
+                border: '1px solid rgba(255,204,68,0.2)',
+                borderRadius: 10,
+                fontSize: 11,
+                color: 'var(--txt-2)',
+              }}>
+                💡 Pro tarifda har fanga 20 ta material, kuniga 15 OCR va 12 fayl yuklash
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Referral */}
       <div className="section-title">Do'stni taklif qiling</div>

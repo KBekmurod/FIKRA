@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { examApi } from '../api/endpoints';
 import { useToast } from '../components/Toast';
 import SubscriptionModal from '../components/SubscriptionModal';
+import RichText from '../components/RichText';
+import '../components/RichText.css';
 const SUBJECT_EMOJI = {
     uztil: '🔤', math: '➕', tarix: '🏛️', bio: '🧬', kimyo: '⚗️',
     fizika: '⚛️', ingliz: '🇬🇧', inform: '💻', iqtisod: '💰', rus: '🇷🇺',
@@ -158,7 +160,7 @@ function WrongAnswerDetail({ answer, onBack, onSubOpen }) {
             setLoadingAi(false);
         }
     };
-    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: "header", children: [_jsx("button", { onClick: onBack, className: "btn btn-ghost btn-sm", children: "\u2190 Orqaga" }), _jsxs("div", { style: { fontWeight: 700, fontSize: 14 }, children: [SUBJECT_EMOJI[answer.subjectId] || '📘', " Xato tahlili"] }), _jsx("div", { style: { width: 70 } })] }), _jsxs("div", { style: { padding: '4px 16px 24px' }, children: [_jsxs("div", { className: "card", style: { marginBottom: 12 }, children: [_jsxs("div", { style: { fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, letterSpacing: 0.5, marginBottom: 8 }, children: ["SAVOL", answer.topic ? ` · ${answer.topic}` : ''] }), _jsx("div", { style: { fontSize: 14, lineHeight: 1.6, fontWeight: 500, whiteSpace: 'pre-wrap' }, children: answer.questionText })] }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 14 }, children: answer.questionOptions.map((opt, i) => {
+    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: "header", children: [_jsx("button", { onClick: onBack, className: "btn btn-ghost btn-sm", children: "\u2190 Orqaga" }), _jsxs("div", { style: { fontWeight: 700, fontSize: 14 }, children: [SUBJECT_EMOJI[answer.subjectId] || '📘', " Xato tahlili"] }), _jsx("div", { style: { width: 70 } })] }), _jsxs("div", { style: { padding: '4px 16px 24px' }, children: [_jsxs("div", { className: "card", style: { marginBottom: 12 }, children: [_jsxs("div", { style: { fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, letterSpacing: 0.5, marginBottom: 8 }, children: ["SAVOL", answer.topic ? ` · ${answer.topic}` : ''] }), _jsx("div", { style: { fontSize: 14, lineHeight: 1.6, fontWeight: 500, whiteSpace: 'pre-wrap' }, children: _jsx(RichText, { content: answer.questionText }) })] }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 14 }, children: answer.questionOptions.map((opt, i) => {
                             let bg = 'var(--s2)', border = 'var(--f)', label = '';
                             if (i === answer.correctAnswer) {
                                 bg = 'rgba(0,212,170,0.12)';
@@ -174,14 +176,14 @@ function WrongAnswerDetail({ answer, onBack, onSubOpen }) {
                                     padding: '12px 14px', background: bg,
                                     border: `1.5px solid ${border}`,
                                     borderRadius: 10, fontSize: 13, lineHeight: 1.5,
-                                }, children: _jsxs("div", { style: { display: 'flex', alignItems: 'flex-start', gap: 10 }, children: [_jsx("span", { style: { fontWeight: 800, color: 'var(--txt-3)', flexShrink: 0 }, children: ['A', 'B', 'C', 'D'][i] }), _jsx("span", { style: { flex: 1 }, children: opt }), label && (_jsx("span", { style: { fontSize: 9, fontWeight: 800,
+                                }, children: _jsxs("div", { style: { display: 'flex', alignItems: 'flex-start', gap: 10 }, children: [_jsx("span", { style: { fontWeight: 800, color: 'var(--txt-3)', flexShrink: 0 }, children: ['A', 'B', 'C', 'D'][i] }), _jsx("span", { style: { flex: 1 }, children: _jsx(RichText, { content: opt, inline: true }) }), label && (_jsx("span", { style: { fontSize: 9, fontWeight: 800,
                                                 color: i === answer.correctAnswer ? 'var(--g)' : 'var(--r)',
                                                 whiteSpace: 'nowrap',
                                             }, children: label }))] }) }, i));
                         }) }), answer.explanation && (_jsxs("div", { style: {
                             background: 'rgba(0,212,170,0.07)', border: '1px solid rgba(0,212,170,0.2)',
                             borderRadius: 10, padding: 12, marginBottom: 12,
-                        }, children: [_jsx("div", { style: { fontSize: 10, color: 'var(--g)', fontWeight: 800, marginBottom: 5, letterSpacing: 0.5 }, children: "\uD83D\uDCA1 ASOSIY TUSHUNTIRISH" }), _jsx("div", { style: { fontSize: 12, lineHeight: 1.6, color: 'var(--txt)' }, children: answer.explanation })] })), !aiExplanation && !loadingAi && (_jsx("button", { onClick: askAi, style: {
+                        }, children: [_jsx("div", { style: { fontSize: 10, color: 'var(--g)', fontWeight: 800, marginBottom: 5, letterSpacing: 0.5 }, children: "\uD83D\uDCA1 ASOSIY TUSHUNTIRISH" }), _jsx("div", { style: { fontSize: 12, lineHeight: 1.6, color: 'var(--txt)' }, children: _jsx(RichText, { content: answer.explanation }) })] })), !aiExplanation && !loadingAi && (_jsx("button", { onClick: askAi, style: {
                             width: '100%', padding: 14, borderRadius: 12, cursor: 'pointer',
                             background: 'linear-gradient(135deg, rgba(123,104,238,0.15), rgba(0,212,170,0.08))',
                             border: '1px solid rgba(123,104,238,0.3)',
@@ -193,7 +195,7 @@ function WrongAnswerDetail({ answer, onBack, onSubOpen }) {
                         }, children: [_jsx("div", { className: "spin", style: { margin: '0 auto 10px' } }), _jsx("div", { style: { fontSize: 12, color: 'var(--txt-3)' }, children: "AI tahlil qilmoqda..." })] })), aiExplanation && (_jsxs("div", { style: {
                             background: 'rgba(123,104,238,0.07)', border: '1px solid rgba(123,104,238,0.25)',
                             borderRadius: 12, padding: 14,
-                        }, children: [_jsxs("div", { style: { fontSize: 10, color: 'var(--acc-l)', fontWeight: 800, marginBottom: 8, letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 5 }, children: [_jsx("span", { children: "\uD83E\uDD16" }), " FIKRA AI TUSHUNTIRISHI"] }), _jsx("div", { style: { fontSize: 13, lineHeight: 1.7, color: 'var(--txt)', whiteSpace: 'pre-wrap' }, children: aiExplanation })] }))] })] }));
+                        }, children: [_jsxs("div", { style: { fontSize: 10, color: 'var(--acc-l)', fontWeight: 800, marginBottom: 8, letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 5 }, children: [_jsx("span", { children: "\uD83E\uDD16" }), " FIKRA AI TUSHUNTIRISHI"] }), _jsx("div", { style: { fontSize: 13, lineHeight: 1.7, color: 'var(--txt)', whiteSpace: 'pre-wrap' }, children: _jsx(RichText, { content: aiExplanation }) })] }))] })] }));
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // Analysis Screen — umumiy AI tahlil

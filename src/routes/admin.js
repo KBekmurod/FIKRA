@@ -38,9 +38,9 @@ router.get('/stats', adminAuth, async (req, res) => {
       User.countDocuments({ plan: 'vip',   planExpiresAt: { $gt: new Date() } }),
       PendingOrder.countDocuments({ status: 'pending' }),
       PendingOrder.countDocuments({ status: 'confirmed' }),
-      // O'yinlar yo'q, lekin test sessiyalari User'da hisoblanadi
-      User.aggregate([{ $group: { _id: null, total: { $sum: '$totalGamesPlayed' } } }]),
-      User.aggregate([{ $group: { _id: null, total: { $sum: '$totalAiRequests' } } }]),
+      // v2: totalGamesPlayed/totalAiRequests olib tashlangan
+      Promise.resolve([{ total: 0 }]),
+      Promise.resolve([{ total: 0 }]),
     ]);
 
     res.json({
@@ -75,7 +75,7 @@ router.get('/users', adminAuth, async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [users, total] = await Promise.all([
       User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit))
-        .select('telegramId username firstName plan planExpiresAt xp streakDays totalGamesPlayed totalAiRequests isActive createdAt'),
+        .select('telegramId username firstName plan planExpiresAt isActive createdAt'),
       User.countDocuments(filter),
     ]);
 
@@ -370,10 +370,7 @@ router.get('/revenue', adminAuth, async (req, res) => {
       .reduce((sum, o) => sum + (o.priceStars || 0) * STAR_TO_UZS, 0);
 
     // Jami AI so'rovlar (taxminiy xarajat)
-    const totalAiReqs = await User.aggregate([
-      { $group: { _id: null, total: { $sum: '$totalAiRequests' } } }
-    ]);
-    const totalReqs = totalAiReqs[0]?.total || 0;
+    const totalReqs = 0; // v2: totalAiRequests olib tashlangan
     // Taxminan har 1000 so'rovda: 60% DeepSeek, 40% Gemini
     const dsTokensCost = (totalReqs * 0.6 / 1000) * parseFloat(deepseekCostPer1k);
     const gmTokensCost = (totalReqs * 0.4 / 1000) * parseFloat(geminiCostPer1k);
@@ -433,10 +430,7 @@ router.get('/revenue', adminAuth, async (req, res) => {
       .reduce((sum, o) => sum + (o.priceStars || 0) * STAR_TO_UZS, 0);
 
     // Jami AI so'rovlar (taxminiy xarajat)
-    const totalAiReqs = await User.aggregate([
-      { $group: { _id: null, total: { $sum: '$totalAiRequests' } } }
-    ]);
-    const totalReqs = totalAiReqs[0]?.total || 0;
+    const totalReqs = 0; // v2: totalAiRequests olib tashlangan
     // Taxminan har 1000 so'rovda: 60% DeepSeek, 40% Gemini
     const dsTokensCost = (totalReqs * 0.6 / 1000) * parseFloat(deepseekCostPer1k);
     const gmTokensCost = (totalReqs * 0.4 / 1000) * parseFloat(geminiCostPer1k);

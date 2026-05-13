@@ -5,6 +5,8 @@ import { useAppStore } from '../store';
 import { examApi, aiApi } from '../api/endpoints';
 import { useToast } from '../components/Toast';
 import SubscriptionModal from '../components/SubscriptionModal';
+import RichText from '../components/RichText';
+import '../components/RichText.css';
 const SUBJECT_EMOJI = {
     uztil: '🔤', math: '➕', tarix: '🏛️', bio: '🧬', kimyo: '⚗️',
     fizika: '⚛️', ingliz: '🇬🇧', inform: '💻', iqtisod: '💰', rus: '🇷🇺',
@@ -351,7 +353,7 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }) {
                             background: timeWarning ? 'rgba(255,95,126,0.1)' : 'rgba(240,238,255,0.06)',
                             padding: '4px 8px', borderRadius: 8, fontVariantNumeric: 'tabular-nums',
                             transition: 'color 0.3s',
-                        }, children: ["\u23F1 ", formatTime(timeLeft)] })] }), _jsx("div", { style: { height: 4, background: 'var(--s2)', borderRadius: 100, marginBottom: 10, flexShrink: 0 }, children: _jsx("div", { style: { height: '100%', background: 'var(--acc)', width: `${pct}%`, borderRadius: 100, transition: 'width 0.4s' } }) }), _jsx("div", { className: "card", style: { marginBottom: 8, flexShrink: 0 }, children: _jsx("div", { style: { fontSize: 13, lineHeight: 1.65, fontWeight: 500, whiteSpace: 'pre-wrap' }, children: q.question }) }), !hint && selected === null && (_jsx("button", { disabled: hintLoading, onClick: canHint ? askHint : onSubOpen, style: {
+                        }, children: ["\u23F1 ", formatTime(timeLeft)] })] }), _jsx("div", { style: { height: 4, background: 'var(--s2)', borderRadius: 100, marginBottom: 10, flexShrink: 0 }, children: _jsx("div", { style: { height: '100%', background: 'var(--acc)', width: `${pct}%`, borderRadius: 100, transition: 'width 0.4s' } }) }), _jsx("div", { className: "card", style: { marginBottom: 8, flexShrink: 0 }, children: _jsx("div", { style: { fontSize: 13, lineHeight: 1.65, fontWeight: 500, whiteSpace: 'pre-wrap' }, children: _jsx(RichText, { content: q.question }) }) }), !hint && selected === null && (_jsx("button", { disabled: hintLoading, onClick: canHint ? askHint : onSubOpen, style: {
                     padding: '9px 12px', borderRadius: 10, marginBottom: 8, cursor: 'pointer',
                     background: canHint ? 'rgba(0,212,170,0.08)' : 'rgba(255,95,126,0.06)',
                     border: `1px solid ${canHint ? 'rgba(0,212,170,0.25)' : 'rgba(255,95,126,0.2)'}`,
@@ -378,14 +380,14 @@ function QuizScreen({ sessionData, onFinish, onExit, onSubOpen }) {
                             borderRadius: 10, textAlign: 'left', fontSize: 13, lineHeight: 1.5,
                             color: 'var(--txt)', cursor: selected !== null ? 'default' : 'pointer',
                             transition: 'all 0.15s', width: '100%', flexShrink: 0,
-                        }, children: [_jsx("span", { style: { fontWeight: 800, color: 'var(--txt-3)', marginRight: 10 }, children: ['A', 'B', 'C', 'D'][i] }), opt] }, i));
+                        }, children: [_jsx("span", { style: { fontWeight: 800, color: 'var(--txt-3)', marginRight: 10 }, children: ['A', 'B', 'C', 'D'][i] }), _jsx(RichText, { content: opt, inline: true })] }, i));
                 }) }), selected !== null && (_jsx("div", { style: { paddingTop: 10, flexShrink: 0 }, children: qIdx + 1 >= totalQ ? (_jsx("button", { onClick: handleFinish, disabled: finishing, className: "btn btn-primary btn-block btn-lg", children: finishing ? '⏳ Saqlanmoqda...' : "🏁 Natijani ko'rish" })) : (_jsx("button", { onClick: nextQ, className: "btn btn-primary btn-block btn-lg", children: "Keyingi savol \u2192" })) }))] }));
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // ResultScreen
 // ═══════════════════════════════════════════════════════════════════════════
 function ResultScreen({ result, onBack, onHistory, onReview }) {
-    const { totalScore, maxTotalScore, percent, subjectBreakdown, mode, xp } = result;
+    const { totalScore, maxTotalScore, percent, subjectBreakdown, mode, level } = result;
     const emoji = percent >= 80 ? '🏆' : percent >= 60 ? '👏' : percent >= 40 ? '💪' : '📖';
     const grade = percent >= 90 ? "A'lo" : percent >= 75 ? 'Yaxshi' : percent >= 50 ? "O'rtacha" : "Yana o'qing";
     return (_jsxs(_Fragment, { children: [_jsx("div", { className: "header", children: _jsxs("div", { className: "header-logo", children: ["FIKRA", _jsx("span", { children: "." })] }) }), _jsxs("div", { style: { padding: '8px 20px 20px' }, children: [_jsxs("div", { style: {
@@ -396,7 +398,12 @@ function ResultScreen({ result, onBack, onHistory, onReview }) {
                                     display: 'inline-block', marginTop: 8,
                                     background: 'rgba(123,104,238,0.15)', border: '1px solid rgba(123,104,238,0.3)',
                                     borderRadius: 100, padding: '4px 14px', fontSize: 12, fontWeight: 700, color: 'var(--acc-l)',
-                                }, children: grade }), result.directionName && (_jsxs("div", { style: { marginTop: 8, fontSize: 12, color: 'var(--txt-2)', fontWeight: 600 }, children: ["\uD83C\uDFAF ", result.directionName] })), xp && (_jsxs("div", { style: { marginTop: 12, fontSize: 12, color: 'var(--y)' }, children: ["\u26A1 +", xp.added, " XP qo'shildi", xp.levelUp ? ' · 🎉 Yangi daraja!' : ''] }))] }), _jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginBottom: 8, fontWeight: 700 }, children: "Fan bo'yicha natijalar:" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }, children: subjectBreakdown.map((s) => {
+                                }, children: grade }), result.directionName && (_jsxs("div", { style: { marginTop: 8, fontSize: 12, color: 'var(--txt-2)', fontWeight: 600 }, children: ["\uD83C\uDFAF ", result.directionName] })), level && level.levelUp && (_jsxs("div", { style: {
+                                    marginTop: 12, padding: '8px 14px',
+                                    background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)',
+                                    borderRadius: 100, display: 'inline-block',
+                                    fontSize: 12, fontWeight: 700, color: 'var(--y)',
+                                }, children: ["\uD83C\uDF89 Yangi daraja: v", level.versionAfter, "!"] }))] }), _jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginBottom: 8, fontWeight: 700 }, children: "Fan bo'yicha natijalar:" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }, children: subjectBreakdown.map((s) => {
                             const subPct = s.maxScore > 0 ? Math.round(s.score / s.maxScore * 100) : 0;
                             return (_jsxs("div", { style: {
                                     background: 'var(--s1)', border: '1px solid var(--f)',
@@ -605,7 +612,7 @@ function AnswerCard({ answer, onSubOpen }) {
         }, children: [_jsxs("div", { onClick: () => setExpanded(e => !e), style: { padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8 }, children: [_jsx("span", { style: {
                             fontSize: 16, flexShrink: 0, marginTop: 1,
                             color: answer.isCorrect ? 'var(--g)' : 'var(--r)',
-                        }, children: answer.isCorrect ? '✓' : '✗' }), _jsx("div", { style: { fontSize: 12, lineHeight: 1.5, flex: 1 }, children: answer.question }), _jsx("span", { style: { color: 'var(--txt-3)', fontSize: 14 }, children: expanded ? '▲' : '▼' })] }), expanded && (_jsxs("div", { style: { padding: '0 14px 12px' }, children: [answer.options?.map((opt, i) => {
+                        }, children: answer.isCorrect ? '✓' : '✗' }), _jsx("div", { style: { fontSize: 12, lineHeight: 1.5, flex: 1 }, children: _jsx(RichText, { content: answer.question }) }), _jsx("span", { style: { color: 'var(--txt-3)', fontSize: 14 }, children: expanded ? '▲' : '▼' })] }), expanded && (_jsxs("div", { style: { padding: '0 14px 12px' }, children: [answer.options?.map((opt, i) => {
                         let color = 'var(--txt-3)';
                         let icon = '';
                         if (i === answer.correctIndex) {
@@ -616,7 +623,7 @@ function AnswerCard({ answer, onSubOpen }) {
                             color = 'var(--r)';
                             icon = '✗ ';
                         }
-                        return (_jsxs("div", { style: { fontSize: 12, color, marginBottom: 4, lineHeight: 1.5 }, children: [icon, _jsxs("span", { style: { fontWeight: 700 }, children: [['A', 'B', 'C', 'D'][i], ")"] }), " ", opt] }, i));
+                        return (_jsxs("div", { style: { fontSize: 12, color, marginBottom: 4, lineHeight: 1.5 }, children: [icon, _jsxs("span", { style: { fontWeight: 700 }, children: [['A', 'B', 'C', 'D'][i], ")"] }), " ", _jsx(RichText, { content: opt, inline: true })] }, i));
                     }), aiHint && (_jsx("div", { style: {
                             background: 'rgba(123,104,238,0.08)', border: '1px solid rgba(123,104,238,0.2)',
                             borderRadius: 8, padding: 10, marginTop: 8, fontSize: 12, lineHeight: 1.6, color: 'var(--txt)',

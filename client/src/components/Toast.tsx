@@ -2,9 +2,17 @@ import { createContext, useContext, useState, useCallback, ReactNode } from 'rea
 
 interface ToastContext {
   toast: (msg: string, type?: 'info' | 'ok' | 'err') => void
+  success: (msg: string) => void
+  error: (msg: string) => void
+  info: (msg: string) => void
 }
 
-const Ctx = createContext<ToastContext>({ toast: () => {} })
+const Ctx = createContext<ToastContext>({
+  toast: () => {},
+  success: () => {},
+  error: () => {},
+  info: () => {},
+})
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [msg, setMsg] = useState<{ text: string; type: string } | null>(null)
@@ -19,8 +27,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setMsg(null), 3000)
   }, [])
 
+  const success = useCallback((text: string) => toast(text, 'ok'),  [toast])
+  const error   = useCallback((text: string) => toast(text, 'err'), [toast])
+  const info    = useCallback((text: string) => toast(text, 'info'),[toast])
+
   return (
-    <Ctx.Provider value={{ toast }}>
+    <Ctx.Provider value={{ toast, success, error, info }}>
       {children}
       {msg && (
         <div

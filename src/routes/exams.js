@@ -3,8 +3,6 @@
 const express = require('express');
 const router  = express.Router();
 const { authMiddleware }   = require('../middleware/auth');
-const { addXp }            = require('../services/rankService');
-const User                 = require('../models/User');
 const {
   DIRECTION_MAP,
   SUBJECT_META,
@@ -105,26 +103,27 @@ router.post('/sessions/:id/finish', authMiddleware, async (req, res, next) => {
     const result = await finishExamSession(req.params.id, req.user._id);
     const s = result.session;
 
-    // XP: (totalScore / maxTotalScore * 100) dan proporsional
-    const pct = s.maxTotalScore > 0 ? s.totalScore / s.maxTotalScore : 0;
-    const xpEarned = Math.round(20 + pct * 80); // 20–100 XP
+    const pct        = s.maxTotalScore > 0 ? s.totalScore / s.maxTotalScore : 0;
+    const totalCorrect = result.breakdown.reduce((sum, b) => sum + (b.correct || 0), 0);
+    const totalQ       = result.breakdown.reduce((sum, b) => sum + (b.questionCount || 0), 0);
 
-    await User.findByIdAndUpdate(req.user._id, { $inc: { totalGamesPlayed: 1 } });
-    const xpResult = await addXp(req.user._id, req.user.telegramId, xpEarned, 'exam', {
-      mode: s.mode, totalScore: s.totalScore,
-    }).catch(() => null);
+    const levelResult = await require('../services/levelService').recordResult(req.user._id, {
+      source:  'standard',
+      correct: totalCorrect,
+      total:   totalQ,
+    }).catch(e => { logger.error('Level update error:', e.message); return null; });
 
     res.json({
-      sessionId:    s._id,
-      mode:         s.mode,
-      totalScore:   s.totalScore,
-      maxTotalScore:s.maxTotalScore,
-      percent:      s.maxTotalScore > 0 ? Math.round(s.totalScore / s.maxTotalScore * 100) : 0,
+      sessionId:        s._id,
+      mode:             s.mode,
+      totalScore:       s.totalScore,
+      maxTotalScore:    s.maxTotalScore,
+      percent:          Math.round(pct * 100),
       subjectBreakdown: result.breakdown,
-      durationSeconds: s.durationSeconds,
-      startTime:    s.startTime,
-      endTime:      s.endTime,
-      xp: xpResult ? { added: xpResult.xpAdded, total: xpResult.xpAfter, levelUp: xpResult.levelUp } : null,
+      durationSeconds:  s.durationSeconds,
+      startTime:        s.startTime,
+      endTime:          s.endTime,
+      level:            levelResult,
     });
   } catch (err) { next(err); }
 });
@@ -142,10 +141,8 @@ router.get('/sessions/:id/review', authMiddleware, async (req, res, next) => {
         startTime: session.startTime, endTime: session.endTime,
       },
       answers: answers.map(a => ({
-        // _id berib yuboramiz — frontend cabinet uchun
         _id: a._id,
         questionId: a.questionId,
-        // Snapshot maydonlardan o'qish (eski sessiyalarda bo'lmasligi mumkin)
         question:   a.questionText || '',
         options:    a.questionOptions || [],
         correctIndex: a.correctAnswer >= 0 ? a.correctAnswer : null,
@@ -168,7 +165,6 @@ router.get('/history', authMiddleware, async (req, res, next) => {
     res.json(result);
   } catch (err) { next(err); }
 });
-
 
 // ─── DELETE /api/exams/sessions/:id — Sessiyani o'chirish ──────────────────
 router.delete('/sessions/:id', authMiddleware, async (req, res, next) => {
@@ -218,7 +214,6 @@ router.get('/cabinet/wrong/:answerId/explain', authMiddleware, async (req, res, 
     }
     if (ans.isCorrect) return res.status(400).json({ error: 'Bu javob to\'g\'ri edi' });
 
-    // AI orqali tahlil — snapshot ma'lumotlardan foydalanamiz
     const subjectName = SUBJECT_META[ans.subjectId]?.name || ans.subjectId;
     const explanation = await ai.explainWrongAnswer(
       ans.questionText,
@@ -239,7 +234,6 @@ router.get('/cabinet/wrong/:answerId/explain', authMiddleware, async (req, res, 
       subject: ans.subjectId,
       subjectName,
       topic: ans.topic,
-      // Asl tushuntirish (admin yozgan, agar bo\'lsa)
       originalExplanation: ans.explanation,
     });
   } catch (err) {

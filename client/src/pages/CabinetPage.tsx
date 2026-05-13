@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { examApi } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import SubscriptionModal from '../components/SubscriptionModal'
+import RichText from '../components/RichText'
+import '../components/RichText.css'
 
 // ─── Tiplar ─────────────────────────────────────────────────────────────────
 type Screen = 'home' | 'subject_view' | 'wrong_detail' | 'mini_test' | 'analysis'
@@ -466,7 +468,7 @@ function WrongAnswerDetail({ answer, onBack, onSubOpen }: { answer: WrongAnswer;
             SAVOL{answer.topic ? ` · ${answer.topic}` : ''}
           </div>
           <div style={{ fontSize: 14, lineHeight: 1.6, fontWeight: 500, whiteSpace: 'pre-wrap' }}>
-            {answer.questionText}
+            <RichText content={answer.questionText} />
           </div>
         </div>
 
@@ -492,7 +494,7 @@ function WrongAnswerDetail({ answer, onBack, onSubOpen }: { answer: WrongAnswer;
                   <span style={{ fontWeight: 800, color: 'var(--txt-3)', flexShrink: 0 }}>
                     {['A','B','C','D'][i]}
                   </span>
-                  <span style={{ flex: 1 }}>{opt}</span>
+                  <span style={{ flex: 1 }}><RichText content={opt} inline /></span>
                   {label && (
                     <span style={{ fontSize: 9, fontWeight: 800,
                       color: i === answer.correctAnswer ? 'var(--g)' : 'var(--r)',
@@ -515,7 +517,7 @@ function WrongAnswerDetail({ answer, onBack, onSubOpen }: { answer: WrongAnswer;
               💡 ASOSIY TUSHUNTIRISH
             </div>
             <div style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--txt)' }}>
-              {answer.explanation}
+              <RichText content={answer.explanation} />
             </div>
           </div>
         )}
@@ -555,7 +557,7 @@ function WrongAnswerDetail({ answer, onBack, onSubOpen }: { answer: WrongAnswer;
               <span>🤖</span> FIKRA AI TUSHUNTIRISHI
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--txt)', whiteSpace: 'pre-wrap' }}>
-              {aiExplanation}
+              <RichText content={aiExplanation} />
             </div>
           </div>
         )}

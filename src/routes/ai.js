@@ -3,12 +3,8 @@ const crypto  = require('crypto');
 const router  = express.Router();
 const { authMiddleware, requireAiAccess, incrementAiUsage } = require('../middleware/auth');
 const { aiLimiter } = require('../middleware/rateLimit');
-const { addXp } = require('../services/rankService');
 const ai = require('../services/aiService');
 const { logger } = require('../utils/logger');
-
-// XP berish
-const XP = { chat: 2, image: 8, document: 5, hint: 1 };
 
 // In-memory file storage (vaqtinchalik fayllar)
 // Production'da Redis yoki disk, lekin Railway uchun memory yetarli
@@ -34,7 +30,6 @@ router.post('/chat',
       const { message, history = [] } = req.body;
       if (!message) return res.status(400).json({ error: 'Xabar kerak' });
       await incrementAiUsage(req.user._id, 'chats');
-      addXp(req.user._id, req.user.telegramId, XP.chat, 'ai_chat').catch(() => {});
 
       const messages = [
         { role: 'system', content: "Sen FIKRA AI yordamchisisan. O'zbek tilida qisqa va aniq javob ber. Abituriyentlarga DTM testlariga tayyorgarlik ko'rishda yordam beradigan, do'stona, tushunarli AI'sen." },
@@ -59,7 +54,6 @@ router.post('/hint',
       const { question, options, subject, mode } = req.body;
       if (!question) return res.status(400).json({ error: 'Savol kerak' });
       await incrementAiUsage(req.user._id, 'hints');
-      addXp(req.user._id, req.user.telegramId, XP.hint, 'ai_hint').catch(() => {});
 
       const hint = mode === 'explain'
         ? await ai.explainTestQuestion(question, options || [], subject || '')
@@ -92,7 +86,6 @@ router.post('/document',
       const { prompt, format = 'DOCX', history = [] } = req.body;
       if (!prompt) return res.status(400).json({ error: 'Prompt kerak' });
       await incrementAiUsage(req.user._id, 'docs');
-      addXp(req.user._id, req.user.telegramId, XP.document, 'ai_document', { format }).catch(() => {});
 
       const content = await ai.generateDocument(prompt, format, history);
       const titleMatch = content.match(/^#\s+(.+)$/m);
@@ -154,7 +147,6 @@ router.post('/image',
       const { prompt } = req.body;
       if (!prompt) return res.status(400).json({ error: 'Prompt kerak' });
       await incrementAiUsage(req.user._id, 'images');
-      addXp(req.user._id, req.user.telegramId, XP.image, 'ai_image').catch(() => {});
 
       const result = await ai.generateImage(prompt);
       // Image ham serverda saqlash (yuklab olinishi uchun)

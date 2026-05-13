@@ -1,21 +1,35 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
+import { levelApi } from '../api/endpoints'
+import { GRADE_META } from '../constants/subjects'
+import type { UserLevelData } from '../types'
 import SubscriptionModal from '../components/SubscriptionModal'
 
 export default function HomePage() {
   const navigate = useNavigate()
   const { user } = useAppStore()
   const [subOpen, setSubOpen] = useState(false)
+  const [level, setLevel] = useState<UserLevelData | null>(null)
 
   const isSub = user?.effectivePlan && user.effectivePlan !== 'free'
   const planLabel: Record<string, string> = {
     free: '', basic: '⭐ Basic', pro: '✨ Pro', vip: '💎 VIP'
   }
 
-  const hintsLimit = user?.aiLimits?.hints ?? 5
-  const hintsUsed = user?.aiUsage?.hints ?? 0
-  const hintsLeft = hintsLimit === null ? '∞' : Math.max(0, (hintsLimit as number) - hintsUsed)
+  useEffect(() => {
+    levelApi.current()
+      .then(({ data }) => setLevel(data))
+      .catch(() => {})
+  }, [])
+
+  const grade = level?.currentGrade || 'beta'
+  const gradeMeta = GRADE_META[grade as keyof typeof GRADE_META]
+  const versionInGrade = level ? (
+    grade === 'beta' ? level.currentVersion
+    : grade === 'delta' ? level.currentVersion - 3
+    : level.currentVersion - 7
+  ) : 1
 
   return (
     <>
@@ -29,7 +43,7 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* Salomlashish */}
+      {/* Salomlashish + Daraja */}
       <div style={{ padding: '6px 20px 0' }}>
         <div style={{
           background: 'linear-gradient(135deg, rgba(123,104,238,0.15), rgba(0,212,170,0.08))',
@@ -45,23 +59,30 @@ export default function HomePage() {
               </div>
               <div style={{ fontSize: 12, color: 'var(--txt-2)', marginTop: 2 }}>
                 {isSub
-                  ? `${planLabel[user.effectivePlan || 'free']} · AI cheksiz`
-                  : `Bugun ${hintsLeft}/${hintsLimit} AI tushuntirish qoldi`}
+                  ? `${planLabel[user.effectivePlan || 'free']} · cheksiz AI`
+                  : "DTM tayyorlik platformasi"}
               </div>
             </div>
-            {(user?.streakDays || 0) > 0 && (
-              <div style={{
-                background: 'rgba(255,204,68,0.15)',
-                border: '1px solid rgba(255,204,68,0.3)',
-                borderRadius: 12,
-                padding: '8px 12px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: 16 }}>🔥</div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--y)' }}>
-                  {user!.streakDays} kun
+            {level && (
+              <button
+                onClick={() => navigate('/level')}
+                style={{
+                  background: gradeMeta.bgColor,
+                  border: `1px solid ${gradeMeta.color}40`,
+                  borderRadius: 12,
+                  padding: '8px 12px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--txt)',
+                }}
+              >
+                <div style={{ fontSize: 18, color: gradeMeta.color, fontWeight: 800 }}>
+                  {gradeMeta.icon}
                 </div>
-              </div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: gradeMeta.color }}>
+                  {gradeMeta.name} {versionInGrade}
+                </div>
+              </button>
             )}
           </div>
         </div>
@@ -71,26 +92,75 @@ export default function HomePage() {
       <div className="section-title">Asosiy</div>
       <div style={{ padding: '0 20px', display: 'grid', gap: 10 }}>
         <button
-          onClick={() => navigate('/test')}
+          onClick={() => navigate('/subjects')}
           style={{
             background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
             border: 'none',
             borderRadius: 'var(--br)',
-            padding: '20px 20px',
+            padding: '20px',
             display: 'flex',
             alignItems: 'center',
             gap: 14,
             color: 'white',
             cursor: 'pointer',
-            transition: 'transform 0.15s',
           }}
         >
           <div style={{ fontSize: 36 }}>📚</div>
           <div style={{ flex: 1, textAlign: 'left' }}>
-            <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 2 }}>DTM Test yechish</div>
-            <div style={{ fontSize: 12, opacity: 0.85 }}>9 fan · AI yordam bilan</div>
+            <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 2 }}>Fanlar</div>
+            <div style={{ fontSize: 12, opacity: 0.9 }}>
+              Material qo'shing · AI test yarating
+            </div>
           </div>
           <div style={{ fontSize: 22 }}>→</div>
+        </button>
+
+        <button
+          onClick={() => navigate('/test')}
+          style={{
+            background: 'var(--s1)',
+            border: '1px solid var(--f)',
+            borderRadius: 'var(--br)',
+            padding: '16px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            color: 'var(--txt)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: 28 }}>📝</div>
+          <div style={{ flex: 1, textAlign: 'left' }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Fikra standart DTM test</div>
+            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
+              Yo'nalish bo'yicha to'liq imtihon
+            </div>
+          </div>
+          <div style={{ fontSize: 18, color: 'var(--txt-3)' }}>→</div>
+        </button>
+
+        <button
+          onClick={() => navigate('/cabinet')}
+          style={{
+            background: 'var(--s1)',
+            border: '1px solid var(--f)',
+            borderRadius: 'var(--br)',
+            padding: '16px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            color: 'var(--txt)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: 28 }}>🎯</div>
+          <div style={{ flex: 1, textAlign: 'left' }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Xatolar tahlili</div>
+            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
+              AI bilan zaif joylarni o'rganing
+            </div>
+          </div>
+          <div style={{ fontSize: 18, color: 'var(--txt-3)' }}>→</div>
         </button>
 
         <button
@@ -111,7 +181,7 @@ export default function HomePage() {
           <div style={{ flex: 1, textAlign: 'left' }}>
             <div style={{ fontWeight: 700, fontSize: 14 }}>AI yordamchi</div>
             <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
-              Chat · Hujjat yaratish · Rasm
+              Chat · Hujjat · Rasm
             </div>
           </div>
           <div style={{ fontSize: 18, color: 'var(--txt-3)' }}>→</div>
@@ -140,10 +210,10 @@ export default function HomePage() {
             <div style={{ fontSize: 28 }}>⭐</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>
-                AI imkoniyatlarni cheksiz oching
+                Imkoniyatlarni cheksiz oching
               </div>
               <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>
-                Basic 149⭐ · cheksiz tushuntirish, ko'proq AI
+                Basic 149⭐ · ko'proq material, AI test, fayl yuklash
               </div>
             </div>
             <div style={{ fontSize: 11, color: 'var(--acc-l)', fontWeight: 700 }}>↗</div>
@@ -151,28 +221,32 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Statistika */}
-      <div className="section-title">Sizning statistikangiz</div>
-      <div style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-        <div className="card" style={{ textAlign: 'center', padding: 14 }}>
-          <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--acc-l)' }}>
-
+      {/* Joriy oy statistikasi */}
+      {level && (
+        <>
+          <div className="section-title">Joriy oy statistikasi</div>
+          <div style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            <div className="card" style={{ textAlign: 'center', padding: 14 }}>
+              <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--acc-l)' }}>
+                {level.standardTests.total}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>Standart</div>
+            </div>
+            <div className="card" style={{ textAlign: 'center', padding: 14 }}>
+              <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--g)' }}>
+                {level.personalTests.total}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>Shaxsiy</div>
+            </div>
+            <div className="card" style={{ textAlign: 'center', padding: 14 }}>
+              <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--y)' }}>
+                {level.accuracyPercent}%
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>Aniqlik</div>
+            </div>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>XP</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: 14 }}>
-          <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--g)' }}>
-            {user?.totalGamesPlayed || 0}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>Test</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: 14 }}>
-          <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--y)' }}>
-            {user?.totalAiRequests || 0}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>AI</div>
-        </div>
-      </div>
+        </>
+      )}
 
       <SubscriptionModal open={subOpen} onClose={() => setSubOpen(false)} />
     </>
