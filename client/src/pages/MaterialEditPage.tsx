@@ -38,7 +38,7 @@ export default function MaterialEditPage() {
     try {
       await materialApi.update(id, { title, content })
       toast.success("Yangilandi!")
-      navigate(`/subjects/${material!.subjectId}`)
+      navigate(`/ombor/${material!.subjectId}`)
     } catch (e: any) {
       toast.error(e.response?.data?.error || "Xatolik")
     } finally {
@@ -52,7 +52,7 @@ export default function MaterialEditPage() {
   return (
     <div className="material-add-page">
       <header className="add-header">
-        <button className="btn-back" onClick={() => navigate(`/subjects/${material.subjectId}`)}>←</button>
+        <button className="btn-back" onClick={() => navigate(`/ombor/${material.subjectId}`)}>←</button>
         <h1>✏️ Tahrirlash</h1>
       </header>
 

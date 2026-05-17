@@ -4,9 +4,9 @@ import { getSubject, formatChars, formatBytes } from '../constants/subjects'
 import { materialApi, personalTestApi } from '../api/endpoints'
 import type { StudyMaterial, PersonalTest } from '../types'
 import { useToast } from '../components/Toast'
-import './SubjectDetailPage.css'
+import './OmborSubjectPage.css'
 
-export default function SubjectDetailPage() {
+export default function OmborSubjectPage() {
   const { subjectId } = useParams<{ subjectId: string }>()
   const navigate = useNavigate()
   const toast = useToast()
@@ -159,7 +159,7 @@ export default function SubjectDetailPage() {
         <div className="action-buttons">
           <button
             className="action-btn primary"
-            onClick={() => navigate(`/subjects/${subject.id}/add`)}
+            onClick={() => navigate(`/ombor/${subject.id}/add`)}
           >
             <span className="action-icon">⊕</span>
             <div className="action-text">
@@ -217,7 +217,7 @@ export default function SubjectDetailPage() {
             <div className="empty-text">Birinchi materialingizni qo'shing 👇</div>
             <button
               className="empty-cta"
-              onClick={() => navigate(`/subjects/${subject.id}/add`)}
+              onClick={() => navigate(`/ombor/${subject.id}/add`)}
             >
               ⊕ Material qo'shish
             </button>

@@ -50,11 +50,29 @@ export const PLAN_BADGES: Record<string, { name: string; color: string; icon: st
   vip:   { name: 'VIP',   color: '#fbbf24', icon: '👑' },
 }
 
-// Daraja rang/icon
+// Daraja rang/icon — yangi tartib:
+//   DELTA (v1-3) - boshlang'ich, ko'k
+//   BETA  (v4-7) - o'rta, yashil
+//   ALFA  (v8-10) - yuqori, oltin
 export const GRADE_META = {
-  beta:  { name: 'Beta',  icon: 'β', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.12)' },
   delta: { name: 'Delta', icon: 'δ', color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.12)' },
+  beta:  { name: 'Beta',  icon: 'β', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.12)' },
   alfa:  { name: 'Alfa',  icon: 'α', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.12)' },
+}
+
+export type Grade = 'delta' | 'beta' | 'alfa'
+
+export function versionToGrade(version: number): Grade {
+  if (version <= 3) return 'delta'
+  if (version <= 7) return 'beta'
+  return 'alfa'
+}
+
+// Versiya raqamini grade ichida ko'rsatish ('v1' delta1, 'v4' beta1, 'v8' alfa1)
+export function versionInGrade(version: number): number {
+  const grade = versionToGrade(version)
+  const offset = grade === 'delta' ? 0 : grade === 'beta' ? 3 : 7
+  return version - offset
 }
 
 export function formatChars(n: number): string {

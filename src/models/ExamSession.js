@@ -54,6 +54,14 @@ const examSessionSchema = new mongoose.Schema({
 
   subjectBreakdown: { type: [subjectStatSchema], default: [] },
 
+  // ─── AI Kabinet — bitta test uchun 1 marotaba qoidasi ────────────────────
+  // Foydalanuvchi xato javoblarda AI tushuntirish ishlatgan fanlar ro'yxati.
+  // Har fan uchun 1 marta — keyin "qayta tushuntirish" tugmasi yopiladi.
+  explainedSubjects: { type: [String], default: [] },
+
+  // Mini-test allaqachon yaratilganmi (bu sessiya uchun 1 marta)
+  miniTestGenerated: { type: Boolean, default: false },
+
 }, { timestamps: true });
 
 examSessionSchema.index({ userId: 1, mode: 1, status: 1, createdAt: -1 });

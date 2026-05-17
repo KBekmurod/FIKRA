@@ -174,6 +174,23 @@ router.delete('/sessions/:id', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ─── POST /api/exams/sessions/:id/abandon — Testni bekor qilish ────────────
+// Foydalanuvchi testdan chiqib ketsa, test 'abandoned' qilinadi va tarixga
+// saqlanmaydi (tarix faqat 'completed' sessiyalarni ko'rsatadi).
+router.post('/sessions/:id/abandon', authMiddleware, async (req, res, next) => {
+  try {
+    const ExamSession = require('../models/ExamSession');
+    const session = await ExamSession.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!session) return res.status(404).json({ error: 'Sessiya topilmadi' });
+    if (session.status === 'in_progress') {
+      session.status = 'abandoned';
+      session.endTime = new Date();
+      await session.save();
+    }
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
 // ─── POST /api/exams/sessions/:id/repeat — Testni qayta ishlash ───────────
 router.post('/sessions/:id/repeat', authMiddleware, async (req, res, next) => {
   try {
@@ -204,7 +221,10 @@ router.get('/cabinet', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── GET /api/exams/cabinet/wrong/:answerId/explain — Bitta xato tahlili ──
+// ─── GET /api/exams/cabinet/wrong/:answerId/explain ────────────────────────
+// AI tushuntirish (xato javob uchun).
+// Query: ?sessionId=... — agar berilsa, 1-marotaba qoidasi qo'llaniladi.
+//        Bitta sessiya uchun har bir fan bo'yicha explain 1 marta.
 router.get('/cabinet/wrong/:answerId/explain', authMiddleware, async (req, res, next) => {
   try {
     const ans = await UserAnswer.findById(req.params.answerId);
@@ -213,6 +233,22 @@ router.get('/cabinet/wrong/:answerId/explain', authMiddleware, async (req, res, 
       return res.status(403).json({ error: 'Ruxsat yo\'q' });
     }
     if (ans.isCorrect) return res.status(400).json({ error: 'Bu javob to\'g\'ri edi' });
+
+    // 1-marotaba qoidasi: sessionId berilgan bo'lsa, shu fan uchun
+    // explain allaqachon olingani tekshiriladi
+    const { sessionId } = req.query;
+    let session = null;
+    if (sessionId) {
+      const ExamSession = require('../models/ExamSession');
+      session = await ExamSession.findOne({ _id: sessionId, userId: req.user._id });
+      if (session && session.explainedSubjects.includes(ans.subjectId)) {
+        return res.status(429).json({
+          error: 'Bu fan uchun AI tushuntirish allaqachon olingan',
+          code: 'EXPLAIN_ALREADY_USED',
+          subjectId: ans.subjectId,
+        });
+      }
+    }
 
     const subjectName = SUBJECT_META[ans.subjectId]?.name || ans.subjectId;
     const explanation = await ai.explainWrongAnswer(
@@ -223,6 +259,11 @@ router.get('/cabinet/wrong/:answerId/explain', authMiddleware, async (req, res, 
       subjectName,
       ans.topic
     );
+
+    if (session && !session.explainedSubjects.includes(ans.subjectId)) {
+      session.explainedSubjects.push(ans.subjectId);
+      await session.save();
+    }
 
     res.json({
       success: true,
@@ -243,12 +284,33 @@ router.get('/cabinet/wrong/:answerId/explain', authMiddleware, async (req, res, 
 });
 
 // ─── POST /api/exams/cabinet/mini-test — Xato savollardan mini test ───────
+// Body: { subject?, limit?, fromSessionId? }
+// fromSessionId berilsa: shu sessiya uchun mini-test 1 marotaba qoidasi
+// qo'llaniladi. Mini-test natijasi alohida sessiya sifatida yaratiladi.
 router.post('/cabinet/mini-test', authMiddleware, async (req, res, next) => {
   try {
-    const { subject, limit } = req.body;
+    const { subject, limit, fromSessionId } = req.body;
+
+    // 1-marotaba qoidasi
+    if (fromSessionId) {
+      const ExamSession = require('../models/ExamSession');
+      const src = await ExamSession.findOne({ _id: fromSessionId, userId: req.user._id });
+      if (src && src.miniTestGenerated) {
+        return res.status(429).json({
+          error: 'Bu test uchun mini-test allaqachon yaratilgan',
+          code: 'MINI_TEST_ALREADY_USED',
+        });
+      }
+      if (src) {
+        src.miniTestGenerated = true;
+        await src.save();
+      }
+    }
+
     const result = await startCabinetMiniTest(req.user._id, {
       subjectId: subject || null,
       limit: limit ? Math.min(parseInt(limit), 30) : 10,
+      fromSessionId: fromSessionId || null,
     });
     res.json({
       sessionId: result.session._id,

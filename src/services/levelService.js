@@ -1,12 +1,12 @@
 // ─── Level Service ──────────────────────────────────────────────────────────
-// Beta / Delta / Alfa daraja tizimi
+// Delta / Beta / Alfa daraja tizimi (yangi tartib: boshlang'ich → o'rta → yuqori)
 //
 // Versiya-daraja xaritasi:
-//   v1, v2, v3  → Beta
-//   v4, v5, v6, v7 → Delta
-//   v8, v9, v10 → Alfa
+//   v1, v2, v3       → DELTA (boshlang'ich)
+//   v4, v5, v6, v7   → BETA  (o'rta)
+//   v8, v9, v10      → ALFA  (yuqori)
 //
-// Daraja ko'tarilish mantiqidan:
+// Daraja ko'tarilish mantiqi:
 //   Har bir test natijasi ball beradi.
 //   Ball yig'ilib, versiya oshadi.
 //   Har oy boshida avtomatik nolga tushadi (lazy reset).
@@ -16,8 +16,8 @@ const { logger } = require('../utils/logger');
 
 // ─── Versiyadan daraja nomi ───────────────────────────────────────────────────
 function versionToGrade(version) {
-  if (version <= 3) return 'beta';
-  if (version <= 7) return 'delta';
+  if (version <= 3) return 'delta';
+  if (version <= 7) return 'beta';
   return 'alfa';
 }
 
@@ -62,7 +62,7 @@ function _computeVersion(levelDoc) {
 
   // Daraja turiga qarab qaysi natijalar hisoblanadi
   if (v <= 3) {
-    // Beta: standart + personal testlar
+    // Delta (v1-3): standart + personal testlar (boshlang'ich)
     const total   = (levelDoc.standardTests.total || 0) + (levelDoc.personalTests.total || 0);
     const correct = (levelDoc.standardTests.correct || 0) + (levelDoc.personalTests.correct || 0);
     if (total < minQ) return v;
@@ -71,7 +71,7 @@ function _computeVersion(levelDoc) {
   }
 
   if (v <= 7) {
-    // Delta: standart + personal (chuqurroq tahlil)
+    // Beta (v4-7): standart + personal (o'rta)
     const total   = (levelDoc.standardTests.total || 0) + (levelDoc.personalTests.total || 0);
     const correct = (levelDoc.standardTests.correct || 0) + (levelDoc.personalTests.correct || 0);
     if (total < minQ) return v;
@@ -79,7 +79,7 @@ function _computeVersion(levelDoc) {
     return accuracy >= threshold ? v + 1 : v;
   }
 
-  // Alfa: mini-test natijalari asosida
+  // Alfa (v8-10): mini-test natijalari asosida (yuqori)
   const total   = levelDoc.miniTests.total || 0;
   const correct = levelDoc.miniTests.correct || 0;
   if (total < minQ) return v;
@@ -112,7 +112,7 @@ async function _ensureCurrentMonth(levelDoc) {
   // Yangi oy — nolga tushirish
   levelDoc.currentMonth    = thisMonth;
   levelDoc.currentVersion  = 1;
-  levelDoc.currentGrade    = 'beta';
+  levelDoc.currentGrade    = 'delta';
   levelDoc.standardTests   = { correct: 0, total: 0 };
   levelDoc.personalTests   = { correct: 0, total: 0 };
   levelDoc.miniTests       = { correct: 0, total: 0 };
@@ -134,7 +134,7 @@ async function recordResult(userId, { source, correct, total }) {
       userId,
       currentMonth:   _monthKey(),
       currentVersion: 1,
-      currentGrade:   'beta',
+      currentGrade:   'delta',
       standardTests:  { correct: 0, total: 0 },
       personalTests:  { correct: 0, total: 0 },
       miniTests:      { correct: 0, total: 0 },
@@ -183,7 +183,7 @@ async function getLevel(userId) {
   if (!levelDoc) {
     return {
       currentVersion: 1,
-      currentGrade:   'beta',
+      currentGrade:   'delta',
       currentMonth:   _monthKey(),
       standardTests:  { correct: 0, total: 0 },
       personalTests:  { correct: 0, total: 0 },

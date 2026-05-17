@@ -155,6 +155,23 @@ router.post('/:id/finish', authMiddleware, async (req, res, next) => {
   } catch (err) { _handleError(err, res, next); }
 });
 
+// ─── POST /api/personal-tests/:id/abandon — bekor qilish ───────────────────
+// Test tugatilmagan holda chiqib ketilgan bo'lsa abandoned qilinadi va
+// tarixda ko'rinmaydi.
+router.post('/:id/abandon', authMiddleware, async (req, res, next) => {
+  try {
+    const PersonalTest = require('../models/PersonalTest');
+    const test = await PersonalTest.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!test) return res.status(404).json({ error: 'Test topilmadi' });
+    if (test.status === 'in_progress') {
+      test.status = 'abandoned';
+      test.endTime = new Date();
+      await test.save();
+    }
+    res.json({ success: true });
+  } catch (err) { _handleError(err, res, next); }
+});
+
 // ─── GET /api/personal-tests
 // Test tarixi
 router.get('/', authMiddleware, async (req, res, next) => {

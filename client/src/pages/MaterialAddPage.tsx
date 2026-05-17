@@ -58,7 +58,7 @@ export default function MaterialAddPage() {
     try {
       await materialApi.createText(subject.id, textTitle || `${subject.name} — matn`, textContent)
       toast.success("Material qo'shildi!")
-      navigate(`/subjects/${subject.id}`)
+      navigate(`/ombor/${subject.id}`)
     } catch (e: any) {
       toast.error(e.response?.data?.error || "Xatolik")
     } finally {
@@ -129,7 +129,7 @@ export default function MaterialAddPage() {
         await materialApi.fileSave(draftId, subject.id, draftTitle, draftText)
       }
       toast.success("Material qo'shildi!")
-      navigate(`/subjects/${subject.id}`)
+      navigate(`/ombor/${subject.id}`)
     } catch (e: any) {
       toast.error(e.response?.data?.error || "Saqlashda xatolik")
     } finally {
@@ -152,7 +152,7 @@ export default function MaterialAddPage() {
   return (
     <div className="material-add-page">
       <header className="add-header">
-        <button className="btn-back" onClick={() => navigate(`/subjects/${subject.id}`)}>←</button>
+        <button className="btn-back" onClick={() => navigate(`/ombor/${subject.id}`)}>←</button>
         <h1>{subject.icon} Material qo'shish</h1>
       </header>
 

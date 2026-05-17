@@ -35,6 +35,8 @@ export const examApi = {
     api.post(`/api/exams/sessions/${sessionId}/answer`, { questionId, selectedOption }),
   finish: (sessionId: string) =>
     api.post(`/api/exams/sessions/${sessionId}/finish`),
+  abandon: (sessionId: string) =>
+    api.post(`/api/exams/sessions/${sessionId}/abandon`),
   review: (sessionId: string) =>
     api.get(`/api/exams/sessions/${sessionId}/review`),
   history: (mode?: string, page = 1) =>
@@ -46,12 +48,15 @@ export const examApi = {
   // AI Kabinet
   cabinet: (subject?: string) =>
     api.get('/api/exams/cabinet', { params: subject ? { subject } : {} }),
-  cabinetExplain: (answerId: string) =>
-    api.get<{ explanation: string; originalExplanation?: string }>(`/api/exams/cabinet/wrong/${answerId}/explain`),
+  cabinetExplain: (answerId: string, sessionId?: string) =>
+    api.get<{ explanation: string; originalExplanation?: string; subjectName?: string }>(
+      `/api/exams/cabinet/wrong/${answerId}/explain`,
+      { params: sessionId ? { sessionId } : {} }
+    ),
   cabinetAnalysis: () =>
     api.post('/api/exams/cabinet/analysis'),
-  cabinetMiniTest: (subject?: string, limit = 10) =>
-    api.post('/api/exams/cabinet/mini-test', { subject, limit }),
+  cabinetMiniTest: (subject?: string, limit = 10, fromSessionId?: string) =>
+    api.post('/api/exams/cabinet/mini-test', { subject, limit, fromSessionId }),
 }
 
 // ─── AI ────────────────────────────────────────────────────────────────────
@@ -209,6 +214,9 @@ export const personalTestApi = {
       totalCorrect: number; totalQuestions: number; scorePercent: number;
       level: { versionBefore: number; versionAfter: number; levelUp: boolean } | null;
     }>(`/api/personal-tests/${testId}/finish`),
+
+  abandon: (testId: string) =>
+    api.post(`/api/personal-tests/${testId}/abandon`),
 
   history: (subject?: string, type?: 'material' | 'mini', page = 1) =>
     api.get<{ tests: PersonalTest[]; total: number; page: number; pages: number }>(

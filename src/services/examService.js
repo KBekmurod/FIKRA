@@ -462,37 +462,72 @@ async function getCabinetData(userId, options = {}) {
 }
 
 // ─── 10. Kabinet uchun mini-test (faqat xato qilingan savollar) ──────────
+// options:
+//   - fromSessionId: agar berilsa, FAQAT shu sessiyadagi xato savollardan
+//                    foydalanadi. Majburiy fan uchun 5 ta, mutaxassislik uchun
+//                    15 ta savol AI tomonidan saralanadi.
+//   - subjectId: faqat shu fan bo'yicha xatolar (umumiy mini-test uchun)
+//   - limit: jami savol soni (umumiy mini-test uchun)
 async function startCabinetMiniTest(userId, options = {}) {
   assertObjectId(userId, 'userId');
-  const { subjectId = null, limit = 10 } = options;
+  const { subjectId = null, limit = 10, fromSessionId = null } = options;
 
-  // DTM sessiyalardan xato javob bergan savollarni olish
-  const dtmSessions = await ExamSession.find({
-    userId, mode: 'dtm', status: 'completed',
-  }).select('_id');
+  // Sessiyadan kelgan xato savollar
+  let sourceFilter;
+  if (fromSessionId) {
+    sourceFilter = { userId, sessionId: fromSessionId, isCorrect: false };
+  } else {
+    // Eski rejim: barcha DTM sessiyalardan
+    const dtmSessions = await ExamSession.find({
+      userId, mode: 'dtm', status: 'completed',
+    }).select('_id');
 
-  if (!dtmSessions.length) {
-    throw new Error('Hali DTM testlari yo\'q');
+    if (!dtmSessions.length) {
+      throw new Error('Hali DTM testlari yo\'q');
+    }
+    sourceFilter = {
+      userId, sessionId: { $in: dtmSessions.map(s => s._id) }, isCorrect: false,
+    };
+    if (subjectId) sourceFilter.subjectId = subjectId;
   }
 
-  const sessionIds = dtmSessions.map(s => s._id);
-  const wrongFilter = {
-    userId, sessionId: { $in: sessionIds }, isCorrect: false,
-  };
-  if (subjectId) wrongFilter.subjectId = subjectId;
+  // Barcha xato javoblarni olamiz
+  const allWrongAnswers = await UserAnswer.find(sourceFilter).lean();
 
-  // Xato javoblarni snapshot bilan olish
-  const wrongAnswers = await UserAnswer.aggregate([
-    { $match: wrongFilter },
-    { $sort: { createdAt: -1 } },
-    // Bir xil savol bir necha marta xato bo'lgan bo'lsa, faqat oxirgisini olamiz
-    { $group: {
-        _id: '$questionId',
-        doc: { $first: '$$ROOT' },
-    }},
-    { $replaceRoot: { newRoot: '$doc' } },
-    { $sample: { size: limit } }, // Random shuffle
-  ]);
+  if (!allWrongAnswers.length) {
+    throw new Error('Xato qilingan savollar yo\'q. Yaxshi natija!');
+  }
+
+  // ─── fromSessionId rejimi: fan bo'yicha turli miqdor ────────────────────
+  // Majburiy fan: 5 ta, mutaxassislik: 15 ta
+  let wrongAnswers;
+  if (fromSessionId) {
+    // Fanlar bo'yicha guruhlash
+    const bySubject = {};
+    for (const a of allWrongAnswers) {
+      if (!bySubject[a.subjectId]) bySubject[a.subjectId] = [];
+      bySubject[a.subjectId].push(a);
+    }
+
+    wrongAnswers = [];
+    for (const [subjId, answers] of Object.entries(bySubject)) {
+      const meta = SUBJECT_META[subjId];
+      if (!meta) continue;
+
+      // Majburiy = 5, mutaxassislik = 15
+      const targetCount = meta.block === 'majburiy' ? 5 : 15;
+
+      // Shuffle va kerakli miqdorni olish
+      const shuffled = answers.sort(() => Math.random() - 0.5);
+      const taken = shuffled.slice(0, Math.min(targetCount, shuffled.length));
+      wrongAnswers.push(...taken);
+    }
+  } else {
+    // Eski rejim: random shuffle + limit
+    wrongAnswers = allWrongAnswers
+      .sort(() => Math.random() - 0.5)
+      .slice(0, limit);
+  }
 
   if (!wrongAnswers.length) {
     throw new Error('Xato qilingan savollar yo\'q. Yaxshi natija!');

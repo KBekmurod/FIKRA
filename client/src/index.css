@@ -126,7 +126,7 @@ input, textarea, select {
   z-index: 50;
   background: var(--bg);
 }
-.header-logo { font-weight: 800; font-size: 22px; letter-spacing: -0.5px; }
+.header-logo { font-family: 'Syne', 'Inter', sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -0.3px; }
 .header-logo span { color: var(--acc); }
 
 .plan-pill {
@@ -159,17 +159,23 @@ input, textarea, select {
   flex: 1;
   display: flex; flex-direction: column;
   align-items: center; gap: 2px;
-  padding: 7px 2px;
+  padding: 7px 1px;
   border-radius: 10px;
   background: transparent; border: none;
   color: var(--txt-3);
   transition: color 0.15s, background 0.15s;
   min-height: 44px; justify-content: center;
+  min-width: 0;
 }
 .nav-item.active { color: var(--acc-l); background: rgba(123,104,238,0.1); }
 .nav-item:active { transform: scale(0.92); }
-.nav-icon { font-size: 18px; line-height: 1; }
-.nav-label { font-size: 9px; font-weight: 700; letter-spacing: 0.2px; }
+.nav-icon { font-size: 17px; line-height: 1; }
+.nav-label { font-size: 9px; font-weight: 700; letter-spacing: 0.1px; white-space: nowrap; }
+
+/* 6 ta tugma uchun moslash */
+.nav-6 .nav-item { padding: 7px 0; }
+.nav-6 .nav-icon { font-size: 16px; }
+.nav-6 .nav-label { font-size: 8.5px; }
 
 /* ─── Cards ──────────────────────────────────────────────────────────── */
 .card {
@@ -183,6 +189,48 @@ input, textarea, select {
   font-size: 11px; font-weight: 700;
   letter-spacing: 0.8px; text-transform: uppercase;
   color: var(--txt-2); padding: 16px 20px 8px;
+}
+
+/* ─── Segmented tabs (pillow style) ────────────────────────────────────── */
+.seg-tabs {
+  display: flex;
+  background: var(--s2);
+  border: 1px solid var(--f);
+  border-radius: 100px;
+  padding: 3px;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+.seg-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--txt-2);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.seg-tab.active {
+  background: var(--acc);
+  color: white;
+}
+.seg-tab:active { transform: scale(0.97); }
+
+/* ─── Skeleton card ────────────────────────────────────────────────────── */
+.skel-card {
+  background: linear-gradient(90deg, var(--s2), var(--s1), var(--s2));
+  background-size: 200% 100%;
+  animation: skel 1.5s infinite;
+  border-radius: 12px;
+  height: 80px;
+  margin-bottom: 8px;
+}
+@keyframes skel {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* ─── Buttons ────────────────────────────────────────────────────────── */
@@ -240,7 +288,7 @@ input, textarea, select {
   justify-content: center; flex-direction: column; gap: 20px;
   background: var(--bg); z-index: 9999;
 }
-.full-loader-text { font-weight: 800; font-size: 26px; letter-spacing: -0.5px; }
+.full-loader-text { font-family: 'Syne', 'Inter', sans-serif; font-weight: 800; font-size: 26px; letter-spacing: -0.3px; }
 .full-loader-text span { color: var(--acc); }
 
 /* ─── Toast ──────────────────────────────────────────────────────────── */

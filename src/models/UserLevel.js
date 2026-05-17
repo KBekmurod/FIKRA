@@ -20,7 +20,7 @@ const mongoose = require('mongoose');
 const monthHistorySchema = new mongoose.Schema({
   monthKey:    { type: String, required: true },  // 'YYYY-MM' (masalan, '2026-05')
   maxVersion:  { type: Number, default: 1 },      // Shu oydagi eng yuqori daraja (1-10)
-  grade:       { type: String, default: 'beta' }, // 'beta' | 'delta' | 'alfa'
+  grade:       { type: String, default: 'delta' }, // 'beta' | 'delta' | 'alfa'
 
   // Shu oy statistikasi
   standardTests: { correct: { type: Number, default: 0 }, total: { type: Number, default: 0 } },
@@ -49,7 +49,7 @@ const userLevelSchema = new mongoose.Schema({
   currentGrade: {
     type: String,
     enum: ['beta', 'delta', 'alfa'],
-    default: 'beta',
+    default: 'delta',
   },
 
   // ─── Joriy oy test natijalari (progressni hisoblash uchun) ────────────────

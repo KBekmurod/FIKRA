@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { SUBJECTS, COMPULSORY_IDS, SPEC_IDS, formatChars } from '../constants/subjects'
 import { materialApi, personalTestApi } from '../api/endpoints'
 import type { SubjectsSummary, PersonalTest } from '../types'
-import './SubjectsPage.css'
+import './OmborPage.css'
 
 type Tab = 'majburiy' | 'mutaxassislik'
 
-export default function SubjectsPage() {
+export default function OmborPage() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('majburiy')
   const [summary, setSummary] = useState<SubjectsSummary>({})
@@ -32,10 +32,10 @@ export default function SubjectsPage() {
   const ids = tab === 'majburiy' ? COMPULSORY_IDS : SPEC_IDS
 
   return (
-    <div className="subjects-page">
+    <div className="ombor-page">
       <header className="page-header">
-        <h1>📚 Fanlar</h1>
-        <p className="page-sub">Materiallar yuklang, AI bilan testlar yarating</p>
+        <h1>🏛 Ombor</h1>
+        <p className="page-sub">Materiallaringizni saqlang, AI testlar yarating</p>
       </header>
 
       <div className="tab-switcher">
@@ -65,7 +65,7 @@ export default function SubjectsPage() {
               <button
                 key={id}
                 className="subject-card"
-                onClick={() => navigate(`/subjects/${id}`)}
+                onClick={() => navigate(`/ombor/${id}`)}
               >
                 <div className="subject-icon">{subj.icon}</div>
                 <div className="subject-info">

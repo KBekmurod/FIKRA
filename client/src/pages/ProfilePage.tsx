@@ -58,11 +58,11 @@ export default function ProfilePage() {
     }
   }
 
-  const grade = level?.currentGrade || 'beta'
+  const grade = level?.currentGrade || 'delta'
   const gradeMeta = GRADE_META[grade as keyof typeof GRADE_META]
   const versionInGrade = level ? (
-    grade === 'beta' ? level.currentVersion
-    : grade === 'delta' ? level.currentVersion - 3
+    grade === 'delta' ? level.currentVersion
+    : grade === 'beta' ? level.currentVersion - 3
     : level.currentVersion - 7
   ) : 1
 
@@ -137,6 +137,95 @@ export default function ProfilePage() {
             <div style={{ color: 'var(--g)', fontSize: 18, fontWeight: 800 }}>↓</div>
           </button>
         </div>
+      )}
+
+      {/* Daraja statistikasi */}
+      {level && (
+        <>
+          <div className="section-title">📊 Daraja statistikasi</div>
+          <div style={{ padding: '0 20px' }}>
+            <div style={{
+              background: `linear-gradient(135deg, ${gradeMeta.bgColor}, transparent)`,
+              border: `1px solid ${gradeMeta.color}40`,
+              borderRadius: 14,
+              padding: 16,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: 14,
+                  background: gradeMeta.bgColor,
+                  border: `1px solid ${gradeMeta.color}40`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 900, fontSize: 28, color: gradeMeta.color,
+                  flexShrink: 0,
+                }}>{gradeMeta.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 900, fontSize: 18, color: gradeMeta.color }}>
+                    {gradeMeta.name} {versionInGrade}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
+                    Versiya {level.currentVersion}/10 · Joriy oy
+                  </div>
+                </div>
+              </div>
+
+              {/* Keyingi daraja progress */}
+              {!level.nextVersionInfo?.isMax && level.nextVersionInfo && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--txt-3)', marginBottom: 4 }}>
+                    <span>Keyingi darajaga</span>
+                    <span style={{ fontWeight: 700 }}>
+                      {level.nextVersionInfo.currentAccuracy || 0}% / {level.nextVersionInfo.requiredAccuracy || 0}%
+                    </span>
+                  </div>
+                  <div style={{ height: 4, background: 'var(--s2)', borderRadius: 100, marginBottom: 12 }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${Math.min(100, ((level.nextVersionInfo.currentAccuracy || 0) / (level.nextVersionInfo.requiredAccuracy || 1)) * 100)}%`,
+                      background: gradeMeta.color,
+                      borderRadius: 100,
+                    }} />
+                  </div>
+                </>
+              )}
+
+              {/* 3 ta ko'rsatkich */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                <StatBox
+                  label="Standart"
+                  value={level.standardTests.total}
+                  sub={level.standardTests.total > 0 ? `${Math.round(level.standardTests.correct / level.standardTests.total * 100)}%` : '—'}
+                  color="#10b981"
+                />
+                <StatBox
+                  label="AI testlar"
+                  value={level.personalTests.total}
+                  sub={level.personalTests.total > 0 ? `${Math.round(level.personalTests.correct / level.personalTests.total * 100)}%` : '—'}
+                  color="#a78bfa"
+                />
+                <StatBox
+                  label="Mini-test"
+                  value={level.miniTests.total}
+                  sub={level.miniTests.total > 0 ? `${Math.round(level.miniTests.correct / level.miniTests.total * 100)}%` : '—'}
+                  color="#f59e0b"
+                />
+              </div>
+
+              {/* Eslatma */}
+              <div style={{
+                marginTop: 12,
+                padding: 10,
+                background: 'rgba(123,104,238,0.06)',
+                borderRadius: 8,
+                fontSize: 10,
+                color: 'var(--txt-3)',
+                lineHeight: 1.5,
+              }}>
+                💡 Daraja har oy boshida nolga tushadi. Joriy oy: {level.currentMonth}
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Obuna */}
@@ -297,5 +386,20 @@ export default function ProfilePage() {
 
       <SubscriptionModal open={subOpen} onClose={() => setSubOpen(false)} />
     </>
+  )
+}
+
+function StatBox({ label, value, sub, color }: { label: string; value: number; sub: string; color: string }) {
+  return (
+    <div style={{
+      background: 'var(--s2)',
+      borderRadius: 10,
+      padding: '10px 8px',
+      textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 18, fontWeight: 800, color }}>{value}</div>
+      <div style={{ fontSize: 10, color: 'var(--txt-3)', marginTop: 2 }}>{label}</div>
+      <div style={{ fontSize: 9, color: 'var(--txt-3)', marginTop: 1 }}>{sub}</div>
+    </div>
   )
 }

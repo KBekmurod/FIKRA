@@ -58,12 +58,31 @@ function TabButton({ active, onClick, icon, label }: any) {
 
 // ─── CHAT TAB ─────────────────────────────────────────────────────────
 function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([])
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem('fikra_chat_history')
+      return saved ? JSON.parse(saved).slice(-50) : []
+    } catch { return [] }
+  })
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
   const { user, refreshUser } = useAppStore()
   const { toast } = useToast()
   const msgsRef = useRef<HTMLDivElement>(null)
+
+  // Tarixni saqlash
+  useEffect(() => {
+    try {
+      localStorage.setItem('fikra_chat_history', JSON.stringify(messages))
+    } catch {}
+  }, [messages])
+
+  const clearHistory = () => {
+    setMessages([])
+    try { localStorage.removeItem('fikra_chat_history') } catch {}
+    setShowHistoryModal(false)
+  }
 
   const send = async () => {
     const text = input.trim()
@@ -117,9 +136,76 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
 
   return (
     <div className="chat-wrap">
-      <div style={{ padding: '4px 20px 6px', fontSize: 11, color: 'var(--txt-3)', flexShrink: 0 }}>
-        {chatsLimit === null ? 'Cheksiz' : `${chatsUsed}/${chatsLimit} bugun ishlatildi`}
+      <div style={{
+        padding: '4px 20px 6px',
+        fontSize: 11,
+        color: 'var(--txt-3)',
+        flexShrink: 0,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+      }}>
+        <span>{chatsLimit === null ? 'Cheksiz' : `${chatsUsed}/${chatsLimit} bugun ishlatildi`}</span>
+        {messages.length > 0 && (
+          <button
+            onClick={() => setShowHistoryModal(true)}
+            style={{
+              background: 'none',
+              border: '1px solid var(--f)',
+              borderRadius: 100,
+              color: 'var(--txt-2)',
+              fontSize: 10,
+              fontWeight: 700,
+              padding: '3px 10px',
+              cursor: 'pointer',
+            }}
+          >🗑 Tarix</button>
+        )}
       </div>
+
+      {showHistoryModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 20,
+        }}>
+          <div style={{
+            background: 'var(--s1)',
+            border: '1px solid var(--f)',
+            borderRadius: 18,
+            padding: 22,
+            maxWidth: 360,
+            width: '100%',
+          }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>
+              Suhbat tarixi
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: 14 }}>
+              Hozir <strong>{messages.length}</strong> ta xabar saqlangan. Tarixni tozalasangiz, AI yangi suhbatda eski kontekstni eslay olmaydi.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setShowHistoryModal(false)} className="btn btn-ghost btn-block">
+                Bekor qilish
+              </button>
+              <button
+                onClick={clearHistory}
+                style={{
+                  flex: 1,
+                  background: 'rgba(255,95,126,0.15)',
+                  border: '1.5px solid var(--r)',
+                  color: 'var(--r)',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  padding: '11px 14px',
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                }}
+              >Tozalash</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div ref={msgsRef} className="chat-messages">
         {!messages.length && (

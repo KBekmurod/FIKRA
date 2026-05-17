@@ -1,35 +1,198 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAppStore } from '../store'
-import { levelApi } from '../api/endpoints'
-import { GRADE_META } from '../constants/subjects'
+import { useAppStore, } from '../store'
+import { usePwaInstall } from '../App'
+import { levelApi, examApi, personalTestApi } from '../api/endpoints'
+import { GRADE_META, versionToGrade, versionInGrade } from '../constants/subjects'
 import type { UserLevelData } from '../types'
 import SubscriptionModal from '../components/SubscriptionModal'
+
+interface LastActivity {
+  kind: 'fikra_test' | 'ai_test' | 'ai_chat' | 'material'
+  label: string
+  subtitle: string
+  href: string
+  emoji: string
+  time: string
+}
 
 export default function HomePage() {
   const navigate = useNavigate()
   const { user } = useAppStore()
-  const [subOpen, setSubOpen] = useState(false)
-  const [level, setLevel] = useState<UserLevelData | null>(null)
+  const { canInstall, install, isInstalled } = usePwaInstall()
 
+  const [level, setLevel] = useState<UserLevelData | null>(null)
+  const [lastActivity, setLastActivity] = useState<LastActivity | null>(null)
+  const [subOpen, setSubOpen] = useState(false)
+
+  const isGuest = !user || (user as any)._demo || !user.telegramId
   const isSub = user?.effectivePlan && user.effectivePlan !== 'free'
-  const planLabel: Record<string, string> = {
-    free: '', basic: '⭐ Basic', pro: '✨ Pro', vip: '💎 VIP'
-  }
 
   useEffect(() => {
-    levelApi.current()
-      .then(({ data }) => setLevel(data))
-      .catch(() => {})
-  }, [])
+    if (isGuest) return
+    // Daraja
+    levelApi.current().then(({ data }) => setLevel(data)).catch(() => {})
 
-  const grade = level?.currentGrade || 'beta'
+    // Oxirgi amaliyat: testlar tarixidan eng so'nggisi
+    Promise.all([
+      examApi.history(undefined, 1).catch(() => ({ data: { sessions: [] } as any })),
+      personalTestApi.history(undefined, undefined, 1).catch(() => ({ data: { tests: [] } as any })),
+    ]).then(([fikra, ai]: any) => {
+      const fikraLast = (fikra.data.sessions || fikra.data.history || [])[0]
+      const aiLast = (ai.data.tests || [])[0]
+
+      let pick: LastActivity | null = null
+      const fikraTime = fikraLast ? new Date(fikraLast.endTime || fikraLast.createdAt).getTime() : 0
+      const aiTime = aiLast ? new Date(aiLast.endTime || aiLast.createdAt).getTime() : 0
+
+      if (fikraTime > aiTime && fikraLast) {
+        const pct = fikraLast.maxTotalScore > 0
+          ? Math.round((fikraLast.totalScore / fikraLast.maxTotalScore) * 100) : 0
+        pick = {
+          kind: 'fikra_test',
+          emoji: fikraLast.mode === 'dtm' ? '🎯' : '📚',
+          label: fikraLast.mode === 'dtm' ? 'Maxsus blok testi' : 'Erkin tanlov testi',
+          subtitle: `${pct}% natija`,
+          time: timeAgo(new Date(fikraLast.endTime || fikraLast.createdAt)),
+          href: `/test-result/${fikraLast._id}`,
+        }
+      } else if (aiLast) {
+        pick = {
+          kind: 'ai_test',
+          emoji: '🤖',
+          label: `${aiLast.subjectName} · AI test`,
+          subtitle: `${aiLast.scorePercent}% natija`,
+          time: timeAgo(new Date(aiLast.endTime || aiLast.createdAt)),
+          href: `/personal-tests/${aiLast._id}/result`,
+        }
+      }
+      setLastActivity(pick)
+    })
+  }, [isGuest])
+
+  // ─── MEHMON UCHUN ──────────────────────────────────────────────────────
+  if (isGuest) {
+    return (
+      <div className="page" style={{ minHeight: '100vh' }}>
+        {/* TOP — Hero */}
+        <div style={{
+          padding: '32px 20px 24px',
+          textAlign: 'center',
+          background: 'radial-gradient(circle at 50% 0%, rgba(123,104,238,0.18), transparent 60%)',
+        }}>
+          <div style={{
+            display: 'inline-block',
+            padding: '4px 12px',
+            background: 'rgba(123,104,238,0.15)',
+            border: '1px solid rgba(123,104,238,0.3)',
+            borderRadius: 100,
+            fontSize: 11,
+            fontWeight: 700,
+            color: 'var(--acc-l)',
+            marginBottom: 14,
+            letterSpacing: 0.5,
+          }}>DTM TAYYORLIK PLATFORMASI</div>
+
+          <h1 style={{
+            fontFamily: "'Syne', sans-serif",
+            fontSize: 36,
+            fontWeight: 800,
+            margin: 0,
+            background: 'linear-gradient(135deg, #fff, var(--acc-l))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            lineHeight: 1.1,
+          }}>
+            FIKRA<span style={{ color: 'var(--acc)' }}>.</span>
+          </h1>
+
+          <p style={{
+            fontSize: 14,
+            color: 'var(--txt-2)',
+            marginTop: 12,
+            lineHeight: 1.5,
+            maxWidth: 320,
+            margin: '12px auto 0',
+          }}>
+            AI yordamida shaxsiy testlar yarating va DTM imtihoniga
+            <strong style={{ color: 'var(--txt)' }}> ishonchli tayyorgarlik </strong>
+            ko'ring
+          </p>
+        </div>
+
+        {/* MAIN — Asosiy imkoniyatlar */}
+        <div style={{ padding: '8px 20px 0' }}>
+          <div style={{ fontWeight: 800, fontSize: 11, color: 'var(--txt-3)', letterSpacing: 1, marginBottom: 10 }}>
+            ✨ ILOVA IMKONIYATLARI
+          </div>
+          <div style={{ display: 'grid', gap: 10 }}>
+            <FeatureItem icon="🏛" title="Shaxsiy ombor" desc="Konspekt, PDF, rasm — barchasidan AI test yaratish" />
+            <FeatureItem icon="🎓" title="DTM standart testlari" desc="Maxsus blok va erkin tanlov bilan amaliyot" />
+            <FeatureItem icon="🎯" title="AI bilan rivojlanish" desc="Xatolaringizni tushuntirib, mustahkamlashga yordam" />
+            <FeatureItem icon="🤖" title="Umumiy AI yordamchi" desc="Chat, hujjat, rasm — istalgan mavzuda" />
+            <FeatureItem icon="📊" title="Daraja tizimi" desc="Delta → Beta → Alfa progress trekisi" />
+          </div>
+        </div>
+
+        {/* BOTTOM — Ilovani yuklab olish */}
+        <div style={{ padding: '24px 20px 24px' }}>
+          {canInstall ? (
+            <button
+              onClick={install}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
+                color: 'white',
+                border: 'none',
+                borderRadius: 14,
+                padding: '16px 18px',
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              📲 Ilovani qurilmaga yuklab olish
+            </button>
+          ) : (
+            <a
+              href={`https://t.me/${(window as any).BOT_USERNAME || 'fikraai_bot'}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex',
+                width: '100%',
+                background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
+                color: 'white',
+                borderRadius: 14,
+                padding: '16px 18px',
+                fontSize: 14,
+                fontWeight: 800,
+                textDecoration: 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              🚀 Telegram orqali boshlash
+            </a>
+          )}
+          <div style={{ fontSize: 11, color: 'var(--txt-3)', textAlign: 'center', marginTop: 10 }}>
+            Bepul · Cheksiz imkoniyatlar uchun obuna oling
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ─── RO'YXATDAN O'TGAN FOYDALANUVCHI ────────────────────────────────────
+  const grade = level?.currentGrade || 'delta'
   const gradeMeta = GRADE_META[grade as keyof typeof GRADE_META]
-  const versionInGrade = level ? (
-    grade === 'beta' ? level.currentVersion
-    : grade === 'delta' ? level.currentVersion - 3
-    : level.currentVersion - 7
-  ) : 1
+  const versionInGr = level ? versionInGrade(level.currentVersion) : 1
+  const accuracy = level?.accuracyPercent || 0
 
   return (
     <>
@@ -37,218 +200,212 @@ export default function HomePage() {
         <div className="header-logo">FIKRA<span>.</span></div>
         <button className="plan-pill" onClick={() => setSubOpen(true)}>
           {isSub
-            ? <span style={{ color: 'var(--y)' }}>{planLabel[user.effectivePlan || 'free']}</span>
+            ? <span style={{ color: 'var(--y)' }}>
+                {user.effectivePlan === 'basic' ? '⭐ Basic' :
+                 user.effectivePlan === 'pro' ? '✨ Pro' :
+                 user.effectivePlan === 'vip' ? '💎 VIP' : ''}
+              </span>
             : <><span style={{ color: 'var(--txt-2)' }}>Bepul</span> <span style={{ color: 'var(--acc-l)' }}>↗</span></>
           }
         </button>
       </div>
 
-      {/* Salomlashish + Daraja */}
+      {/* TOP — Salomlashish + daraja grafik */}
       <div style={{ padding: '6px 20px 0' }}>
         <div style={{
-          background: 'linear-gradient(135deg, rgba(123,104,238,0.15), rgba(0,212,170,0.08))',
-          border: '1px solid rgba(123,104,238,0.25)',
+          background: `linear-gradient(135deg, ${gradeMeta.bgColor}, transparent)`,
+          border: `1px solid ${gradeMeta.color}40`,
           borderRadius: 'var(--br)',
           padding: 18,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ fontSize: 36 }}>🎓</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 16 }}>
-                Salom, {user?.firstName || 'Abituriyent'}!
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--txt-2)', marginTop: 2 }}>
-                {isSub
-                  ? `${planLabel[user.effectivePlan || 'free']} · cheksiz AI`
-                  : "DTM tayyorlik platformasi"}
-              </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>
+              👋 Salom, {user.firstName || 'Abituriyent'}!
             </div>
-            {level && (
-              <button
-                onClick={() => navigate('/level')}
-                style={{
-                  background: gradeMeta.bgColor,
-                  border: `1px solid ${gradeMeta.color}40`,
-                  borderRadius: 12,
-                  padding: '8px 12px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  color: 'var(--txt)',
-                }}
-              >
-                <div style={{ fontSize: 18, color: gradeMeta.color, fontWeight: 800 }}>
-                  {gradeMeta.icon}
-                </div>
-                <div style={{ fontSize: 10, fontWeight: 800, color: gradeMeta.color }}>
-                  {gradeMeta.name} {versionInGrade}
-                </div>
-              </button>
-            )}
+            <div style={{ fontSize: 12, color: 'var(--txt-2)', marginTop: 4 }}>
+              Joriy darajangiz
+            </div>
+            <div style={{
+              marginTop: 6,
+              display: 'inline-block',
+              fontSize: 13,
+              fontWeight: 800,
+              color: gradeMeta.color,
+              letterSpacing: 0.3,
+            }}>
+              {gradeMeta.icon} {gradeMeta.name} {versionInGr}
+            </div>
           </div>
+
+          {/* Aylanma grafik */}
+          <CircularProgress percent={accuracy} color={gradeMeta.color} size={72} />
         </div>
       </div>
 
-      {/* Asosiy harakatlar */}
-      <div className="section-title">Asosiy</div>
-      <div style={{ padding: '0 20px', display: 'grid', gap: 10 }}>
-        <button
-          onClick={() => navigate('/subjects')}
-          style={{
-            background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
-            border: 'none',
-            borderRadius: 'var(--br)',
-            padding: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            color: 'white',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ fontSize: 36 }}>📚</div>
-          <div style={{ flex: 1, textAlign: 'left' }}>
-            <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 2 }}>Fanlar</div>
-            <div style={{ fontSize: 12, opacity: 0.9 }}>
-              Material qo'shing · AI test yarating
-            </div>
-          </div>
-          <div style={{ fontSize: 22 }}>→</div>
-        </button>
-
-        <button
-          onClick={() => navigate('/test')}
-          style={{
-            background: 'var(--s1)',
-            border: '1px solid var(--f)',
-            borderRadius: 'var(--br)',
-            padding: '16px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            color: 'var(--txt)',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ fontSize: 28 }}>📝</div>
-          <div style={{ flex: 1, textAlign: 'left' }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>Fikra standart DTM test</div>
-            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
-              Yo'nalish bo'yicha to'liq imtihon
-            </div>
-          </div>
-          <div style={{ fontSize: 18, color: 'var(--txt-3)' }}>→</div>
-        </button>
-
-        <button
-          onClick={() => navigate('/cabinet')}
-          style={{
-            background: 'var(--s1)',
-            border: '1px solid var(--f)',
-            borderRadius: 'var(--br)',
-            padding: '16px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            color: 'var(--txt)',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ fontSize: 28 }}>🎯</div>
-          <div style={{ flex: 1, textAlign: 'left' }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>Xatolar tahlili</div>
-            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
-              AI bilan zaif joylarni o'rganing
-            </div>
-          </div>
-          <div style={{ fontSize: 18, color: 'var(--txt-3)' }}>→</div>
-        </button>
-
-        <button
-          onClick={() => navigate('/ai')}
-          style={{
-            background: 'var(--s1)',
-            border: '1px solid var(--f)',
-            borderRadius: 'var(--br)',
-            padding: '16px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            color: 'var(--txt)',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ fontSize: 28 }}>🤖</div>
-          <div style={{ flex: 1, textAlign: 'left' }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>AI yordamchi</div>
-            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
-              Chat · Hujjat · Rasm
-            </div>
-          </div>
-          <div style={{ fontSize: 18, color: 'var(--txt-3)' }}>→</div>
-        </button>
+      {/* MAIN — 4 ta asosiy menyu kartlari */}
+      <div className="section-title">Asosiy bo'limlar</div>
+      <div style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <MenuCard icon="🏛" title="Ombor"   subtitle="Materiallar" color="rgba(167,139,250,0.15)" onClick={() => navigate('/ombor')} />
+        <MenuCard icon="📝" title="Testlar" subtitle="DTM va AI"    color="rgba(0,212,170,0.15)"  onClick={() => navigate('/testlar')} />
+        <MenuCard icon="📚" title="Tarix"   subtitle="Ishlagan testlar" color="rgba(59,130,246,0.15)" onClick={() => navigate('/tarix')} />
+        <MenuCard icon="🤖" title="AI"      subtitle="Chat · Hujjat · Rasm" color="rgba(251,191,36,0.15)" onClick={() => navigate('/ai')} />
       </div>
 
-      {/* Obuna chaqiruv */}
-      {!isSub && (
+      {/* BOTTOM — Oxirgi amaliyat yoki yuklab olish */}
+      {!isInstalled && canInstall && (
         <div style={{ padding: '16px 20px 0' }}>
           <button
-            onClick={() => setSubOpen(true)}
+            onClick={install}
             style={{
               width: '100%',
-              background: 'linear-gradient(135deg, rgba(123,104,238,0.12), rgba(255,204,68,0.08))',
-              border: '1px solid rgba(123,104,238,0.25)',
-              borderRadius: 'var(--br)',
-              padding: 16,
-              cursor: 'pointer',
-              color: 'var(--txt)',
-              textAlign: 'left',
+              background: 'linear-gradient(135deg, rgba(0,212,170,0.12), rgba(123,104,238,0.05))',
+              border: '1px solid rgba(0,212,170,0.3)',
+              borderRadius: 14,
+              padding: '14px 16px',
               display: 'flex',
               alignItems: 'center',
               gap: 12,
+              color: 'var(--txt)',
+              cursor: 'pointer',
+              textAlign: 'left',
             }}
           >
-            <div style={{ fontSize: 28 }}>⭐</div>
+            <div style={{ fontSize: 28 }}>📲</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>
-                Imkoniyatlarni cheksiz oching
+              <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--g)' }}>
+                Ilovani qurilmaga yuklab olish
               </div>
-              <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>
-                Basic 149⭐ · ko'proq material, AI test, fayl yuklash
+              <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
+                Tezroq ishlaydi, offline ham mavjud
               </div>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--acc-l)', fontWeight: 700 }}>↗</div>
+            <div style={{ color: 'var(--g)', fontSize: 18, fontWeight: 800 }}>↓</div>
           </button>
         </div>
       )}
 
-      {/* Joriy oy statistikasi */}
-      {level && (
+      {/* Oxirgi amaliyat — agar ilova o'rnatilgan yoki yuklab bo'lmaydigan bo'lsa */}
+      {(isInstalled || !canInstall) && lastActivity && (
         <>
-          <div className="section-title">Joriy oy statistikasi</div>
-          <div style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-            <div className="card" style={{ textAlign: 'center', padding: 14 }}>
-              <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--acc-l)' }}>
-                {level.standardTests.total}
+          <div className="section-title">🕓 Oxirgi amaliyat</div>
+          <div style={{ padding: '0 20px' }}>
+            <button
+              onClick={() => navigate(lastActivity.href)}
+              style={{
+                width: '100%',
+                background: 'var(--s1)',
+                border: '1px solid var(--f)',
+                borderRadius: 14,
+                padding: 14,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                color: 'var(--txt)',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ fontSize: 28 }}>{lastActivity.emoji}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{lastActivity.label}</div>
+                <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 2 }}>
+                  {lastActivity.subtitle} · {lastActivity.time}
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>Standart</div>
-            </div>
-            <div className="card" style={{ textAlign: 'center', padding: 14 }}>
-              <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--g)' }}>
-                {level.personalTests.total}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>Shaxsiy</div>
-            </div>
-            <div className="card" style={{ textAlign: 'center', padding: 14 }}>
-              <div style={{ fontWeight: 800, fontSize: 22, color: 'var(--y)' }}>
-                {level.accuracyPercent}%
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>Aniqlik</div>
-            </div>
+              <div style={{ fontSize: 18, color: 'var(--acc-l)' }}>→</div>
+            </button>
           </div>
         </>
       )}
 
+      <div style={{ height: 24 }} />
       <SubscriptionModal open={subOpen} onClose={() => setSubOpen(false)} />
     </>
   )
+}
+
+// ─── Components ───────────────────────────────────────────────────────────
+function FeatureItem({ icon, title, desc }: { icon: string; title: string; desc: string }) {
+  return (
+    <div style={{
+      background: 'var(--s1)',
+      border: '1px solid var(--f)',
+      borderRadius: 12,
+      padding: 14,
+      display: 'flex',
+      gap: 12,
+      alignItems: 'flex-start',
+    }}>
+      <div style={{ fontSize: 24, lineHeight: 1, marginTop: 2 }}>{icon}</div>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{title}</div>
+        <div style={{ fontSize: 11, color: 'var(--txt-2)', lineHeight: 1.4 }}>{desc}</div>
+      </div>
+    </div>
+  )
+}
+
+function MenuCard({ icon, title, subtitle, color, onClick }: {
+  icon: string; title: string; subtitle: string; color: string; onClick: () => void
+}) {
+  return (
+    <button onClick={onClick} style={{
+      background: color,
+      border: '1px solid var(--f)',
+      borderRadius: 14,
+      padding: '16px 14px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6,
+      cursor: 'pointer',
+      color: 'var(--txt)',
+      textAlign: 'left',
+      minHeight: 92,
+    }}>
+      <div style={{ fontSize: 26, lineHeight: 1 }}>{icon}</div>
+      <div style={{ fontWeight: 800, fontSize: 14 }}>{title}</div>
+      <div style={{ fontSize: 10, color: 'var(--txt-2)' }}>{subtitle}</div>
+    </button>
+  )
+}
+
+function CircularProgress({ percent, color, size = 64 }: {
+  percent: number; color: string; size?: number
+}) {
+  const stroke = 6
+  const r = (size - stroke) / 2
+  const cf = 2 * Math.PI * r
+  const offset = cf - (percent / 100) * cf
+  return (
+    <div style={{ position: 'relative', flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size/2} cy={size/2} r={r} stroke="var(--s2)" strokeWidth={stroke} fill="none" />
+        <circle cx={size/2} cy={size/2} r={r} stroke={color} strokeWidth={stroke} fill="none"
+                strokeDasharray={cf} strokeDashoffset={offset} strokeLinecap="round"
+                style={{ transition: 'stroke-dashoffset 0.6s' }} />
+      </svg>
+      <div style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexDirection: 'column',
+        fontSize: size > 60 ? 14 : 11,
+        fontWeight: 800,
+        color,
+        lineHeight: 1,
+      }}>
+        <span>{percent}%</span>
+      </div>
+    </div>
+  )
+}
+
+function timeAgo(d: Date): string {
+  const sec = Math.floor((Date.now() - d.getTime()) / 1000)
+  if (sec < 60) return `${sec} sec oldin`
+  if (sec < 3600) return `${Math.floor(sec / 60)} daq oldin`
+  if (sec < 86400) return `${Math.floor(sec / 3600)} soat oldin`
+  return `${Math.floor(sec / 86400)} kun oldin`
 }
