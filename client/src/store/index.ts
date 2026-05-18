@@ -6,9 +6,17 @@ import { setAuth, clearAuth, getStoredAuth } from '../api/client'
 interface AppState {
   user: User | null
   loading: boolean
+  initialized: boolean
   error: string | null
 
-  login: () => Promise<void>
+  // Auth metodlari
+  bootstrap: () => Promise<void>
+  loginWithEmail: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string, name: string) => Promise<void>
+  loginWithGoogle: (idToken: string) => Promise<void>
+  loginWithTelegram: () => Promise<void>
+  linkTelegram: () => Promise<void>
+
   refreshUser: () => Promise<void>
   logout: () => void
 }
@@ -18,81 +26,96 @@ declare global {
     Telegram?: any
     BOT_USERNAME?: string
     ADMIN_USERNAME?: string
+    GOOGLE_CLIENT_ID?: string
   }
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   user: null,
   loading: true,
+  initialized: false,
   error: null,
 
-  login: async () => {
+  // ─── Bootstrap: dastur ochilganda mavjud sessiyani tekshirish ─────────
+  bootstrap: async () => {
     set({ loading: true, error: null })
-    const tg = window.Telegram?.WebApp
-    const initData = tg?.initData || ''
-    const initUser = tg?.initDataUnsafe?.user
-    const tid = initUser?.id
-
-    if (!initData || !tid) {
-      try {
-        const { data } = await authApi.login('browser_test')
-        set({ user: data.user, loading: false })
-        return
-      } catch {
-        set({
-          user: {
-            telegramId: 0,
-            firstName: 'Telegram orqali kiring',
-            plan: 'free',
-            effectivePlan: 'free',
-            aiUsage: {},
-            aiLimits: { hints: 5, chats: 10, docs: 2, images: 0 },
-            _demo: true,
-          } as any,
-          loading: false,
-        })
-        return
-      }
-    }
 
     const stored = getStoredAuth()
-    if (stored && stored.tgId === tid) {
+    if (stored) {
       try {
         const { data } = await authApi.me()
-        if (data.telegramId === tid) {
-          set({ user: data, loading: false })
-          return
-        }
+        set({ user: data, loading: false, initialized: true })
+        return
       } catch {
         clearAuth()
       }
-    } else if (stored && stored.tgId !== tid) {
-      clearAuth()
     }
 
+    set({ user: null, loading: false, initialized: true })
+  },
+
+  // ─── Email/parol bilan kirish ─────────────────────────────────────────
+  loginWithEmail: async (email, password) => {
+    set({ loading: true, error: null })
     try {
-      const refCode = new URLSearchParams(window.location.search).get('ref')
-        || tg?.initDataUnsafe?.start_param
-      const { data } = await authApi.login(initData, refCode || undefined)
-      if (data.user.telegramId !== tid) throw new Error('ID mismatch')
-      setAuth(data.accessToken, data.refreshToken, tid)
+      const { data } = await authApi.loginEmail(email, password)
+      setAuth(data.accessToken, data.refreshToken, data.user.telegramId || null)
       set({ user: data.user, loading: false })
-    } catch (e: any) {
-      console.warn('[FIKRA] Login error:', e.message)
-      set({
-        user: {
-          telegramId: tid || 0,
-          firstName: initUser?.first_name || 'Foydalanuvchi',
-          username: initUser?.username,
-          plan: 'free',
-          effectivePlan: 'free',
-          aiUsage: {},
-          aiLimits: { hints: 5, chats: 10, docs: 2, images: 0 },
-        } as any,
-        loading: false,
-        error: e.message,
-      })
+    } catch (err) {
+      set({ loading: false })
+      throw err
     }
+  },
+
+  // ─── Email/parol bilan ro'yxat ────────────────────────────────────────
+  register: async (email, password, name) => {
+    set({ loading: true, error: null })
+    try {
+      const { data } = await authApi.register(email, password, name)
+      setAuth(data.accessToken, data.refreshToken, data.user.telegramId || null)
+      set({ user: data.user, loading: false })
+    } catch (err) {
+      set({ loading: false })
+      throw err
+    }
+  },
+
+  // ─── Google ID token bilan kirish ─────────────────────────────────────
+  loginWithGoogle: async (idToken: string) => {
+    set({ loading: true, error: null })
+    try {
+      const { data } = await authApi.google(idToken)
+      setAuth(data.accessToken, data.refreshToken, data.user.telegramId || null)
+      set({ user: data.user, loading: false })
+    } catch (err) {
+      set({ loading: false })
+      throw err
+    }
+  },
+
+  // ─── Telegram orqali kirish ───────────────────────────────────────────
+  loginWithTelegram: async () => {
+    set({ loading: true, error: null })
+    try {
+      const tg = window.Telegram?.WebApp
+      const initData = tg?.initData || ''
+      if (!initData) throw new Error('Telegram initData yo\'q')
+      const { data } = await authApi.telegramLogin(initData)
+      setAuth(data.accessToken, data.refreshToken, data.user.telegramId || null)
+      set({ user: data.user, loading: false })
+    } catch (err) {
+      set({ loading: false })
+      throw err
+    }
+  },
+
+  // ─── Joriy akkountga Telegram bog'lash ──────────────────────────────
+  linkTelegram: async () => {
+    const tg = window.Telegram?.WebApp
+    const initData = tg?.initData || ''
+    if (!initData) throw new Error('Telegram initData yo\'q')
+    const { data } = await authApi.telegramLink(initData)
+    set({ user: data.user })
   },
 
   refreshUser: async () => {
@@ -103,5 +126,9 @@ export const useAppStore = create<AppState>((set) => ({
     } catch { /* interceptor handles 401 */ }
   },
 
-  logout: () => { clearAuth(); set({ user: null }) }
+  logout: () => {
+    clearAuth()
+    set({ user: null })
+    // Welcome sahifaga yo'naltirish — bu komponentlarda navigate orqali bo'ladi
+  },
 }))

@@ -13,11 +13,11 @@ export function getStoredAuth() {
   try {
     const raw = localStorage.getItem(TOKEN_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as { access: string; refresh: string; tgId: number; ts: number }
+    return JSON.parse(raw) as { access: string; refresh: string; tgId: number | null; ts: number }
   } catch { return null }
 }
 
-export function setAuth(access: string, refresh: string, tgId: number) {
+export function setAuth(access: string, refresh: string, tgId: number | null = null) {
   localStorage.setItem(TOKEN_KEY, JSON.stringify({ access, refresh, tgId, ts: Date.now() }))
 }
 

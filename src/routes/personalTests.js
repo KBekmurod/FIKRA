@@ -72,23 +72,57 @@ router.post('/generate', authMiddleware, async (req, res, next) => {
 // Xato savollardan mini-test yaratish
 router.post('/mini', authMiddleware, async (req, res, next) => {
   try {
-    const { subjectId, wrongAnswers, count } = req.body;
+    const { subjectId, wrongAnswers, count, sourceTestId } = req.body;
     if (!subjectId) return res.status(400).json({ error: 'subjectId kerak' });
     if (!wrongAnswers || !Array.isArray(wrongAnswers) || wrongAnswers.length === 0) {
       return res.status(400).json({ error: 'wrongAnswers kerak' });
     }
 
+    // 1 marta qoidasi — agar source testning folder.miniTestGenerated bor bo'lsa rad etamiz
+    let folderId = null;
+    if (sourceTestId) {
+      const PersonalTest = require('../models/PersonalTest');
+      const src = await PersonalTest.findOne({ _id: sourceTestId, userId: req.user._id }).lean();
+      if (src?.folderId) {
+        folderId = src.folderId;
+        const MaterialFolder = require('../models/MaterialFolder');
+        const folder = await MaterialFolder.findById(folderId);
+        if (folder?.miniTestGenerated) {
+          return res.status(409).json({
+            error: 'Bu test uchun mini-test allaqachon yaratilgan',
+            code: 'MINI_ALREADY_EXISTS',
+            existingMiniTestId: folder.miniTestId,
+          });
+        }
+      }
+    }
+
     const { test, questions } = await testGen.generateMiniTest(req.user._id, {
       subjectId,
       wrongAnswers,
-      count: count || 10,
+      count: count || (wrongAnswers.length <= 5 ? 5 : 10),
     });
+
+    // Folder bilan bog'lash
+    if (folderId) {
+      test.folderId = folderId;
+      await test.save();
+
+      const MaterialFolder = require('../models/MaterialFolder');
+      const folder = await MaterialFolder.findById(folderId);
+      if (folder) {
+        folder.miniTestId = test._id;
+        folder.miniTestGenerated = true;
+        await folder.save();
+      }
+    }
 
     res.json({
       testId:    test._id,
       subjectId: test.subjectId,
       subjectName: test.subjectName,
       testType:  'mini',
+      folderId,
       totalQuestions: questions.length,
       durationSeconds: questions.length * 60,
       questions: questions.map(q => ({
@@ -100,6 +134,66 @@ router.post('/mini', authMiddleware, async (req, res, next) => {
     });
   } catch (err) {
     logger.error('Mini test generate error:', err.message);
+    _handleError(err, res, next);
+  }
+});
+
+// ─── POST /api/personal-tests/:id/explain
+// Bitta xato savol uchun AI batafsil tushuntirish
+router.post('/:id/explain', authMiddleware, async (req, res, next) => {
+  try {
+    const { qIdx } = req.body;
+    if (typeof qIdx !== 'number') return res.status(400).json({ error: 'qIdx kerak' });
+
+    const PersonalTest = require('../models/PersonalTest');
+    const User = require('../models/User');
+    const test = await PersonalTest.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!test) return res.status(404).json({ error: 'Test topilmadi' });
+
+    const q = test.questions.find(qq => qq.idx === qIdx);
+    if (!q) return res.status(404).json({ error: 'Savol topilmadi' });
+
+    // Limit
+    const user = await User.findById(req.user._id);
+    const hintsLimit = User.PLAN_LIMITS[user.effectivePlan()].hints;
+    if (hintsLimit !== Infinity && (user.getAiUsage('hints') || 0) >= hintsLimit) {
+      return res.status(429).json({ error: 'Kunlik AI tushuntirish limiti tugadi' });
+    }
+
+    const ans = test.answers.find(a => a.qIdx === qIdx);
+
+    let explanation;
+    try {
+      const aiService = require('../services/aiService');
+      explanation = await aiService.explainWrongAnswer(
+        q.question,
+        q.options,
+        q.answer,
+        ans?.selected ?? -1,
+        test.subjectName,
+        q.topic || ''
+      );
+    } catch (e) {
+      logger.error('AI explain detail error:', e.message);
+      explanation = q.explanation || 'Tushuntirish hozircha mavjud emas. Material va savolni qaytadan ko\'rib chiqing.';
+    }
+
+    // Usage counter
+    await User.findOneAndUpdate({ _id: req.user._id }, [{
+      $set: {
+        aiUsage: {
+          $cond: [
+            { $eq: ['$aiUsage.date', User.todayKey()] },
+            { $mergeObjects: ['$aiUsage', { hints: { $add: [{ $ifNull: ['$aiUsage.hints', 0] }, 1] } }] },
+            { date: User.todayKey(), hints: 1 },
+          ],
+        },
+      },
+    }]);
+
+    res.json({ explanation });
+  } catch (err) {
+    logger.error('AI explain error:', err.message);
     _handleError(err, res, next);
   }
 });
@@ -133,6 +227,16 @@ router.post('/:id/finish', authMiddleware, async (req, res, next) => {
       req.user._id
     );
 
+    // Folder statistikasini yangilash (agar bog'lanish bor bo'lsa)
+    let folderStats = null;
+    if (test.folderId) {
+      const folderService = require('../services/folderService');
+      const updated = await folderService.recordTestAttempt(
+        test.folderId, totalCorrect, totalQuestions
+      ).catch(e => { logger.error('Folder stats error:', e.message); return null; });
+      if (updated) folderStats = updated.stats;
+    }
+
     // Darajani yangilash
     const levelResult = await levelService.recordResult(req.user._id, {
       source:  test.testType === 'mini' ? 'mini' : 'personal',
@@ -145,11 +249,13 @@ router.post('/:id/finish', authMiddleware, async (req, res, next) => {
       subjectId:      test.subjectId,
       subjectName:    test.subjectName,
       testType:       test.testType,
+      folderId:       test.folderId || null,
       totalCorrect,
       totalQuestions,
       scorePercent,
       startTime:  test.startTime,
       endTime:    test.endTime,
+      folderStats,
       level: levelResult,
     });
   } catch (err) { _handleError(err, res, next); }

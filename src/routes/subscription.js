@@ -59,37 +59,19 @@ router.get('/status', authMiddleware, (req, res) => {
 });
 
 // ─── STARS invoice yaratish ──────────────────────────────────────────────────
-router.post('/create-invoice', authMiddleware, async (req, res, next) => {
-  try {
-    const { planId } = req.body;
-    const plan = PLANS[planId];
-    if (!plan) return res.status(400).json({ error: 'Yaroqsiz tariff' });
-
-    const botToken = process.env.BOT_TOKEN;
-    if (!botToken) return res.status(500).json({ error: 'Bot sozlanmagan' });
-
-    const payload = JSON.stringify({
-      userId: String(req.user._id),
-      telegramId: req.user.telegramId,
-      type: 'plan', id: plan.id, ts: Date.now(),
-    });
-
-    const response = await axios.post(
-      `https://api.telegram.org/bot${botToken}/createInvoiceLink`,
-      { title: `FIKRA ${plan.name} — ${plan.period}`,
-        description: plan.features.slice(0,3).join(' · '),
-        payload, provider_token: '', currency: 'XTR',
-        prices: [{ label: `FIKRA ${plan.name}`, amount: plan.priceStars }] },
-      { timeout: 10000 }
-    );
-
-    if (!response.data?.ok) return res.status(500).json({ error: 'Invoice yaratilmadi' });
-    res.json({ success: true, invoiceUrl: response.data.result,
-      plan: { id: plan.id, name: plan.name, tier: plan.tier, period: plan.period, priceStars: plan.priceStars } });
-  } catch (err) {
-    logger.error('create-invoice:', err?.response?.data || err.message);
-    next(err);
-  }
+// ─── ESKI: Stars to'lov ENDPOINTI OLIB TASHLANGAN ───────────────────────
+// Telegram Stars to'lovi yuqori komissiya tufayli olib tashlandi.
+// Hozir faqat P2P to'lov mavjud. Kelajakda: Payme, Click qo'shiladi.
+router.post('/create-invoice', authMiddleware, (req, res) => {
+  res.status(410).json({
+    error: 'Telegram Stars to\'lovi olib tashlandi. P2P orqali to\'lashingiz mumkin.',
+    code: 'STARS_DISABLED',
+    alternatives: {
+      p2p: 'available',
+      payme: 'coming_soon',
+      click: 'coming_soon',
+    },
+  });
 });
 
 // ─── P2P buyurtma yaratish ───────────────────────────────────────────────────

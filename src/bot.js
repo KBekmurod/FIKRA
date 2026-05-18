@@ -82,56 +82,10 @@ module.exports = function setupBot(app) {
     }
   });
 
-  // ─── Stars to'lovi: pre_checkout ──────────────────────────────────────────
-  bot.on('pre_checkout_query', async (ctx) => {
-    try {
-      const payload = JSON.parse(ctx.preCheckoutQuery.invoice_payload);
-      if (!payload.telegramId || !payload.id) {
-        return ctx.answerPreCheckoutQuery(false, 'Yaroqsiz to\'lov');
-      }
-      await ctx.answerPreCheckoutQuery(true);
-    } catch (err) {
-      logger.error('pre_checkout:', err.message);
-      try { await ctx.answerPreCheckoutQuery(false, 'Xato'); } catch {}
-    }
-  });
-
-  // ─── Stars to'lovi: successful_payment ────────────────────────────────────
-  bot.on('message', async (ctx) => {
-    const msg = ctx.message;
-    if (!msg?.successful_payment) return;
-
-    try {
-      const pay        = msg.successful_payment;
-      const payload    = JSON.parse(pay.invoice_payload);
-      const telegramId = ctx.from.id;
-      const id         = payload.id;
-      if (!id) return;
-
-      await axios.post(`${process.env.FRONTEND_URL}/api/sub/activate`, {
-        telegramId,
-        type: 'plan',
-        id,
-        starsAmount: pay.total_amount,
-        chargeId: pay.telegram_payment_charge_id,
-        secret: process.env.STARS_WEBHOOK_SECRET,
-      }, { timeout: 10000 });
-
-      const planNames = {
-        basic_1m: 'Basic · 1 oy', basic_3m: 'Basic · 3 oy',
-        pro_1m:   'Pro · 1 oy',   pro_3m:   'Pro · 3 oy',
-        vip_1m:   'VIP · 1 oy',   vip_3m:   'VIP · 3 oy',
-      };
-
-      await ctx.reply(
-        `✅ *To'lov muvaffaqiyatli!*\n\n*${planNames[id] || id}* faollashtirildi.\n\nIlovani qayta oching! 🎓`,
-        { parse_mode: 'Markdown' },
-      );
-    } catch (err) {
-      logger.error('successful_payment:', err.message);
-      try { await ctx.reply(ERR_MSG); } catch {}
-    }
-  });
+  // ─── Stars to'lov handler'lari olib tashlangan ──────────────────────────
+  // Telegram Stars to'lovi yuqori komissiya sababli olib tashlandi.
+  // Foydalanuvchilar endi P2P orqali to'laydilar.
+  // Kelajakda: Payme, Click integratsiyasi.
 
   // ─── Webhook yoki polling ─────────────────────────────────────────────────
   if (process.env.NODE_ENV === 'production') {

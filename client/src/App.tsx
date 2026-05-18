@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { useAppStore } from './store'
 
-// Asosiy
-import HomePage from './pages/HomePage'
+// Auth sahifalari
+import WelcomePage from './pages/auth/WelcomePage'
+import LoginPage from './pages/auth/LoginPage'
+import RegisterPage from './pages/auth/RegisterPage'
 
-// Ombor (materiallar)
+// Asosiy sahifalar
+import HomePage from './pages/HomePage'
 import OmborPage from './pages/OmborPage'
 import OmborSubjectPage from './pages/OmborSubjectPage'
+import OmborFolderPage from './pages/OmborFolderPage'
 import MaterialAddPage from './pages/MaterialAddPage'
-import MaterialEditPage from './pages/MaterialEditPage'
 
-// Testlar
 import TestsPage from './pages/TestsPage'
 import FikraTestsPage from './pages/FikraTestsPage'
 import AiTestsPage from './pages/AiTestsPage'
@@ -22,17 +24,13 @@ import TestResultPage from './pages/TestResultPage'
 import TestReviewPage from './pages/TestReviewPage'
 import TestExplainPage from './pages/TestExplainPage'
 
-// Personal testlar (AI ombor testlari)
 import PersonalTestRunPage from './pages/PersonalTestRunPage'
 import PersonalTestResultPage from './pages/PersonalTestResultPage'
+import PersonalTestReviewPage from './pages/PersonalTestReviewPage'
+import PersonalTestExplainPage from './pages/PersonalTestExplainPage'
 
-// Tarix
 import HistoryPage from './pages/HistoryPage'
-
-// AI
 import AIPage from './pages/AIPage'
-
-// Profil
 import ProfilePage from './pages/ProfilePage'
 
 import { ToastProvider } from './components/Toast'
@@ -52,7 +50,6 @@ export function usePwaInstall() {
   const [isInstalled, setIsInstalled] = useState(false)
 
   useEffect(() => {
-    // PWA o'rnatilgan-yoki yo'qligini aniqlash
     const standalone =
       window.matchMedia?.('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true
@@ -60,9 +57,6 @@ export function usePwaInstall() {
       setIsInstalled(true)
       return
     }
-
-    const tg = (window as any).Telegram?.WebApp
-    if (tg?.initData) return
 
     const handler = (e: any) => { e.preventDefault(); setDeferredPrompt(e); setCanInstall(true) }
     window.addEventListener('beforeinstallprompt', handler)
@@ -86,7 +80,6 @@ export function usePwaInstall() {
   return { canInstall, install, isInstalled }
 }
 
-// ─── 6 ta navigatsiya tugmasi ─────────────────────────────────────────────
 const NAV_ITEMS = [
   { path: '/',         icon: '🏠', label: 'Asosiy'  },
   { path: '/ombor',    icon: '🏛',  label: 'Ombor'   },
@@ -100,14 +93,12 @@ function BottomNav() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Test ishlash sahifalarida nav tugmasini bossa, modal so'rovi kerak
   const isInTestRun =
     location.pathname.includes('/test-run/') ||
-    location.pathname.includes('/personal-tests/') && location.pathname.endsWith('/run')
+    (location.pathname.includes('/personal-tests/') && location.pathname.endsWith('/run'))
 
   const handleNavClick = (target: string) => {
     if (isInTestRun && target !== location.pathname) {
-      // Custom event — TestRunPage tinglashi mumkin
       const ev = new CustomEvent('fikra:nav-attempt', {
         detail: { target },
         cancelable: true,
@@ -143,97 +134,103 @@ function BottomNav() {
   )
 }
 
+// ─── Auth Guard ─────────────────────────────────────────────────────────
+function RequireAuth({ children }: { children: JSX.Element }) {
+  const { user } = useAppStore()
+  const location = useLocation()
+  if (!user) {
+    return <Navigate to="/auth/welcome" state={{ from: location }} replace />
+  }
+  return children
+}
+
 export default function App() {
-  const { loading, login, refreshUser } = useAppStore()
-  const [bootstrapped, setBootstrapped] = useState(false)
+  const { user, initialized, bootstrap, refreshUser } = useAppStore()
+  const location = useLocation()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // App ochilganda config va sessiyani yuklash
   useEffect(() => {
-    const KEY = 'fikra_open_count'
-    const prev = parseInt(localStorage.getItem(KEY) || '0', 10)
-    localStorage.setItem(KEY, String(prev + 1))
-  }, [])
-
-  useEffect(() => {
-    login().finally(() => setBootstrapped(true))
+    bootstrap()
 
     fetch('/api/config')
       .then(r => r.json())
       .then(c => {
         ;(window as any).BOT_USERNAME = c.botUsername
         ;(window as any).ADMIN_USERNAME = c.adminUsername
+        ;(window as any).GOOGLE_CLIENT_ID = c.googleClientId
       })
       .catch(() => {})
+  }, [])
 
-    const startPoll = () => {
-      stopPoll()
-      pollRef.current = setInterval(() => {
-        if (!document.hidden) refreshUser()
-      }, 60_000)
-    }
-    const stopPoll = () => {
+  // User mavjud bo'lsa polling
+  useEffect(() => {
+    if (!user) {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+      return
     }
-
-    startPoll()
+    pollRef.current = setInterval(() => {
+      if (!document.hidden) refreshUser()
+    }, 60_000)
 
     const onVisChange = () => {
-      if (document.hidden) stopPoll()
-      else { refreshUser(); startPoll() }
+      if (!document.hidden) refreshUser()
     }
     document.addEventListener('visibilitychange', onVisChange)
 
-    const onAuthExpired = () => login()
+    const onAuthExpired = () => bootstrap()
     window.addEventListener('fikra:auth-expired', onAuthExpired)
 
     return () => {
-      stopPoll()
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
       document.removeEventListener('visibilitychange', onVisChange)
       window.removeEventListener('fikra:auth-expired', onAuthExpired)
     }
-  }, [])
+  }, [user?.id])
 
-  if (!bootstrapped || loading) return <FullLoader />
+  if (!initialized) return <FullLoader />
+
+  const isAuthRoute = location.pathname.startsWith('/auth')
 
   return (
     <div className="app">
       <ToastProvider>
         <div className="app-content">
           <Routes>
-            <Route path="/" element={<HomePage />} />
+            {/* Auth marshrutlari (public) */}
+            <Route path="/auth/welcome"  element={<WelcomePage />} />
+            <Route path="/auth/login"    element={<LoginPage />} />
+            <Route path="/auth/register" element={<RegisterPage />} />
 
-            {/* OMBOR */}
-            <Route path="/ombor"                       element={<OmborPage />} />
-            <Route path="/ombor/:subjectId"            element={<OmborSubjectPage />} />
-            <Route path="/ombor/:subjectId/add"        element={<MaterialAddPage />} />
-            <Route path="/materials/:id/edit"          element={<MaterialEditPage />} />
+            {/* Himoyalangan marshrutlar */}
+            <Route path="/" element={<RequireAuth><HomePage /></RequireAuth>} />
 
-            {/* TESTLAR */}
-            <Route path="/testlar"                     element={<TestsPage />} />
-            <Route path="/testlar/fikra"               element={<FikraTestsPage />} />
-            <Route path="/testlar/ai"                  element={<AiTestsPage />} />
-            <Route path="/testlar/fikra/blok"          element={<BlokTestSetupPage />} />
-            <Route path="/testlar/fikra/free"          element={<FreeTestSetupPage />} />
-            <Route path="/test-run/:sessionId"         element={<TestRunPage />} />
-            <Route path="/test-result/:sessionId"      element={<TestResultPage />} />
-            <Route path="/test-review/:sessionId"      element={<TestReviewPage />} />
-            <Route path="/test-explain/:sessionId/:subjectId" element={<TestExplainPage />} />
+            <Route path="/ombor"                       element={<RequireAuth><OmborPage /></RequireAuth>} />
+            <Route path="/ombor/:subjectId"            element={<RequireAuth><OmborSubjectPage /></RequireAuth>} />
+            <Route path="/ombor/:subjectId/add"        element={<RequireAuth><MaterialAddPage /></RequireAuth>} />
+            <Route path="/ombor/folder/:folderId"      element={<RequireAuth><OmborFolderPage /></RequireAuth>} />
 
-            {/* Personal testlar (Ombor → AI test) */}
-            <Route path="/personal-tests/:id/run"      element={<PersonalTestRunPage />} />
-            <Route path="/personal-tests/:id/result"   element={<PersonalTestResultPage />} />
+            <Route path="/testlar"                     element={<RequireAuth><TestsPage /></RequireAuth>} />
+            <Route path="/testlar/fikra"               element={<RequireAuth><FikraTestsPage /></RequireAuth>} />
+            <Route path="/testlar/ai"                  element={<RequireAuth><AiTestsPage /></RequireAuth>} />
+            <Route path="/testlar/fikra/blok"          element={<RequireAuth><BlokTestSetupPage /></RequireAuth>} />
+            <Route path="/testlar/fikra/free"          element={<RequireAuth><FreeTestSetupPage /></RequireAuth>} />
+            <Route path="/test-run/:sessionId"         element={<RequireAuth><TestRunPage /></RequireAuth>} />
+            <Route path="/test-result/:sessionId"      element={<RequireAuth><TestResultPage /></RequireAuth>} />
+            <Route path="/test-review/:sessionId"      element={<RequireAuth><TestReviewPage /></RequireAuth>} />
+            <Route path="/test-explain/:sessionId/:subjectId" element={<RequireAuth><TestExplainPage /></RequireAuth>} />
 
-            {/* TARIX */}
-            <Route path="/tarix"                       element={<HistoryPage />} />
+            <Route path="/personal-tests/:id/run"      element={<RequireAuth><PersonalTestRunPage /></RequireAuth>} />
+            <Route path="/personal-tests/:id/result"   element={<RequireAuth><PersonalTestResultPage /></RequireAuth>} />
+            <Route path="/personal-tests/:id/review"   element={<RequireAuth><PersonalTestReviewPage /></RequireAuth>} />
+            <Route path="/personal-tests/:id/explain"  element={<RequireAuth><PersonalTestExplainPage /></RequireAuth>} />
 
-            {/* AI */}
-            <Route path="/ai/*"                        element={<AIPage />} />
-
-            {/* PROFIL */}
-            <Route path="/profil"                      element={<ProfilePage />} />
+            <Route path="/tarix"                       element={<RequireAuth><HistoryPage /></RequireAuth>} />
+            <Route path="/ai/*"                        element={<RequireAuth><AIPage /></RequireAuth>} />
+            <Route path="/profil"                      element={<RequireAuth><ProfilePage /></RequireAuth>} />
           </Routes>
         </div>
-        <BottomNav />
+        {!isAuthRoute && user && <BottomNav />}
       </ToastProvider>
     </div>
   )

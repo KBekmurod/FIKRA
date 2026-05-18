@@ -17,9 +17,26 @@
   --br2: 10px;
   --br3: 6px;
   --nav-h: 64px; /* nav height - barcha joyda bitta o'zgaruvchi */
-  /* Real viewport height — main.tsx setVh() tomonidan yangilanadi */
   --vh: 1vh;
   --real-100vh: calc(var(--vh, 1vh) * 100);
+
+  /* ─── Telegram theme override ─────────────────────────────────────
+     Telegram WebApp o'z theme'ini majburiy qo'shadi (--tg-theme-bg-color,
+     --tg-theme-text-color, va h.k.). Bu Chrome va Telegram orasida vizual
+     farq yaratadi. Quyida shu o'zgaruvchilarni ham bizning ranglarga
+     mahkamlab qo'yamiz — har ikkala muhitda bir xil ko'rinish uchun. */
+  --tg-theme-bg-color: #0a0a14 !important;
+  --tg-theme-secondary-bg-color: #14142a !important;
+  --tg-theme-text-color: #f0eeff !important;
+  --tg-theme-hint-color: rgba(240, 238, 255, 0.65) !important;
+  --tg-theme-link-color: #9d8fff !important;
+  --tg-theme-button-color: #7b68ee !important;
+  --tg-theme-button-text-color: #ffffff !important;
+  --tg-theme-section-bg-color: #14142a !important;
+  --tg-theme-section-header-text-color: #f0eeff !important;
+  --tg-theme-subtitle-text-color: rgba(240, 238, 255, 0.65) !important;
+  --tg-theme-accent-text-color: #9d8fff !important;
+  --tg-theme-destructive-text-color: #ff5f7e !important;
 }
 
 /* ─── Reset ─────────────────────────────────────────────────────────── */

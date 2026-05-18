@@ -2,9 +2,18 @@ export type Plan = 'free' | 'basic' | 'pro' | 'vip'
 
 export interface User {
   id?: string
-  telegramId: number
+  telegramId?: number | null
+  email?: string | null
+  googleId?: string | null
   username?: string
   firstName?: string
+  lastName?: string
+  displayName?: string
+  photoUrl?: string
+  authProvider?: 'email' | 'google' | 'telegram' | null
+  hasPassword?: boolean
+  hasTelegram?: boolean
+  hasGoogle?: boolean
   plan: Plan
   effectivePlan?: Plan
   planExpiresAt?: string | null

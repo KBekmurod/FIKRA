@@ -58,9 +58,25 @@ const studyMaterialSchema = new mongoose.Schema({
   },
 
   // Bu materialdan AI necha marta test generatsiya qilingan
+  // QAT'IY QOIDA: bir material faqat 1 marta test yaratishi mumkin
   testGenCount: {
     type: Number,
     default: 0,
+  },
+
+  // Yaratilgan papka (1-1 bog'lanish)
+  // Material yaratilganidan keyin papka tashkil etiladi
+  folderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MaterialFolder',
+    default: null,
+    index: true,
+  },
+
+  // 1 marta test yaratildimi?
+  hasGeneratedTest: {
+    type: Boolean,
+    default: false,
   },
 
   // Soft-delete (kelajakda kerak bo'lishi mumkin)

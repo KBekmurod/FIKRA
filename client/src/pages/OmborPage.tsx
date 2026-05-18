@@ -1,100 +1,191 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SUBJECTS, COMPULSORY_IDS, SPEC_IDS, formatChars } from '../constants/subjects'
-import { materialApi, personalTestApi } from '../api/endpoints'
-import type { SubjectsSummary, PersonalTest } from '../types'
-import './OmborPage.css'
+import api from '../api/client'
+import {
+  SUBJECTS, COMPULSORY_IDS,
+  DUAL_CONTEXT_SUBJECTS, SPEC_BY_CATEGORY, SPEC_CATEGORY_NAMES,
+  type SubjectId, type Context,
+} from '../constants/subjects'
+import { useToast } from '../components/Toast'
+
+interface SummaryEntry {
+  subjectId: string
+  context: Context
+  folderCount: number
+  testsCompleted: number
+  avgScore: number
+}
 
 type Tab = 'majburiy' | 'mutaxassislik'
 
 export default function OmborPage() {
   const navigate = useNavigate()
+  const toast = useToast()
   const [tab, setTab] = useState<Tab>('majburiy')
-  const [summary, setSummary] = useState<SubjectsSummary>({})
-  const [testCounts, setTestCounts] = useState<Record<string, number>>({})
+  const [summary, setSummary] = useState<Record<string, SummaryEntry>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([
-      materialApi.subjectsSummary().catch(() => ({ data: { summary: {} } })),
-      personalTestApi.history().catch(() => ({ data: { tests: [], total: 0 } })),
-    ]).then(([sumRes, testRes]) => {
-      setSummary(sumRes.data.summary || {})
-      // Test count per subject
-      const counts: Record<string, number> = {}
-      ;(testRes.data.tests || []).forEach((t: PersonalTest) => {
-        counts[t.subjectId] = (counts[t.subjectId] || 0) + 1
-      })
-      setTestCounts(counts)
-    }).finally(() => setLoading(false))
+    api.get('/api/folders/subjects-summary')
+      .then(({ data }) => setSummary(data.summary || {}))
+      .catch(() => toast.error("Yuklab bo'lmadi"))
+      .finally(() => setLoading(false))
   }, [])
 
-  const ids = tab === 'majburiy' ? COMPULSORY_IDS : SPEC_IDS
+  // Tab bo'yicha ko'rsatadigan fanlar
+  // Majburiy: uztil, math, tarix
+  // Mutaxassislik: hammasi (math/tarix dual, qolganlari fakat speciality)
+  const compulsoryList = COMPULSORY_IDS
+  // Mutaxassislikda: math, tarix (dual) + 13 ta faqat-mutaxassislik fani = 15 ta
+  const specialtyList: SubjectId[] = [
+    'math', 'tarix',
+    'fizika', 'kimyo', 'bio', 'geo',
+    'adab', 'huquq',
+    'ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk',
+  ]
+
+  const getSummaryFor = (subjectId: string, context: Context): SummaryEntry | null => {
+    // Dual subjects: key = subjectId__context
+    if (DUAL_CONTEXT_SUBJECTS.has(subjectId)) {
+      return summary[`${subjectId}__${context}`] || null
+    }
+    return summary[subjectId] || null
+  }
+
+  const renderSubjectCard = (subjectId: SubjectId, context: Context) => {
+    const subj = SUBJECTS[subjectId]
+    if (!subj) return null
+    const stats = getSummaryFor(subjectId, context)
+    const isEmpty = !stats || stats.folderCount === 0
+    const standardCount = context === 'majburiy' ? 10 : 30
+
+    return (
+      <button
+        key={`${subjectId}_${context}`}
+        onClick={() => navigate(`/ombor/${subjectId}?context=${context}`)}
+        style={{
+          width: '100%',
+          background: 'var(--s1)',
+          border: `1px solid ${isEmpty ? 'var(--f)' : 'rgba(123,104,238,0.25)'}`,
+          borderRadius: 14,
+          padding: '14px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          cursor: 'pointer',
+          color: 'var(--txt)',
+          textAlign: 'left',
+        }}
+      >
+        <div style={{
+          width: 44, height: 44, borderRadius: 12,
+          background: context === 'majburiy' ? 'rgba(0,212,170,0.12)' : 'rgba(123,104,238,0.12)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 22, flexShrink: 0,
+        }}>{subj.icon}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5 }}>{subj.name}</div>
+          <div style={{ fontSize: 10.5, color: 'var(--txt-3)', marginTop: 2 }}>
+            {isEmpty
+              ? <span style={{ fontStyle: 'italic' }}>Bo'sh — papka yaratish uchun bosing</span>
+              : (
+                <span>
+                  {stats!.folderCount} ta papka
+                  {stats!.testsCompleted > 0 && (
+                    <> · {stats!.testsCompleted} test · <strong style={{ color: stats!.avgScore >= 70 ? 'var(--g)' : stats!.avgScore >= 50 ? 'var(--y)' : 'var(--r)' }}>{stats!.avgScore}%</strong></>
+                  )}
+                </span>
+              )
+            }
+          </div>
+        </div>
+        <div style={{
+          fontSize: 10, color: 'var(--txt-3)', fontWeight: 700,
+          padding: '2px 8px', borderRadius: 100,
+          background: 'var(--s2)',
+          whiteSpace: 'nowrap',
+        }}>{standardCount} ta</div>
+        <div style={{ color: 'var(--txt-3)', fontSize: 18 }}>→</div>
+      </button>
+    )
+  }
 
   return (
-    <div className="ombor-page">
-      <header className="page-header">
-        <h1>🏛 Ombor</h1>
-        <p className="page-sub">Materiallaringizni saqlang, AI testlar yarating</p>
-      </header>
-
-      <div className="tab-switcher">
-        <button
-          className={`tab-btn ${tab === 'majburiy' ? 'active' : ''}`}
-          onClick={() => setTab('majburiy')}
-        >
-          Majburiy
-        </button>
-        <button
-          className={`tab-btn ${tab === 'mutaxassislik' ? 'active' : ''}`}
-          onClick={() => setTab('mutaxassislik')}
-        >
-          Mutaxassislik
-        </button>
+    <>
+      <div className="header">
+        <div className="header-logo">🏛 Ombor</div>
       </div>
 
-      {loading ? (
-        <div className="loading-state">Yuklanmoqda...</div>
-      ) : (
-        <div className="subjects-grid">
-          {ids.map(id => {
-            const subj = SUBJECTS[id]
-            const stat = summary[id]
-            const tCount = testCounts[id] || 0
-            return (
-              <button
-                key={id}
-                className="subject-card"
-                onClick={() => navigate(`/ombor/${id}`)}
-              >
-                <div className="subject-icon">{subj.icon}</div>
-                <div className="subject-info">
-                  <div className="subject-name">{subj.name}</div>
-                  <div className="subject-stats">
-                    {stat ? (
-                      <>
-                        <span>{stat.count} material</span>
-                        <span className="dot">·</span>
-                        <span>{formatChars(stat.totalChars)} belgi</span>
-                        <span className="dot">·</span>
-                        <span>{tCount} test</span>
-                      </>
-                    ) : (
-                      <span className="empty-hint">Material yo'q — qo'shing</span>
-                    )}
-                  </div>
-                </div>
-                <div className="subject-arrow">›</div>
-              </button>
-            )
-          })}
+      <div style={{ padding: '6px 20px 0' }}>
+        <p style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: 14 }}>
+          Materiallaringizni saqlang, AI testlar yarating
+        </p>
+
+        <div className="seg-tabs">
+          <button
+            className={`seg-tab ${tab === 'majburiy' ? 'active' : ''}`}
+            onClick={() => setTab('majburiy')}
+          >Majburiy</button>
+          <button
+            className={`seg-tab ${tab === 'mutaxassislik' ? 'active' : ''}`}
+            onClick={() => setTab('mutaxassislik')}
+          >Mutaxassislik</button>
         </div>
-      )}
 
-      <div className="info-banner">
-        <span className="info-icon">💡</span>
-        <span>Har bir fanga o'z materiallaringizni yuklang. AI ulardan sizga test savollar yaratib beradi.</span>
+        {loading ? (
+          <div className="skel-card" />
+        ) : tab === 'majburiy' ? (
+          <>
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--g)', letterSpacing: 0.5, marginBottom: 8 }}>
+              📌 MAJBURIY 3 FAN · har birida 10 ta savol · 1.1 ball
+            </div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {compulsoryList.map(id => renderSubjectCard(id, 'majburiy'))}
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--acc-l)', letterSpacing: 0.5, marginBottom: 8 }}>
+              ⭐ MUTAXASSISLIK · har biri 30 ta savol · 2.1–3.1 ball
+            </div>
+
+            {/* Math va Tarix mutaxassislik (alohida bo'lim) */}
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--y)', letterSpacing: 0.5, margin: '8px 0 6px' }}>
+              🔁 IKKALA KONTEKSTDA HAM (chuqurroq)
+            </div>
+            <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+              {(['math', 'tarix'] as SubjectId[]).map(id => renderSubjectCard(id, 'mutaxassislik'))}
+            </div>
+
+            {Object.entries(SPEC_BY_CATEGORY).map(([cat, ids]) => (
+              <div key={cat} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 6 }}>
+                  {SPEC_CATEGORY_NAMES[cat]?.toUpperCase()}
+                </div>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {ids.map(id => renderSubjectCard(id, 'mutaxassislik'))}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+        <div style={{
+          marginTop: 14, marginBottom: 16,
+          padding: 12,
+          background: 'rgba(255,204,68,0.08)',
+          border: '1px solid rgba(255,204,68,0.2)',
+          borderRadius: 10,
+          fontSize: 10.5,
+          color: 'var(--txt-2)',
+          lineHeight: 1.55,
+        }}>
+          💡 <strong>Qoida:</strong> Har bir material — 1 ta papka — 1 ta AI test.
+          {' '}Yetarli ma'lumot bermasangiz, AI o'zi yetkazib berishi yoki sizdan
+          qo'shimcha so'rashi mumkin.
+        </div>
       </div>
-    </div>
+    </>
   )
 }
+

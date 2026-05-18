@@ -11,18 +11,33 @@ const COMPULSORY_SUBJECTS = [
 ];
 
 const SUBJECT_META = {
-  uztil:   { name: "Ona tili",         weight: 1.1, block: 'majburiy',        defaultCount: 10 },
-  math:    { name: "Matematika",        weight: 1.1, block: 'majburiy',        defaultCount: 10 },
-  tarix:   { name: "O'zbekiston tarixi",weight: 1.1, block: 'majburiy',        defaultCount: 10 },
-  bio:     { name: "Biologiya",         weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
-  kimyo:   { name: "Kimyo",             weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
-  fizika:  { name: "Fizika",            weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
-  ingliz:  { name: "Ingliz tili",       weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
-  inform:  { name: "Informatika",       weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
-  iqtisod: { name: "Iqtisodiyot",       weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
-  rus:     { name: "Rus tili",          weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
-  geo:     { name: "Geografiya",        weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
-  adab:    { name: "Adabiyot",          weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
+  // Majburiy fanlar
+  uztil:   { name: "Ona tili",          weight: 1.1, block: 'majburiy',        defaultCount: 10 },
+  math:    { name: "Matematika",         weight: 1.1, block: 'majburiy',        defaultCount: 10 },
+  tarix:   { name: "O'zbekiston tarixi", weight: 1.1, block: 'majburiy',        defaultCount: 10 },
+
+  // Aniq va tabiiy fanlar
+  fizika:  { name: "Fizika",             weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
+  kimyo:   { name: "Kimyo",              weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
+  bio:     { name: "Biologiya",          weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
+  geo:     { name: "Geografiya",         weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
+
+  // Gumanitar fanlar
+  adab:    { name: "Ona tili va adabiyoti", weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
+  huquq:   { name: "Davlat va huquq",    weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
+
+  // Chet tillari
+  ingliz:  { name: "Ingliz tili",        weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
+  nemis:   { name: "Nemis tili",         weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
+  fransuz: { name: "Fransuz tili",       weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
+  arab:    { name: "Arab tili",          weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
+  fors:    { name: "Fors tili",          weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
+  turk:    { name: "Turk tili",          weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
+
+  // Boshqalar (DTM da bor)
+  rus:     { name: "Rus tili",           weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
+  inform:  { name: "Informatika",        weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
+  iqtisod: { name: "Iqtisodiyot",        weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
 };
 
 const DIRECTION_MAP = {

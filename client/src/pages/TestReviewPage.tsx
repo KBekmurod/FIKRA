@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { examApi } from '../api/endpoints'
 import { useToast } from '../components/Toast'
+import { useGoBack } from '../hooks/useGoBack'
 import RichText from '../components/RichText'
 import '../components/RichText.css'
 
@@ -9,6 +10,7 @@ const PAGE_SIZE = 10
 
 export default function TestReviewPage() {
   const navigate = useNavigate()
+  const goBack = useGoBack('/tarix')
   const { sessionId } = useParams<{ sessionId: string }>()
   const location = useLocation()
   const toast = useToast()
@@ -50,7 +52,7 @@ export default function TestReviewPage() {
   return (
     <>
       <div className="header">
-        <button onClick={() => navigate(-1)} style={{
+        <button onClick={goBack} style={{
           background: 'none', border: 'none', color: 'var(--txt-2)',
           fontSize: 22, cursor: 'pointer', padding: 0, marginRight: 8,
         }}>←</button>

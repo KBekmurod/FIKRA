@@ -2,47 +2,88 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { examApi, personalTestApi } from '../api/endpoints'
 import { useToast } from '../components/Toast'
+import { SUBJECTS } from '../constants/subjects'
 
 type Tab = 'fikra' | 'ai'
+
+interface FikraSession {
+  _id: string
+  testMode: 'blok' | 'free'
+  blockSubject?: string
+  freeSubjects?: string[]
+  totalScore: number
+  totalCorrect: number
+  totalQuestions: number
+  endTime: string
+  durationSeconds?: number
+  status: string
+}
+
+interface AiTest {
+  _id: string
+  subjectId: string
+  subjectName: string
+  testType: 'material' | 'mini'
+  folderId?: string
+  totalCorrect: number
+  totalQuestions: number
+  scorePercent: number
+  endTime?: string
+  createdAt: string
+  status: string
+  // Backend'dan papka ma'lumotini ko'rsatish uchun (populate qilingan)
+  folderInfo?: {
+    title: string
+    context: 'majburiy' | 'mutaxassislik'
+    materialTitle?: string
+    miniTestId?: string
+  }
+}
 
 export default function HistoryPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const [tab, setTab] = useState<Tab>('fikra')
+  const [filterSubject, setFilterSubject] = useState<string>('all')
 
-  const [fikra, setFikra] = useState<any[]>([])
-  const [ai, setAi] = useState<any[]>([])
-  const [fikraPage, setFikraPage] = useState(1)
-  const [aiPage, setAiPage] = useState(1)
-  const [fikraHasMore, setFikraHasMore] = useState(false)
-  const [aiHasMore, setAiHasMore] = useState(false)
+  const [fikra, setFikra] = useState<FikraSession[]>([])
+  const [ai, setAi] = useState<AiTest[]>([])
   const [loading, setLoading] = useState(true)
 
-  const loadFikra = async (page: number, append = false) => {
+  const loadAll = async () => {
+    setLoading(true)
     try {
-      const { data }: any = await examApi.history(undefined, page)
-      const items = data.sessions || data.history || []
-      const total = data.total || 0
-      setFikra(prev => append ? [...prev, ...items] : items)
-      setFikraHasMore(page * 10 < total)
+      const [f, a] = await Promise.all([
+        examApi.history(undefined, 1).catch(() => ({ data: { sessions: [] } })),
+        personalTestApi.history(undefined, undefined, 1).catch(() => ({ data: { tests: [] } })),
+      ])
+      setFikra(((f as any).data?.sessions || (f as any).data?.history || []) as FikraSession[])
+      setAi(((a as any).data?.tests || []) as AiTest[])
     } catch {
       toast.error("Tarix yuklanmadi")
+    } finally {
+      setLoading(false)
     }
   }
 
-  const loadAi = async (page: number, append = false) => {
-    try {
-      const { data } = await personalTestApi.history(undefined, undefined, page)
-      setAi(prev => append ? [...prev, ...data.tests] : data.tests)
-      setAiHasMore(page < data.pages)
-    } catch {
-      toast.error("AI tarix yuklanmadi")
-    }
-  }
+  useEffect(() => { loadAll() }, [])
 
-  useEffect(() => {
-    Promise.all([loadFikra(1), loadAi(1)]).finally(() => setLoading(false))
-  }, [])
+  // Filter
+  const filteredAi = ai.filter(t => filterSubject === 'all' || t.subjectId === filterSubject)
+  const filteredFikra = fikra.filter(s => {
+    if (filterSubject === 'all') return true
+    if (s.blockSubject === filterSubject) return true
+    if (s.freeSubjects?.includes(filterSubject)) return true
+    return false
+  })
+
+  // Mavjud fan ID'lari
+  const usedSubjects = new Set<string>()
+  ai.forEach(t => usedSubjects.add(t.subjectId))
+  fikra.forEach(s => {
+    if (s.blockSubject) usedSubjects.add(s.blockSubject)
+    s.freeSubjects?.forEach(x => usedSubjects.add(x))
+  })
 
   return (
     <>
@@ -51,192 +92,207 @@ export default function HistoryPage() {
       </div>
 
       <div style={{ padding: '8px 20px 0' }}>
+        {/* Tab */}
         <div className="seg-tabs">
           <button
             className={`seg-tab ${tab === 'fikra' ? 'active' : ''}`}
             onClick={() => setTab('fikra')}
-          >🎓 FIKRA testlari</button>
+          >🎓 FIKRA ({fikra.length})</button>
           <button
             className={`seg-tab ${tab === 'ai' ? 'active' : ''}`}
             onClick={() => setTab('ai')}
-          >🤖 AI testlarim</button>
+          >🤖 AI testlar ({ai.length})</button>
         </div>
 
-        {loading ? (
-          <div style={{ padding: 30 }}>
-            <div className="skel-card" />
-          </div>
-        ) : tab === 'fikra' ? (
-          <FikraList
-            items={fikra}
-            hasMore={fikraHasMore}
-            onLoadMore={() => {
-              const nextPage = fikraPage + 1
-              setFikraPage(nextPage)
-              loadFikra(nextPage, true)
-            }}
-            onItemClick={(item) => navigate(`/test-result/${item._id}`, {
-              state: {
-                sessionId: item._id,
-                mode: item.mode,
-                totalScore: item.totalScore,
-                maxTotalScore: item.maxTotalScore,
-                percent: item.maxTotalScore > 0 ? Math.round((item.totalScore / item.maxTotalScore) * 100) : 0,
-                subjectBreakdown: item.subjectBreakdown,
-              },
+        {/* Subject filter */}
+        {usedSubjects.size > 0 && (
+          <div style={{
+            display: 'flex', gap: 6, overflowX: 'auto',
+            marginBottom: 12, paddingBottom: 4,
+          }}>
+            <button
+              onClick={() => setFilterSubject('all')}
+              style={chipStyle(filterSubject === 'all')}
+            >Barchasi</button>
+            {Array.from(usedSubjects).map(sid => {
+              const subj = (SUBJECTS as any)[sid]
+              if (!subj) return null
+              return (
+                <button
+                  key={sid}
+                  onClick={() => setFilterSubject(sid)}
+                  style={chipStyle(filterSubject === sid)}
+                >{subj.icon} {subj.name}</button>
+              )
             })}
-          />
-        ) : (
-          <AiList
-            items={ai}
-            hasMore={aiHasMore}
-            onLoadMore={() => {
-              const nextPage = aiPage + 1
-              setAiPage(nextPage)
-              loadAi(nextPage, true)
-            }}
-            onItemClick={(item) => navigate(`/personal-tests/${item._id}/result`)}
-          />
+          </div>
         )}
+
+        {loading ? (
+          <div className="skel-card" />
+        ) : tab === 'fikra' ? (
+          <FikraHistoryList items={filteredFikra} onClick={s => navigate(`/test-result/${s._id}`)} />
+        ) : (
+          <AiHistoryList items={filteredAi} onClick={t => navigate(`/personal-tests/${t._id}/result`)} />
+        )}
+
+        <div style={{ height: 30 }} />
       </div>
     </>
   )
 }
 
-function FikraList({ items, hasMore, onLoadMore, onItemClick }: any) {
+function chipStyle(active: boolean) {
+  return {
+    flex: '0 0 auto',
+    padding: '6px 12px',
+    fontSize: 11,
+    fontWeight: 700,
+    borderRadius: 100,
+    border: active ? '1px solid var(--acc)' : '1px solid var(--f)',
+    background: active ? 'rgba(123,104,238,0.15)' : 'var(--s2)',
+    color: active ? 'var(--acc-l)' : 'var(--txt-2)',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
+  }
+}
+
+function FikraHistoryList({ items, onClick }: { items: FikraSession[]; onClick: (s: FikraSession) => void }) {
   if (items.length === 0) {
-    return <EmptyState icon="📭" text="Hali test ishlanmagan" />
+    return (
+      <div style={{ padding: 30, textAlign: 'center' }}>
+        <div style={{ fontSize: 40 }}>📭</div>
+        <p style={{ fontSize: 12, color: 'var(--txt-2)', marginTop: 8 }}>
+          Hozircha FIKRA testlari yo'q
+        </p>
+      </div>
+    )
   }
   return (
-    <>
-      <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-        {items.map((it: any) => {
-          const pct = it.maxTotalScore > 0 ? Math.round((it.totalScore / it.maxTotalScore) * 100) : 0
-          const isBlok = it.mode === 'dtm'
-          return (
-            <button key={it._id} onClick={() => onItemClick(it)} style={{
-              background: 'var(--s1)',
-              border: '1px solid var(--f)',
-              borderRadius: 12,
-              padding: '12px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              cursor: 'pointer',
-              color: 'var(--txt)',
-              textAlign: 'left',
-            }}>
-              <div style={{
-                fontSize: 22,
-                background: isBlok ? 'rgba(0,212,170,0.12)' : 'rgba(123,104,238,0.12)',
-                borderRadius: 10,
-                padding: '6px 10px',
-              }}>{isBlok ? '🎯' : '📚'}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>
-                  {isBlok ? 'Maxsus blok' : 'Erkin tanlov'}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 2 }}>
-                  {new Date(it.endTime || it.createdAt).toLocaleString('uz-UZ', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit',
-                  })}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{
-                  fontWeight: 800, fontSize: 14,
-                  color: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
-                }}>{pct}%</div>
-                <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>
-                  {it.totalScore?.toFixed(1)}/{it.maxTotalScore?.toFixed(1)}
-                </div>
-              </div>
-            </button>
-          )
-        })}
-      </div>
-      {hasMore && (
-        <button onClick={onLoadMore} className="btn btn-ghost btn-block" style={{ marginTop: 12 }}>
-          Yana ko'rsatish ↓
-        </button>
-      )}
-    </>
-  )
-}
+    <div style={{ display: 'grid', gap: 8 }}>
+      {items.map(s => {
+        const pct = s.totalQuestions > 0 ? Math.round((s.totalCorrect / s.totalQuestions) * 100) : 0
+        const modeLabel = s.testMode === 'blok' ? '📦 Maxsus blok' : '🎯 Erkin tanlov'
 
-function AiList({ items, hasMore, onLoadMore, onItemClick }: any) {
-  if (items.length === 0) {
-    return <EmptyState icon="🤖" text="AI testlar hali yo'q. Omborda material qo'shing va test yarating!" />
-  }
-  return (
-    <>
-      <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-        {items.map((it: any) => {
-          const pct = it.scorePercent
-          return (
-            <button key={it._id} onClick={() => onItemClick(it)} style={{
-              background: 'var(--s1)',
-              border: '1px solid var(--f)',
-              borderRadius: 12,
-              padding: '12px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              cursor: 'pointer',
-              color: 'var(--txt)',
-              textAlign: 'left',
-            }}>
-              <div style={{
-                fontSize: 22,
-                background: 'rgba(123,104,238,0.12)',
-                borderRadius: 10,
-                padding: '6px 10px',
-              }}>🤖</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>
-                  {it.subjectName} {it.testType === 'mini' && '· Mini'}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 2 }}>
-                  {new Date(it.endTime || it.createdAt).toLocaleString('uz-UZ', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit',
-                  })}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{
-                  fontWeight: 800, fontSize: 14,
-                  color: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
-                }}>{pct}%</div>
-                <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>
-                  {it.totalCorrect}/{it.totalQuestions}
-                </div>
-              </div>
-            </button>
-          )
-        })}
-      </div>
-      {hasMore && (
-        <button onClick={onLoadMore} className="btn btn-ghost btn-block" style={{ marginTop: 12 }}>
-          Yana ko'rsatish ↓
-        </button>
-      )}
-    </>
-  )
-}
+        let metaText = ''
+        if (s.testMode === 'blok' && s.blockSubject) {
+          const subj = (SUBJECTS as any)[s.blockSubject]
+          metaText = subj ? `Yo'nalish: ${subj.icon} ${subj.name}` : s.blockSubject
+        } else if (s.freeSubjects && s.freeSubjects.length > 0) {
+          metaText = 'Fanlar: ' + s.freeSubjects.map(sid => {
+            const x = (SUBJECTS as any)[sid]
+            return x ? `${x.icon}` : sid
+          }).join(' ')
+        }
 
-function EmptyState({ icon, text }: { icon: string; text: string }) {
-  return (
-    <div style={{
-      padding: 40, textAlign: 'center',
-      background: 'var(--s1)',
-      border: '1px solid var(--f)',
-      borderRadius: 14,
-      marginTop: 16,
-    }}>
-      <div style={{ fontSize: 40 }}>{icon}</div>
-      <p style={{ fontSize: 12, color: 'var(--txt-2)', marginTop: 8 }}>{text}</p>
+        return (
+          <button
+            key={s._id}
+            onClick={() => onClick(s)}
+            style={cardStyle()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>
+                  {modeLabel}
+                </div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--txt)', marginBottom: 4 }}>
+                  {metaText}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>
+                  {new Date(s.endTime).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  {' · '}{s.totalCorrect}/{s.totalQuestions}
+                </div>
+              </div>
+              <div style={{
+                fontWeight: 800, fontSize: 16,
+                color: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
+                whiteSpace: 'nowrap',
+              }}>{pct}%</div>
+            </div>
+          </button>
+        )
+      })}
     </div>
   )
+}
+
+function AiHistoryList({ items, onClick }: { items: AiTest[]; onClick: (t: AiTest) => void }) {
+  if (items.length === 0) {
+    return (
+      <div style={{ padding: 30, textAlign: 'center' }}>
+        <div style={{ fontSize: 40 }}>📭</div>
+        <p style={{ fontSize: 12, color: 'var(--txt-2)', marginTop: 8 }}>
+          Hozircha AI testlari yo'q
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      {items.map(t => {
+        const subj = (SUBJECTS as any)[t.subjectId]
+        const isMini = t.testType === 'mini'
+        const folderTitle = t.folderInfo?.title
+
+        return (
+          <button
+            key={t._id}
+            onClick={() => onClick(t)}
+            style={cardStyle()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  display: 'inline-block',
+                  fontSize: 9.5, fontWeight: 800,
+                  padding: '2px 8px', borderRadius: 100,
+                  background: isMini ? 'rgba(255,204,68,0.15)' : 'rgba(123,104,238,0.15)',
+                  color: isMini ? 'var(--y)' : 'var(--acc-l)',
+                  marginBottom: 4, letterSpacing: 0.3,
+                }}>
+                  {isMini ? '🎯 MINI-TEST (xatolardan)' : '🤖 AI TEST'}
+                </div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--txt)', marginBottom: 2 }}>
+                  {subj?.icon} {t.subjectName}
+                  {t.folderInfo?.context && (
+                    <span style={{ fontSize: 10, color: t.folderInfo.context === 'majburiy' ? 'var(--g)' : 'var(--acc-l)', marginLeft: 6 }}>
+                      · {t.folderInfo.context === 'majburiy' ? 'majburiy' : 'mutaxassislik'}
+                    </span>
+                  )}
+                </div>
+                {folderTitle && (
+                  <div style={{ fontSize: 10, color: 'var(--txt-2)', marginBottom: 2 }}>
+                    📁 "{folderTitle}"
+                  </div>
+                )}
+                <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>
+                  {new Date(t.endTime || t.createdAt).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  {' · '}{t.totalCorrect}/{t.totalQuestions}
+                </div>
+              </div>
+              <div style={{
+                fontWeight: 800, fontSize: 16,
+                color: t.scorePercent >= 70 ? 'var(--g)' : t.scorePercent >= 50 ? 'var(--y)' : 'var(--r)',
+                whiteSpace: 'nowrap',
+              }}>{t.scorePercent}%</div>
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function cardStyle() {
+  return {
+    background: 'var(--s1)',
+    border: '1px solid var(--f)',
+    borderRadius: 12,
+    padding: '12px 14px',
+    cursor: 'pointer',
+    color: 'var(--txt)',
+    textAlign: 'left' as const,
+    width: '100%',
+  }
 }

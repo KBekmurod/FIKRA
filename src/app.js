@@ -16,6 +16,7 @@ const subRoutes           = require('./routes/subscription');
 const adminRoutes         = require('./routes/admin');
 const examRoutes          = require('./routes/exams');
 const materialRoutes      = require('./routes/materials');
+const folderRoutes        = require('./routes/folders');
 const personalTestRoutes  = require('./routes/personalTests');
 const levelRoutes         = require('./routes/level');
 
@@ -85,6 +86,7 @@ app.use('/api/sub',            subRoutes);
 app.use('/api/admin',          adminRoutes);
 app.use('/api/exams',          examRoutes);
 app.use('/api/materials',      materialRoutes);
+app.use('/api/folders',        folderRoutes);
 app.use('/api/personal-tests', personalTestRoutes);
 app.use('/api/level',          levelRoutes);
 
@@ -128,7 +130,8 @@ app.get('/api/config', (req, res) => {
   res.json({
     botUsername:    process.env.BOT_USERNAME    || 'fikraai_bot',
     adminUsername:  process.env.ADMIN_USERNAME  || '',
-    version: '2.0.0',
+    googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+    version: '3.0.0',
   });
 });
 

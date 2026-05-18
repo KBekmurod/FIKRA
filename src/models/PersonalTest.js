@@ -66,6 +66,22 @@ const personalTestSchema = new mongoose.Schema({
     default: [],
   },
 
+  // ─── YANGI: Papka bog'lanishi ───────────────────────────────────────────
+  // Bu test qaysi papkaga tegishli (1-1)
+  folderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MaterialFolder',
+    default: null,
+    index: true,
+  },
+
+  // Asosiy material (1 marta yaratilgan testning manbai)
+  materialId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'StudyMaterial',
+    default: null,
+  },
+
   // AI tomonidan yaratilgan savollar (snapshot — materiallar o'chirilsa ham qoladi)
   questions: { type: [ptQuestionSchema], default: [] },
 
@@ -94,6 +110,13 @@ const personalTestSchema = new mongoose.Schema({
     type: String,
     enum: ['material', 'mini'],
     default: 'material',
+  },
+
+  // Mini-test uchun: qaysi asosiy testdan yaratilgan
+  sourceTestId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PersonalTest',
+    default: null,
   },
 
 }, { timestamps: true });

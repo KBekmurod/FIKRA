@@ -18,16 +18,53 @@ const aiUsageSchema = new mongoose.Schema({
 }, { _id: false });
 
 const userSchema = new mongoose.Schema({
+  // ─── Identifikatsiya ──────────────────────────────────────────────────────
+  // Endi telegramId majburiy emas — foydalanuvchi email yoki Google orqali
+  // ham ro'yxatdan o'tishi mumkin.
   telegramId: {
     type: Number,
-    required: true,
+    default: null,
     unique: true,
+    sparse: true,    // null bo'lsa unique tekshirilmaydi
     index: true,
   },
+
+  // Email/parol auth uchun
+  email: {
+    type: String,
+    default: null,
+    lowercase: true,
+    trim: true,
+    unique: true,
+    sparse: true,
+    index: true,
+  },
+  passwordHash: { type: String, default: null },
+
+  // Google OAuth uchun
+  googleId: {
+    type: String,
+    default: null,
+    unique: true,
+    sparse: true,
+    index: true,
+  },
+
+  // ─── Profil ma'lumotlari ──────────────────────────────────────────────────
   username:  { type: String, default: '' },
   firstName: { type: String, default: '' },
   lastName:  { type: String, default: '' },
   photoUrl:  { type: String, default: '' },
+
+  // Email-spesifik (foydalanuvchi ko'rinishi uchun)
+  displayName: { type: String, default: '' },
+
+  // Auth method (ro'yxatdan qaysi yo'l bilan o'tgan — analytics uchun)
+  authProvider: {
+    type: String,
+    enum: ['email', 'google', 'telegram', null],
+    default: null,
+  },
 
   // ─── Obuna (Telegram Stars / P2P) ────────────────────────────────────────
   plan: {

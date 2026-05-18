@@ -1,175 +1,162 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { personalTestApi } from '../api/endpoints'
+import { folderApi } from '../api/endpoints'
 import { useToast } from '../components/Toast'
-import type { PersonalTest } from '../types'
+import { useGoBack } from '../hooks/useGoBack'
+import { SUBJECTS, DUAL_CONTEXT_SUBJECTS, SPEC_BY_CATEGORY, SPEC_CATEGORY_NAMES, COMPULSORY_IDS, type SubjectId, type Context } from '../constants/subjects'
+
+interface SummaryEntry {
+  subjectId: string
+  context: Context
+  folderCount: number
+  testsCompleted: number
+  avgScore: number
+}
+
+type Tab = 'majburiy' | 'mutaxassislik'
 
 export default function AiTestsPage() {
   const navigate = useNavigate()
+  const goBack = useGoBack('/testlar')
   const toast = useToast()
-  const [tests, setTests] = useState<PersonalTest[]>([])
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(false)
+  const [tab, setTab] = useState<Tab>('mutaxassislik')
+  const [summary, setSummary] = useState<Record<string, SummaryEntry>>({})
   const [loading, setLoading] = useState(true)
 
-  const load = async (p: number, append = false) => {
-    try {
-      const { data } = await personalTestApi.history(undefined, undefined, p)
-      setTests(prev => append ? [...prev, ...data.tests] : data.tests)
-      setHasMore(p < data.pages)
-    } catch {
-      toast.error("Yuklanmadi")
+  useEffect(() => {
+    folderApi.subjectsSummary()
+      .then(({ data }) => setSummary((data.summary as any) || {}))
+      .catch(() => toast.error("Yuklab bo'lmadi"))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const getSummaryFor = (subjectId: string, context: Context): SummaryEntry | null => {
+    if (DUAL_CONTEXT_SUBJECTS.has(subjectId)) {
+      return summary[`${subjectId}__${context}`] || null
     }
+    return summary[subjectId] || null
   }
 
-  useEffect(() => {
-    load(1).finally(() => setLoading(false))
-  }, [])
+  const renderSubjectCard = (subjectId: SubjectId, context: Context) => {
+    const subj = SUBJECTS[subjectId]
+    if (!subj) return null
+    const stats = getSummaryFor(subjectId, context)
+    const hasFolders = stats && stats.folderCount > 0
+
+    return (
+      <button
+        key={`${subjectId}_${context}`}
+        onClick={() => navigate(`/ombor/${subjectId}?context=${context}`)}
+        style={{
+          width: '100%',
+          background: 'var(--s1)',
+          border: `1px solid ${hasFolders ? 'rgba(123,104,238,0.25)' : 'var(--f)'}`,
+          borderRadius: 14,
+          padding: '14px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          cursor: 'pointer',
+          color: 'var(--txt)',
+          textAlign: 'left',
+        }}
+      >
+        <div style={{
+          width: 44, height: 44, borderRadius: 12,
+          background: context === 'majburiy' ? 'rgba(0,212,170,0.12)' : 'rgba(123,104,238,0.12)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 22, flexShrink: 0,
+        }}>{subj.icon}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5 }}>{subj.name}</div>
+          <div style={{ fontSize: 10.5, color: 'var(--txt-3)', marginTop: 2 }}>
+            {!hasFolders
+              ? <span style={{ fontStyle: 'italic' }}>Material yuklab papka yarating</span>
+              : <span>
+                  {stats!.folderCount} ta papka · {stats!.testsCompleted} test ishlangan
+                  {stats!.avgScore > 0 && (
+                    <> · o'rtacha <strong style={{ color: stats!.avgScore >= 70 ? 'var(--g)' : stats!.avgScore >= 50 ? 'var(--y)' : 'var(--r)' }}>{stats!.avgScore}%</strong></>
+                  )}
+                </span>
+            }
+          </div>
+        </div>
+        <div style={{ color: 'var(--txt-3)', fontSize: 18 }}>→</div>
+      </button>
+    )
+  }
+
+  const specialtyList: SubjectId[] = [
+    'math', 'tarix',
+    'fizika', 'kimyo', 'bio', 'geo',
+    'adab', 'huquq',
+    'ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk',
+  ]
 
   return (
     <>
       <div className="header">
-        <button onClick={() => navigate('/testlar')} style={{
+        <button onClick={goBack} style={{
           background: 'none', border: 'none', color: 'var(--txt-2)',
           fontSize: 22, cursor: 'pointer', padding: 0, marginRight: 8,
         }}>←</button>
         <div className="header-logo" style={{ fontSize: 16 }}>🤖 AI testlarim</div>
       </div>
 
-      <div style={{ padding: '8px 20px 0' }}>
-        <p style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: 16 }}>
-          Ombordagi materiallaringizdan AI yaratgan testlar
+      <div style={{ padding: '6px 20px 0' }}>
+        <p style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: 14 }}>
+          Materiallaringizdan yaratilgan testlar — fan + kontekst bo'yicha tartibda
         </p>
 
-        {/* Ombor ga o'tish tugmasi */}
-        <button
-          onClick={() => navigate('/ombor')}
-          style={{
-            width: '100%',
-            background: 'linear-gradient(135deg, rgba(123,104,238,0.12), rgba(167,139,250,0.05))',
-            border: '1.5px solid rgba(123,104,238,0.3)',
-            borderRadius: 14,
-            padding: 14,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            color: 'var(--txt)',
-            cursor: 'pointer',
-            textAlign: 'left',
-            marginBottom: 14,
-          }}
-        >
-          <div style={{ fontSize: 26 }}>🏛</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 13 }}>Omborga o'tish</div>
-            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
-              Material qo'shing va yangi AI test yarating
-            </div>
-          </div>
-          <div style={{ fontSize: 18, color: 'var(--acc-l)' }}>→</div>
-        </button>
+        <div className="seg-tabs">
+          <button
+            className={`seg-tab ${tab === 'majburiy' ? 'active' : ''}`}
+            onClick={() => setTab('majburiy')}
+          >Majburiy</button>
+          <button
+            className={`seg-tab ${tab === 'mutaxassislik' ? 'active' : ''}`}
+            onClick={() => setTab('mutaxassislik')}
+          >Mutaxassislik</button>
+        </div>
 
         {loading ? (
           <div className="skel-card" />
-        ) : tests.length === 0 ? (
-          <div style={{
-            padding: 40, textAlign: 'center',
-            background: 'var(--s1)',
-            border: '1px solid var(--f)',
-            borderRadius: 14,
-          }}>
-            <div style={{ fontSize: 40 }}>🤖</div>
-            <p style={{ fontSize: 13, fontWeight: 700, marginTop: 8 }}>
-              Hozircha AI testlar yo'q
-            </p>
-            <p style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 4, lineHeight: 1.5 }}>
-              Omborda fan tanlang → material qo'shing →<br />
-              AI sizning materialingizdan test yaratadi
-            </p>
-          </div>
+        ) : tab === 'majburiy' ? (
+          <>
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--g)', letterSpacing: 0.5, marginBottom: 8 }}>
+              📌 MAJBURIY · 10 ta savol · 1.1 ball
+            </div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {COMPULSORY_IDS.map(id => renderSubjectCard(id, 'majburiy'))}
+            </div>
+          </>
         ) : (
           <>
-            <div style={{ display: 'grid', gap: 8 }}>
-              {tests.map(t => {
-                const pct = t.scorePercent
-                const isInProgress = t.status === 'in_progress'
-                return (
-                  <button
-                    key={t._id}
-                    onClick={() => {
-                      if (isInProgress) {
-                        // To'liq tugatilmagan — qaytish imkonsiz, abandon (best practice)
-                        toast.info("Bu test tugatilmagan")
-                      } else {
-                        navigate(`/personal-tests/${t._id}/result`)
-                      }
-                    }}
-                    style={{
-                      background: 'var(--s1)',
-                      border: '1px solid var(--f)',
-                      borderRadius: 12,
-                      padding: '12px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      cursor: 'pointer',
-                      color: 'var(--txt)',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <div style={{
-                      fontSize: 22,
-                      background: t.testType === 'mini' ? 'rgba(255,204,68,0.12)' : 'rgba(123,104,238,0.12)',
-                      borderRadius: 10,
-                      padding: '6px 10px',
-                    }}>{t.testType === 'mini' ? '🎯' : '🤖'}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>
-                        {t.subjectName}
-                        {t.testType === 'mini' && <span style={{ fontSize: 10, color: 'var(--y)', marginLeft: 6 }}>· Mini</span>}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 2 }}>
-                        {new Date(t.endTime || t.createdAt).toLocaleString('uz-UZ', {
-                          day: '2-digit', month: '2-digit', year: 'numeric',
-                          hour: '2-digit', minute: '2-digit',
-                        })}
-                      </div>
-                    </div>
-                    {isInProgress ? (
-                      <div style={{
-                        fontSize: 10, color: 'var(--y)', fontWeight: 700,
-                        padding: '3px 8px', borderRadius: 100,
-                        background: 'rgba(255,204,68,0.1)',
-                      }}>Davom etmoqda</div>
-                    ) : (
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{
-                          fontWeight: 800, fontSize: 14,
-                          color: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
-                        }}>{pct}%</div>
-                        <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>
-                          {t.totalCorrect}/{t.totalQuestions}
-                        </div>
-                      </div>
-                    )}
-                  </button>
-                )
-              })}
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--acc-l)', letterSpacing: 0.5, marginBottom: 8 }}>
+              ⭐ MUTAXASSISLIK · 30 ta savol · 2.1–3.1 ball
             </div>
 
-            {hasMore && (
-              <button
-                onClick={() => {
-                  const np = page + 1
-                  setPage(np)
-                  load(np, true)
-                }}
-                className="btn btn-ghost btn-block"
-                style={{ marginTop: 12 }}
-              >Yana ko'rsatish ↓</button>
-            )}
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--y)', letterSpacing: 0.5, margin: '8px 0 6px' }}>
+              🔁 DUAL-CONTEXT FANLAR
+            </div>
+            <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+              {(['math', 'tarix'] as SubjectId[]).map(id => renderSubjectCard(id, 'mutaxassislik'))}
+            </div>
+
+            {Object.entries(SPEC_BY_CATEGORY).map(([cat, ids]) => (
+              <div key={cat} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 6 }}>
+                  {SPEC_CATEGORY_NAMES[cat]?.toUpperCase()}
+                </div>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {ids.map(id => renderSubjectCard(id, 'mutaxassislik'))}
+                </div>
+              </div>
+            ))}
           </>
         )}
+
+        <div style={{ height: 30 }} />
       </div>
     </>
   )

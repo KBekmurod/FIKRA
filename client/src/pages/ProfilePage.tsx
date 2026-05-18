@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { usePwaInstall } from '../App'
 import { useAppStore } from '../store'
 import { materialApi, levelApi } from '../api/endpoints'
@@ -8,7 +9,14 @@ import SubscriptionModal from '../components/SubscriptionModal'
 import { useToast } from '../components/Toast'
 
 export default function ProfilePage() {
-  const { user } = useAppStore()
+  const { user, logout } = useAppStore()
+  const navigate = useNavigate()
+  const handleLogout = () => {
+    if (confirm("Akkountdan chiqasizmi?")) {
+      logout()
+      navigate('/auth/welcome', { replace: true })
+    }
+  }
   const [subOpen, setSubOpen] = useState(false)
   const toast = useToast()
   const { canInstall, install } = usePwaInstall()
@@ -382,6 +390,25 @@ export default function ProfilePage() {
             <button onClick={shareRef} className="btn btn-success btn-block">📤 Ulashish</button>
           </div>
         </div>
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          style={{
+            width: '100%',
+            background: 'rgba(255,95,126,0.1)',
+            border: '1px solid rgba(255,95,126,0.3)',
+            color: 'var(--r)',
+            borderRadius: 12,
+            padding: '12px 16px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+            marginTop: 18,
+          }}
+        >🚪 Chiqish</button>
+
+        <div style={{ height: 30 }} />
       </div>
 
       <SubscriptionModal open={subOpen} onClose={() => setSubOpen(false)} />

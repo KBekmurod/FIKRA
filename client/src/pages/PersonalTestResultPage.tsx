@@ -1,226 +1,261 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { personalTestApi } from '../api/endpoints'
-import { GRADE_META } from '../constants/subjects'
+import api from '../api/client'
 import { useToast } from '../components/Toast'
-import RichText from '../components/RichText'
-import '../components/RichText.css'
-import './PersonalTestResultPage.css'
+import { GRADE_META, versionToGrade, versionInGrade } from '../constants/subjects'
 
 interface ResultState {
   testId: string
   subjectId: string
   subjectName: string
   testType: 'material' | 'mini'
+  folderId: string | null
   totalCorrect: number
   totalQuestions: number
   scorePercent: number
-  level: {
+  level?: {
     versionBefore: number
     versionAfter: number
-    gradeBefore: string
-    gradeAfter: string
     levelUp: boolean
   } | null
 }
 
 export default function PersonalTestResultPage() {
-  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const toast = useToast()
-  const state = location.state as ResultState | null
+  const initial = location.state as ResultState | null
 
-  const [result, setResult] = useState<ResultState | null>(state)
-  const [review, setReview] = useState<any>(null)
-  const [reviewLoading, setReviewLoading] = useState(false)
-  const [generatingMini, setGeneratingMini] = useState(false)
-  const [showReview, setShowReview] = useState(false)
+  const [state, setState] = useState<ResultState | null>(initial)
+  const [loading, setLoading] = useState(!initial)
+  const [folderTitle, setFolderTitle] = useState('')
+  const [wrongCount, setWrongCount] = useState(0)
+  const [miniGenerated, setMiniGenerated] = useState(false)
+  const [miniTestId, setMiniTestId] = useState<string | null>(null)
 
-  // If we navigated here directly, fetch the result
+  // Agar state yo'q bo'lsa (tarixdan kelgan), yuklash
   useEffect(() => {
-    if (!result && id) {
-      personalTestApi.review(id).then(({ data }) => {
-        const t = data.test
-        setResult({
-          testId: t._id,
-          subjectId: t.subjectId,
-          subjectName: t.subjectName,
-          testType: t.testType,
-          totalCorrect: t.totalCorrect,
-          totalQuestions: t.totalQuestions,
-          scorePercent: t.scorePercent,
-          level: null,
+    if (state && wrongCount === 0) {
+      // Test review'dan wrong count va folder ni olamiz
+      api.get(`/api/personal-tests/${id}`)
+        .then(({ data }: any) => {
+          const t = data.test
+          setWrongCount(t.totalQuestions - t.totalCorrect)
+          if (t.folderId) {
+            api.get(`/api/folders/${t.folderId}`).then(({ data: f }) => {
+              setFolderTitle(f.folder?.title || '')
+              setMiniGenerated(f.folder?.miniTestGenerated || false)
+              setMiniTestId(f.folder?.miniTestId || null)
+            }).catch(() => {})
+          }
         })
-      })
+        .catch(() => {})
+      return
+    }
+
+    if (!state && id) {
+      setLoading(true)
+      api.get(`/api/personal-tests/${id}`)
+        .then(({ data }: any) => {
+          const t = data.test
+          setState({
+            testId: t._id,
+            subjectId: t.subjectId,
+            subjectName: t.subjectName,
+            testType: t.testType,
+            folderId: t.folderId || null,
+            totalCorrect: t.totalCorrect,
+            totalQuestions: t.totalQuestions,
+            scorePercent: t.scorePercent,
+            level: null,
+          })
+          setWrongCount(t.totalQuestions - t.totalCorrect)
+        })
+        .catch(() => toast.error("Natija yuklanmadi"))
+        .finally(() => setLoading(false))
     }
   }, [id])
 
-  const loadReview = async () => {
-    if (!id || review) {
-      setShowReview(true)
-      return
-    }
-    setReviewLoading(true)
-    try {
-      const { data } = await personalTestApi.review(id)
-      setReview(data.test)
-      setShowReview(true)
-    } catch (e) {
-      toast.error("Tahlilni yuklab bo'lmadi")
-    } finally {
-      setReviewLoading(false)
-    }
+  if (loading || !state) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <div className="spin" style={{ margin: '0 auto' }} />
+      </div>
+    )
   }
 
-  const generateMini = async () => {
-    if (!review || !result) return
-    setGeneratingMini(true)
-    try {
-      // Xato javoblar
-      const wrong = review.questions
-        .map((q: any, idx: number) => ({
-          ...q,
-          correctAnswer: q.answer,
-          userAnswer: review.answers.find((a: any) => a.questionIdx === idx)?.selectedOption,
-        }))
-        .filter((q: any) => q.userAnswer !== undefined && q.userAnswer !== q.correctAnswer)
-
-      if (wrong.length === 0) {
-        toast.info("Xato javob yo'q - mini-test kerak emas")
-        setGeneratingMini(false)
-        return
-      }
-
-      const { data } = await personalTestApi.generateMini(result.subjectId, wrong)
-      navigate(`/personal-tests/${data.testId}/run`, { state: data })
-    } catch (e: any) {
-      toast.error(e.response?.data?.error || "Mini-test yaratishda xatolik")
-    } finally {
-      setGeneratingMini(false)
-    }
-  }
-
-  if (!result) return <div className="loading-overlay"><div className="big-spinner" /></div>
-
-  const score = result.scorePercent
-  const scoreClass = score >= 70 ? 'excellent' : score >= 50 ? 'good' : 'low'
+  const { totalCorrect, totalQuestions, scorePercent, level } = state
+  const grade = scorePercent >= 90 ? "A'lo" : scorePercent >= 75 ? 'Yaxshi' : scorePercent >= 50 ? "O'rtacha" : 'Yaxshilash kerak'
+  const emoji = scorePercent >= 80 ? '🏆' : scorePercent >= 60 ? '👏' : scorePercent >= 40 ? '💪' : '📖'
+  const hasErrors = wrongCount > 0
 
   return (
-    <div className="result-page">
-      <header className="result-header">
-        <button className="btn-back" onClick={() => navigate(`/subjects/${result.subjectId}`)}>←</button>
-        <h1>{result.testType === 'mini' ? '🎯 Mini-test natijasi' : '📊 Test natijasi'}</h1>
-      </header>
+    <>
+      <div className="header">
+        <div className="header-logo" style={{ fontSize: 16 }}>🏁 Yakunlandi</div>
+      </div>
 
-      {/* Asosiy natija */}
-      <div className={`score-card ${scoreClass}`}>
-        <div className="score-icon">
-          {score >= 90 ? '🏆' : score >= 70 ? '🎉' : score >= 50 ? '👍' : '💪'}
+      <div style={{ padding: '8px 20px 0' }}>
+        {/* Test metadata */}
+        <div style={{
+          padding: 10,
+          background: 'var(--s1)',
+          border: '1px solid var(--f)',
+          borderRadius: 10,
+          marginBottom: 12,
+          fontSize: 11,
+          color: 'var(--txt-2)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 14 }}>{state.testType === 'mini' ? '🎯' : '🤖'}</span>
+          <div>
+            {state.testType === 'mini' ? 'Mini-test' : 'AI test'}
+            {' · '}{state.subjectName}
+            {folderTitle && <> · "{folderTitle}"</>}
+          </div>
         </div>
-        <div className="score-percent">{score}%</div>
-        <div className="score-detail">
-          {result.totalCorrect} / {result.totalQuestions} to'g'ri
-        </div>
-        <div className="score-message">
-          {score >= 90 && "Zo'r natija! Davom et!"}
-          {score >= 70 && score < 90 && "Yaxshi! Yana sa'y-harakat qil!"}
-          {score >= 50 && score < 70 && "O'rtacha. Mavzularni qaytar."}
-          {score < 50 && "Xato savollarni o'rganib, qaytadan urinib ko'r."}
+
+        {/* Asosiy ball karta */}
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(123,104,238,0.18), rgba(0,212,170,0.08))',
+          border: '1px solid rgba(123,104,238,0.3)',
+          borderRadius: 18,
+          padding: 24,
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 56, marginBottom: 4 }}>{emoji}</div>
+          <div style={{ fontSize: 48, fontWeight: 900, color: 'var(--acc-l)', lineHeight: 1 }}>
+            {scorePercent}%
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--txt-2)', marginTop: 4 }}>
+            {totalCorrect} / {totalQuestions} to'g'ri
+          </div>
+          <div style={{
+            display: 'inline-block', marginTop: 10,
+            background: 'rgba(123,104,238,0.15)',
+            border: '1px solid rgba(123,104,238,0.3)',
+            borderRadius: 100,
+            padding: '5px 16px',
+            fontSize: 12, fontWeight: 700, color: 'var(--acc-l)',
+          }}>{grade}</div>
+
+          {level && level.levelUp && (
+            <div style={{
+              marginTop: 12, padding: '8px 14px',
+              background: 'rgba(251,191,36,0.12)',
+              border: '1px solid rgba(251,191,36,0.3)',
+              borderRadius: 100,
+              fontSize: 12, fontWeight: 700, color: 'var(--y)',
+              display: 'inline-block',
+            }}>
+              🎉 Yangi daraja: {GRADE_META[versionToGrade(level.versionAfter)].name} {versionInGrade(level.versionAfter)}!
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Level up bayonnoma */}
-      {result.level && result.level.levelUp && (
-        <div className="level-up-banner">
-          <span className="level-up-icon">⬆️</span>
-          <div>
-            <div className="level-up-title">Daraja oshdi!</div>
-            <div className="level-up-text">
-              v{result.level.versionBefore} → <strong>v{result.level.versionAfter}</strong>
-              {' '}
-              <span style={{ color: (GRADE_META as any)[result.level.gradeAfter]?.color || '#fff' }}>
-                ({(GRADE_META as any)[result.level.gradeAfter]?.name || result.level.gradeAfter})
-              </span>
+      {/* 3 ta karta — keyingi qadamlar (EC1, EC2, EC3) */}
+      <div className="section-title">Keyingi qadam</div>
+      <div style={{ padding: '0 20px', display: 'grid', gap: 10 }}>
+
+        {/* EC1) Natijalarni ko'rish */}
+        <button
+          onClick={() => navigate(`/personal-tests/${id}/review`)}
+          style={{
+            background: 'var(--s1)',
+            border: '1.5px solid var(--f)',
+            borderRadius: 14,
+            padding: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            cursor: 'pointer',
+            color: 'var(--txt)',
+            textAlign: 'left',
+          }}
+        >
+          <div style={{ fontSize: 32 }}>📊</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Savollarni ko'rish</div>
+            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
+              Har bir savol va javob tahlili
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Tugmalar */}
-      <div className="result-actions">
-        <button className="result-btn" onClick={loadReview} disabled={reviewLoading}>
-          {reviewLoading ? "Yuklanmoqda..." : "🔍 Tahlil ko'rish"}
+          <div style={{ fontSize: 18, color: 'var(--txt-3)' }}>→</div>
         </button>
 
-        {result.testType !== 'mini' && (
+        {/* EC2) Xatolar bilan rivojlanish (faqat asosiy test uchun) */}
+        {state.testType === 'material' && (
           <button
-            className="result-btn primary"
-            onClick={generateMini}
-            disabled={generatingMini}
+            onClick={() => navigate(`/personal-tests/${id}/explain`)}
+            disabled={!hasErrors}
+            style={{
+              background: hasErrors ? 'linear-gradient(135deg, rgba(123,104,238,0.12), rgba(167,139,250,0.05))' : 'var(--s2)',
+              border: `1.5px solid ${hasErrors ? 'rgba(123,104,238,0.3)' : 'var(--f)'}`,
+              borderRadius: 14,
+              padding: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              cursor: hasErrors ? 'pointer' : 'default',
+              color: 'var(--txt)',
+              textAlign: 'left',
+              opacity: hasErrors ? 1 : 0.5,
+            }}
           >
-            {generatingMini ? "Yaratilmoqda..." : "🎯 Xato savollardan mini-test"}
+            <div style={{ fontSize: 32 }}>🎯</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>
+                {hasErrors ? "Xatolar bilan rivojlanish" : "Xatosiz a'lo natija!"}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
+                {hasErrors
+                  ? `${wrongCount} ta xato · AI tushuntirish + mini-test`
+                  : 'Barcha javoblar to\'g\'ri'}
+              </div>
+            </div>
+            <div style={{ fontSize: 18, color: hasErrors ? 'var(--acc-l)' : 'var(--txt-3)' }}>→</div>
           </button>
         )}
 
+        {/* EC3) Tarixga saqlandi */}
         <button
-          className="result-btn"
-          onClick={() => navigate(`/subjects/${result.subjectId}`)}
+          onClick={() => navigate('/tarix')}
+          style={{
+            background: 'var(--s1)',
+            border: '1.5px solid var(--f)',
+            borderRadius: 14,
+            padding: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            cursor: 'pointer',
+            color: 'var(--txt)',
+            textAlign: 'left',
+          }}
         >
-          🏠 Fan sahifasiga qaytish
+          <div style={{ fontSize: 32 }}>📚</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--g)' }}>
+              ✓ Tarixga saqlandi
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
+              Tarix bo'limidan ko'rishingiz mumkin
+            </div>
+          </div>
+          <div style={{ fontSize: 18, color: 'var(--txt-3)' }}>→</div>
         </button>
       </div>
 
-      {/* Tahlil oynasi */}
-      {showReview && review && (
-        <div className="review-section">
-          <h2>📋 Savollar tahlili</h2>
-          {review.questions.map((q: any, idx: number) => {
-            const ua = review.answers.find((a: any) => a.questionIdx === idx)
-            const isCorrect = ua?.isCorrect
-            const skipped = !ua
-
-            return (
-              <div key={idx} className={`review-q ${isCorrect ? 'correct' : skipped ? 'skipped' : 'wrong'}`}>
-                <div className="review-q-header">
-                  <span className="review-q-num">#{idx + 1}</span>
-                  {q.topic && <span className="review-q-topic">📍 {q.topic}</span>}
-                  <span className={`review-q-status ${isCorrect ? 'correct' : skipped ? 'skipped' : 'wrong'}`}>
-                    {isCorrect ? '✓ To\'g\'ri' : skipped ? '⊘ O\'tkazilgan' : '✗ Xato'}
-                  </span>
-                </div>
-                <div className="review-q-text"><RichText content={q.question} /></div>
-
-                <div className="review-options">
-                  {q.options.map((opt: string, i: number) => {
-                    const letter = String.fromCharCode(65 + i)
-                    let cls = "review-option"
-                    if (i === q.answer) cls += " correct"
-                    if (ua && i === ua.selectedOption && !isCorrect) cls += " user-wrong"
-                    return (
-                      <div key={i} className={cls}>
-                        <span className="opt-letter">{letter}</span>
-                        <span><RichText content={opt} inline /></span>
-                        {i === q.answer && <span className="opt-mark">✓</span>}
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* AI Kontekstli tushuntirish */}
-                {q.explanation && !isCorrect && (
-                  <div className="review-explanation">
-                    <div className="exp-section">
-                      <div className="exp-label">🎯 Nega to'g'ri javob?</div>
-                      <div className="exp-text"><RichText content={q.explanation} /></div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
+      <div style={{ padding: '24px 20px' }}>
+        <button
+          onClick={() => navigate(state.folderId ? `/ombor/folder/${state.folderId}` : '/testlar')}
+          className="btn btn-ghost btn-block"
+        >
+          {state.folderId ? '🏛 Papkaga qaytish' : "Testlar sahifasiga qaytish"}
+        </button>
+      </div>
+    </>
   )
 }

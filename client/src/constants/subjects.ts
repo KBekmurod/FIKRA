@@ -1,45 +1,128 @@
 // Frontend SUBJECT_META — backend examService.js bilan moslashtirilgan
-// Fanlar icon va kategoriya bilan boyitilgan
+// To'liq DTM fanlari ro'yxati (18 ta fan)
 
 export type SubjectId =
+  // Majburiy (3)
   | 'uztil' | 'math' | 'tarix'
-  | 'bio' | 'kimyo' | 'fizika' | 'ingliz' | 'inform'
-  | 'iqtisod' | 'rus' | 'geo' | 'adab'
+  // Aniq va tabiiy fanlar
+  | 'fizika' | 'kimyo' | 'bio' | 'geo'
+  // Gumanitar
+  | 'adab' | 'huquq'
+  // Chet tillari
+  | 'ingliz' | 'nemis' | 'fransuz' | 'arab' | 'fors' | 'turk'
+  // Boshqalar
+  | 'rus' | 'inform' | 'iqtisod'
 
 export interface SubjectMeta {
   id: SubjectId
   name: string
   icon: string
   block: 'majburiy' | 'mutaxassislik'
+  category?: 'aniq_tabiiy' | 'gumanitar' | 'chet_tili' | 'boshqa'
   weight: number
 }
 
 export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
-  // Majburiy fanlar (3 ta)
+  // Majburiy fanlar (3)
   uztil:   { id: 'uztil',   name: 'Ona tili',           icon: '📖', block: 'majburiy',      weight: 1.1 },
   math:    { id: 'math',    name: 'Matematika',         icon: '🔢', block: 'majburiy',      weight: 1.1 },
-  tarix:   { id: 'tarix',   name: "O'zbekiston tarixi", icon: '🏛️', block: 'majburiy',      weight: 1.1 },
+  tarix:   { id: 'tarix',   name: "O'zbekiston tarixi", icon: '🏛', block: 'majburiy',      weight: 1.1 },
 
-  // Mutaxassislik fanlari
-  bio:     { id: 'bio',     name: 'Biologiya',          icon: '🧬', block: 'mutaxassislik', weight: 3.1 },
-  kimyo:   { id: 'kimyo',   name: 'Kimyo',              icon: '⚗️', block: 'mutaxassislik', weight: 2.1 },
-  fizika:  { id: 'fizika',  name: 'Fizika',             icon: '⚛️', block: 'mutaxassislik', weight: 3.1 },
-  ingliz:  { id: 'ingliz',  name: 'Ingliz tili',        icon: '🇬🇧', block: 'mutaxassislik', weight: 2.1 },
-  inform:  { id: 'inform',  name: 'Informatika',        icon: '💻', block: 'mutaxassislik', weight: 3.1 },
-  iqtisod: { id: 'iqtisod', name: 'Iqtisodiyot',        icon: '📊', block: 'mutaxassislik', weight: 2.1 },
-  rus:     { id: 'rus',     name: 'Rus tili',           icon: '🇷🇺', block: 'mutaxassislik', weight: 2.1 },
-  geo:     { id: 'geo',     name: 'Geografiya',         icon: '🌍', block: 'mutaxassislik', weight: 3.1 },
-  adab:    { id: 'adab',    name: 'Adabiyot',           icon: '📚', block: 'mutaxassislik', weight: 2.1 },
+  // Aniq va tabiiy fanlar
+  fizika:  { id: 'fizika',  name: 'Fizika',       icon: '⚛',  block: 'mutaxassislik', category: 'aniq_tabiiy', weight: 3.1 },
+  kimyo:   { id: 'kimyo',   name: 'Kimyo',        icon: '⚗',  block: 'mutaxassislik', category: 'aniq_tabiiy', weight: 2.1 },
+  bio:     { id: 'bio',     name: 'Biologiya',    icon: '🧬', block: 'mutaxassislik', category: 'aniq_tabiiy', weight: 3.1 },
+  geo:     { id: 'geo',     name: 'Geografiya',   icon: '🌍', block: 'mutaxassislik', category: 'aniq_tabiiy', weight: 3.1 },
+
+  // Gumanitar fanlar
+  adab:    { id: 'adab',    name: 'Ona tili va adabiyoti', icon: '📚', block: 'mutaxassislik', category: 'gumanitar', weight: 2.1 },
+  huquq:   { id: 'huquq',   name: 'Davlat va huquq',       icon: '⚖',  block: 'mutaxassislik', category: 'gumanitar', weight: 2.1 },
+
+  // Chet tillari
+  ingliz:  { id: 'ingliz',  name: 'Ingliz tili',  icon: '🇬🇧', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
+  nemis:   { id: 'nemis',   name: 'Nemis tili',   icon: '🇩🇪', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
+  fransuz: { id: 'fransuz', name: 'Fransuz tili', icon: '🇫🇷', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
+  arab:    { id: 'arab',    name: 'Arab tili',    icon: '🕌', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
+  fors:    { id: 'fors',    name: 'Fors tili',    icon: '🌙', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
+  turk:    { id: 'turk',    name: 'Turk tili',    icon: '🇹🇷', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
+
+  // Boshqalar (DTM da bor)
+  rus:     { id: 'rus',     name: 'Rus tili',     icon: '🇷🇺', block: 'mutaxassislik', category: 'boshqa', weight: 2.1 },
+  inform:  { id: 'inform',  name: 'Informatika',  icon: '💻', block: 'mutaxassislik', category: 'boshqa', weight: 3.1 },
+  iqtisod: { id: 'iqtisod', name: 'Iqtisodiyot',  icon: '📊', block: 'mutaxassislik', category: 'boshqa', weight: 2.1 },
 }
 
 export const COMPULSORY_IDS: SubjectId[] = ['uztil', 'math', 'tarix']
 export const SPEC_IDS: SubjectId[] = [
-  'bio', 'kimyo', 'fizika', 'ingliz', 'inform',
-  'iqtisod', 'rus', 'geo', 'adab',
+  // Aniq va tabiiy
+  'fizika', 'kimyo', 'bio', 'geo',
+  // Gumanitar
+  'adab', 'huquq',
+  // Chet tillari
+  'ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk',
+  // Boshqalar
+  'rus', 'inform', 'iqtisod',
+  // Math va tarix mutaxassislikda ham bo'ladi (dual context)
+  'math', 'tarix',
 ]
+
+// Dual-context fanlar (majburiy va mutaxassislik ikkalasida bo'la oladi)
+export const DUAL_CONTEXT_SUBJECTS = new Set<string>(['math', 'tarix'])
+
+// Faqat majburiy
+export const ONLY_COMPULSORY_SUBJECTS = new Set<string>(['uztil'])
+
+// Faqat mutaxassislik
+export const ONLY_SPECIALTY_SUBJECTS = new Set<string>([
+  'fizika', 'kimyo', 'bio', 'geo',
+  'adab', 'huquq',
+  'ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk',
+  'rus', 'inform', 'iqtisod',
+])
+
+export type Context = 'majburiy' | 'mutaxassislik'
+
+export function getAllowedContexts(subjectId: string): Context[] {
+  if (DUAL_CONTEXT_SUBJECTS.has(subjectId)) return ['majburiy', 'mutaxassislik']
+  if (ONLY_COMPULSORY_SUBJECTS.has(subjectId)) return ['majburiy']
+  return ['mutaxassislik']
+}
+
+export function getStandardCountByContext(context: Context): number {
+  return context === 'majburiy' ? 10 : 30
+}
+
+// Mutaxassislik fanlarini kategoriya bo'yicha guruhlash
+export const SPEC_BY_CATEGORY = {
+  aniq_tabiiy: ['fizika', 'kimyo', 'bio', 'geo'] as SubjectId[],
+  gumanitar:   ['adab', 'huquq'] as SubjectId[],
+  chet_tili:   ['ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk'] as SubjectId[],
+  boshqa:      ['rus', 'inform', 'iqtisod'] as SubjectId[],
+}
+
+export const SPEC_CATEGORY_NAMES: Record<string, string> = {
+  aniq_tabiiy: 'Aniq va tabiiy fanlar',
+  gumanitar:   'Gumanitar fanlar',
+  chet_tili:   'Chet tillari',
+  boshqa:      'Boshqalar',
+}
 
 export function getSubject(id: string): SubjectMeta | null {
   return (SUBJECTS as any)[id] || null
+}
+
+// Standart test sonlari
+// Majburiy fan papkasi: 10 ta
+// Mutaxassislik fan papkasi: 30 ta
+export function getStandardTestCount(subjectId: string): number {
+  const subj = getSubject(subjectId)
+  if (!subj) return 10
+  return subj.block === 'majburiy' ? 10 : 30
+}
+
+// Material yetarliligi - har test uchun taxminan 500 belgi
+export function getMinCharsRequired(subjectId: string): number {
+  return getStandardTestCount(subjectId) * 500
 }
 
 // Plan badge'lari
@@ -50,10 +133,7 @@ export const PLAN_BADGES: Record<string, { name: string; color: string; icon: st
   vip:   { name: 'VIP',   color: '#fbbf24', icon: '👑' },
 }
 
-// Daraja rang/icon — yangi tartib:
-//   DELTA (v1-3) - boshlang'ich, ko'k
-//   BETA  (v4-7) - o'rta, yashil
-//   ALFA  (v8-10) - yuqori, oltin
+// Daraja rang/icon — Delta (v1-3) → Beta (v4-7) → Alfa (v8-10)
 export const GRADE_META = {
   delta: { name: 'Delta', icon: 'δ', color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.12)' },
   beta:  { name: 'Beta',  icon: 'β', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.12)' },
@@ -68,7 +148,6 @@ export function versionToGrade(version: number): Grade {
   return 'alfa'
 }
 
-// Versiya raqamini grade ichida ko'rsatish ('v1' delta1, 'v4' beta1, 'v8' alfa1)
 export function versionInGrade(version: number): number {
   const grade = versionToGrade(version)
   const offset = grade === 'delta' ? 0 : grade === 'beta' ? 3 : 7
