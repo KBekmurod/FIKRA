@@ -50,11 +50,26 @@ export default defineConfig({
   build: {
     outDir: '../public',
     emptyOutDir: true,
+    // ─── Eski Android WebView'lar uchun moslik ─────────────────────────
+    // ES2015 — Chrome 49+ WebView'larda ham ishlaydi
+    target: 'es2015',
+    cssTarget: 'chrome61',
+    // Memory tejash uchun chunk size limitini oshirish
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
+        // ─── Bundle Splitting ────────────────────────────────────────────
+        // JS faylni mantiqiy bo'laklarga ajratish — bu memory bosimini
+        // kamaytiradi va parallel yuklash imkonini beradi.
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          katex: ['katex'],
+          // React kutubxonalari (kamdan-kam o'zgaradi, agressiv cache)
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          // KaTeX (faqat test sahifalarida kerak)
+          'katex': ['katex', 'react-katex'],
+          // State management
+          'zustand': ['zustand'],
+          // HTTP
+          'axios': ['axios'],
         },
       },
     },

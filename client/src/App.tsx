@@ -1,37 +1,45 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { useAppStore } from './store'
 
-// Auth sahifalari
+// ─── Auth sahifalari — kichik, darrov yuklanadi ─────────────────────────
 import WelcomePage from './pages/auth/WelcomePage'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 
-// Asosiy sahifalar
+// ─── Asosiy sahifa — darrov yuklanadi ────────────────────────────────────
 import HomePage from './pages/HomePage'
-import OmborPage from './pages/OmborPage'
-import OmborSubjectPage from './pages/OmborSubjectPage'
-import OmborFolderPage from './pages/OmborFolderPage'
-import MaterialAddPage from './pages/MaterialAddPage'
 
-import TestsPage from './pages/TestsPage'
-import FikraTestsPage from './pages/FikraTestsPage'
-import AiTestsPage from './pages/AiTestsPage'
-import BlokTestSetupPage from './pages/BlokTestSetupPage'
-import FreeTestSetupPage from './pages/FreeTestSetupPage'
-import TestRunPage from './pages/TestRunPage'
-import TestResultPage from './pages/TestResultPage'
-import TestReviewPage from './pages/TestReviewPage'
-import TestExplainPage from './pages/TestExplainPage'
+// ─── Boshqa sahifalar — LAZY LOADING ───────────────────────────────────
+// Bu Android WebView'da memory bosimini kamaytiradi — har sahifa kerak
+// bo'lganda yuklanadi, hammasini bir paytda RAM'da saqlamaydi.
+const OmborPage = lazy(() => import('./pages/OmborPage'))
+const OmborSubjectPage = lazy(() => import('./pages/OmborSubjectPage'))
+const OmborFolderPage = lazy(() => import('./pages/OmborFolderPage'))
+const MaterialAddPage = lazy(() => import('./pages/MaterialAddPage'))
+const MaterialEditPage = lazy(() => import('./pages/MaterialEditPage'))
 
-import PersonalTestRunPage from './pages/PersonalTestRunPage'
-import PersonalTestResultPage from './pages/PersonalTestResultPage'
-import PersonalTestReviewPage from './pages/PersonalTestReviewPage'
-import PersonalTestExplainPage from './pages/PersonalTestExplainPage'
+const TestsPage = lazy(() => import('./pages/TestsPage'))
+const FikraTestsPage = lazy(() => import('./pages/FikraTestsPage'))
+const AiTestsPage = lazy(() => import('./pages/AiTestsPage'))
+const AiPapkalarPage = lazy(() => import('./pages/AiPapkalarPage'))
+const AiBlokSetupPage = lazy(() => import('./pages/AiBlokSetupPage'))
+const AiFreeSetupPage = lazy(() => import('./pages/AiFreeSetupPage'))
+const BlokTestSetupPage = lazy(() => import('./pages/BlokTestSetupPage'))
+const FreeTestSetupPage = lazy(() => import('./pages/FreeTestSetupPage'))
+const TestRunPage = lazy(() => import('./pages/TestRunPage'))
+const TestResultPage = lazy(() => import('./pages/TestResultPage'))
+const TestReviewPage = lazy(() => import('./pages/TestReviewPage'))
+const TestExplainPage = lazy(() => import('./pages/TestExplainPage'))
 
-import HistoryPage from './pages/HistoryPage'
-import AIPage from './pages/AIPage'
-import ProfilePage from './pages/ProfilePage'
+const PersonalTestRunPage = lazy(() => import('./pages/PersonalTestRunPage'))
+const PersonalTestResultPage = lazy(() => import('./pages/PersonalTestResultPage'))
+const PersonalTestReviewPage = lazy(() => import('./pages/PersonalTestReviewPage'))
+const PersonalTestExplainPage = lazy(() => import('./pages/PersonalTestExplainPage'))
+
+const HistoryPage = lazy(() => import('./pages/HistoryPage'))
+const AIPage = lazy(() => import('./pages/AIPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 
 import { ToastProvider } from './components/Toast'
 
@@ -39,6 +47,18 @@ function FullLoader() {
   return (
     <div className="full-loader">
       <div className="full-loader-text">FIKRA<span>.</span></div>
+      <div className="spin" />
+    </div>
+  )
+}
+
+// Lazy sahifalar uchun yengil loader
+function PageLoader() {
+  return (
+    <div style={{
+      minHeight: 'calc(var(--vh, 1vh) * 100 - 64px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
       <div className="spin" />
     </div>
   )
@@ -196,7 +216,8 @@ export default function App() {
     <div className="app">
       <ToastProvider>
         <div className="app-content">
-          <Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
             {/* Auth marshrutlari (public) */}
             <Route path="/auth/welcome"  element={<WelcomePage />} />
             <Route path="/auth/login"    element={<LoginPage />} />
@@ -209,10 +230,14 @@ export default function App() {
             <Route path="/ombor/:subjectId"            element={<RequireAuth><OmborSubjectPage /></RequireAuth>} />
             <Route path="/ombor/:subjectId/add"        element={<RequireAuth><MaterialAddPage /></RequireAuth>} />
             <Route path="/ombor/folder/:folderId"      element={<RequireAuth><OmborFolderPage /></RequireAuth>} />
+            <Route path="/materials/:id/edit"          element={<RequireAuth><MaterialEditPage /></RequireAuth>} />
 
             <Route path="/testlar"                     element={<RequireAuth><TestsPage /></RequireAuth>} />
             <Route path="/testlar/fikra"               element={<RequireAuth><FikraTestsPage /></RequireAuth>} />
             <Route path="/testlar/ai"                  element={<RequireAuth><AiTestsPage /></RequireAuth>} />
+            <Route path="/testlar/ai/papkalar"         element={<RequireAuth><AiPapkalarPage /></RequireAuth>} />
+            <Route path="/testlar/ai/blok"             element={<RequireAuth><AiBlokSetupPage /></RequireAuth>} />
+            <Route path="/testlar/ai/erkin"            element={<RequireAuth><AiFreeSetupPage /></RequireAuth>} />
             <Route path="/testlar/fikra/blok"          element={<RequireAuth><BlokTestSetupPage /></RequireAuth>} />
             <Route path="/testlar/fikra/free"          element={<RequireAuth><FreeTestSetupPage /></RequireAuth>} />
             <Route path="/test-run/:sessionId"         element={<RequireAuth><TestRunPage /></RequireAuth>} />
@@ -228,7 +253,8 @@ export default function App() {
             <Route path="/tarix"                       element={<RequireAuth><HistoryPage /></RequireAuth>} />
             <Route path="/ai/*"                        element={<RequireAuth><AIPage /></RequireAuth>} />
             <Route path="/profil"                      element={<RequireAuth><ProfilePage /></RequireAuth>} />
-          </Routes>
+            </Routes>
+          </Suspense>
         </div>
         {!isAuthRoute && user && <BottomNav />}
       </ToastProvider>

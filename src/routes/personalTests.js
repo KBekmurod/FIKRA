@@ -70,6 +70,82 @@ router.post('/generate', authMiddleware, async (req, res, next) => {
 
 // ─── POST /api/personal-tests/mini
 // Xato savollardan mini-test yaratish
+// ─── POST /api/personal-tests/ai-blok
+// AI yo'nalish bo'yicha blok test yaratish (DTM standart)
+// Body: { direction: 'engineering', subjects: { uztil: { folderIds }, math: {...}, ... } }
+router.post('/ai-blok', authMiddleware, async (req, res, next) => {
+  try {
+    const aiTestService = require('../services/aiTestService');
+    const { direction, subjects } = req.body;
+
+    if (!direction) return res.status(400).json({ error: 'direction kerak' });
+    if (!subjects || typeof subjects !== 'object') {
+      return res.status(400).json({ error: 'subjects (papkalar) kerak' });
+    }
+
+    const result = await aiTestService.generateBlokTest(req.user._id, { direction, subjects });
+
+    res.json({
+      testId:         result.test._id,
+      subjectId:      result.test.subjectId,
+      subjectName:    result.test.subjectName,
+      testType:       'ai_blok',
+      direction:      result.direction,
+      dirName:        result.dirName,
+      totalQuestions: result.questions.length,
+      durationSeconds: result.questions.length * 60,
+      questions: result.questions.map(q => ({
+        idx:         q.idx,
+        question:    q.question,
+        options:     q.options,
+        topic:       q.topic,
+        subjectId:   q.subjectId,
+        subjectName: q.subjectName,
+      })),
+    });
+  } catch (err) {
+    logger.error('AI Blok test error:', err.message);
+    _handleError(err, res, next);
+  }
+});
+
+// ─── POST /api/personal-tests/ai-free
+// AI erkin tanlov test (2-5 fan)
+// Body: { subjects: [{ id, folderIds, count }, ...] }
+router.post('/ai-free', authMiddleware, async (req, res, next) => {
+  try {
+    const aiTestService = require('../services/aiTestService');
+    const { subjects } = req.body;
+
+    if (!subjects || !Array.isArray(subjects)) {
+      return res.status(400).json({ error: 'subjects array kerak' });
+    }
+
+    const result = await aiTestService.generateFreeTest(req.user._id, { subjects });
+
+    res.json({
+      testId:         result.test._id,
+      subjectId:      result.test.subjectId,
+      subjectName:    result.test.subjectName,
+      testType:       'ai_free',
+      totalQuestions: result.questions.length,
+      durationSeconds: result.questions.length * 60,
+      subjects:       result.subjects,
+      questions: result.questions.map(q => ({
+        idx:         q.idx,
+        question:    q.question,
+        options:     q.options,
+        topic:       q.topic,
+        subjectId:   q.subjectId,
+        subjectName: q.subjectName,
+      })),
+    });
+  } catch (err) {
+    logger.error('AI Free test error:', err.message);
+    _handleError(err, res, next);
+  }
+});
+
 router.post('/mini', authMiddleware, async (req, res, next) => {
   try {
     const { subjectId, wrongAnswers, count, sourceTestId } = req.body;
@@ -78,18 +154,32 @@ router.post('/mini', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'wrongAnswers kerak' });
     }
 
-    // 1 marta qoidasi — agar source testning folder.miniTestGenerated bor bo'lsa rad etamiz
+    // 1 marta qoidasi (universal — material/ai_blok/ai_free hammasi uchun)
     let folderId = null;
+    let sourceTest = null;
     if (sourceTestId) {
       const PersonalTest = require('../models/PersonalTest');
-      const src = await PersonalTest.findOne({ _id: sourceTestId, userId: req.user._id }).lean();
-      if (src?.folderId) {
-        folderId = src.folderId;
+      sourceTest = await PersonalTest.findOne({ _id: sourceTestId, userId: req.user._id });
+      if (!sourceTest) return res.status(404).json({ error: 'Asosiy test topilmadi' });
+
+      // Test'ning o'zida mini-test borligini tekshiramiz (universal)
+      if (sourceTest.miniTestId) {
+        return res.status(409).json({
+          error: 'Bu test uchun mini-test allaqachon yaratilgan',
+          code: 'MINI_ALREADY_EXISTS',
+          existingMiniTestId: sourceTest.miniTestId,
+        });
+      }
+
+      folderId = sourceTest.folderId || null;
+
+      // Eski folder-based qoida (material testlari uchun backward compat)
+      if (folderId) {
         const MaterialFolder = require('../models/MaterialFolder');
         const folder = await MaterialFolder.findById(folderId);
         if (folder?.miniTestGenerated) {
           return res.status(409).json({
-            error: 'Bu test uchun mini-test allaqachon yaratilgan',
+            error: 'Bu papka uchun mini-test allaqachon yaratilgan',
             code: 'MINI_ALREADY_EXISTS',
             existingMiniTestId: folder.miniTestId,
           });
@@ -103,11 +193,19 @@ router.post('/mini', authMiddleware, async (req, res, next) => {
       count: count || (wrongAnswers.length <= 5 ? 5 : 10),
     });
 
-    // Folder bilan bog'lash
-    if (folderId) {
-      test.folderId = folderId;
-      await test.save();
+    // sourceTestId va folderId saqlash
+    test.sourceTestId = sourceTestId || null;
+    if (folderId) test.folderId = folderId;
+    await test.save();
 
+    // Source test'ni yangilash (1 marta qoidasi)
+    if (sourceTest) {
+      sourceTest.miniTestId = test._id;
+      await sourceTest.save();
+    }
+
+    // Folder ham yangilash (agar material testi bo'lsa)
+    if (folderId) {
       const MaterialFolder = require('../models/MaterialFolder');
       const folder = await MaterialFolder.findById(folderId);
       if (folder) {
@@ -123,6 +221,7 @@ router.post('/mini', authMiddleware, async (req, res, next) => {
       subjectName: test.subjectName,
       testType:  'mini',
       folderId,
+      sourceTestId: sourceTestId || null,
       totalQuestions: questions.length,
       durationSeconds: questions.length * 60,
       questions: questions.map(q => ({
@@ -160,7 +259,7 @@ router.post('/:id/explain', authMiddleware, async (req, res, next) => {
       return res.status(429).json({ error: 'Kunlik AI tushuntirish limiti tugadi' });
     }
 
-    const ans = test.answers.find(a => a.qIdx === qIdx);
+    const ans = test.answers.find(a => a.questionIdx === qIdx);
 
     let explanation;
     try {

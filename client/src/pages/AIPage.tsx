@@ -58,29 +58,50 @@ function TabButton({ active, onClick, icon, label }: any) {
 
 // ─── CHAT TAB ─────────────────────────────────────────────────────────
 function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
+  const { user, refreshUser } = useAppStore()
+  // XAVFSIZLIK: chat tarixi har user uchun alohida saqlanadi (userId-spec key)
+  const chatStorageKey = user?.id ? `fikra_chat_history_${user.id}` : null
+
   const [messages, setMessages] = useState<{ role: string; content: string }[]>(() => {
+    if (!chatStorageKey) return []
     try {
-      const saved = localStorage.getItem('fikra_chat_history')
+      const saved = localStorage.getItem(chatStorageKey)
       return saved ? JSON.parse(saved).slice(-50) : []
     } catch { return [] }
   })
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
-  const { user, refreshUser } = useAppStore()
   const { toast } = useToast()
   const msgsRef = useRef<HTMLDivElement>(null)
 
-  // Tarixni saqlash
+  // User o'zgarsa, chat ni qaytadan yuklash (logout va boshqa account bilan kirgan paytda)
   useEffect(() => {
+    if (!chatStorageKey) {
+      setMessages([])
+      return
+    }
     try {
-      localStorage.setItem('fikra_chat_history', JSON.stringify(messages))
+      const saved = localStorage.getItem(chatStorageKey)
+      setMessages(saved ? JSON.parse(saved).slice(-50) : [])
+    } catch { setMessages([]) }
+    // Eski (userId'siz) keylarni avtomatik tozalash — migratsiya
+    try { localStorage.removeItem('fikra_chat_history') } catch {}
+  }, [chatStorageKey])
+
+  // Tarixni saqlash (user-scoped)
+  useEffect(() => {
+    if (!chatStorageKey) return
+    try {
+      localStorage.setItem(chatStorageKey, JSON.stringify(messages))
     } catch {}
-  }, [messages])
+  }, [messages, chatStorageKey])
 
   const clearHistory = () => {
     setMessages([])
-    try { localStorage.removeItem('fikra_chat_history') } catch {}
+    if (chatStorageKey) {
+      try { localStorage.removeItem(chatStorageKey) } catch {}
+    }
     setShowHistoryModal(false)
   }
 

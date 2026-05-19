@@ -33,10 +33,17 @@ function estimateQuestionCount(charCount) {
 }
 
 // ─── AI Prompt: materialdan test yaratish ────────────────────────────────────
-function _buildPrompt(subjectName, materialContent, count, wasAiAdjusted = false) {
+function _buildPrompt(subjectName, materialContent, count, wasAiAdjusted = false, subjectId = null) {
   const safeMaterial = materialContent.slice(0, 14000);
   const adjustNote = wasAiAdjusted
     ? `\nMUHIM: Material biroz cheklangan, lekin sizdan ${count} ta sifatli test yaratishingiz so'raladi. Materialdagi g'oyalarni kengaytirib, shu fan/mavzu doirasida mantiqiy savollar tuzing — lekin barcha javoblar fan haqiqatlariga mos bo'lsin.`
+    : '';
+
+  // ─── Fan bo'yicha maxsus ko'rsatmalar (foydalanuvchiga ko'rinmaydi) ─────
+  const { getSubjectPrompt } = require('./subjectPrompts');
+  const subjectSpecific = subjectId ? getSubjectPrompt(subjectId) : '';
+  const subjectNote = subjectSpecific
+    ? `\n\n═══ ${subjectName.toUpperCase()} FAN MAXSUS KO'RSATMALARI ═══\n${subjectSpecific}\n═══════════════════════════════════════════\n`
     : '';
 
   return `Sen DTM imtihoniga tayyorlovchi AI o'qituvchisan.
@@ -44,7 +51,7 @@ function _buildPrompt(subjectName, materialContent, count, wasAiAdjusted = false
 Quyidagi o'quv materialidan AYNAN ${count} ta test savol yarat.
 
 Fan: ${subjectName}
-
+${subjectNote}
 Material:
 """
 ${safeMaterial}
@@ -55,8 +62,9 @@ QOIDALAR:
 2. Har bir savol material mavzusiga to'g'ridan-to'g'ri yoki bilvosita bog'liq bo'lsin
 3. 4 ta variant (A, B, C, D) — bittasi to'g'ri, uchtasi mantiqli noto'g'ri
 4. DTM uslubida — aniq, qisqa, bir ma'noli savollar
-5. O'zbek tilida yoz
+5. O'zbek tilida yoz (chet tili fanlari bundan mustasno — yuqorida ko'rsatilgan)
 6. Mavzuni "topic" sifatida ko'rsat
+7. Yuqoridagi fan maxsus ko'rsatmalariga RIOYA QIL
 
 FAQAT quyidagi JSON formatda javob ber:
 {
@@ -208,7 +216,7 @@ async function generateForFolder(userId, { folderId, opt = 'standard' }) {
   // AI generatsiya
   let questions;
   try {
-    const prompt = _buildPrompt(subjectName, material.content, standardCount, wasAiAdjusted);
+    const prompt = _buildPrompt(subjectName, material.content, standardCount, wasAiAdjusted, material.subjectId);
     const res = await _deepseek().chat.completions.create({
       model: 'deepseek-chat',
       messages: [{ role: 'user', content: prompt }],
@@ -302,7 +310,7 @@ async function generateFromMaterials(userId, { subjectId, materialIds, count }) 
   const safeCount = getStandardCount(subjectId);
   const subjectName = SUBJECT_META[subjectId]?.name || subjectId;
 
-  const prompt = _buildPrompt(subjectName, combinedContent, safeCount);
+  const prompt = _buildPrompt(subjectName, combinedContent, safeCount, false, subjectId);
 
   let aiResponse;
   try {
@@ -577,4 +585,10 @@ module.exports = {
   getTestHistory,
   getTestReview,
   estimateForSubject,
+  // Internal API — aiTestService va boshqa servislar uchun
+  _internal: {
+    deepseek: _deepseek,
+    parseAiResponse: _parseAiResponse,
+    buildPrompt: _buildPrompt,
+  },
 };

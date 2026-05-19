@@ -27,21 +27,49 @@ export default function MaterialAddPage() {
 
   const standardCount = context === 'majburiy' ? 10 : 30
 
+  // ─── Avtomatik sarlavha generatsiyasi ──────────────────────────────────
+  // Sarlavha bo'sh bo'lsa matnning birinchi qatoridan yaratiladi.
+  const autoTitle = (text: string): string => {
+    const trimmed = text.trim()
+    if (!trimmed) return `Material — ${new Date().toLocaleDateString('uz-UZ')}`
+
+    // Birinchi qatorni olamiz
+    const firstLine = trimmed.split('\n')[0].trim()
+    if (firstLine.length === 0) {
+      return `Material — ${new Date().toLocaleDateString('uz-UZ')}`
+    }
+
+    // Agar juda uzun bo'lsa, 60 belgida kesib qo'shamiz
+    if (firstLine.length > 70) {
+      // So'zlarda silliq kesish
+      const words = firstLine.split(/\s+/)
+      let result = ''
+      for (const w of words) {
+        if ((result + ' ' + w).trim().length > 60) break
+        result = (result + ' ' + w).trim()
+      }
+      return (result || firstLine.slice(0, 60)) + '...'
+    }
+    return firstLine
+  }
+
   const submitText = async () => {
-    if (!title.trim()) { toast.error('Sarlavha kerak'); return }
     if (content.length < 500) { toast.error("Matn juda kichik (kamida 500 belgi)"); return }
     if (content.length > 30000) { toast.error("Matn juda katta (maksimum 30,000 belgi)"); return }
+
+    // Sarlavha bo'sh bo'lsa matndan avtomatik yaratiladi
+    const finalTitle = title.trim() || autoTitle(content)
     setSaving(true)
     try {
       // 1. Material yaratish
       const { data: mat } = await api.post('/api/materials/text', {
-        subjectId, title, content,
+        subjectId, title: finalTitle, content,
       })
       // 2. Papka yaratish
       const { data: f } = await api.post('/api/folders', {
         materialId: mat.material._id,
         subjectId,
-        title,
+        title: finalTitle,
         context,
       })
       toast.success('Material va papka yaratildi!')
@@ -128,12 +156,12 @@ export default function MaterialAddPage() {
         {tab === 'text' && (
           <div>
             <label style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: 4, display: 'block' }}>
-              Sarlavha
+              Sarlavha <span style={{ color: 'var(--txt-3)', fontSize: 10, fontWeight: 400 }}>(ixtiyoriy)</span>
             </label>
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder="Masalan: Algebra qoidalari"
+              placeholder="Bo'sh qoldirsangiz, matndan avtomatik yaratiladi"
               maxLength={200}
               style={{
                 width: '100%',
@@ -143,9 +171,15 @@ export default function MaterialAddPage() {
                 borderRadius: 10,
                 padding: '12px 14px',
                 fontSize: 13,
-                marginBottom: 12,
+                marginBottom: 4,
               }}
             />
+            {!title.trim() && content.length >= 50 && (
+              <div style={{ fontSize: 10, color: 'var(--txt-3)', marginBottom: 12, fontStyle: 'italic' }}>
+                📝 Avtomatik: "{autoTitle(content)}"
+              </div>
+            )}
+            {(title.trim() || content.length < 50) && <div style={{ height: 8 }} />}
 
             <label style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: 4, display: 'block' }}>
               Matn (500–30,000 belgi)
@@ -178,9 +212,9 @@ export default function MaterialAddPage() {
 
             <button
               onClick={submitText}
-              disabled={saving || !title.trim() || content.length < 500}
+              disabled={saving || content.length < 500}
               className="btn btn-primary btn-block btn-lg"
-              style={{ marginTop: 14, opacity: (saving || !title.trim() || content.length < 500) ? 0.5 : 1 }}
+              style={{ marginTop: 14, opacity: (saving || content.length < 500) ? 0.5 : 1 }}
             >
               {saving ? '⏳ Saqlanmoqda...' : '💾 Saqlash va papka yaratish'}
             </button>

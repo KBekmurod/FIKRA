@@ -36,16 +36,19 @@ export default function PersonalTestExplainPage() {
         const t = data.test
         setTest(t)
         // Xato javoblarni yig'amiz
+        // QUSUR TUZATILDI: backend field nomi 'questionIdx' (qIdx emas)
         const ws: WrongQuestion[] = []
         for (const ans of (t.answers || [])) {
-          if (!ans.isCorrect) {
-            const q = t.questions.find((qq: any) => qq.idx === ans.qIdx)
+          // Ikkala variantni qo'llab-quvvatlaymiz (backward compat)
+          const ansIdx = ans.questionIdx ?? ans.qIdx
+          if (!ans.isCorrect && ansIdx !== undefined) {
+            const q = t.questions.find((qq: any) => qq.idx === ansIdx)
             if (q) {
               ws.push({
                 qIdx: q.idx,
                 question: q.question,
                 options: q.options,
-                selected: ans.selected,
+                selected: ans.selectedOption ?? ans.selected,
                 correct: q.answer,
                 topic: q.topic,
                 aiExplanation: q.explanation,
@@ -83,16 +86,19 @@ export default function PersonalTestExplainPage() {
     }
   }
 
-  // Mini-test yaratish (1 marta — folder.miniTestGenerated bo'lsa qayta yaratmaymiz)
+  // Mini-test yaratish (1 marta universal qoidasi):
+  // - material test: folder.miniTestGenerated
+  // - ai_blok/ai_free test: test.miniTestId
   const startMiniTest = async () => {
     if (!id || !test) return
     setGeneratingMini(true)
     try {
-      // Mavjud mini-test bormi?
-      if (folderInfo?.miniTestId && folderInfo?.miniTestGenerated) {
-        // Tarixdan ko'rish — lekin to'g'ridan-to'g'ri yangi sessiya emas
-        toast.info("Mini-test allaqachon yaratilgan. Tarixdan ko'rishingiz mumkin.")
-        navigate('/tarix')
+      // Mavjud mini-test bormi? (universal check)
+      const hasMini = test.miniTestId || (folderInfo?.miniTestId && folderInfo?.miniTestGenerated)
+      if (hasMini) {
+        const miniId = test.miniTestId || folderInfo?.miniTestId
+        toast.info("Mini-test allaqachon yaratilgan")
+        navigate(`/personal-tests/${miniId}/result`)
         return
       }
 
@@ -153,7 +159,7 @@ export default function PersonalTestExplainPage() {
     )
   }
 
-  const miniAlreadyGenerated = folderInfo?.miniTestGenerated
+  const miniAlreadyGenerated = !!test?.miniTestId || !!folderInfo?.miniTestGenerated
 
   return (
     <>

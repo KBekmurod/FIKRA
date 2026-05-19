@@ -33,6 +33,10 @@ const ptQuestionSchema = new mongoose.Schema({
   // Mavzu (tushuntirish uchun)
   topic: { type: String, default: '' },
 
+  // Blok/free testlar uchun — har savol qaysi fanga tegishli
+  subjectId:   { type: String, default: null },
+  subjectName: { type: String, default: null },
+
 }, { _id: false });
 
 // Foydalanuvchi javoblarini sessiya davomida saqlash
@@ -105,15 +109,33 @@ const personalTestSchema = new mongoose.Schema({
   totalQuestions: { type: Number, default: 0 },
   scorePercent:   { type: Number, default: 0 },
 
-  // Test turi: 'material' = materialdan yaratilgan, 'mini' = xato savollardan
+  // Test turi:
+  //   'material' = bitta papka materialidan
+  //   'mini'     = xato savollardan mini-test
+  //   'ai_blok'  = AI yo'nalish bo'yicha blok test (yangi v5)
+  //   'ai_free'  = AI erkin tanlov test (yangi v5)
   testType: {
     type: String,
-    enum: ['material', 'mini'],
+    enum: ['material', 'mini', 'ai_blok', 'ai_free'],
     default: 'material',
   },
 
+  // AI blok testi uchun yo'nalish (engineering, medicine, va h.k.)
+  direction: { type: String, default: null },
+
+  // Metadata (subjects ro'yxati va h.k.)
+  metadata: { type: mongoose.Schema.Types.Mixed, default: null },
+
   // Mini-test uchun: qaysi asosiy testdan yaratilgan
   sourceTestId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PersonalTest',
+    default: null,
+  },
+
+  // Asosiy testning mini-test bog'lanishi (1 marta qoidasi)
+  // Faqat material/ai_blok/ai_free testlarda ishlatiladi (mini'da emas)
+  miniTestId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'PersonalTest',
     default: null,

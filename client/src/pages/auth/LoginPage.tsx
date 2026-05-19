@@ -109,6 +109,30 @@ export default function LoginPage() {
         }}
       >{loading ? '⏳ Kirilmoqda...' : 'Kirish →'}</button>
 
+      {/* Parolni unutdim */}
+      <button
+        onClick={() => {
+          const adminUser = (window as any).ADMIN_USERNAME || ''
+          if (adminUser) {
+            const url = `https://t.me/${adminUser}?text=${encodeURIComponent('Salom! Men FIKRA akkountimga kira olmayman, parolni unutdim. Yordam bering iltimos.')}`
+            window.open(url, '_blank')
+          } else {
+            toast.info("Adminga murojaat qiling")
+          }
+        }}
+        style={{
+          marginTop: 12,
+          background: 'none',
+          border: 'none',
+          color: 'var(--txt-3)',
+          fontSize: 12,
+          fontWeight: 600,
+          cursor: 'pointer',
+          padding: 8,
+          textAlign: 'center',
+        }}
+      >Parolni unutdingizmi? Adminga murojaat</button>
+
       <div style={{ flex: 1 }} />
 
       <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--txt-2)', marginTop: 16 }}>

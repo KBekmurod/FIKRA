@@ -31,11 +31,46 @@ export default function PersonalTestRunPage() {
 
   const [questions] = useState<Question[]>(state?.questions || [])
   const [qIdx, setQIdx] = useState(0)
-  const [selected, setSelected] = useState<Record<number, number>>({})
+  const [selected, setSelected] = useState<Record<number, number>>(() => {
+    // localStorage'dan tiklash (internet uzilishi himoyasi)
+    try {
+      const cached = localStorage.getItem(`fikra_test_answers_${id}`)
+      return cached ? JSON.parse(cached) : {}
+    } catch { return {} }
+  })
   const [timeLeft, setTimeLeft] = useState(state?.durationSeconds || 600)
   const [finishing, setFinishing] = useState(false)
   const [exitTarget, setExitTarget] = useState<string | null>(null)
+  const [pendingAnswers, setPendingAnswers] = useState<Array<{ qIdx: number; selected: number }>>([])
   const finishedRef = useRef(false)
+
+  // Javoblarni localStorage'ga saqlash
+  useEffect(() => {
+    if (!id || Object.keys(selected).length === 0) return
+    try {
+      localStorage.setItem(`fikra_test_answers_${id}`, JSON.stringify(selected))
+    } catch {}
+  }, [id, selected])
+
+  // Pending javoblarni qayta yuborish (online qaytganda)
+  useEffect(() => {
+    const retryPending = async () => {
+      if (!id || pendingAnswers.length === 0) return
+      const toRetry = [...pendingAnswers]
+      setPendingAnswers([])
+      for (const ans of toRetry) {
+        try {
+          await personalTestApi.answer(id, ans.qIdx, ans.selected)
+        } catch {
+          // Hali ham yo'q — keyinroq yana
+          setPendingAnswers(p => [...p, ans])
+        }
+      }
+    }
+    const onOnline = () => retryPending()
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [id, pendingAnswers])
 
   // sendBeacon abandon
   useEffect(() => {
@@ -105,22 +140,37 @@ export default function PersonalTestRunPage() {
     setSelected(prev => ({ ...prev, [qIdx]: i }))
     try {
       await personalTestApi.answer(id, qIdx, i)
-    } catch {}
+    } catch {
+      // Internet uzilgan — keyinroq qayta urinish uchun saqlaymiz
+      setPendingAnswers(p => [...p, { qIdx, selected: i }])
+    }
   }
 
   const handleFinish = useCallback(async (auto = false) => {
     if (finishing || finishedRef.current) return
     setFinishing(true)
     finishedRef.current = true
+
+    // Oxirgi marta pending'larni yuborish (eng muhim qadam)
+    if (pendingAnswers.length > 0) {
+      for (const ans of pendingAnswers) {
+        try { await personalTestApi.answer(id!, ans.qIdx, ans.selected) } catch {}
+      }
+    }
+
     try {
-      const { data } = await personalTestApi.finish(id)
+      const { data } = await personalTestApi.finish(id!)
+      // Cache tozalash
+      try {
+        localStorage.removeItem(`fikra_test_answers_${id}`)
+      } catch {}
       navigate(`/personal-tests/${id}/result`, { state: data, replace: true })
     } catch (e: any) {
-      if (!auto) toast.error('Yakunlashda xatolik')
+      if (!auto) toast.error('Yakunlashda xatolik. Internetni tekshiring.')
       setFinishing(false)
       finishedRef.current = false
     }
-  }, [id, finishing, navigate, toast])
+  }, [id, finishing, navigate, toast, pendingAnswers])
 
   const confirmExit = async () => {
     finishedRef.current = true

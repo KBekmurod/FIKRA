@@ -48,7 +48,15 @@ export default function PersonalTestReviewPage() {
 
   const questions: TestQuestion[] = test.questions || []
   const answers: AnswerRec[] = (test.answers || []).reduce((acc: any, a: any) => {
-    acc[a.qIdx] = a
+    // QUSUR TUZATILDI: backend 'questionIdx' qaytaradi, 'qIdx' emas
+    const idx = a.questionIdx ?? a.qIdx
+    if (idx !== undefined) {
+      acc[idx] = {
+        qIdx: idx,
+        selected: a.selectedOption ?? a.selected,
+        isCorrect: a.isCorrect,
+      }
+    }
     return acc
   }, {})
 

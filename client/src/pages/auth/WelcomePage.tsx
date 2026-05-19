@@ -129,12 +129,43 @@ export default function WelcomePage() {
 
       {/* Auth tugmalari */}
       <div style={{ marginTop: 28, display: 'grid', gap: 10 }}>
+        {/* Telegram'da bo'lsa, eng yuqorida darrov ko'rsatamiz (qulay) */}
+        {isTelegram && (
+          <>
+            <button
+              onClick={handleTelegramLogin}
+              disabled={tgLoading}
+              style={{
+                background: 'linear-gradient(135deg, #5fb3ec, #4a9dde)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 14,
+                padding: '15px 18px',
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: 'pointer',
+                opacity: tgLoading ? 0.6 : 1,
+              }}
+            >
+              {tgLoading ? '⏳ Kirilmoqda...' : '✈️ Telegram bilan davom etish'}
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0' }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--f)' }} />
+              <span style={{ fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, letterSpacing: 0.5 }}>YOKI</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--f)' }} />
+            </div>
+          </>
+        )}
+
         <button
           onClick={() => navigate('/auth/register')}
           style={{
-            background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
-            color: 'white',
-            border: 'none',
+            background: isTelegram
+              ? 'var(--s1)'
+              : 'linear-gradient(135deg, var(--acc), var(--acc-l))',
+            color: isTelegram ? 'var(--txt)' : 'white',
+            border: isTelegram ? '1px solid var(--f)' : 'none',
             borderRadius: 14,
             padding: '15px 18px',
             fontSize: 14,
@@ -157,17 +188,19 @@ export default function WelcomePage() {
           }}
         >Mavjud akkountga kirish</button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0' }}>
-          <div style={{ flex: 1, height: 1, background: 'var(--f)' }} />
-          <span style={{ fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, letterSpacing: 0.5 }}>YOKI</span>
-          <div style={{ flex: 1, height: 1, background: 'var(--f)' }} />
-        </div>
-
+        {/* Google va Telegram (pastki qism — agar Telegram'da emas bo'lsa) */}
         {googleClientId && (
-          <button
-            onClick={handleGoogleClick}
-            disabled={googleLoading}
-            style={{
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0' }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--f)' }} />
+              <span style={{ fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, letterSpacing: 0.5 }}>YOKI</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--f)' }} />
+            </div>
+
+            <button
+              onClick={handleGoogleClick}
+              disabled={googleLoading}
+              style={{
               background: 'white',
               color: '#1f1f1f',
               border: '1px solid #dadce0',
@@ -186,26 +219,7 @@ export default function WelcomePage() {
             <GoogleIcon />
             {googleLoading ? "Kirilmoqda..." : "Google bilan davom etish"}
           </button>
-        )}
-
-        {isTelegram && (
-          <button
-            onClick={handleTelegramLogin}
-            disabled={tgLoading}
-            style={{
-              background: 'rgba(0,136,204,0.12)',
-              border: '1px solid rgba(0,136,204,0.3)',
-              color: '#5fb3ec',
-              borderRadius: 14,
-              padding: '13px 18px',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              opacity: tgLoading ? 0.6 : 1,
-            }}
-          >
-            {tgLoading ? 'Kirilmoqda...' : '✈️ Telegram bilan davom etish'}
-          </button>
+          </>
         )}
       </div>
 

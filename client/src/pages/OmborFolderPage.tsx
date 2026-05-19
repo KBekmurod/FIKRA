@@ -86,6 +86,31 @@ export default function OmborFolderPage() {
     }
   }
 
+  // ─── BEST PRACTICE: tugmani bosganda avval yetarlilikni tekshiramiz ─────
+  // Yetarli bo'lsa darrov generate, yetarli emas bo'lsa modal so'rov chiqaramiz
+  // (xato emas — chunki foydalanuvchi tanlash imkoniga ega bo'lishi kerak)
+  const handleGenerateClick = async () => {
+    if (!folderId || generating) return
+    setGenerating(true)
+    try {
+      const { data: chk } = await api.post(`/api/folders/${folderId}/check-sufficiency`)
+      setGenerating(false)
+
+      if (chk.isSufficient) {
+        // Yetarli — darrov generatsiya
+        triggerGenerate('standard')
+      } else if (chk.canAiFill || chk.isTooSmall) {
+        // Yetarli emas — modal so'rov ko'rsatamiz (xato emas!)
+        setSufficiency(chk)
+      } else {
+        toast.error("Yetarlilik tekshiruvi muvaffaqiyatsiz")
+      }
+    } catch (e: any) {
+      setGenerating(false)
+      toast.error(e.response?.data?.error || "Tekshirishda xato")
+    }
+  }
+
   const startTest = async () => {
     if (!folderId) return
     setStarting(true)
@@ -206,6 +231,42 @@ export default function OmborFolderPage() {
             <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
               {material.charCount.toLocaleString()} belgi
             </div>
+
+            {/* Material amallar — agar test hali yo'q bo'lsa */}
+            {!hasTest && (
+              <div style={{
+                display: 'flex', gap: 6, marginTop: 10,
+                paddingTop: 10, borderTop: '1px solid var(--f)',
+              }}>
+                <button
+                  onClick={() => navigate(`/materials/${material._id}/edit?folderId=${folderId}`)}
+                  style={{
+                    flex: 1,
+                    background: 'rgba(123,104,238,0.1)',
+                    border: '1px solid rgba(123,104,238,0.25)',
+                    color: 'var(--acc-l)',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    fontSize: 11, fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >✏️ Tahrirlash / Qo'shimcha qo'shish</button>
+              </div>
+            )}
+
+            {/* Test mavjud bo'lsa - ogohlantirish */}
+            {hasTest && (
+              <div style={{
+                marginTop: 10, padding: 8,
+                background: 'rgba(255,204,68,0.06)',
+                border: '1px solid rgba(255,204,68,0.18)',
+                borderRadius: 6,
+                fontSize: 10, color: 'var(--txt-3)', lineHeight: 1.4,
+              }}>
+                ℹ️ Test allaqachon yaratilgan. Material o'zgartirilsa,
+                test eski versiyaga asoslangan qoladi.
+              </div>
+            )}
           </div>
         )}
 
@@ -225,12 +286,12 @@ export default function OmborFolderPage() {
               AI sizning materialingizdan {standardCount} ta test savol yaratadi.
             </div>
             <button
-              onClick={() => triggerGenerate('standard')}
+              onClick={handleGenerateClick}
               disabled={generating}
               className="btn btn-primary btn-block"
               style={{ marginTop: 10 }}
             >
-              {generating ? '⏳ Yaratilmoqda...' : '🤖 AI test yaratish'}
+              {generating ? '⏳ Tekshirilmoqda...' : '🤖 AI test yaratish'}
             </button>
           </div>
         )}
@@ -358,7 +419,10 @@ export default function OmborFolderPage() {
             </div>
             <div style={{ display: 'grid', gap: 8 }}>
               <button
-                onClick={() => { setSufficiency(null); /* keyinroq tugma orqali material qo'shadi */ toast.info("Materialni tahrirlab qo'shing"); }}
+                onClick={() => {
+                  setSufficiency(null)
+                  navigate(`/materials/${material._id}/edit?folderId=${folderId}`)
+                }}
                 className="btn btn-primary btn-block"
               >➕ Materialga qo'shimcha qo'shaman</button>
               {sufficiency.canAiFill && (

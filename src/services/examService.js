@@ -40,18 +40,41 @@ const SUBJECT_META = {
   iqtisod: { name: "Iqtisodiyot",        weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
 };
 
+// ─── DTM yo'nalishlari (frontend BlokTestSetupPage bilan moslashtirilgan) ──
+// Har yo'nalishda 2 ta mutaxassislik fani bo'ladi:
+//   spec[0] — 3.1 ball (asosiy, ko'proq vazn)
+//   spec[1] — 2.1 ball yoki 3.1 ball (qo'shimcha)
+// 6 ta yangi mutaxassislik fani (huquq, nemis, fransuz, arab, fors, turk)
+// uchun ham yo'nalishlar qo'shildi
 const DIRECTION_MAP = {
-  tibbiyot:      { name: "Tibbiyot",         spec: ['bio',     'kimyo'  ] },
-  it:            { name: "IT / Dasturlash",   spec: ['inform',  'fizika' ] },
-  iqtisodiyot:   { name: "Iqtisodiyot",       spec: ['iqtisod', 'ingliz' ] },
-  pedagogika:    { name: "Pedagogika",        spec: ['ingliz',  'rus'    ] },
-  arxitektura:   { name: "Arxitektura",       spec: ['fizika',  'rus'    ] },
-  jurnalistika:  { name: "Jurnalistika",      spec: ['ingliz',  'rus'    ] },
-  rus_filologiya:{ name: "Rus filologiyasi",  spec: ['rus',     'ingliz' ] },
-  kimyo_fan:     { name: "Kimyo fani",        spec: ['kimyo',   'bio'    ] },
-  fizika_fan:    { name: "Fizika fani",       spec: ['fizika',  'kimyo'  ] },
-  ingliz_filol:  { name: "Ingliz filologiyasi",spec: ['ingliz', 'inform' ] },
-  biologiya_fan: { name: "Biologiya fani",    spec: ['bio',     'kimyo'  ] },
+  // Frontend ID'lar
+  engineering:    { name: "Muhandislik · Texnologiya",  spec: ['math',    'fizika' ] },
+  medicine:       { name: "Tibbiyot · Q-xo'jaligi",     spec: ['bio',     'kimyo'  ] },
+  international:  { name: "Xalqaro · Turizm",           spec: ['tarix',   'ingliz' ] },
+  philology:      { name: "Filologiya",                 spec: ['adab',    'ingliz' ] },
+  economy:        { name: "Iqtisod · IT",               spec: ['math',    'ingliz' ] },
+  geodesy:        { name: "Geodeziya · Kadastr",        spec: ['tarix',   'geo'    ] },
+
+  // Qo'shimcha yo'nalishlar (6 yangi fan uchun)
+  law:            { name: "Huquq · Davlat boshqaruvi",  spec: ['huquq',   'tarix'  ] },
+  german_studies: { name: "Nemis tili va madaniyati",   spec: ['nemis',   'adab'   ] },
+  french_studies: { name: "Fransuz tili va madaniyati", spec: ['fransuz', 'adab'   ] },
+  arabic_studies: { name: "Arab tili va sharqshunoslik",spec: ['arab',    'tarix'  ] },
+  persian_studies:{ name: "Fors tili va adabiyoti",     spec: ['fors',    'adab'   ] },
+  turkish_studies:{ name: "Turk tili va madaniyati",    spec: ['turk',    'tarix'  ] },
+
+  // Eski nomlar — backward compatibility uchun
+  tibbiyot:       { name: "Tibbiyot",                   spec: ['bio',     'kimyo'  ] },
+  it:             { name: "IT / Dasturlash",            spec: ['inform',  'fizika' ] },
+  iqtisodiyot:    { name: "Iqtisodiyot",                spec: ['iqtisod', 'ingliz' ] },
+  pedagogika:     { name: "Pedagogika",                 spec: ['ingliz',  'rus'    ] },
+  arxitektura:    { name: "Arxitektura",                spec: ['fizika',  'rus'    ] },
+  jurnalistika:   { name: "Jurnalistika",               spec: ['ingliz',  'rus'    ] },
+  rus_filologiya: { name: "Rus filologiyasi",           spec: ['rus',     'ingliz' ] },
+  kimyo_fan:      { name: "Kimyo fani",                 spec: ['kimyo',   'bio'    ] },
+  fizika_fan:     { name: "Fizika fani",                spec: ['fizika',  'kimyo'  ] },
+  ingliz_filol:   { name: "Ingliz filologiyasi",        spec: ['ingliz',  'inform' ] },
+  biologiya_fan:  { name: "Biologiya fani",             spec: ['bio',     'kimyo'  ] },
 };
 
 function assertObjectId(val, label) {

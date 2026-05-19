@@ -245,6 +245,30 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* Onboarding banner — yangi foydalanuvchilar uchun */}
+      {user?.isNew && (
+        <div style={{ padding: '12px 20px 0' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(123,104,238,0.15), rgba(167,139,250,0.05))',
+            border: '1px solid rgba(123,104,238,0.3)',
+            borderRadius: 14,
+            padding: 14,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 20 }}>🎉</span>
+              <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--acc-l)' }}>
+                Xush kelibsiz, {user.displayName || user.firstName || 'abituriyent'}!
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.55 }}>
+              1️⃣ <strong>Ombor</strong>ga material yuklab boshlang<br />
+              2️⃣ AI sizning materialingizdan <strong>sifatli test</strong> yaratadi<br />
+              3️⃣ Test ishlab, <strong>xatolaringizni o'rganib</strong> rivojlaning
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MAIN — 4 ta asosiy menyu kartlari */}
       <div className="section-title">Asosiy bo'limlar</div>
       <div style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

@@ -23,6 +23,24 @@ export function setAuth(access: string, refresh: string, tgId: number | null = n
 
 export function clearAuth() {
   localStorage.removeItem(TOKEN_KEY)
+  // XAVFSIZLIK: barcha user-scoped cache'larni tozalaymiz
+  // (chat tarixi, qoralamalar va h.k.)
+  try {
+    const keysToRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key) continue
+      if (
+        key.startsWith('fikra_chat_history') ||
+        key.startsWith('fikra_draft_') ||
+        key.startsWith('fikra_pending_') ||
+        key.startsWith('fikra_test_state_')
+      ) {
+        keysToRemove.push(key)
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k))
+  } catch {}
 }
 
 api.interceptors.request.use(config => {
