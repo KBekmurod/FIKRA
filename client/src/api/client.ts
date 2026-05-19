@@ -93,8 +93,68 @@ api.interceptors.response.use(
         _refreshing = false
       }
     }
+
+    // ─── 5xx server xatolarini backend log endpoint'ga yuborish ─────────
+    // Auth xatolari (401/403) va 404'lar tashqarida qoldiriladi
+    if (err.response && err.response.status >= 500) {
+      try {
+        const payload = {
+          type: 'network',
+          message: err.message || 'Server xatosi',
+          url: err.config?.url || 'unknown',
+          method: err.config?.method?.toUpperCase() || 'GET',
+          status: err.response.status,
+          timestamp: new Date().toISOString(),
+        }
+        // sendBeacon — nimagadir crash bo'lsa ham yuboradi
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon('/api/log/client-info',
+            new Blob([JSON.stringify(payload)], { type: 'application/json' })
+          )
+        }
+      } catch {}
+    }
+
     return Promise.reject(err)
   }
 )
+
+// ─── window.onerror va unhandledrejection — uncaught xatolar ───────────
+// Bu xatolarni darrov backend log endpoint'ga yuborib, terminalda ko'rinadigan qilamiz
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    try {
+      const payload = {
+        type: 'window.onerror',
+        message: event.message || 'Unknown error',
+        stack: (event.error?.stack || '').slice(0, 800),
+        url: window.location.href,
+        userAgent: navigator.userAgent.slice(0, 150),
+        timestamp: new Date().toISOString(),
+        component: `${event.filename}:${event.lineno}:${event.colno}`,
+      }
+      navigator.sendBeacon?.('/api/log/client-error',
+        new Blob([JSON.stringify(payload)], { type: 'application/json' })
+      )
+    } catch {}
+  })
+
+  window.addEventListener('unhandledrejection', (event) => {
+    try {
+      const reason = event.reason
+      const payload = {
+        type: 'unhandledRejection',
+        message: reason?.message || String(reason) || 'Unknown rejection',
+        stack: (reason?.stack || '').slice(0, 800),
+        url: window.location.href,
+        userAgent: navigator.userAgent.slice(0, 150),
+        timestamp: new Date().toISOString(),
+      }
+      navigator.sendBeacon?.('/api/log/client-error',
+        new Blob([JSON.stringify(payload)], { type: 'application/json' })
+      )
+    } catch {}
+  })
+}
 
 export default api

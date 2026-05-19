@@ -95,7 +95,24 @@ async function fetchRandom(subjectId, count) {
 async function startDtmSession(userId, direction) {
   assertObjectId(userId, 'userId');
 
-  const dirInfo = DIRECTION_MAP[direction.toLowerCase()];
+  let dirInfo = DIRECTION_MAP[direction.toLowerCase()];
+
+  // ─── custom_spec1_spec2 — frontend FreeTestSetupPage'dan keladi ──────
+  // Foydalanuvchi 2 ta spec fanini tanlasa, frontend `custom_${id1}_${id2}` yuboradi.
+  // Backend dinamik yo'nalish yaratadi.
+  if (!dirInfo && direction.toLowerCase().startsWith('custom_')) {
+    const parts = direction.toLowerCase().slice(7).split('_');
+    if (parts.length === 2) {
+      const [s1, s2] = parts;
+      if (SUBJECT_META[s1] && SUBJECT_META[s2]) {
+        dirInfo = {
+          name: `Erkin tanlov · ${SUBJECT_META[s1].name} + ${SUBJECT_META[s2].name}`,
+          spec: [s1, s2],
+        };
+      }
+    }
+  }
+
   if (!dirInfo) {
     const supported = Object.keys(DIRECTION_MAP).join(', ');
     throw new Error(`Noma'lum yo'nalish: "${direction}". Qo'llab-quvvatlanadigan: ${supported}`);

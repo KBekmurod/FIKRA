@@ -83,7 +83,7 @@ export default function AiFreeSetupPage() {
           folderIds: s.folderIds,
           count: s.count,
         })),
-      })
+      }, { timeout: 180000 }) // 3 daqiqa
 
       navigate(`/personal-tests/${data.testId}/run`, {
         state: {

@@ -221,7 +221,8 @@ export const personalTestApi = {
       testId: string; subjectId: string; subjectName: string;
       totalQuestions: number; durationSeconds: number;
       questions: PtQuestion[];
-    }>('/api/personal-tests/generate', { subjectId, materialIds, count }),
+    }>('/api/personal-tests/generate', { subjectId, materialIds, count },
+       { timeout: 90000 }),
 
   generateMini: (subjectId: string, wrongAnswers: any[], count = 10, sourceTestId?: string) =>
     api.post<{
@@ -229,7 +230,8 @@ export const personalTestApi = {
       testType: 'mini'; folderId?: string;
       totalQuestions: number; durationSeconds: number;
       questions: PtQuestion[];
-    }>('/api/personal-tests/mini', { subjectId, wrongAnswers, count, sourceTestId }),
+    }>('/api/personal-tests/mini', { subjectId, wrongAnswers, count, sourceTestId },
+       { timeout: 90000 }),
 
   explain: (testId: string, qIdx: number) =>
     api.post<{ explanation: string }>(`/api/personal-tests/${testId}/explain`, { qIdx }),
@@ -240,13 +242,13 @@ export const personalTestApi = {
       { questionIdx, selectedOption }
     ),
 
-  finish: (testId: string) =>
+  finish: (testId: string, finalAnswers?: Array<{ questionIdx: number; selectedOption: number }>) =>
     api.post<{
       testId: string; subjectId: string; subjectName: string;
       testType: 'material' | 'mini';
       totalCorrect: number; totalQuestions: number; scorePercent: number;
       level: { versionBefore: number; versionAfter: number; levelUp: boolean } | null;
-    }>(`/api/personal-tests/${testId}/finish`),
+    }>(`/api/personal-tests/${testId}/finish`, { finalAnswers }),
 
   abandon: (testId: string) =>
     api.post(`/api/personal-tests/${testId}/abandon`),
@@ -286,7 +288,7 @@ export const folderApi = {
   checkSufficiency: (id: string) =>
     api.post<any>(`/api/folders/${id}/check-sufficiency`),
   generate: (id: string, opt: 'standard' | 'ai_fill' = 'standard') =>
-    api.post<any>(`/api/folders/${id}/generate`, { opt }),
+    api.post<any>(`/api/folders/${id}/generate`, { opt }, { timeout: 90000 }),
   retry: (id: string) =>
     api.post<any>(`/api/folders/${id}/retry`),
   delete: (id: string) =>

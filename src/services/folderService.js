@@ -191,7 +191,6 @@ async function getFolderDetails(userId, folderId) {
   const folder = await MaterialFolder.findOne({ _id: folderId, userId, isActive: true })
     .populate('materialId')
     .populate('testId')
-    .populate('miniTestId')
     .lean();
 
   if (!folder) throw new Error("Papka topilmadi");

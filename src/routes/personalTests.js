@@ -321,9 +321,11 @@ router.post('/:id/answer', authMiddleware, async (req, res, next) => {
 // Testni yakunlash va darajani yangilash
 router.post('/:id/finish', authMiddleware, async (req, res, next) => {
   try {
+    const { finalAnswers } = req.body || {};
     const { test, totalCorrect, totalQuestions, scorePercent } = await testGen.finishTest(
       req.params.id,
-      req.user._id
+      req.user._id,
+      finalAnswers
     );
 
     // Folder statistikasini yangilash (agar bog'lanish bor bo'lsa)

@@ -470,13 +470,56 @@ async function submitAnswer(testId, userId, questionIdx, selectedOption) {
 }
 
 // ─── Testni yakunlash ─────────────────────────────────────────────────────────
-async function finishTest(testId, userId) {
+// finalAnswers ixtiyoriy — frontend yuborgan oxirgi javoblar (offline holatda)
+// Backend mavjud answers va finalAnswers'ni birlashtirib qayta hisoblaydi
+async function finishTest(testId, userId, finalAnswers = null) {
   const test = await PersonalTest.findById(testId);
   if (!test) throw new Error('Test topilmadi');
   if (String(test.userId) !== String(userId)) throw new Error('Ruxsat yo\'q');
   if (test.status !== 'in_progress') throw new Error('Test allaqachon yakunlangan');
 
-  const totalCorrect = test.answers.filter(a => a.isCorrect).length;
+  // QUSUR TUZATILDI: agar frontend final answers yuborsa, ularni birlashtir
+  // Bu offline holatda saqlanmagan javoblarni tiklaydi
+  if (Array.isArray(finalAnswers) && finalAnswers.length > 0) {
+    const existingMap = new Map(test.answers.map(a => [a.questionIdx, a]));
+
+    for (const fa of finalAnswers) {
+      const qIdx = fa.questionIdx ?? fa.qIdx;
+      const sel = fa.selectedOption ?? fa.selected;
+      if (qIdx === undefined || sel === undefined) continue;
+
+      const q = test.questions[qIdx];
+      if (!q) continue;
+
+      const isCorrect = sel === q.answer;
+
+      if (existingMap.has(qIdx)) {
+        // Mavjud — yangilamaymiz (server-side answer ustun)
+        continue;
+      }
+      // Yangi — qo'shamiz
+      test.answers.push({
+        questionIdx: qIdx,
+        selectedOption: sel,
+        isCorrect,
+        answeredAt: new Date(),
+      });
+    }
+  }
+
+  // Qayta hisoblash (sanity check)
+  let totalCorrect = 0;
+  for (const ans of test.answers) {
+    const q = test.questions[ans.questionIdx];
+    if (q && ans.selectedOption === q.answer) {
+      totalCorrect++;
+      // isCorrect yangilash (agar noto'g'ri saqlangan bo'lsa)
+      if (!ans.isCorrect) ans.isCorrect = true;
+    } else if (q && ans.isCorrect) {
+      ans.isCorrect = false; // tuzatish
+    }
+  }
+
   const totalQ = test.questions.length;
   const scorePercent = totalQ > 0 ? Math.round((totalCorrect / totalQ) * 100) : 0;
 

@@ -158,8 +158,15 @@ export default function PersonalTestRunPage() {
       }
     }
 
+    // QUSUR TUZATILDI: barcha selected javoblarni final array sifatida yuborish
+    // Bu backend'da yo'qolgan javoblarni tiklaydi (offline yoki tarmoq xatosi)
+    const finalAnswers = Object.entries(selected).map(([qIdx, sel]) => ({
+      questionIdx: parseInt(qIdx),
+      selectedOption: sel as number,
+    }))
+
     try {
-      const { data } = await personalTestApi.finish(id!)
+      const { data } = await personalTestApi.finish(id!, finalAnswers)
       // Cache tozalash
       try {
         localStorage.removeItem(`fikra_test_answers_${id}`)
@@ -170,7 +177,7 @@ export default function PersonalTestRunPage() {
       setFinishing(false)
       finishedRef.current = false
     }
-  }, [id, finishing, navigate, toast, pendingAnswers])
+  }, [id, finishing, navigate, toast, pendingAnswers, selected])
 
   const confirmExit = async () => {
     finishedRef.current = true

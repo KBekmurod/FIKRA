@@ -100,7 +100,7 @@ export default function AiBlokSetupPage() {
       const { data } = await api.post('/api/personal-tests/ai-blok', {
         direction: dir.id,
         subjects: subjectsPayload,
-      })
+      }, { timeout: 180000 }) // 3 daqiqa - blok testda 5 ta fan
 
       navigate(`/personal-tests/${data.testId}/run`, {
         state: {

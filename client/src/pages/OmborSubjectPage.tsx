@@ -192,7 +192,18 @@ function FolderCard({ folder, masteryEmoji, onClick }: { folder: Folder; mastery
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ fontSize: 18 }}>{masteryEmoji(folder.stats?.masteryLevel || 'unknown')}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{
+            fontWeight: 700,
+            fontSize: 13,
+            lineHeight: 1.35,
+            // BEST PRACTICE: 2 qatorga sig'dirish + ellipsis
+            display: '-webkit-box',
+            WebkitBoxOrient: 'vertical',
+            WebkitLineClamp: 2,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            wordBreak: 'break-word',
+          }}>
             {folder.title}
           </div>
           <div style={{ fontSize: 10, color: 'var(--txt-3)', marginTop: 1 }}>

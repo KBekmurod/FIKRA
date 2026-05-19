@@ -1,12 +1,14 @@
 import { useNavigate } from 'react-router-dom'
+import { useGoBack } from '../hooks/useGoBack'
 
 export default function FikraTestsPage() {
   const navigate = useNavigate()
+  const goBack = useGoBack('/testlar')
 
   return (
     <>
       <div className="header">
-        <button onClick={() => navigate('/testlar')} style={{
+        <button onClick={goBack} style={{
           background: 'none', border: 'none', color: 'var(--txt-2)',
           fontSize: 22, cursor: 'pointer', padding: 0, marginRight: 8,
         }}>←</button>

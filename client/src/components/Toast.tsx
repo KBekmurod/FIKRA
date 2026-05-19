@@ -24,7 +24,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       if (type === 'ok') tg?.HapticFeedback?.notificationOccurred('success')
       else if (type === 'err') tg?.HapticFeedback?.notificationOccurred('error')
     } catch {}
-    setTimeout(() => setMsg(null), 3000)
+    // BEST PRACTICE: matn uzunligi va xato turiga qarab vaqt
+    // Qisqa: 3s, uzun: 5s, xato: kamida 4s
+    const baseDuration = type === 'err' ? 4000 : 3000
+    const lengthBonus = Math.min(2500, text.length * 30)
+    const duration = baseDuration + lengthBonus
+    setTimeout(() => setMsg(null), duration)
   }, [])
 
   const success = useCallback((text: string) => toast(text, 'ok'),  [toast])

@@ -60,7 +60,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const { data } = await authApi.loginEmail(email, password)
       setAuth(data.accessToken, data.refreshToken, data.user.telegramId || null)
-      set({ user: data.user, loading: false })
+      // QUSUR TUZATILDI: initialized=true ham qilamiz, RequireAuth race condition oldini olish
+      set({ user: data.user, loading: false, initialized: true })
     } catch (err) {
       set({ loading: false })
       throw err
@@ -73,7 +74,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const { data } = await authApi.register(email, password, name)
       setAuth(data.accessToken, data.refreshToken, data.user.telegramId || null)
-      set({ user: data.user, loading: false })
+      set({ user: data.user, loading: false, initialized: true })
     } catch (err) {
       set({ loading: false })
       throw err
@@ -86,7 +87,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const { data } = await authApi.google(idToken)
       setAuth(data.accessToken, data.refreshToken, data.user.telegramId || null)
-      set({ user: data.user, loading: false })
+      set({ user: data.user, loading: false, initialized: true })
     } catch (err) {
       set({ loading: false })
       throw err
@@ -102,7 +103,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!initData) throw new Error('Telegram initData yo\'q')
       const { data } = await authApi.telegramLogin(initData)
       setAuth(data.accessToken, data.refreshToken, data.user.telegramId || null)
-      set({ user: data.user, loading: false })
+      set({ user: data.user, loading: false, initialized: true })
     } catch (err) {
       set({ loading: false })
       throw err

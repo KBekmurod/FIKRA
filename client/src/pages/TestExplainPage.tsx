@@ -16,8 +16,8 @@ interface WrongBySubject {
 
 export default function TestExplainPage() {
   const navigate = useNavigate()
-  const goBack = useGoBack('/testlar')
   const { sessionId, subjectId } = useParams<{ sessionId: string; subjectId: string }>()
+  const goBack = useGoBack(sessionId ? `/test-result/${sessionId}` : '/tarix')
   const toast = useToast()
   const location = useLocation()
 

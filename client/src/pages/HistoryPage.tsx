@@ -10,14 +10,24 @@ type AiMode = 'papka' | 'blok' | 'free'
 
 interface FikraSession {
   _id: string
-  testMode: 'blok' | 'free'
+  // Backend fields
+  mode: 'dtm' | 'subject'
+  direction?: string
+  selectedSubjects?: string[]
+  subjectBreakdown?: any[]
+  totalScore: number
+  maxTotalScore?: number
+  durationSeconds?: number
+  startTime?: string
+  endTime: string
+  createdAt: string
+  // UI compatibility
+  testMode?: 'blok' | 'free'
   blockSubject?: string
   freeSubjects?: string[]
-  totalScore: number
-  totalCorrect: number
-  totalQuestions: number
-  endTime: string
-  status: string
+  totalCorrect?: number
+  totalQuestions?: number
+  status?: string
 }
 
 interface AiTest {
@@ -57,10 +67,28 @@ export default function HistoryPage() {
     setLoading(true)
     try {
       const [f, a] = await Promise.all([
-        examApi.history(undefined, 1).catch(() => ({ data: { sessions: [] } })),
+        examApi.history(undefined, 1).catch(() => ({ data: { items: [] } })),
         personalTestApi.history(undefined, undefined, 1).catch(() => ({ data: { tests: [] } })),
       ])
-      setFikra(((f as any).data?.sessions || (f as any).data?.history || []) as FikraSession[])
+
+      // QUSUR TUZATILDI: backend 'items' qaytaradi, eski versiya 'sessions' yoki 'history'
+      const fd: any = (f as any).data
+      const rawFikra = fd?.items || fd?.sessions || fd?.history || []
+
+      // Backend mode='dtm' → testMode='blok', mode='subject' → testMode='free'
+      const normalized = rawFikra.map((s: any) => ({
+        ...s,
+        testMode: s.mode === 'dtm' ? 'blok' : 'free',
+        blockSubject: s.direction,
+        freeSubjects: s.selectedSubjects,
+        totalCorrect: s.subjectBreakdown?.reduce((sum: number, sb: any) =>
+          sum + (sb.correctCount || 0), 0) || 0,
+        totalQuestions: s.subjectBreakdown?.reduce((sum: number, sb: any) =>
+          sum + (sb.totalCount || 0), 0) || 0,
+        status: s.status || 'completed',
+      }))
+
+      setFikra(normalized)
       setAi(((a as any).data?.tests || []) as AiTest[])
     } catch {
       toast.error("Tarix yuklanmadi")
@@ -328,11 +356,19 @@ function AiTestCard({ test: t, relatedMini, onClick, isMini }: {
           }}>
             {isMini ? '🎯 MINI' : isBlok ? '📦 BLOK' : isFree ? '🎯 ERKIN' : '🤖 PAPKA'}
           </div>
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--txt)', marginBottom: 2 }}>
+          <div style={{
+            fontSize: 12.5, fontWeight: 600, color: 'var(--txt)', marginBottom: 2,
+            display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2,
+            overflow: 'hidden', textOverflow: 'ellipsis', wordBreak: 'break-word',
+            lineHeight: 1.35,
+          }}>
             {subj?.icon || (isBlok || isFree ? '📊' : '')} {t.subjectName}
           </div>
           {folderTitle && !isBlok && !isFree && (
-            <div style={{ fontSize: 10, color: 'var(--txt-2)', marginBottom: 2 }}>
+            <div style={{
+              fontSize: 10, color: 'var(--txt-2)', marginBottom: 2,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
               📁 "{folderTitle}"
             </div>
           )}

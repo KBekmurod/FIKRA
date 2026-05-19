@@ -39,7 +39,11 @@ export default function OmborFolderPage() {
   const [sufficiency, setSufficiency] = useState<SufficiencyCheck | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const goBack = useGoBack(`/ombor/${data?.folder?.subjectId || ''}?context=${data?.folder?.context || ''}`)
+  const goBack = useGoBack(
+    data?.folder?.subjectId
+      ? `/ombor/${data.folder.subjectId}?context=${data.folder.context || 'majburiy'}`
+      : '/ombor'
+  )
 
   const load = () => {
     if (!folderId) return
@@ -169,8 +173,19 @@ export default function OmborFolderPage() {
           background: 'none', border: 'none', color: 'var(--txt-2)',
           fontSize: 22, cursor: 'pointer', padding: 0, marginRight: 8,
         }}>←</button>
-        <div className="header-logo" style={{ fontSize: 14 }}>
-          {subj?.icon} {folder.title.slice(0, 24)}
+        <div className="header-logo" style={{
+          fontSize: 13,
+          flex: 1,
+          minWidth: 0,
+          lineHeight: 1.3,
+          // 2 qatorga sig'dirish — uzun nomlar yo'qolmaydi
+          display: '-webkit-box',
+          WebkitBoxOrient: 'vertical' as any,
+          WebkitLineClamp: 2,
+          overflow: 'hidden',
+          wordBreak: 'break-word',
+        }}>
+          {subj?.icon} {folder.title}
         </div>
       </div>
 
@@ -227,7 +242,18 @@ export default function OmborFolderPage() {
                 {material.source === 'text' ? 'Matn' : material.source === 'ocr' ? 'Rasm' : 'Fayl'}
               </div>
             </div>
-            <div style={{ fontWeight: 700, fontSize: 13, marginTop: 6 }}>{material.title}</div>
+            <div style={{
+              fontWeight: 700,
+              fontSize: 13,
+              marginTop: 6,
+              lineHeight: 1.4,
+              display: '-webkit-box',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 2,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              wordBreak: 'break-word',
+            }}>{material.title}</div>
             <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
               {material.charCount.toLocaleString()} belgi
             </div>
@@ -341,23 +367,37 @@ export default function OmborFolderPage() {
             <div style={{ display: 'grid', gap: 6 }}>
               {attempts.slice(0, 5).map((a, i) => {
                 const pct = a.scorePercent || 0
+                // Safe ID
+                const attemptId = typeof a._id === 'object' ? (a._id as any)._id || String(a._id) : a._id
+                const isMini = a.testType === 'mini'
+                const badgeColor = isMini ? 'var(--y)' : 'var(--acc-l)'
+                const badgeBg = isMini ? 'rgba(255,204,68,0.12)' : 'rgba(123,104,238,0.12)'
                 return (
                   <button
-                    key={a._id}
-                    onClick={() => navigate(`/personal-tests/${a._id}/result`)}
+                    key={attemptId}
+                    onClick={() => navigate(`/personal-tests/${attemptId}/result`)}
                     style={{
                       background: 'var(--s1)',
                       border: '1px solid var(--f)',
                       borderRadius: 10,
                       padding: '10px 12px',
-                      display: 'flex', alignItems: 'center', gap: 10,
+                      display: 'flex', alignItems: 'center', gap: 8,
                       cursor: 'pointer', color: 'var(--txt)', textAlign: 'left',
                     }}
                   >
-                    <div style={{ fontSize: 11, color: 'var(--txt-3)', fontWeight: 700, minWidth: 30 }}>
+                    <span style={{
+                      fontSize: 9, fontWeight: 800,
+                      padding: '2px 6px', borderRadius: 100,
+                      background: badgeBg, color: badgeColor,
+                      letterSpacing: 0.3,
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {isMini ? '🎯 MINI' : '🤖 AI'}
+                    </span>
+                    <div style={{ fontSize: 11, color: 'var(--txt-3)', fontWeight: 700, minWidth: 24 }}>
                       #{attempts.length - i}
                     </div>
-                    <div style={{ flex: 1, fontSize: 11, color: 'var(--txt-2)' }}>
+                    <div style={{ flex: 1, fontSize: 10.5, color: 'var(--txt-2)' }}>
                       {new Date(a.endTime || a.createdAt).toLocaleString('uz-UZ', {
                         day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
                       })}

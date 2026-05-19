@@ -115,11 +115,16 @@ export default function PersonalTestExplainPage() {
         sourceTestId: id,
         subjectId: test.subjectId,
         wrongAnswers,
-      })
+      }, { timeout: 90000 }) // 90s — AI yaratish vaqti
 
-      navigate(`/personal-tests/${data.testId}/run`, {
+      // QUSUR TUZATILDI: testId obyekt bo'lishi mumkin, string'ga aylantiramiz
+      const newTestId = typeof data.testId === 'object'
+        ? (data.testId as any)?._id || String(data.testId)
+        : data.testId
+
+      navigate(`/personal-tests/${newTestId}/run`, {
         state: {
-          testId: data.testId,
+          testId: newTestId,
           subjectId: data.subjectId,
           subjectName: data.subjectName,
           totalQuestions: data.totalQuestions,
@@ -129,7 +134,25 @@ export default function PersonalTestExplainPage() {
         },
       })
     } catch (e: any) {
-      toast.error(e?.response?.data?.error || "Mini-test yaratishda xato")
+      const errData = e?.response?.data
+      const status = e?.response?.status
+
+      // QUSUR TUZATILDI: 409 — mini-test allaqachon bor → mavjud testga yo'naltir
+      if (status === 409 && errData?.existingMiniTestId) {
+        const existingId = typeof errData.existingMiniTestId === 'object'
+          ? errData.existingMiniTestId._id || String(errData.existingMiniTestId)
+          : errData.existingMiniTestId
+        toast.info("Mini-test allaqachon yaratilgan")
+        navigate(`/personal-tests/${existingId}/result`, { replace: true })
+        return
+      }
+
+      // Timeout xatosi — foydalanuvchi tushunadigan xabar
+      if (e?.code === 'ECONNABORTED' || e?.message?.includes('timeout')) {
+        toast.error("AI hozir sekin javob bermoqda. Iltimos 30 soniyadan keyin tarixdan tekshiring — test allaqachon yaratilgan bo'lishi mumkin.")
+      } else {
+        toast.error(errData?.error || "Mini-test yaratishda xato")
+      }
     } finally {
       setGeneratingMini(false)
     }

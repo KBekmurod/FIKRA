@@ -68,14 +68,26 @@ export default function PersonalTestResultPage() {
           })
         }
 
+        // Helper: id'ni xavfsiz string'ga aylantirish
+        const safeId = (id: any): string | null => {
+          if (!id) return null
+          if (typeof id === 'string') return id
+          if (typeof id === 'object') {
+            return id._id ? String(id._id) : (id.toString ? id.toString() : null)
+          }
+          return String(id)
+        }
+
         // Folder ma'lumotini olish
-        if (t.folderId) {
-          api.get(`/api/folders/${t.folderId}`).then(({ data: f }) => {
+        const folderIdSafe = safeId(t.folderId)
+        if (folderIdSafe) {
+          api.get(`/api/folders/${folderIdSafe}`).then(({ data: f }) => {
             setFolderTitle(f.folder?.title || '')
             setMiniGenerated(f.folder?.miniTestGenerated || false)
             // Mini-test ma'lumotini olish (agar mavjud va asosiy test bo'lsa)
-            if (f.folder?.miniTestId && t.testType !== 'mini') {
-              api.get(`/api/personal-tests/${f.folder.miniTestId}`)
+            const miniIdSafe = safeId(f.folder?.miniTestId)
+            if (miniIdSafe && t.testType !== 'mini') {
+              api.get(`/api/personal-tests/${miniIdSafe}`)
                 .then(({ data: mt }: any) => {
                   if (mt.test && mt.test.status === 'completed') {
                     setMiniTestData(mt.test)
@@ -84,6 +96,18 @@ export default function PersonalTestResultPage() {
                 .catch(() => {})
             }
           }).catch(() => {})
+        }
+
+        // Test'ning o'zida miniTestId bo'lsa (ai_blok/ai_free uchun)
+        const testMiniIdSafe = safeId(t.miniTestId)
+        if (testMiniIdSafe && t.testType !== 'mini' && !folderIdSafe) {
+          api.get(`/api/personal-tests/${testMiniIdSafe}`)
+            .then(({ data: mt }: any) => {
+              if (mt.test && mt.test.status === 'completed') {
+                setMiniTestData(mt.test)
+              }
+            })
+            .catch(() => {})
         }
 
         // Fan bo'yicha breakdown (faqat ai_blok va ai_free uchun)
@@ -155,10 +179,13 @@ export default function PersonalTestResultPage() {
           color: 'var(--txt-2)',
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
-          <span style={{ fontSize: 14 }}>
+          <span style={{ fontSize: 14, flexShrink: 0 }}>
             {isMini ? '🎯' : isBlok ? '📦' : isFree ? '🎯' : '🤖'}
           </span>
-          <div>
+          <div style={{
+            flex: 1, minWidth: 0,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
             {isMini ? 'Mini-test' :
              isBlok ? 'AI Maxsus blok' :
              isFree ? 'AI Erkin tanlov' : 'AI test'}

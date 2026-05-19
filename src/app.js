@@ -7,7 +7,10 @@ const fs      = require('fs');
 
 const { connectDB }    = require('./utils/db');
 const { logger }       = require('./utils/logger');
-const { errorHandler } = require('./middleware/errorHandler');
+const { errorHandler, notFoundHandler, setupGlobalHandlers } = require('./middleware/errorHandler');
+
+// Global handlers (uncaught exceptions, promise rejections)
+setupGlobalHandlers();
 
 const authRoutes          = require('./routes/auth');
 const gameRoutes          = require('./routes/games');
@@ -19,8 +22,14 @@ const materialRoutes      = require('./routes/materials');
 const folderRoutes        = require('./routes/folders');
 const personalTestRoutes  = require('./routes/personalTests');
 const levelRoutes         = require('./routes/level');
+const logRoutes           = require('./routes/log');
 
 const app  = express();
+
+// ─── Proxy trust ─────────────────────────────────────────────────────────
+// Railway, Render, Vercel kabi proxy orqasida ishlaganda
+// X-Forwarded-For header'iga ishonish kerak (rate-limit IP aniqlash uchun)
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // ─── Security ─────────────────────────────────────────────────────────────────
@@ -89,6 +98,7 @@ app.use('/api/materials',      materialRoutes);
 app.use('/api/folders',        folderRoutes);
 app.use('/api/personal-tests', personalTestRoutes);
 app.use('/api/level',          levelRoutes);
+app.use('/api/log',            logRoutes);
 
 // ─── Telegram Bot ─────────────────────────────────────────────────────────────
 require('./bot')(app);
@@ -154,6 +164,7 @@ app.get('*', (req, res) => {
 });
 
 // ─── Error handler ────────────────────────────────────────────────────────────
+app.use(notFoundHandler);
 app.use(errorHandler);
 
 // ─── Start ────────────────────────────────────────────────────────────────────
