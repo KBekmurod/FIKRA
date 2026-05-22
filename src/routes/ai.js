@@ -142,10 +142,13 @@ router.post('/document/stream',
   aiLimiter,
   async (req, res, next) => {
     try {
-      const { prompt, format = 'DOCX', maxPages = 1 } = req.body;
+      const { prompt, format = 'DOCX', maxPages = 1, removeWatermark = false } = req.body;
       if (!prompt) return res.status(400).json({ error: 'Prompt kerak' });
       
       const targetChunks = Math.max(1, Math.min(Math.ceil(maxPages / 2), 8)); 
+      
+      const isFree = !req.user.plan || req.user.plan === 'free';
+      const shouldRemoveWatermark = removeWatermark && !isFree;
       
       // Limit tekshirish
       if (req.user.plan !== 'vip') {
@@ -161,13 +164,13 @@ router.post('/document/stream',
         await incrementAiUsage(req.user._id, 'docs');
       }
 
-      await ai.generateLongDocumentStream(prompt, format, maxPages, res, async (fullContent) => {
+      await ai.generateLongDocumentStream(prompt, format, maxPages, { removeWatermark: shouldRemoveWatermark }, res, async (fullContent) => {
         try {
           const titleMatch = fullContent.match(/^#\s+(.+)$/m);
           const title = titleMatch ? titleMatch[1].trim() : (prompt.slice(0, 60) || 'Hujjat');
     
           const documentService = require('../services/documentService');
-          const file = await documentService.generateFile(format, title, fullContent);
+          const file = await documentService.generateFile(format, title, fullContent, { removeWatermark: shouldRemoveWatermark });
     
           const safeTitle = title
             .replace(/[^\w\s\u0400-\u04FF\u0100-\u017F-]/g, '')

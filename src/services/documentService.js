@@ -8,29 +8,46 @@ const PptxGenJS = require('pptxgenjs');
 const { marked } = require('marked');
 const { logger } = require('../utils/logger');
 
-// ─── Markdown ni oddiy tuzilmaga parse qilish ─────────────────────────────────
-// marked tokens dan foydalanamiz
+function parseInlineTokens(tokens) {
+  if (!tokens) return [];
+  const segments = [];
+  tokens.forEach(t => {
+    if (t.type === 'strong') {
+      segments.push({ text: t.text, bold: true });
+    } else if (t.type === 'em') {
+      segments.push({ text: t.text, italics: true });
+    } else if (t.type === 'codespan') {
+      segments.push({ text: t.text, code: true });
+    } else if (t.type === 'text' || t.type === 'escape') {
+      segments.push({ text: t.text });
+    } else {
+      segments.push({ text: t.raw });
+    }
+  });
+  return segments;
+}
+
 function parseMarkdown(text) {
   const tokens = marked.lexer(text);
   return tokens.map(t => {
-    if (t.type === 'heading') return { type: 'heading', level: t.depth, text: t.text };
-    if (t.type === 'paragraph') return { type: 'para', text: t.text };
+    if (t.type === 'heading') return { type: 'heading', level: t.depth, text: t.text, segments: parseInlineTokens(t.tokens) };
+    if (t.type === 'paragraph') return { type: 'para', segments: parseInlineTokens(t.tokens) };
     if (t.type === 'list') return {
       type: 'list',
       ordered: t.ordered,
-      items: t.items.map(i => i.text),
+      items: t.items.map(i => ({ segments: parseInlineTokens(i.tokens) })),
     };
-    if (t.type === 'blockquote') return { type: 'quote', text: t.text || (t.tokens?.[0]?.text || '') };
+    if (t.type === 'blockquote') return { type: 'quote', segments: parseInlineTokens(t.tokens) };
     if (t.type === 'code') return { type: 'code', text: t.text };
     if (t.type === 'space') return null;
     if (t.type === 'hr') return { type: 'hr' };
-    if (t.raw && t.raw.trim()) return { type: 'para', text: t.raw };
+    if (t.raw && t.raw.trim()) return { type: 'para', segments: [{ text: t.raw.trim() }] };
     return null;
   }).filter(Boolean);
 }
 
-// ─── DOCX yaratish ─────────────────────────────────────────────────────────────
-async function createDocx(title, content) {
+//  DOCX yaratish 
+async function createDocx(title, content, options = {}) {
   const blocks = parseMarkdown(content);
   const children = [];
 
@@ -46,28 +63,27 @@ async function createDocx(title, content) {
     if (b.type === 'heading') {
       const sizeMap = { 1: 32, 2: 28, 3: 24, 4: 22, 5: 20, 6: 18 };
       children.push(new Paragraph({
-        children: [new TextRun({ text: b.text, bold: true, size: sizeMap[b.level] || 22 })],
+        children: b.segments.map(s => new TextRun({ text: s.text, bold: true, italics: s.italics, size: sizeMap[b.level] || 22 })),
         spacing: { before: 200, after: 100 },
       }));
     } else if (b.type === 'para') {
       children.push(new Paragraph({
-        children: [new TextRun({ text: b.text, size: 22 })],
+        children: b.segments.map(s => new TextRun({ text: s.text, bold: s.bold, italics: s.italics, size: 22, font: s.code ? 'Courier New' : undefined })),
         spacing: { after: 120 },
       }));
     } else if (b.type === 'list') {
       b.items.forEach((item, i) => {
+        const trs = item.segments.map(s => new TextRun({ text: s.text, bold: s.bold, italics: s.italics, size: 22, font: s.code ? 'Courier New' : undefined }));
+        trs.unshift(new TextRun({ text: (b.ordered ? `${i + 1}. ` : '• '), size: 22 }));
         children.push(new Paragraph({
-          children: [new TextRun({
-            text: (b.ordered ? `${i + 1}. ` : '• ') + item,
-            size: 22
-          })],
+          children: trs,
           indent: { left: convertInchesToTwip(0.3) },
           spacing: { after: 60 },
         }));
       });
     } else if (b.type === 'quote') {
       children.push(new Paragraph({
-        children: [new TextRun({ text: b.text, italics: true, color: '666666', size: 22 })],
+        children: b.segments.map(s => new TextRun({ text: s.text, italics: true, color: '666666', size: 22, bold: s.bold })),
         indent: { left: convertInchesToTwip(0.4) },
         spacing: { after: 120 },
       }));
@@ -85,14 +101,16 @@ async function createDocx(title, content) {
     }
   });
 
-  // Footer
-  children.push(new Paragraph({
-    children: [new TextRun({
-      text: '\n\n📱 FIKRA AI · fikra.ai', size: 18, color: '999999'
-    })],
-    alignment: AlignmentType.CENTER,
-    spacing: { before: 400 },
-  }));
+  if (!options.removeWatermark) {
+    // Footer
+    children.push(new Paragraph({
+      children: [new TextRun({
+        text: '\n\n📱 FIKRA AI · fikra.ai', size: 18, color: '999999'
+      })],
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 400 },
+    }));
+  }
 
   const doc = new Document({
     creator: 'FIKRA AI',
@@ -108,8 +126,8 @@ async function createDocx(title, content) {
   return await Packer.toBuffer(doc);
 }
 
-// ─── PDF yaratish ──────────────────────────────────────────────────────────────
-async function createPdf(title, content) {
+//  PDF yaratish 
+async function createPdf(title, content, options = {}) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: 'A4',
@@ -135,26 +153,42 @@ async function createPdf(title, content) {
     blocks.forEach(b => {
       if (b.type === 'heading') {
         const sizes = { 1: 18, 2: 16, 3: 14, 4: 13, 5: 12, 6: 11 };
-        doc.font('Helvetica-Bold')
-           .fontSize(sizes[b.level] || 12)
-           .fillColor('#222')
-           .moveDown(0.5)
-           .text(b.text)
-           .moveDown(0.3);
+        doc.font('Helvetica-Bold').fontSize(sizes[b.level] || 12).fillColor('#222').moveDown(0.5);
+        b.segments.forEach((s, idx) => {
+          doc.font(s.italics ? 'Helvetica-BoldOblique' : 'Helvetica-Bold');
+          doc.text(s.text, { continued: idx < b.segments.length - 1 });
+        });
+        doc.moveDown(0.3);
         doc.font('Helvetica').fontSize(11).fillColor('#000');
       } else if (b.type === 'para') {
-        doc.text(b.text, { align: 'justify' }).moveDown(0.5);
+        if (!b.segments || b.segments.length === 0) return;
+        b.segments.forEach((s, idx) => {
+          const isLast = idx === b.segments.length - 1;
+          doc.font(s.bold ? (s.italics ? 'Helvetica-BoldOblique' : 'Helvetica-Bold') : (s.italics ? 'Helvetica-Oblique' : (s.code ? 'Courier' : 'Helvetica')));
+          doc.text(s.text, { continued: !isLast, align: 'justify' });
+        });
+        doc.moveDown(0.5);
+        doc.font('Helvetica');
       } else if (b.type === 'list') {
         b.items.forEach((item, i) => {
           const prefix = b.ordered ? `${i + 1}. ` : '• ';
-          doc.text(prefix + item, { indent: 20 }).moveDown(0.2);
+          doc.font('Helvetica').text(prefix, { indent: 20, continued: true });
+          item.segments.forEach((s, idx) => {
+            const isLast = idx === item.segments.length - 1;
+            doc.font(s.bold ? (s.italics ? 'Helvetica-BoldOblique' : 'Helvetica-Bold') : (s.italics ? 'Helvetica-Oblique' : (s.code ? 'Courier' : 'Helvetica')));
+            doc.text(s.text, { continued: !isLast });
+          });
+          doc.moveDown(0.2);
         });
         doc.moveDown(0.3);
+        doc.font('Helvetica');
       } else if (b.type === 'quote') {
-        doc.fillColor('#666').font('Helvetica-Oblique')
-           .text(b.text, { indent: 25 })
-           .font('Helvetica').fillColor('#000')
-           .moveDown(0.4);
+        doc.fillColor('#666');
+        b.segments.forEach((s, idx) => {
+          doc.font(s.bold ? 'Helvetica-BoldOblique' : 'Helvetica-Oblique');
+          doc.text(s.text, { indent: idx === 0 ? 25 : 0, continued: idx < b.segments.length - 1 });
+        });
+        doc.font('Helvetica').fillColor('#000').moveDown(0.4);
       } else if (b.type === 'code') {
         doc.font('Courier').fontSize(10).fillColor('#333')
            .text(b.text, { indent: 20 })
@@ -168,18 +202,20 @@ async function createPdf(title, content) {
       }
     });
 
-    // Footer
-    doc.moveDown(2)
-       .fontSize(9)
-       .fillColor('#999')
-       .text('📱 FIKRA AI · fikra.ai', { align: 'center' });
+    if (!options.removeWatermark) {
+      // Footer
+      doc.moveDown(2)
+         .fontSize(9)
+         .fillColor('#999')
+         .text('📱 FIKRA AI · fikra.ai', { align: 'center' });
+    }
 
     doc.end();
   });
 }
 
-// ─── PPTX yaratish ─────────────────────────────────────────────────────────────
-async function createPptx(title, content) {
+//  PPTX yaratish 
+async function createPptx(title, content, options = {}) {
   const pptx = new PptxGenJS();
   pptx.author = 'FIKRA AI';
   pptx.title = title;
@@ -193,10 +229,13 @@ async function createPptx(title, content) {
     fontSize: 44, bold: true, color: '7B68EE',
     align: 'center', fontFace: 'Arial',
   });
-  titleSlide.addText('FIKRA AI', {
-    x: 0.5, y: 4.5, w: 12, h: 0.5,
-    fontSize: 16, color: '888888', align: 'center',
-  });
+  
+  if (!options.removeWatermark) {
+    titleSlide.addText('FIKRA AI', {
+      x: 0.5, y: 4.5, w: 12, h: 0.5,
+      fontSize: 16, color: '888888', align: 'center',
+    });
+  }
 
   const blocks = parseMarkdown(content);
 
@@ -208,14 +247,13 @@ async function createPptx(title, content) {
   function flushSlide() {
     if (!currentSlide) return;
     if (currentBullets.length > 0) {
-      currentSlide.addText(
-        currentBullets.map(b => ({ text: b, options: { bullet: true } })),
-        {
-          x: 0.5, y: 1.5, w: 12, h: 5.5,
-          fontSize: 18, color: 'EEEAFF',
-          fontFace: 'Arial', valign: 'top',
-        }
-      );
+      // PptxGenJS accepts an array of objects for multi-format text blocks
+      currentBullets.forEach((bulletObj, idx) => {
+        currentSlide.addText(bulletObj.textElements, {
+          x: 0.5, y: 1.5 + (idx * 0.4), w: 12, h: 0.5,
+          fontSize: 18, color: 'EEEAFF', fontFace: 'Arial', valign: 'top', bullet: true
+        });
+      });
     }
     currentBullets = [];
   }
@@ -240,51 +278,56 @@ async function createPptx(title, content) {
           fontSize: 32, bold: true, color: '7B68EE',
         });
       }
-      if (b.type === 'para') currentBullets.push(b.text);
-      else if (b.type === 'list') b.items.forEach(i => currentBullets.push(i));
-      else if (b.type === 'heading') currentBullets.push('▸ ' + b.text);
-      else if (b.type === 'quote') currentBullets.push('"' + b.text + '"');
+      
+      const toPptxText = (segments) => segments.map(s => ({ text: s.text, options: { bold: s.bold, italic: s.italics, fontFace: s.code ? 'Courier' : 'Arial' } }));
+
+      if (b.type === 'para') currentBullets.push({ textElements: toPptxText(b.segments) });
+      else if (b.type === 'list') b.items.forEach(i => currentBullets.push({ textElements: toPptxText(i.segments) }));
+      else if (b.type === 'heading') currentBullets.push({ textElements: [{ text: '▸ ' + b.text, options: { bold: true } }] });
+      else if (b.type === 'quote') currentBullets.push({ textElements: toPptxText(b.segments).map(s => ({ ...s, options: { ...s.options, italic: true, color: 'AAAAAA' } })) });
     }
   });
 
   flushSlide();
 
-  // Oxirgi slayd — rahmat
-  const endSlide = pptx.addSlide();
-  endSlide.background = { color: '0E0E1C' };
-  endSlide.addText('Rahmat!', {
-    x: 0.5, y: 2.5, w: 12, h: 1.5,
-    fontSize: 54, bold: true, color: '00D4AA',
-    align: 'center', fontFace: 'Arial',
-  });
-  endSlide.addText('📱 FIKRA AI', {
-    x: 0.5, y: 4.5, w: 12, h: 0.5,
-    fontSize: 20, color: '888888', align: 'center',
-  });
+  if (!options.removeWatermark) {
+    // Oxirgi slayd — rahmat
+    const endSlide = pptx.addSlide();
+    endSlide.background = { color: '0E0E1C' };
+    endSlide.addText('Rahmat!', {
+      x: 0.5, y: 2.5, w: 12, h: 1.5,
+      fontSize: 54, bold: true, color: '00D4AA',
+      align: 'center', fontFace: 'Arial',
+    });
+    endSlide.addText('📱 FIKRA AI', {
+      x: 0.5, y: 4.5, w: 12, h: 0.5,
+      fontSize: 20, color: '888888', align: 'center',
+    });
+  }
 
   const buf = await pptx.write({ outputType: 'nodebuffer' });
   return buf;
 }
 
-// ─── Umumiy interfeys ─────────────────────────────────────────────────────────
-async function generateFile(format, title, content) {
+//  Umumiy interfeys 
+async function generateFile(format, title, content, options = {}) {
   const fmt = (format || 'DOCX').toUpperCase();
   try {
     if (fmt === 'DOCX') {
       return {
-        buffer: await createDocx(title, content),
+        buffer: await createDocx(title, content, options),
         mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         ext: 'docx',
       };
     } else if (fmt === 'PDF') {
       return {
-        buffer: await createPdf(title, content),
+        buffer: await createPdf(title, content, options),
         mime: 'application/pdf',
         ext: 'pdf',
       };
     } else if (fmt === 'PPTX') {
       return {
-        buffer: await createPptx(title, content),
+        buffer: await createPptx(title, content, options),
         mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         ext: 'pptx',
       };

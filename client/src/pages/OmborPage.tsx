@@ -7,6 +7,7 @@ import {
   type SubjectId, type Context,
 } from '../constants/subjects'
 import { useToast } from '../components/Toast'
+import { useAppStore } from '../store'
 
 interface SummaryEntry {
   subjectId: string
@@ -24,13 +25,18 @@ export default function OmborPage() {
   const [tab, setTab] = useState<Tab>('majburiy')
   const [summary, setSummary] = useState<Record<string, SummaryEntry>>({})
   const [loading, setLoading] = useState(true)
+  const { user, setAuthModalOpen } = useAppStore()
 
   useEffect(() => {
+    if (!user) {
+      setLoading(false)
+      return
+    }
     api.get('/api/folders/subjects-summary')
       .then(({ data }) => setSummary(data.summary || {}))
       .catch(() => toast.error("Yuklab bo'lmadi"))
       .finally(() => setLoading(false))
-  }, [])
+  }, [user])
 
   // Tab bo'yicha ko'rsatadigan fanlar
   // Majburiy: uztil, math, tarix
@@ -62,7 +68,10 @@ export default function OmborPage() {
     return (
       <button
         key={`${subjectId}_${context}`}
-        onClick={() => navigate(`/ombor/${subjectId}?context=${context}`)}
+        onClick={() => {
+          if (!user) return setAuthModalOpen(true)
+          navigate(`/ombor/${subjectId}?context=${context}`)
+        }}
         style={{
           width: '100%',
           background: 'var(--s1)',

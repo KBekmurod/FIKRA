@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../api/client'
+import { streamJsonFetch } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import { useGoBack } from '../hooks/useGoBack'
+import SubscriptionModal from '../components/SubscriptionModal'
+import { useAppStore } from '../store'
 import RichText from '../components/RichText'
 import '../components/RichText.css'
 
@@ -22,6 +25,10 @@ export default function PersonalTestExplainPage() {
   const { id } = useParams<{ id: string }>()
   const goBack = useGoBack(`/personal-tests/${id}/result`)
   const toast = useToast()
+
+  const { user } = useAppStore()
+  const [subOpen, setSubOpen] = useState(false)
+  const isFree = !user?.effectivePlan || user.effectivePlan === 'free'
 
   const [loading, setLoading] = useState(true)
   const [wrongs, setWrongs] = useState<WrongQuestion[]>([])
@@ -111,11 +118,11 @@ export default function PersonalTestExplainPage() {
         topic: w.topic,
       }))
 
-      const { data } = await api.post('/api/personal-tests/mini', {
+      const { data } = await streamJsonFetch<any>('/api/personal-tests/mini', {
         sourceTestId: id,
         subjectId: test.subjectId,
         wrongAnswers,
-      }, { timeout: 90000 }) // 90s — AI yaratish vaqti
+      }) // streamJsonFetch uses SSE
 
       // QUSUR TUZATILDI: testId obyekt bo'lishi mumkin, string'ga aylantiramiz
       const newTestId = typeof data.testId === 'object'
@@ -209,6 +216,24 @@ export default function PersonalTestExplainPage() {
           AI har biri uchun tushuntirish berishi mumkin, so'ngra
           <strong> mini-test </strong> ishlasangiz xatolaringizni mustahkamlaysiz.
         </div>
+
+        {isFree && (
+          <div style={{
+            background: 'linear-gradient(90deg, rgba(255,160,0,0.1), rgba(255,100,0,0.1))',
+            border: '1px solid rgba(255,160,0,0.3)',
+            borderRadius: 10, padding: 12, marginBottom: 14,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+          }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt)' }}>Tushuntirishlarni cheksiz ko'ring 🚀</div>
+              <div style={{ fontSize: 10.5, color: 'var(--txt-2)' }}>Pro obunaga o'ting va limitlarsiz tahlil qiling</div>
+            </div>
+            <button onClick={() => setSubOpen(true)} style={{
+              background: 'var(--y)', color: '#000', border: 'none',
+              padding: '6px 10px', borderRadius: 100, fontSize: 10, fontWeight: 800, cursor: 'pointer'
+            }}>Sotib olish</button>
+          </div>
+        )}
 
         {/* Xato savollar ro'yxati */}
         <div style={{ display: 'grid', gap: 12 }}>
@@ -329,6 +354,8 @@ export default function PersonalTestExplainPage() {
 
         <div style={{ height: 30 }} />
       </div>
+      
+      <SubscriptionModal open={subOpen} onClose={() => setSubOpen(false)} />
     </>
   )
 }

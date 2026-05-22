@@ -128,6 +128,7 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 }
 
 import { usePwaStore } from './store'
+import AuthModal from './components/AuthModal'
 
 export default function App() {
   const { user, initialized, bootstrap, refreshUser } = useAppStore()
@@ -179,6 +180,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <AuthModal />
       {/* Global PWA Install Banner */}
       {!isInstalled && canInstall && !isAuthRoute && (
         <div style={{
@@ -220,7 +222,7 @@ export default function App() {
       )}
 
       <ToastProvider>
-        {!isAuthRoute && user && <BottomNav />}
+        {!isAuthRoute && <BottomNav />}
         <div className="app-content">
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -230,16 +232,16 @@ export default function App() {
             <Route path="/auth/register" element={<RegisterPage />} />
 
             {/* Himoyalangan marshrutlar */}
-            <Route path="/" element={<RequireAuth><HomePage /></RequireAuth>} />
+            <Route path="/" element={<HomePage />} />
 
-            <Route path="/ombor"                       element={<RequireAuth><OmborPage /></RequireAuth>} />
+            <Route path="/ombor"                       element={<OmborPage />} />
             <Route path="/ombor/:subjectId"            element={<RequireAuth><OmborSubjectPage /></RequireAuth>} />
             <Route path="/ombor/:subjectId/add-folder" element={<RequireAuth><FolderAddPage /></RequireAuth>} />
             <Route path="/ombor/folder/:folderId"      element={<RequireAuth><OmborFolderPage /></RequireAuth>} />
             <Route path="/ombor/folder/:folderId/add"  element={<RequireAuth><MaterialAddPage /></RequireAuth>} />
             <Route path="/materials/:id/edit"          element={<RequireAuth><MaterialEditPage /></RequireAuth>} />
 
-            <Route path="/testlar"                     element={<RequireAuth><TestsPage /></RequireAuth>} />
+            <Route path="/testlar"                     element={<TestsPage />} />
             <Route path="/testlar/fikra"               element={<RequireAuth><FikraTestsPage /></RequireAuth>} />
             <Route path="/testlar/ai"                  element={<RequireAuth><AiTestsPage /></RequireAuth>} />
             <Route path="/testlar/ai/papkalar"         element={<RequireAuth><AiPapkalarPage /></RequireAuth>} />
@@ -257,9 +259,9 @@ export default function App() {
             <Route path="/personal-tests/:id/review"   element={<RequireAuth><PersonalTestReviewPage /></RequireAuth>} />
             <Route path="/personal-tests/:id/explain"  element={<RequireAuth><PersonalTestExplainPage /></RequireAuth>} />
 
-            <Route path="/tarix"                       element={<RequireAuth><HistoryPage /></RequireAuth>} />
-            <Route path="/ai/*"                        element={<RequireAuth><AIPage /></RequireAuth>} />
-            <Route path="/profil"                      element={<RequireAuth><ProfilePage /></RequireAuth>} />
+            <Route path="/tarix"                       element={<HistoryPage />} />
+            <Route path="/ai/*"                        element={<AIPage />} />
+            <Route path="/profil"                      element={<ProfilePage />} />
             </Routes>
           </Suspense>
         </div>

@@ -268,6 +268,28 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* PRO upsell banner for free users */}
+      {!isSub && (
+        <div style={{ padding: '12px 20px 0' }}>
+          <div style={{
+            background: 'linear-gradient(90deg, rgba(255,160,0,0.1), rgba(255,100,0,0.1))',
+            border: '1px solid rgba(255,160,0,0.3)',
+            borderRadius: 14,
+            padding: 14,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+          }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--txt)' }}>Pro obunaga o'ting 🚀</div>
+              <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>Limitlarsiz va suv belgisisiz imkoniyatlar</div>
+            </div>
+            <button onClick={() => setSubOpen(true)} style={{
+              background: 'var(--y)', color: '#000', border: 'none',
+              padding: '8px 14px', borderRadius: 100, fontSize: 11, fontWeight: 800, cursor: 'pointer'
+            }}>Sotib olish</button>
+          </div>
+        </div>
+      )}
+
       <div className="section-title">Asosiy bo'limlar</div>
       <div className="grid-responsive" style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <MenuCard icon="🏛" title="Ombor"   subtitle="Materiallar" color="rgba(167,139,250,0.15)" onClick={() => navigate('/ombor')} />

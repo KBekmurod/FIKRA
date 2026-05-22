@@ -48,7 +48,7 @@ async function streamChat(messages, res, onComplete) {
 }
 
 // ─── Hujjat yaratish (Chunking / Stream) ──────────────────────────────────
-async function generateLongDocumentStream(prompt, format, maxPages, res, onComplete) {
+async function generateLongDocumentStream(prompt, format, maxPages, options, res, onComplete) {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -60,21 +60,47 @@ async function generateLongDocumentStream(prompt, format, maxPages, res, onCompl
   try {
     res.write(`data: ${JSON.stringify({ status: 'reja', message: 'Hujjat rejasi tuzilmoqda...' })}\n\n`);
     
-    for (let i = 1; i <= targetChunks; i++) {
-      res.write(`data: ${JSON.stringify({ status: 'qism', current: i, total: targetChunks, message: `${i}-qism yozilmoqda...` })}\n\n`);
-      
-      const chunkPrompt = i === 1 
-        ? `Sen professional hujjat yaratuvchi AIsan. Mavzu: "${prompt}". ${format} formati uchun markdown da yoz.\nBu hujjatning 1-qismini yoz. Imkon qadar keng, professional va batafsil yoz. Jami qismlar soni: ${targetChunks}.`
-        : `Mavzu: "${prompt}". Bu hujjatning ${i}-qismini yoz. Oldingi qismlarning mantiqiy davomi bo'lsin. Takrorlanmasin. Batafsil yoz.`;
+    const outlineRes = await deepseek().chat.completions.create({
+      model: 'deepseek-chat',
+      messages: [{ role: 'user', content: `Sen professional yozuvchisan. Mavzu: "${prompt}". Shu mavzuda ${targetChunks} qismdan iborat juda batafsil hujjat rejasini tuz. Faqat rejani raqamlab yoz.` }],
+      max_tokens: 1000,
+    });
+    const outline = outlineRes.choices[0].message.content;
+
+    res.write(`data: ${JSON.stringify({ status: 'qism', current: 0, total: targetChunks, message: `Reja tayyor. Qismlar yozilmoqda...` })}\n\n`);
+
+    const batchSize = 3;
+    const chunkResults = [];
+
+    // Keep connection alive for Vercel
+    const pingInterval = setInterval(() => {
+      res.write(`data: ${JSON.stringify({ status: 'ping' })}\n\n`);
+    }, 15000);
+
+    for (let i = 1; i <= targetChunks; i += batchSize) {
+      const batch = [];
+      for (let j = i; j < i + batchSize && j <= targetChunks; j++) {
+        const chunkPrompt = `Mavzu: "${prompt}". Hujjat rejasi: \n${outline}\n\nShu rejadagi ${j}-qismni batafsil, mantiqiy va professional tarzda yoz. Markdown formatida sarlavhalar (#, ##), qalin yozuvlar (**matn**) va ro'yxatlardan (- matn) keng foydalan. Hujjat turi: ${format}. Faqat shu ${j}-qismni yoz.`;
         
-      const response = await deepseek().chat.completions.create({
-        model: 'deepseek-chat',
-        messages: [{ role: 'user', content: chunkPrompt }],
-        max_tokens: 3000,
-        temperature: 0.7,
-      });
-      fullContent += '\n\n' + response.choices[0].message.content;
+        batch.push(
+          deepseek().chat.completions.create({
+            model: 'deepseek-chat',
+            messages: [{ role: 'user', content: chunkPrompt }],
+            max_tokens: 3000,
+            temperature: 0.7,
+          }).then(r => r.choices[0].message.content)
+        );
+      }
+      
+      const results = await Promise.all(batch);
+      chunkResults.push(...results);
+      
+      const currentDone = Math.min(i + batchSize - 1, targetChunks);
+      res.write(`data: ${JSON.stringify({ status: 'qism', current: currentDone, total: targetChunks, message: `${currentDone}-qismlar tayyorlanmoqda...` })}\n\n`);
     }
+
+    clearInterval(pingInterval);
+    fullContent = `# ${prompt}\n\n` + chunkResults.join('\n\n');
 
     res.write(`data: ${JSON.stringify({ status: 'tayyorlash', message: 'Hujjat faylga o\'girilmoqda...' })}\n\n`);
     if (onComplete) {

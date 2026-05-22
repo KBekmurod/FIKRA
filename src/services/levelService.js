@@ -32,58 +32,37 @@ function _monthKey(date) {
 // Har versiya uchun kerakli "accuracy ball" chegaralari:
 // (Bu qiymatlarni loyiha jarayonida o'zgartirish oson)
 const VERSION_THRESHOLDS = {
-  // Standart + Personal testlar uchun: umumiy aniqlik % bo'yicha
-  1: 60,   // v1 → v2 uchun: 60%+ aniqlik, 10+ savol ishlash
-  2: 65,
-  3: 68,
-  4: 70,
-  5: 73,
-  6: 75,
-  7: 78,
-  8: 80,
-  9: 85,
-  // v10 = maksimum — oshirilmaydi
+  1: 50,  // v1 -> v2: 50%
+  2: 60,  // v2 -> v3: 60%
+  3: 68,  // v3 -> v4: 68%
+  4: 70,  // v4 -> v5: 70%
+  5: 73,  // v5 -> v6: 73%
+  6: 76,  // v6 -> v7: 76%
+  7: 80,  // v7 -> v8: 80%
+  8: 85,  // v8 -> v9: 85%
+  9: 90,  // v9 -> v10: 90%
 };
 
-// Versiya oshishi uchun minimal savol soni
 const MIN_QUESTIONS_PER_VERSION = {
-  1: 10, 2: 15, 3: 15,
-  4: 20, 5: 20, 6: 20, 7: 25,
-  8: 30, 9: 30,
+  1: 10,   2: 25,   3: 50,
+  4: 80,   5: 110,  6: 150,  7: 200,
+  8: 250,  9: 300,
 };
 
 // ─── Joriy holat hisoblash ─────────────────────────────────────────────────────
 function _computeVersion(levelDoc) {
   const v = levelDoc.currentVersion;
-  if (v >= 10) return 10; // Maksimum
+  if (v >= 10) return 10;
 
-  const threshold = VERSION_THRESHOLDS[v];
-  const minQ      = MIN_QUESTIONS_PER_VERSION[v] || 10;
+  const threshold = VERSION_THRESHOLDS[v] || 90;
+  const minQ = MIN_QUESTIONS_PER_VERSION[v] || 10;
 
-  // Daraja turiga qarab qaysi natijalar hisoblanadi
-  if (v <= 3) {
-    // Delta (v1-3): standart + personal testlar (boshlang'ich)
-    const total   = (levelDoc.standardTests.total || 0) + (levelDoc.personalTests.total || 0);
-    const correct = (levelDoc.standardTests.correct || 0) + (levelDoc.personalTests.correct || 0);
-    if (total < minQ) return v;
-    const accuracy = Math.round((correct / total) * 100);
-    return accuracy >= threshold ? v + 1 : v;
-  }
-
-  if (v <= 7) {
-    // Beta (v4-7): standart + personal (o'rta)
-    const total   = (levelDoc.standardTests.total || 0) + (levelDoc.personalTests.total || 0);
-    const correct = (levelDoc.standardTests.correct || 0) + (levelDoc.personalTests.correct || 0);
-    if (total < minQ) return v;
-    const accuracy = Math.round((correct / total) * 100);
-    return accuracy >= threshold ? v + 1 : v;
-  }
-
-  // Alfa (v8-10): mini-test natijalari asosida (yuqori)
-  const total   = levelDoc.miniTests.total || 0;
-  const correct = levelDoc.miniTests.correct || 0;
+  const total = (levelDoc.standardTests?.total || 0) + (levelDoc.personalTests?.total || 0) + (levelDoc.miniTests?.total || 0);
+  const correct = (levelDoc.standardTests?.correct || 0) + (levelDoc.personalTests?.correct || 0) + (levelDoc.miniTests?.correct || 0);
+  
   if (total < minQ) return v;
   const accuracy = Math.round((correct / total) * 100);
+  
   return accuracy >= threshold ? v + 1 : v;
 }
 
@@ -225,14 +204,8 @@ function _getNextVersionInfo(currentVersion, levelDoc) {
   const minQ      = MIN_QUESTIONS_PER_VERSION[currentVersion] || 10;
   const isAlfa    = currentVersion >= 8;
 
-  let total, correct;
-  if (currentVersion <= 7) {
-    total   = (levelDoc.standardTests?.total || 0) + (levelDoc.personalTests?.total || 0);
-    correct = (levelDoc.standardTests?.correct || 0) + (levelDoc.personalTests?.correct || 0);
-  } else {
-    total   = levelDoc.miniTests?.total || 0;
-    correct = levelDoc.miniTests?.correct || 0;
-  }
+  const total = (levelDoc.standardTests?.total || 0) + (levelDoc.personalTests?.total || 0) + (levelDoc.miniTests?.total || 0);
+  const correct = (levelDoc.standardTests?.correct || 0) + (levelDoc.personalTests?.correct || 0) + (levelDoc.miniTests?.correct || 0);
 
   const currentAccuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
   const questionsNeeded = Math.max(0, minQ - total);
@@ -245,7 +218,7 @@ function _getNextVersionInfo(currentVersion, levelDoc) {
     currentAccuracy,
     questionsAnswered: total,
     questionsNeeded,
-    testSource:      isAlfa ? 'mini' : 'standard_personal',
+    testSource:      'all',
     isReady:         total >= minQ && currentAccuracy >= threshold,
   };
 }

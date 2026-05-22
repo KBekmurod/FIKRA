@@ -60,12 +60,9 @@ function TabButton({ active, onClick, icon, label }: any) {
 
 // ─── CHAT TAB ─────────────────────────────────────────────────────────
 function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
-  const { user, refreshUser } = useAppStore()
+  const { user, refreshUser, setAuthModalOpen } = useAppStore()
+  const { chatSessionId: sessionId, chatMessages: messages, chatInput: input, chatSending: sending, setChatState } = useAiStore()
   
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([])
-  const [input, setInput] = useState('')
-  const [sending, setSending] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [sessions, setSessions] = useState<any[]>([])
   
@@ -74,8 +71,9 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
 
   // Fetch sessions on mount
   useEffect(() => {
+    if (!user) return
     fetchSessions()
-  }, [])
+  }, [user])
 
   const fetchSessions = async () => {
     try {
@@ -90,8 +88,7 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
     try {
       const { data } = await aiApi.chatSession(id)
       if (data.session) {
-        setSessionId(data.session._id)
-        setMessages(data.session.messages)
+        setChatState({ chatSessionId: data.session._id, chatMessages: data.session.messages, chatSending: false })
         setShowHistoryModal(false)
       }
     } catch (e) {
@@ -105,8 +102,7 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
       await aiApi.deleteChatSession(id)
       setSessions(s => s.filter(x => x._id !== id))
       if (sessionId === id) {
-        setSessionId(null)
-        setMessages([])
+        setChatState({ chatSessionId: null, chatMessages: [] })
       }
       toast("Suhbat o'chirildi", 'ok')
     } catch (e) {
@@ -115,17 +111,15 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
   }
 
   const startNewSession = () => {
-    setSessionId(null)
-    setMessages([])
+    setChatState({ chatSessionId: null, chatMessages: [] })
     setShowHistoryModal(false)
   }
 
   const send = async () => {
+    if (!user) return setAuthModalOpen(true)
     const text = input.trim()
     if (!text || sending) return
-    setInput('')
-    setMessages(m => [...m, { role: 'user', content: text }, { role: 'assistant', content: '' }])
-    setSending(true)
+    setChatState({ chatInput: '', chatMessages: [...messages, { role: 'user', content: text }, { role: 'assistant', content: '' }], chatSending: true })
 
     let full = ''
     await streamChat(
@@ -133,22 +127,18 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
       sessionId,
       (chunk) => {
         full += chunk
-        setMessages(m => {
-          const copy = [...m]
-          copy[copy.length - 1] = { role: 'assistant', content: full }
-          return copy
-        })
+        setChatState({ chatMessages: [...messages, { role: 'user', content: text }, { role: 'assistant', content: full }] })
       },
       (newId) => {
-        if (!sessionId) setSessionId(newId)
+        if (!sessionId) setChatState({ chatSessionId: newId })
       },
       () => {
-        setSending(false)
+        setChatState({ chatSending: false })
         refreshUser()
         fetchSessions() // Update history titles
       },
       (err) => {
-        setSending(false)
+        setChatState({ chatSending: false, chatMessages: [...messages, { role: 'user', content: text }] })
         if (err?.code === 'DAILY_LIMIT_REACHED') {
           toast('Bugungi limit tugadi', 'err'); onSubOpen()
         } else if (err?.code === 'SUBSCRIPTION_REQUIRED') {
@@ -156,7 +146,6 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
         } else {
           toast(err?.error || 'Xatolik', 'err')
         }
-        setMessages(m => m.slice(0, -1))
       }
     )
   }
@@ -319,7 +308,7 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
             className="textarea"
             placeholder="Xabar yozing..."
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={e => setChatState({ chatInput: e.target.value })}
             rows={2}
             style={{ flex: 1, minHeight: 44, maxHeight: 120, fontSize: 14 }}
             onKeyDown={e => {
@@ -345,21 +334,17 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
 
 // ─── DOC TAB ──────────────────────────────────────────────────────────
 function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
-  const [prompt, setPrompt] = useState('')
-  const [format, setFormat] = useState<'DOCX' | 'PDF' | 'PPTX'>('DOCX')
-  const [maxPages, setMaxPages] = useState<number>(2)
-  const [loading, setLoading] = useState(false)
-  const [statusMsg, setStatusMsg] = useState('')
-  const [result, setResult] = useState<any>(null)
-  const { user, refreshUser } = useAppStore()
+  const { docPrompt: prompt, docFormat: format, docMaxPages: maxPages, docRemoveWatermark: removeWatermark, docLoading: loading, docStatusMsg: statusMsg, docResult: result, setDocState } = useAiStore()
+  const { user, refreshUser, setAuthModalOpen } = useAppStore()
   const { toast } = useToast()
+  
+  const isFree = !user?.effectivePlan || user.effectivePlan === 'free';
 
   const generate = async () => {
+    if (!user) return setAuthModalOpen(true)
     const p = prompt.trim()
     if (!p || loading) return
-    setLoading(true)
-    setResult(null)
-    setStatusMsg('Boshlanmoqda...')
+    setDocState({ docLoading: true, docResult: null, docStatusMsg: 'Boshlanmoqda...' })
 
     const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}')
     const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000'
@@ -371,7 +356,7 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${auth.access || ''}`,
         },
-        body: JSON.stringify({ prompt: p, format, maxPages })
+        body: JSON.stringify({ prompt: p, format, maxPages, removeWatermark })
       })
 
       if (!res.ok) {
@@ -381,7 +366,7 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
         } else {
           toast(err?.error || 'Xatolik', 'err')
         }
-        setLoading(false)
+        setDocState({ docLoading: false })
         return
       }
 
@@ -398,7 +383,7 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
           if (!line.startsWith('data: ')) continue
           const data = line.slice(6)
           if (data === '[DONE]') {
-            setLoading(false)
+            setDocState({ docLoading: false })
             refreshUser()
             return
           }
@@ -406,13 +391,13 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
             const parsed = JSON.parse(data)
             if (parsed.error) {
               toast(parsed.error, 'err')
-              setLoading(false)
+              setDocState({ docLoading: false })
               return
             }
             if (parsed.status === 'tayyor') {
-              setResult(parsed)
+              setDocState({ docResult: parsed })
             } else if (parsed.message) {
-              setStatusMsg(parsed.message)
+              setDocState({ docStatusMsg: parsed.message })
             }
           } catch {}
         }
@@ -420,7 +405,7 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
     } catch (e: any) {
       toast('Aloqada xatolik', 'err')
     }
-    setLoading(false)
+    setDocState({ docLoading: false })
   }
 
   const download = () => {
@@ -436,8 +421,37 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
   const targetChunks = Math.max(1, Math.min(Math.ceil(maxPages / 2), 8))
   const canDoc = docsLimit === null || (docsUsed + targetChunks) <= (docsLimit as number)
 
+  const handleWatermarkToggle = () => {
+    if (isFree) {
+      toast("Suv belgisini olib tashlash faqat Pro/VIP obunachilar uchun!", "err")
+      onSubOpen()
+      return
+    }
+    setDocState({ docRemoveWatermark: !removeWatermark })
+  }
+
   return (
     <div style={{ padding: '0 20px', overflowY: 'auto' }}>
+      {isFree && (
+        <div style={{
+          background: 'linear-gradient(90deg, rgba(255,160,0,0.1), rgba(255,100,0,0.1))',
+          border: '1px solid rgba(255,160,0,0.3)',
+          borderRadius: 'var(--br)',
+          padding: '12px 16px',
+          marginBottom: 16,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--txt)' }}>Pro obunaga o'ting 🚀</div>
+            <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>Limitlarsiz va suv belgisisiz fayllar yarating</div>
+          </div>
+          <button onClick={onSubOpen} style={{
+            background: 'var(--y)', color: '#000', border: 'none',
+            padding: '6px 12px', borderRadius: 100, fontSize: 11, fontWeight: 800, cursor: 'pointer'
+          }}>Sotib olish</button>
+        </div>
+      )}
+
       <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 14 }}>
         {docsLimit === null ? 'Cheksiz' : `${docsUsed}/${docsLimit} bugun ishlatildi. (Max: ${docsLimit})`}
       </div>
@@ -447,7 +461,7 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
         {(['DOCX', 'PDF', 'PPTX'] as const).map(f => (
           <button
             key={f}
-            onClick={() => setFormat(f)}
+            onClick={() => setDocState({ docFormat: f })}
             style={{
               flex: 1, padding: '10px 8px',
               background: format === f ? 'var(--acc)' : 'var(--s2)',
@@ -468,7 +482,7 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
           className="input" 
           min={1} max={30} 
           value={maxPages} 
-          onChange={e => setMaxPages(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))} 
+          onChange={e => setDocState({ docMaxPages: Math.max(1, Math.min(30, parseInt(e.target.value) || 1)) })} 
         />
         <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 6 }}>
           💡 Har {maxPages > 1 ? `2 sahifa (taxminan) uchun 1 ta limit ketadi. (Jami: ${targetChunks} ta limit)` : '1 ta limit ketadi.'}
@@ -480,10 +494,28 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
         className="textarea"
         placeholder="Mavzuni yozing... Masalan: 'Sun'iy intellektning ta'limdagi o'rni va kelajagi'"
         value={prompt}
-        onChange={e => setPrompt(e.target.value)}
+        onChange={e => setDocState({ docPrompt: e.target.value })}
         rows={4}
-        style={{ marginBottom: 20 }}
+        style={{ marginBottom: 16 }}
       />
+
+      <label style={{
+        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20,
+        background: 'var(--s2)', padding: '12px 14px', borderRadius: 'var(--br)',
+        cursor: isFree ? 'pointer' : 'pointer',
+        border: '1px solid ' + (removeWatermark ? 'var(--acc)' : 'var(--f)')
+      }}>
+        <input 
+          type="checkbox" 
+          checked={removeWatermark} 
+          onChange={handleWatermarkToggle} 
+          style={{ width: 18, height: 18, accentColor: 'var(--acc)' }}
+        />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--txt)' }}>Suv belgisisiz (Watermark'siz)</div>
+          <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>Hujjatdan "FIKRA AI" yozuvini olib tashlash {isFree ? '👑 (Pro)' : ''}</div>
+        </div>
+      </label>
 
       {!canDoc ? (
         <button onClick={onSubOpen} className="btn btn-primary btn-block btn-lg" style={{ background: 'var(--r)' }}>

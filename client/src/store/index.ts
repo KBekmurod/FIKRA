@@ -8,8 +8,10 @@ interface AppState {
   loading: boolean
   initialized: boolean
   error: string | null
+  authModalOpen: boolean
 
   // Auth metodlari
+  setAuthModalOpen: (open: boolean) => void
   bootstrap: () => Promise<void>
   login: (identifier: string, password: string) => Promise<void>
   register: (identifier: string, password: string, name: string) => Promise<void>
@@ -23,6 +25,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   loading: true,
   initialized: false,
   error: null,
+  authModalOpen: false,
+
+  setAuthModalOpen: (open: boolean) => set({ authModalOpen: open }),
 
   // ─── Bootstrap: dastur ochilganda mavjud sessiyani tekshirish ─────────
   bootstrap: async () => {
@@ -127,4 +132,40 @@ export const usePwaStore = create<PwaState>((set, get) => ({
     }
     set({ deferredPrompt: null })
   },
+}))
+
+export interface AiState {
+  // Chat
+  chatSessionId: string | null
+  chatMessages: { role: string; content: string }[]
+  chatInput: string
+  chatSending: boolean
+  setChatState: (state: Partial<AiState>) => void
+
+  // Doc
+  docPrompt: string
+  docFormat: 'DOCX' | 'PDF' | 'PPTX'
+  docMaxPages: number
+  docRemoveWatermark: boolean
+  docLoading: boolean
+  docStatusMsg: string
+  docResult: any | null
+  setDocState: (state: Partial<AiState>) => void
+}
+
+export const useAiStore = create<AiState>((set) => ({
+  chatSessionId: null,
+  chatMessages: [],
+  chatInput: '',
+  chatSending: false,
+  setChatState: (state) => set(state),
+
+  docPrompt: '',
+  docFormat: 'DOCX',
+  docMaxPages: 2,
+  docRemoveWatermark: false,
+  docLoading: false,
+  docStatusMsg: '',
+  docResult: null,
+  setDocState: (state) => set(state),
 }))

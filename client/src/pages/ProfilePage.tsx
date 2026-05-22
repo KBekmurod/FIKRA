@@ -42,13 +42,14 @@ export default function ProfilePage() {
     : 0
 
   useEffect(() => {
+    if (!user) return
     materialApi.limits().then(({ data }) => setMatLimits(data)).catch(() => {})
     levelApi.current().then(({ data }) => setLevel(data)).catch(() => {})
     subApi.myOrders().then(({ data }) => {
       const p = data.orders?.filter((o: any) => o.status === 'pending') || []
       setPendingOrders(p)
     }).catch(() => {})
-  }, [])
+  }, [user])
 
   const grade = level?.currentGrade || 'delta'
   const gradeMeta = GRADE_META[grade as keyof typeof GRADE_META]
@@ -66,7 +67,48 @@ export default function ProfilePage() {
 
       <div style={{ height: 6 }} />
 
-      {/* Profile card */}
+      {!user ? (
+        <div style={{ padding: '20px 20px', textAlign: 'center' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(123,104,238,0.1), rgba(0,212,170,0.05))',
+            border: '1px solid rgba(123,104,238,0.2)',
+            borderRadius: 24,
+            padding: '40px 20px',
+          }}>
+            <div style={{ fontSize: 50, marginBottom: 16 }}>👤</div>
+            <h3 style={{ fontSize: 20, color: 'var(--txt)', marginBottom: 8, fontWeight: 800 }}>Siz mehmonsiz</h3>
+            <p style={{ fontSize: 13, color: 'var(--txt-2)', marginBottom: 24, lineHeight: 1.5 }}>
+              O'z darajangiz, statistikangiz va AI limitlaringizni ko'rish, shuningdek barcha qulayliklardan cheksiz foydalanish uchun profilingizga kiring.
+            </p>
+            <div style={{ display: 'grid', gap: 12 }}>
+              <button
+                onClick={() => navigate('/auth/register')}
+                style={{
+                  background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
+                  color: '#fff', border: 'none',
+                  padding: '14px', borderRadius: 14,
+                  fontSize: 14, fontWeight: 800, cursor: 'pointer'
+                }}
+              >
+                Hisob yaratish
+              </button>
+              <button
+                onClick={() => navigate('/auth/login')}
+                style={{
+                  background: 'var(--s2)',
+                  color: 'var(--txt)', border: 'none',
+                  padding: '14px', borderRadius: 14,
+                  fontSize: 14, fontWeight: 800, cursor: 'pointer'
+                }}
+              >
+                Tizimga kirish
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Profile card */}
       <div style={{ padding: '0 20px' }}>
         <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{
@@ -460,6 +502,7 @@ export default function ProfilePage() {
 
         <div style={{ height: 30 }} />
       </div>
+      </>)}
 
       <SubscriptionModal open={subOpen} onClose={() => setSubOpen(false)} />
     </>

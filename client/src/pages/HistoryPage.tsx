@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { examApi, personalTestApi } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import { SUBJECTS } from '../constants/subjects'
+import { useAppStore } from '../store'
 
 type TopTab = 'fikra' | 'ai'
 type FikraMode = 'blok' | 'free'
@@ -54,6 +55,7 @@ interface AiTest {
 export default function HistoryPage() {
   const navigate = useNavigate()
   const toast = useToast()
+  const { user } = useAppStore()
 
   const [topTab, setTopTab] = useState<TopTab>('fikra')
   const [fikraMode, setFikraMode] = useState<FikraMode>('blok')
@@ -97,7 +99,13 @@ export default function HistoryPage() {
     }
   }
 
-  useEffect(() => { loadAll() }, [])
+  useEffect(() => {
+    if (!user) {
+      setLoading(false)
+      return
+    }
+    loadAll()
+  }, [user])
 
   // FIKRA testlar bo'yicha filter
   const fikraByMode = fikra.filter(s => s.testMode === fikraMode)
@@ -123,8 +131,28 @@ export default function HistoryPage() {
         <div className="header-logo">📚 Tarix</div>
       </div>
 
-      <div style={{ padding: '8px 20px 0' }}>
-        {/* Yuqori tab: FIKRA / AI */}
+      {!user ? (
+        <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+          <div style={{ fontSize: 50, marginBottom: 16 }}>📚</div>
+          <h3 style={{ fontSize: 18, color: 'var(--txt)', marginBottom: 8 }}>Testlar tarixi yopiq</h3>
+          <p style={{ fontSize: 13, color: 'var(--txt-2)', marginBottom: 24, lineHeight: 1.5 }}>
+            Siz ishlagan testlar va xatolar ustida qilingan ishlar bu yerda saqlanadi. Ko'rish uchun hisobingizga kiring.
+          </p>
+          <button
+            onClick={() => navigate('/auth/login')}
+            style={{
+              background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
+              color: '#fff', border: 'none',
+              padding: '12px 24px', borderRadius: 12,
+              fontSize: 14, fontWeight: 800, cursor: 'pointer'
+            }}
+          >
+            Tizimga kirish
+          </button>
+        </div>
+      ) : (
+        <div style={{ padding: '8px 20px 0' }}>
+          {/* Yuqori tab: FIKRA / AI */}
         <div className="seg-tabs">
           <button
             className={`seg-tab ${topTab === 'fikra' ? 'active' : ''}`}
@@ -171,8 +199,9 @@ export default function HistoryPage() {
           />
         )}
 
-        <div style={{ height: 30 }} />
-      </div>
+          <div style={{ height: 30 }} />
+        </div>
+      )}
     </>
   )
 }

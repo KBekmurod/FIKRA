@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom'
+import { useAppStore } from '../store'
 
 export default function TestsPage() {
   const navigate = useNavigate()
+  const { user, setAuthModalOpen } = useAppStore()
 
   return (
     <>
@@ -22,7 +24,10 @@ export default function TestsPage() {
         }}>
           {/* A2) AI testlarim (chap) */}
           <button
-            onClick={() => navigate('/testlar/ai')}
+            onClick={() => {
+              if (!user) return setAuthModalOpen(true)
+              navigate('/testlar/ai')
+            }}
             style={{
               background: 'linear-gradient(135deg, rgba(123,104,238,0.18), rgba(167,139,250,0.10))',
               border: '1.5px solid rgba(123,104,238,0.35)',
@@ -50,7 +55,10 @@ export default function TestsPage() {
 
           {/* A1) FIKRA tizim testlari (o'ng) */}
           <button
-            onClick={() => navigate('/testlar/fikra')}
+            onClick={() => {
+              if (!user) return setAuthModalOpen(true)
+              navigate('/testlar/fikra')
+            }}
             style={{
               background: 'linear-gradient(135deg, rgba(0,212,170,0.18), rgba(74,222,128,0.10))',
               border: '1.5px solid rgba(0,212,170,0.35)',
