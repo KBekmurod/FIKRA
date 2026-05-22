@@ -46,13 +46,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   // API so'rovlarini cache qilmaymiz — network-first
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/bot-webhook')) {
+  if (url.pathname.startsWith('/api/')) {
     return; // brauzer o'zi hal qiladi
-  }
-
-  // Telegram script — network-only
-  if (url.hostname === 'telegram.org') {
-    return;
   }
 
   // Google Fonts — network-first, fallback cache

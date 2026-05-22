@@ -75,8 +75,7 @@ router.post('/hint',
 );
 
 // ─── POST /api/ai/document — Hujjat yaratish ─────────────────────────────────
-// MUHIM: blob URL Telegram WebApp'da ishlamaydi.
-// Yechim: fayl serverda saqlanadi, frontend direkt /api/ai/file/:id ga so'rov yuboradi
+// Fayl serverda saqlanadi, frontend /api/ai/file/:id ga so'rov yuboradi
 router.post('/document',
   authMiddleware,
   aiLimiter,

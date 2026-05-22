@@ -1,37 +1,33 @@
-# FIKRA v3.0 — Deploy yo'riqnomasi
+# FIKRA v8.0 — Deploy yo'riqnomasi
 
 ## Texnik stek
 - **Backend:** Node.js + Express + MongoDB
 - **Frontend:** React + Vite + TypeScript
+- **Auth:** Email yoki telefon nomer + parol (Telegram, Google yo'q)
 - **Deploy:** Railway (avtomatik build)
 
 ## Environment Variables (Railway)
 
 ### Majburiy
 ```bash
-BOT_TOKEN=<telegram_bot_token>
-BOT_USERNAME=fikraai_bot
 MONGODB_URI=<mongodb_atlas>
 JWT_SECRET=<32+ belgi random>
 JWT_REFRESH_SECRET=<boshqa 32+ belgi>
 NODE_ENV=production
 FRONTEND_URL=https://your-app.railway.app
-TELEGRAM_WEBAPP_URL=https://your-app.railway.app   # Bot "Kirish" tugmasida ochadigan URL
 PORT=3000
 ```
 
 ### AI uchun
 ```bash
-DEEPSEEK_API_KEY=sk-...     # Chat va Hujjat AI
+DEEPSEEK_API_KEY=sk-...     # Chat, test va Hujjat AI
 GEMINI_API_KEY=AI...        # Rasm AI
 ```
 
-### Obuna va Admin
+### Admin
 ```bash
-STARS_WEBHOOK_SECRET=<random_string>    # Stars to'lov uchun
 ADMIN_SECRET=<kuchli_parol>             # Admin panel kalit
-ADMIN_USERNAME=<sizning_telegram_username>  # P2P to'lov uchun
-ADMIN_TELEGRAM_IDS=<sizning_telegram_id>    # Bot komandalar uchun
+ADMIN_USERNAME=<telegram_username>      # P2P to'lov uchun (foydalanuvchi admin'ga yozadi)
 ```
 
 ## Deploy
@@ -59,22 +55,8 @@ Railway Shell:
 npm run seed
 ```
 
-### 6. Telegram Bot sozlash
-@BotFather:
-```
-/setmenubutton — FIKRA → https://your-app.railway.app
-/setdomain — your-app.railway.app
-```
-
-> **Eslatma:** Bot faqat minimal launcher sifatida ishlaydi.
-> `/start` buyrug'i foydalanuvchiga ikkita tugma ko'rsatadi:
-> - **Kirish** — `TELEGRAM_WEBAPP_URL` ga Web App sifatida ochadi
-> - **PWA o'rnatish** — ilovani bosh ekranga qo'shish bo'yicha yo'riqnoma beradi
->
-> Barcha testlar, analitika va AI funksiyalari faqat Web App (PWA) ichida ishlaydi.
-
 ## URL'lar
-- **Foydalanuvchi:** `https://your-app.railway.app` (Telegram WebApp)
+- **Foydalanuvchi:** `https://your-app.railway.app` (web yoki PWA)
 - **Admin Panel:** `https://your-app.railway.app/admin`
 - **Health Check:** `https://your-app.railway.app/health`
 
@@ -102,11 +84,10 @@ fikra/
     services/            # Biznes logika
     middleware/          # Auth, rate limit
     utils/               # Helper funksiyalar
-    bot.js              # Telegram bot
-    app.js              # Express app
+    app.js               # Express app
   client/                # Frontend (React + Vite)
     src/
-      pages/             # Sahifalar (4 ta)
+      pages/             # Sahifalar
       components/        # UI komponentlar
       api/               # API client
       store/             # Zustand state
@@ -118,3 +99,13 @@ fikra/
   package.json
   nixpacks.toml          # Railway config
 ```
+
+## Autentifikatsiya
+
+FIKRA faqat **email yoki telefon nomer + parol** orqali ishlaydi:
+- Roʻyxatdan oʻtish: foydalanuvchi email YOKI telefon nomer tanlaydi
+- Kirish: bitta input maydoniga email yoki telefon kiritadi (tizim oʻzi aniqlaydi)
+- Parol: kamida 8 belgi
+- Telefon format: `+998 90 123 45 67` (avtomatik normalize)
+
+JWT token (1 soat) + Refresh token (7 kun) ishlatiladi.

@@ -13,34 +13,24 @@ interface AuthResponse {
 }
 
 export const authApi = {
-  // Email/parol
-  register: (email: string, password: string, name: string) =>
-    api.post<AuthResponse>('/api/auth/register', { email, password, name }),
-  loginEmail: (email: string, password: string) =>
-    api.post<AuthResponse>('/api/auth/login', { email, password }),
+  // Ro'yxatdan o'tish — identifier email yoki telefon bo'lishi mumkin
+  register: (identifier: string, password: string, name: string) =>
+    api.post<AuthResponse>('/api/auth/register', { identifier, password, name }),
 
-  // Google OAuth
-  google: (idToken: string) =>
-    api.post<AuthResponse>('/api/auth/google', { idToken }),
-
-  // Telegram (faqat ixtiyoriy)
-  telegramLogin: (initData: string) =>
-    api.post<AuthResponse>('/api/auth/telegram-only', { initData }),
-  telegramLink: (initData: string) =>
-    api.post<{ success: boolean; user: User }>('/api/auth/telegram-link', { initData }),
-  telegramUnlink: () =>
-    api.post<{ success: boolean; user: User }>('/api/auth/telegram-unlink'),
+  // Kirish — identifier email yoki telefon bo'lishi mumkin
+  login: (identifier: string, password: string) =>
+    api.post<AuthResponse>('/api/auth/login', { identifier, password }),
 
   // Parol o'zgartirish
   changePassword: (oldPassword: string, newPassword: string) =>
     api.post<{ success: boolean }>('/api/auth/change-password', { oldPassword, newPassword }),
 
+  // Mavjud akkountga email yoki telefon qo'shish
+  addIdentifier: (data: { email?: string; phone?: string }) =>
+    api.post<{ success: boolean; user: User }>('/api/auth/add-identifier', data),
+
   // Joriy user
   me: () => api.get<User>('/api/auth/me'),
-
-  // Eski metod — ba'zi joylarda hali ishlatilishi mumkin (deprecated)
-  login: (initData: string, _referralCode?: string) =>
-    api.post<AuthResponse>('/api/auth/telegram-only', { initData }),
 }
 
 // ─── Games / Test (eski API, hali ham ishlatiladi) ────────────────────────

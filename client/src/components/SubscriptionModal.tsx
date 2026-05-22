@@ -22,30 +22,26 @@ export default function SubscriptionModal({ open, onClose }: Props) {
     }
   }, [open])
 
-  // P2P faqat — Stars olib tashlangan, Payme/Click kelajakda
+  // P2P faqat — Payme/Click kelajakda
   const handleBuy = async (planId: string) => {
-    if ((user as any)?._demo) {
+    if (!user) {
       toast('Avval tizimga kiring', 'err')
       return
     }
     setLoading(true)
     try {
       const { data } = await subApi.createP2POrder(planId)
-      const adminUsername = (window as any).ADMIN_USERNAME || 'admin'
-      const text = encodeURIComponent(
-        `Salom! Men FIKRA ilovasidan ${data.order.planName} obunasini olmoqchiman.\n` +
-        `Buyurtma ID: ${data.order.orderId}\n` +
-        `Narx: ${data.order.priceUZS.toLocaleString()} UZS\n\n` +
-        `Rekvizitlarni yuboring!`
-      )
-      const url = `https://t.me/${adminUsername}?text=${text}`
-      const tg = (window as any).Telegram?.WebApp
-      if (tg && tg.openTelegramLink) {
-        tg.openTelegramLink(url)
-      } else {
-        window.open(url, '_blank')
+      const adminUsername = (window as any).ADMIN_USERNAME || ''
+      if (adminUsername) {
+        const text = encodeURIComponent(
+          `Salom! Men FIKRA ilovasidan ${data.order.planName} obunasini olmoqchiman.\n` +
+          `Buyurtma ID: ${data.order.orderId}\n` +
+          `Narx: ${data.order.priceUZS.toLocaleString()} UZS\n\n` +
+          `Rekvizitlarni yuboring!`
+        )
+        window.open(`https://t.me/${adminUsername}?text=${text}`, '_blank')
       }
-      toast('Buyurtma yaratildi! Admin javob beradi.', 'ok')
+      toast(`Buyurtma yaratildi (${data.order.orderId})! Admin javob beradi.`, 'ok')
       onClose()
     } catch (e: any) {
       toast(e.response?.data?.error || 'Xatolik', 'err')
@@ -198,7 +194,7 @@ export default function SubscriptionModal({ open, onClose }: Props) {
         lineHeight: 1.5,
       }}>
         🤝 <strong>P2P (Peer-to-Peer)</strong> — admin bilan to'g'ridan-to'g'ri to'lov.
-        Telegram orqali yozib, kartani to'ldirib chek yuborasiz. Admin obunani faollashtiradi.
+        Admin'ga yozib, kartani to'ldirib chek yuborasiz. Admin obunani faollashtiradi.
         <br /><br />
         💳 <strong>Payme va Click</strong> tez orada qo'shiladi.
       </div>

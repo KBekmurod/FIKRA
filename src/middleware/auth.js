@@ -1,70 +1,16 @@
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 const User = require('../models/User');
 const { logger } = require('../utils/logger');
 
-// ─── Telegram initData tekshirish ─────────────────────────────────────────────
-// HMAC-SHA256 + 5 soatlik vaqt oynasi (Telegram tavsiyasi: ~24h, biz xavfsizlik
-// uchun ancha qisqa olamiz, login sessiyasi JWT'da davom etadi)
-const INIT_DATA_MAX_AGE_SEC = 5 * 3600;
-
-function verifyTelegramInitData(initDataString) {
-  try {
-    if (!process.env.BOT_TOKEN) {
-      logger.error('BOT_TOKEN sozlanmagan');
-      return null;
-    }
-    const params = new URLSearchParams(initDataString);
-    const hash = params.get('hash');
-    if (!hash) return null;
-
-    params.delete('hash');
-
-    const checkString = Array.from(params.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => `${k}=${v}`)
-      .join('\n');
-
-    const secretKey = crypto
-      .createHmac('sha256', 'WebAppData')
-      .update(process.env.BOT_TOKEN)
-      .digest();
-
-    const computedHash = crypto
-      .createHmac('sha256', secretKey)
-      .update(checkString)
-      .digest('hex');
-
-    // Timing-safe taqqoslash
-    const a = Buffer.from(computedHash, 'hex');
-    const b = Buffer.from(hash, 'hex');
-    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
-
-    const authDate = parseInt(params.get('auth_date'), 10);
-    const now = Math.floor(Date.now() / 1000);
-    if (!authDate || now - authDate > INIT_DATA_MAX_AGE_SEC) {
-      logger.warn(`initData eskirgan: ${now - authDate}s`);
-      return null;
-    }
-
-    const userStr = params.get('user');
-    if (!userStr) return null;
-    return JSON.parse(decodeURIComponent(userStr));
-  } catch (err) {
-    logger.error('initData verification error:', err.message);
-    return null;
-  }
-}
-
 // ─── JWT yaratish ─────────────────────────────────────────────────────────────
-function generateTokens(userId, telegramId) {
+function generateTokens(userId) {
   const accessToken = jwt.sign(
-    { userId, telegramId },
+    { userId },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
   );
   const refreshToken = jwt.sign(
-    { userId, telegramId },
+    { userId },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
   );
@@ -88,7 +34,6 @@ async function authMiddleware(req, res, next) {
     }
 
     req.user = user;
-    req.telegramId = decoded.telegramId;
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
@@ -98,8 +43,7 @@ async function authMiddleware(req, res, next) {
   }
 }
 
-// ─── Obuna darajasi tekshirish (tokensiz tizim) ──────────────────────────────
-// minPlan: 'free' | 'basic' | 'pro' | 'vip'
+// ─── Obuna darajasi tekshirish ──────────────────────────────────────────────
 function requirePlan(minPlan) {
   const planLevel = { free: 0, basic: 1, pro: 2, vip: 3 };
   return (req, res, next) => {
@@ -119,9 +63,7 @@ function requirePlan(minPlan) {
   };
 }
 
-// ─── AI kunlik limit tekshirish (atomic increment) ───────────────────────────
-// kind: 'hints' | 'chats' | 'docs' | 'images' | 'calories' | 'games'
-// Muvaffaqiyatli o'tsa, req.aiKind ga yoziladi (keyinroq incrementAiUsage chaqirish uchun)
+// ─── AI kunlik limit tekshirish ──────────────────────────────────────────────
 function requireAiAccess(kind) {
   return async (req, res, next) => {
     try {
@@ -159,10 +101,8 @@ function requireAiAccess(kind) {
 }
 
 // ─── AI usage atomic increment ──────────────────────────────────────────────
-// Endpointning oxirida (muvaffaqiyatli javobdan oldin) chaqiriladi
 async function incrementAiUsage(userId, kind) {
   const todayKey = User.todayKey();
-  // Sana o'zgargan bo'lsa — barcha hisoblagichlar reset
   const result = await User.findOneAndUpdate(
     { _id: userId },
     [{
@@ -176,7 +116,6 @@ async function incrementAiUsage(userId, kind) {
                 { [kind]: { $add: [{ $ifNull: [`$aiUsage.${kind}`, 0] }, 1] } },
               ],
             },
-            // Yangi kun — reset
             {
               date: todayKey,
               hints: 0, chats: 0, docs: 0, images: 0, calories: 0,
@@ -193,7 +132,6 @@ async function incrementAiUsage(userId, kind) {
 }
 
 // ─── Plan helper ─────────────────────────────────────────────────────────────
-// Qaysi plan bu kindni ochadi?
 function planThatUnlocks(kind) {
   const map = {
     hints:  'free',
@@ -205,7 +143,6 @@ function planThatUnlocks(kind) {
 }
 
 module.exports = {
-  verifyTelegramInitData,
   generateTokens,
   authMiddleware,
   requirePlan,

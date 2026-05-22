@@ -192,7 +192,7 @@ select option{background:var(--s2)}
     <div class="page" id="page-users">
       <div class="table-wrap">
         <div class="filters">
-          <input placeholder="🔍 Ism, username yoki Telegram ID..." id="users-q" oninput="debounce(loadUsers,500)()">
+          <input placeholder="🔍 Ism, email yoki telefon..." id="users-q" oninput="debounce(loadUsers,500)()">
           <select id="users-plan" onchange="loadUsers()">
             <option value="">Barcha planlar</option>
             <option value="free">Free</option>
@@ -253,7 +253,6 @@ select option{background:var(--s2)}
           <select id="orders-type" onchange="loadOrders()">
             <option value="">Barcha tur</option>
             <option value="p2p">P2P</option>
-            <option value="stars">Stars</option>
           </select>
         </div>
         <table>
@@ -429,7 +428,7 @@ async function loadStats() {
     tbody.innerHTML = '<table><thead><tr><th>ID</th><th>Foydalanuvchi</th><th>Plan</th><th>Narx</th><th>Sana</th><th>Amal</th></tr></thead><tbody>' +
       data.orders.map(o => `<tr>
         <td><code style="font-family:'JetBrains Mono';font-size:11px;color:var(--y)">${o.orderId}</code></td>
-        <td>${esc(o.firstName)} <span style="color:var(--m);font-size:10px">@${esc(o.username||'—')}</span></td>
+        <td>${esc(o.firstName||'—')} <span style="color:var(--m);font-size:10px">${esc(o.userEmail||o.userPhone||'—')}</span></td>
         <td>${esc(o.planName)}</td>
         <td style="color:var(--g);font-weight:700">${(o.priceUZS||0).toLocaleString()} UZS</td>
         <td style="color:var(--m);font-size:11px">${fdate(o.createdAt)}</td>
@@ -454,7 +453,6 @@ async function loadRevenue() {
         <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:14px">Tafsilot</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
           <div style="color:var(--m)">P2P daromad:</div><div style="font-weight:700">${d.revenue.p2p.toLocaleString()} UZS</div>
-          <div style="color:var(--m)">Stars daromad (~165 UZS/⭐):</div><div style="font-weight:700">${d.revenue.stars.toLocaleString()} UZS</div>
           <div style="color:var(--m)">API xarajat (USD):</div><div style="color:var(--r);font-weight:700">$${d.costs.apiUSD}</div>
           <div style="color:var(--m)">Jami AI so'rovlar:</div><div style="font-weight:700">${d.aiRequests.toLocaleString()}</div>
           <div style="color:var(--m)">Tasdiqlangan buyurtmalar:</div><div style="font-weight:700">${d.orders.total}</div>
@@ -479,8 +477,8 @@ async function loadUsers(page) {
     };
     document.getElementById('users-tbody').innerHTML = d.users.map(u => `<tr>
       <td>
-        <div style="font-weight:600">${esc(u.firstName||'—')}</div>
-        <div style="font-size:10px;color:var(--m)">@${esc(u.username||'—')} · ${u.telegramId}</div>
+        <div style="font-weight:600">${esc(u.firstName||u.displayName||'—')}</div>
+        <div style="font-size:10px;color:var(--m)">${esc(u.email||u.phone||'—')}</div>
       </td>
       <td>${planBadge(u.plan)}</td>
       <td style="font-size:11px;color:var(--m)">${u.planExpiresAt ? fdate(u.planExpiresAt) : '—'}</td>
@@ -543,8 +541,8 @@ async function loadSubs(page) {
     const d = await req(`/subscriptions?plan=${plan}&status=${status}&page=${_subsPage}&limit=20`);
     document.getElementById('subs-tbody').innerHTML = d.users.map(u => `<tr>
       <td>
-        <div style="font-weight:600">${esc(u.firstName||'—')}</div>
-        <div style="font-size:10px;color:var(--m)">${u.telegramId}</div>
+        <div style="font-weight:600">${esc(u.firstName||u.displayName||'—')}</div>
+        <div style="font-size:10px;color:var(--m)">${esc(u.email||u.phone||'—')}</div>
       </td>
       <td><span class="badge badge-purple">${u.plan}</span></td>
       <td style="font-size:11px;color:var(--m);font-family:'JetBrains Mono'">${u.planId||'—'}</td>
@@ -579,11 +577,11 @@ async function loadOrders(statusOverride) {
       <td><code style="font-family:'JetBrains Mono';font-size:11px;color:var(--y)">${o.orderId}</code></td>
       <td>
         <div style="font-weight:600">${esc(o.firstName||'—')}</div>
-        <div style="font-size:10px;color:var(--m)">${o.telegramId}</div>
+        <div style="font-size:10px;color:var(--m)">${esc(o.userEmail||o.userPhone||'—')}</div>
       </td>
       <td style="font-size:11px">${esc(o.planName)}</td>
-      <td style="font-weight:700;color:var(--g)">${o.paymentType==='p2p' ? (o.priceUZS||0).toLocaleString()+' UZS' : (o.priceStars||0)+'⭐'}</td>
-      <td><span class="badge badge-${o.paymentType==='p2p'?'orange':'purple'}">${o.paymentType.toUpperCase()}</span></td>
+      <td style="font-weight:700;color:var(--g)">${(o.priceUZS||0).toLocaleString()} UZS</td>
+      <td><span class="badge badge-orange">${(o.paymentType||'p2p').toUpperCase()}</span></td>
       <td style="font-size:11px;color:var(--m)">${fdate(o.createdAt)}</td>
       <td>${statusBadge(o.status)}</td>
       <td>

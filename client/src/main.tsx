@@ -5,19 +5,7 @@ import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
 import './index.css'
 
-// ─── Telegram WebApp init ─────────────────────────────────────────────────
-const tg = (window as any).Telegram?.WebApp
-if (tg) {
-  try {
-    tg.ready()
-    tg.expand()
-    try { tg.setHeaderColor('#0a0a14') } catch {}
-    try { tg.setBackgroundColor('#0a0a14') } catch {}
-    try { tg.disableVerticalSwipes?.() } catch {}
-  } catch {}
-}
-
-// ─── CSS viewport fix: real vh (iOS Safari, Telegram keyboard) ──────────────
+// ─── CSS viewport fix: real vh (iOS Safari va boshqa mobil brauzerlar) ─────
 function setVh() {
   try {
     const vh = window.innerHeight * 0.01
@@ -26,15 +14,11 @@ function setVh() {
 }
 setVh()
 window.addEventListener('resize', setVh, { passive: true })
-if (tg) {
-  try { tg.onEvent?.('viewportChanged', setVh) } catch {}
-}
 
 // ─── Service Worker yangilash strategiyasi ────────────────────────────────
 // Yangi versiya kelganda eski cache'ni darrov tozalash
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener?.('controllerchange', () => {
-    // Yangi SW faollashgach sahifani yangilamiz
     if ((window as any).__fikra_reloading__) return
     ;(window as any).__fikra_reloading__ = true
     setTimeout(() => window.location.reload(), 200)
@@ -42,14 +26,11 @@ if ('serviceWorker' in navigator) {
 }
 
 // ─── Unhandled rejection log ──────────────────────────────────────────────
-// Promise rejection'larini ushlab, console'ga chiqaramiz
 window.addEventListener('unhandledrejection', (e) => {
   console.error('Unhandled promise rejection:', e.reason)
-  // Crash'ga aylantirmaymiz, faqat log
 })
 
-// Production'da StrictMode'ni olib tashlash — double-render WebView'da
-// memory bosimini oshiradi
+// Production'da StrictMode'ni olib tashlash
 const Root = (
   <BrowserRouter>
     <ErrorBoundary>

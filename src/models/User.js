@@ -1,82 +1,62 @@
 const mongoose = require('mongoose');
 
 // ─── AI ishlatish kunlik tracker ─────────────────────────────────────────────
-// Har xil AI turi bo'yicha kunlik sanash
 const aiUsageSchema = new mongoose.Schema({
   date:      { type: String,  default: '' },     // 'YYYY-MM-DD' (Tashkent vaqti)
-  // AI funksiyalari
-  hints:     { type: Number,  default: 0 },      // DTM test AI tushuntirish
-  chats:     { type: Number,  default: 0 },      // AI Chat xabar
-  docs:      { type: Number,  default: 0 },      // AI Hujjat
-  images:    { type: Number,  default: 0 },      // AI Rasm
-  calories:  { type: Number,  default: 0 },      // Kaloriya tahlili
-  // v2: Material yuklash kunlik trackerlari
-  ocrUploads:  { type: Number, default: 0 },     // Rasmdan matn (OCR) kunlik
-  fileUploads: { type: Number, default: 0 },     // PDF/DOCX/PPTX kunlik
-  // v2: AI test generatsiyasi
-  testsGen:    { type: Number, default: 0 },     // AI orqali test yaratish kunlik
+  hints:     { type: Number,  default: 0 },
+  chats:     { type: Number,  default: 0 },
+  docs:      { type: Number,  default: 0 },
+  images:    { type: Number,  default: 0 },
+  calories:  { type: Number,  default: 0 },
+  ocrUploads:  { type: Number, default: 0 },
+  fileUploads: { type: Number, default: 0 },
+  testsGen:    { type: Number, default: 0 },
 }, { _id: false });
 
 const userSchema = new mongoose.Schema({
-  // ─── Identifikatsiya ──────────────────────────────────────────────────────
-  // Endi telegramId majburiy emas — foydalanuvchi email yoki Google orqali
-  // ham ro'yxatdan o'tishi mumkin.
-  telegramId: {
-    type: Number,
-    default: null,
-    unique: true,
-    sparse: true,    // null bo'lsa unique tekshirilmaydi
-    index: true,
-  },
-
-  // Email/parol auth uchun
+  // ─── Identifikatsiya (email yoki telefon — kamida bittasi majburiy) ──────
+  // Foydalanuvchi email yoki telefon (yoki ikkalasini ham) bilan ro'yxatdan
+  // o'tishi mumkin. Login paytida bittasini ishlatadi.
   email: {
     type: String,
     default: null,
     lowercase: true,
     trim: true,
     unique: true,
-    sparse: true,
+    sparse: true,    // null bo'lsa unique tekshirilmaydi
     index: true,
   },
-  passwordHash: { type: String, default: null },
 
-  // Google OAuth uchun
-  googleId: {
+  // Telefon nomer — E.164 formatda saqlanadi (masalan: +998901234567)
+  phone: {
     type: String,
     default: null,
+    trim: true,
     unique: true,
     sparse: true,
     index: true,
   },
 
+  // Parol (majburiy — barcha foydalanuvchilar uchun)
+  passwordHash: { type: String, required: true },
+
   // ─── Profil ma'lumotlari ──────────────────────────────────────────────────
-  username:  { type: String, default: '' },
   firstName: { type: String, default: '' },
   lastName:  { type: String, default: '' },
   photoUrl:  { type: String, default: '' },
-
-  // Email-spesifik (foydalanuvchi ko'rinishi uchun)
   displayName: { type: String, default: '' },
 
-  // Auth method (ro'yxatdan qaysi yo'l bilan o'tgan — analytics uchun)
-  authProvider: {
-    type: String,
-    enum: ['email', 'google', 'telegram', null],
-    default: null,
-  },
-
-  // ─── Obuna (Telegram Stars / P2P) ────────────────────────────────────────
+  // ─── Obuna ───────────────────────────────────────────────────────────────
   plan: {
     type: String,
     enum: ['free', 'basic', 'pro', 'vip'],
     default: 'free',
     index: true,
   },
-  planId:             { type: String, default: null },        // 'basic_1m', 'pro_3m'...
+  planId:             { type: String, default: null },
   planExpiresAt:      { type: Date,   default: null, index: true },
   planLastPurchaseAt: { type: Date,   default: null },
-  planChargeIds:      { type: [String], default: [] },        // idempotency uchun
+  planChargeIds:      { type: [String], default: [] },
 
   // ─── AI kunlik ishlatish ─────────────────────────────────────────────────
   aiUsage: { type: aiUsageSchema, default: () => ({}) },
@@ -86,33 +66,28 @@ const userSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+// ─── Validatsiya: email yoki phone — kamida bittasi bo'lishi shart ──────────
+userSchema.pre('validate', function(next) {
+  if (!this.email && !this.phone) {
+    return next(new Error('Email yoki telefon nomer kerak'));
+  }
+  next();
+});
+
 // ─── Plan limitlari (kunlik) ─────────────────────────────────────────────────
-//
-// AI funksiyalari:
-//   free:  hints 5/kun, chats 10/kun, docs 2/kun, images 0
-//   basic: hints ∞,     chats 50/kun, docs 10/kun, images 5
-//   pro:   hints ∞,     chats ∞,      docs 30/kun, images 20
-//   vip:   hammasi ∞
-//
-// v2 — Material yuklash limitlari:
-//   • textMaterials: bitta fan uchun matn materiallari soni (jami)
-//   • ocrUploads:    bir kunda rasmdan matn (OCR) yuklashlar
-//   • fileUploads:   bir kunda PDF/DOCX/PPTX fayl yuklashlar
-//   • testsGen:      bir kunda AI orqali test yaratish soni
-//
 const PLAN_LIMITS = {
   free:  {
     hints: 5,        chats: 10,        docs: 2,        images: 0,
-    textMaterials: 1,        // bitta fan uchun jami 1 ta matn material
-    ocrUploads:    1,        // jami 1 ta rasm OCR (kunlik emas, jami)
-    fileUploads:   0,        // fayl yuklash yo'q
-    testsGen:      2,        // kuniga 2 ta AI test yaratish
+    textMaterials: 1,
+    ocrUploads:    1,
+    fileUploads:   0,
+    testsGen:      2,
   },
   basic: {
     hints: Infinity, chats: 50,        docs: 10,       images: 5,
-    textMaterials: 20,       // bitta fan uchun 20 tagacha matn
-    ocrUploads:    15,       // kuniga 15 ta OCR
-    fileUploads:   12,       // kuniga 12 ta fayl
+    textMaterials: 20,
+    ocrUploads:    15,
+    fileUploads:   12,
     testsGen:      10,
   },
   pro:   {
@@ -133,19 +108,18 @@ const PLAN_LIMITS = {
 
 userSchema.statics.PLAN_LIMITS = PLAN_LIMITS;
 
-// ─── Material kontekst-cheklovlari (qattiq) ──────────────────────────────────
-// Bu plan'ga bog'liq emas — tizim darajasidagi cheklovlar
+// ─── Material kontekst-cheklovlari ──────────────────────────────────────────
 const MATERIAL_RULES = {
-  maxTextChars:    30000,        // bitta matn material uchun maksimum belgi
-  minTextChars:    50,           // shunchaki bo'sh saqlamasin uchun
-  maxImageBytes:   3 * 1024 * 1024,    // 3 MB
-  maxFileBytes:    7 * 1024 * 1024,    // 7 MB
+  maxTextChars:    30000,
+  minTextChars:    50,
+  maxImageBytes:   3 * 1024 * 1024,
+  maxFileBytes:    7 * 1024 * 1024,
   maxFilePages:    20,
   allowedImageMimes: ['image/jpeg', 'image/jpg', 'image/png'],
   allowedFileMimes:  [
     'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   ],
 };
 
@@ -155,7 +129,7 @@ userSchema.statics.MATERIAL_RULES = MATERIAL_RULES;
 function _todayKeyTashkent(date) {
   const d = date || new Date();
   const tashkent = new Date(d.getTime() + 5 * 3600 * 1000);
-  return tashkent.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+  return tashkent.toISOString().slice(0, 10);
 }
 userSchema.statics.todayKey = _todayKeyTashkent;
 

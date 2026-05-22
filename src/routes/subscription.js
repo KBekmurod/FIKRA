@@ -1,30 +1,29 @@
 const express = require('express');
-const axios   = require('axios');
 const router  = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const User         = require('../models/User');
 const PendingOrder = require('../models/PendingOrder');
 const { logger }   = require('../utils/logger');
 
-// ─── NARXLAR (UZS va Stars) ──────────────────────────────────────────────────
+// ─── NARXLAR (UZS) ──────────────────────────────────────────────────────────
 const PLANS = {
   basic_1m: { id:'basic_1m', name:'Basic', tier:'basic', period:'1 oy', durationDays:30,
-    priceStars:149, priceUZS:19900, badge:null,
+    priceUZS:19900, badge:null,
     features:['AI Chat — 50/kun','AI Hujjat — 10/kun','AI test hint — cheksiz','O\'yinlar cheksiz'] },
   basic_3m: { id:'basic_3m', name:'Basic', tier:'basic', period:'3 oy', durationDays:90,
-    priceStars:399, priceUZS:49900, badge:'11% chegirma',
+    priceUZS:49900, badge:'11% chegirma',
     features:['AI Chat — 50/kun','AI Hujjat — 10/kun','AI test hint — cheksiz','3 oy · arzonroq'] },
   pro_1m: { id:'pro_1m', name:'Pro', tier:'pro', period:'1 oy', durationDays:30,
-    priceStars:299, priceUZS:39900, badge:'Mashhur',
+    priceUZS:39900, badge:'Mashhur',
     features:['AI Chat — cheksiz','AI Hujjat — 30/kun','AI Rasm — 20/kun','Barcha o\'yinlar'] },
   pro_3m: { id:'pro_3m', name:'Pro', tier:'pro', period:'3 oy', durationDays:90,
-    priceStars:799, priceUZS:99900, badge:'11% chegirma',
+    priceUZS:99900, badge:'11% chegirma',
     features:['AI Chat — cheksiz','AI Hujjat — 30/kun','AI Rasm — 20/kun','3 oy muddatli'] },
   vip_1m: { id:'vip_1m', name:'VIP', tier:'vip', period:'1 oy', durationDays:30,
-    priceStars:499, priceUZS:69900, badge:'Eng to\'liq',
+    priceUZS:69900, badge:'Eng to\'liq',
     features:['Hammasi cheksiz','Kaloriya AI','XP x1.5','Boshqalarga sovg\'a qilish'] },
   vip_3m: { id:'vip_3m', name:'VIP', tier:'vip', period:'3 oy', durationDays:90,
-    priceStars:1299, priceUZS:179900, badge:'13% chegirma',
+    priceUZS:179900, badge:'13% chegirma',
     features:['Hammasi cheksiz','Kaloriya AI','XP x1.5','3 oy · 13% tejaysiz'] },
 };
 
@@ -34,12 +33,6 @@ function genOrderId() {
   let id = 'FK-';
   for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
   return id;
-}
-
-// Admin Telegram ID (muhim)
-function getAdminIds() {
-  const raw = process.env.ADMIN_TELEGRAM_IDS || '';
-  return raw.split(',').map(s => parseInt(s.trim(), 10)).filter(Boolean);
 }
 
 router.get('/plans', (req, res) => res.json(Object.values(PLANS)));
@@ -58,13 +51,10 @@ router.get('/status', authMiddleware, (req, res) => {
   });
 });
 
-// ─── STARS invoice yaratish ──────────────────────────────────────────────────
-// ─── ESKI: Stars to'lov ENDPOINTI OLIB TASHLANGAN ───────────────────────
-// Telegram Stars to'lovi yuqori komissiya tufayli olib tashlandi.
-// Hozir faqat P2P to'lov mavjud. Kelajakda: Payme, Click qo'shiladi.
+// ─── ESKI: Stars to'lov ENDPOINTI OLIB TASHLANGAN ───────────────────────────
 router.post('/create-invoice', authMiddleware, (req, res) => {
   res.status(410).json({
-    error: 'Telegram Stars to\'lovi olib tashlandi. P2P orqali to\'lashingiz mumkin.',
+    error: 'Stars to\'lovi olib tashlandi. P2P orqali to\'lashingiz mumkin.',
     code: 'STARS_DISABLED',
     alternatives: {
       p2p: 'available',
@@ -85,7 +75,7 @@ router.post('/create-p2p-order', authMiddleware, async (req, res, next) => {
 
     // Eski pending buyurtma bormi?
     const existing = await PendingOrder.findOne({
-      telegramId: user.telegramId,
+      userId: user._id,
       status: 'pending',
       paymentType: 'p2p',
     });
@@ -112,34 +102,18 @@ router.post('/create-p2p-order', authMiddleware, async (req, res, next) => {
     } while (attempts < 10 && await PendingOrder.exists({ orderId }));
 
     const order = await PendingOrder.create({
-      telegramId: user.telegramId,
       userId: user._id,
-      username: user.username || '',
+      userEmail: user.email || '',
+      userPhone: user.phone || '',
       firstName: user.firstName || '',
       orderId,
       planId: plan.id,
       planName: `${plan.name} ${plan.period}`,
       priceUZS: plan.priceUZS,
-      priceStars: plan.priceStars,
       paymentType: 'p2p',
     });
 
-    // Admin'ga xabar yuborish
-    const adminIds = getAdminIds();
-    const botToken = process.env.BOT_TOKEN;
-    if (botToken && adminIds.length) {
-      const msg = `🆕 Yangi P2P buyurtma!\n\n` +
-        `👤 ${user.firstName} (@${user.username || 'n/a'}) [${user.telegramId}]\n` +
-        `📦 ${plan.name} ${plan.period}\n` +
-        `💰 ${plan.priceUZS.toLocaleString()} UZS\n` +
-        `🔑 Buyurtma ID: <code>${orderId}</code>\n\n` +
-        `Admin panelda tasdiqlang: /admin`;
-      for (const adminId of adminIds) {
-        axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`,
-          { chat_id: adminId, text: msg, parse_mode: 'HTML' }
-        ).catch(() => {});
-      }
-    }
+    logger.info(`P2P order created: ${orderId} for user=${user._id} plan=${plan.id}`);
 
     res.json({
       success: true,
@@ -157,29 +131,16 @@ router.post('/create-p2p-order', authMiddleware, async (req, res, next) => {
   }
 });
 
-// ─── Stars webhook ───────────────────────────────────────────────────────────
-router.post('/activate', async (req, res) => {
+// ─── Foydalanuvchining buyurtmalari ──────────────────────────────────────────
+router.get('/my-orders', authMiddleware, async (req, res, next) => {
   try {
-    const { telegramId, type, id, starsAmount, chargeId, secret } = req.body;
-    if (!secret || secret !== process.env.STARS_WEBHOOK_SECRET) return res.sendStatus(403);
-    if (type !== 'plan') return res.sendStatus(400);
-
-    const plan = PLANS[id];
-    if (!plan || !starsAmount || starsAmount < plan.priceStars * 0.95) return res.sendStatus(400);
-
-    const user = await User.findOne({ telegramId: parseInt(telegramId, 10) });
-    if (!user) return res.sendStatus(404);
-
-    if (chargeId && user.planChargeIds?.includes(chargeId)) {
-      return res.json({ success: true, duplicate: true });
-    }
-
-    await _activatePlan(user, plan, chargeId);
-    logger.info(`Stars plan activated: ${telegramId} → ${id}`);
-    res.json({ success: true });
+    const orders = await PendingOrder.find({ userId: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
+    res.json({ orders });
   } catch (err) {
-    logger.error('activate error:', err.message);
-    res.sendStatus(500);
+    next(err);
   }
 });
 
@@ -196,7 +157,7 @@ router.post('/admin/confirm-p2p', async (req, res) => {
     const plan = PLANS[order.planId];
     if (!plan) return res.status(400).json({ error: 'Plan topilmadi' });
 
-    const user = await User.findOne({ telegramId: order.telegramId });
+    const user = await User.findById(order.userId);
     if (!user) return res.status(404).json({ error: 'User topilmadi' });
 
     await _activatePlan(user, plan, null);
@@ -206,18 +167,8 @@ router.post('/admin/confirm-p2p', async (req, res) => {
     order.note = note || '';
     await order.save();
 
-    // Foydalanuvchiga xabar
-    const botToken = process.env.BOT_TOKEN;
-    if (botToken) {
-      axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        chat_id: order.telegramId,
-        text: `✅ *${plan.name} ${plan.period}* obunangiz faollashtirildi!\n\nID: <code>${orderId}</code>\n\nRahmat! FIKRA'da muvaffaqiyatlar! 🎓`,
-        parse_mode: 'HTML',
-      }).catch(() => {});
-    }
-
-    logger.info(`P2P confirmed: orderId=${orderId} telegramId=${order.telegramId} plan=${order.planId}`);
-    res.json({ success: true, plan: plan.id, telegramId: order.telegramId });
+    logger.info(`P2P confirmed: orderId=${orderId} userId=${order.userId} plan=${order.planId}`);
+    res.json({ success: true, plan: plan.id, userId: order.userId });
   } catch (err) {
     logger.error('confirm-p2p:', err.message);
     res.status(500).json({ error: err.message });
@@ -231,19 +182,13 @@ router.post('/admin/reject-p2p', async (req, res) => {
     if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) return res.sendStatus(403);
 
     const order = await PendingOrder.findOne({ orderId });
-    if (!order || order.status !== 'pending') return res.status(400).json({ error: 'Buyurtma topilmadi yoki allaqachon qayta ishlangan' });
+    if (!order || order.status !== 'pending') {
+      return res.status(400).json({ error: 'Buyurtma topilmadi yoki allaqachon qayta ishlangan' });
+    }
 
     order.status = 'rejected';
     order.rejectedReason = reason || '';
     await order.save();
-
-    const botToken = process.env.BOT_TOKEN;
-    if (botToken) {
-      axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        chat_id: order.telegramId,
-        text: `❌ Buyurtma (${orderId}) rad etildi.\n${reason ? 'Sabab: ' + reason : ''}\n\nSavollar uchun admin bilan bog'laning.`,
-      }).catch(() => {});
-    }
 
     res.json({ success: true });
   } catch (err) {

@@ -13,12 +13,12 @@ export function getStoredAuth() {
   try {
     const raw = localStorage.getItem(TOKEN_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as { access: string; refresh: string; tgId: number | null; ts: number }
+    return JSON.parse(raw) as { access: string; refresh: string; ts: number }
   } catch { return null }
 }
 
-export function setAuth(access: string, refresh: string, tgId: number | null = null) {
-  localStorage.setItem(TOKEN_KEY, JSON.stringify({ access, refresh, tgId, ts: Date.now() }))
+export function setAuth(access: string, refresh: string) {
+  localStorage.setItem(TOKEN_KEY, JSON.stringify({ access, refresh, ts: Date.now() }))
 }
 
 export function clearAuth() {
@@ -75,7 +75,7 @@ api.interceptors.response.use(
       try {
         const r = await axios.post(`${API_BASE}/api/auth/refresh`, { refreshToken: auth.refresh })
         if (r.data.accessToken) {
-          setAuth(r.data.accessToken, r.data.refreshToken || auth.refresh, auth.tgId)
+          setAuth(r.data.accessToken, r.data.refreshToken || auth.refresh)
           cfg.headers.Authorization = `Bearer ${r.data.accessToken}`
           // Kutgan so'rovlarni ham bajarish
           _refreshCallbacks.forEach(cb => cb(r.data.accessToken))

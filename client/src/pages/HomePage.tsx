@@ -25,7 +25,7 @@ export default function HomePage() {
   const [lastActivity, setLastActivity] = useState<LastActivity | null>(null)
   const [subOpen, setSubOpen] = useState(false)
 
-  const isGuest = !user || (user as any)._demo || !user.telegramId
+  const isGuest = !user
   const isSub = user?.effectivePlan && user.effectivePlan !== 'free'
 
   useEffect(() => {
@@ -158,27 +158,26 @@ export default function HomePage() {
               📲 Ilovani qurilmaga yuklab olish
             </button>
           ) : (
-            <a
-              href={`https://t.me/${(window as any).BOT_USERNAME || 'fikraai_bot'}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => navigate('/auth/register')}
               style={{
                 display: 'flex',
                 width: '100%',
                 background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
                 color: 'white',
+                border: 'none',
                 borderRadius: 14,
                 padding: '16px 18px',
                 fontSize: 14,
                 fontWeight: 800,
-                textDecoration: 'none',
+                cursor: 'pointer',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
               }}
             >
-              🚀 Telegram orqali boshlash
-            </a>
+              🚀 Boshlash
+            </button>
           )}
           <div style={{ fontSize: 11, color: 'var(--txt-3)', textAlign: 'center', marginTop: 10 }}>
             Bepul · Cheksiz imkoniyatlar uchun obuna oling

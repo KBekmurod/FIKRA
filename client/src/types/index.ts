@@ -2,18 +2,14 @@ export type Plan = 'free' | 'basic' | 'pro' | 'vip'
 
 export interface User {
   id?: string
-  telegramId?: number | null
   email?: string | null
-  googleId?: string | null
-  username?: string
+  phone?: string | null
   firstName?: string
   lastName?: string
   displayName?: string
   photoUrl?: string
-  authProvider?: 'email' | 'google' | 'telegram' | null
-  hasPassword?: boolean
-  hasTelegram?: boolean
-  hasGoogle?: boolean
+  hasEmail?: boolean
+  hasPhone?: boolean
   plan: Plan
   effectivePlan?: Plan
   planExpiresAt?: string | null
@@ -21,7 +17,6 @@ export interface User {
   aiUsage?: Record<string, number>
   aiLimits?: Record<string, number | null>
   isNew?: boolean
-  _demo?: boolean
 }
 
 export interface Question {
@@ -45,7 +40,6 @@ export interface PlanData {
   tier: Plan
   period: string
   durationDays: number
-  priceStars: number
   priceUZS: number
   badge: string | null
   features: string[]

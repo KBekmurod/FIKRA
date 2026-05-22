@@ -319,19 +319,9 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
 
   const download = () => {
     if (!result?.downloadUrl) return
-    const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}')
-    // To'g'ridan-to'g'ri server URL'iga link
     const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000'
     const url = `${API_BASE}${result.downloadUrl}`
-
-    // Telegram WebApp'da openLink ishlatamiz
-    const tg = (window as any).Telegram?.WebApp
-    if (tg && tg.openLink) {
-      tg.openLink(url, { try_instant_view: false })
-    } else {
-      // Brauzerda: oddiy link
-      window.open(url, '_blank')
-    }
+    window.open(url, '_blank')
     toast('Yuklab olish boshlandi', 'ok')
   }
 
@@ -447,10 +437,8 @@ function ImageTab({ onSubOpen }: { onSubOpen: () => void }) {
   const download = () => {
     if (!result?.downloadUrl) return
     const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000'
-    const tg = (window as any).Telegram?.WebApp
     const url = `${API_BASE}${result.downloadUrl}`
-    if (tg?.openLink) tg.openLink(url)
-    else window.open(url, '_blank')
+    window.open(url, '_blank')
     toast('Yuklab olish boshlandi', 'ok')
   }
 

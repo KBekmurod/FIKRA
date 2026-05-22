@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../store'
 import { useToast } from '../../components/Toast'
 
+type IdMode = 'email' | 'phone'
+
 export default function RegisterPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const { register } = useAppStore()
   const [name, setName] = useState('')
+  const [mode, setMode] = useState<IdMode>('email')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPwd, setConfirmPwd] = useState('')
   const [loading, setLoading] = useState(false)
@@ -19,10 +23,24 @@ export default function RegisterPage() {
       toast.error("Ism kerak (kamida 2 belgi)")
       return
     }
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      toast.error("Email yaroqsiz")
-      return
+
+    let identifier = ''
+    if (mode === 'email') {
+      if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        toast.error("Email yaroqsiz")
+        return
+      }
+      identifier = email.trim()
+    } else {
+      // Telefon validatsiyasi (frontend tomon)
+      const digitsOnly = phone.replace(/\D/g, '')
+      if (digitsOnly.length < 9 || digitsOnly.length > 15) {
+        toast.error("Telefon nomer yaroqsiz")
+        return
+      }
+      identifier = phone.trim()
     }
+
     if (!password || password.length < 8) {
       toast.error("Parol kamida 8 belgi bo'lsin")
       return
@@ -34,7 +52,7 @@ export default function RegisterPage() {
 
     setLoading(true)
     try {
-      await register(email.trim(), password, name.trim())
+      await register(identifier, password, name.trim())
       toast.success("Ro'yxatdan o'tildi!")
       navigate('/', { replace: true })
     } catch (e: any) {
@@ -76,18 +94,55 @@ export default function RegisterPage() {
           />
         </div>
 
+        {/* Email yoki telefon tanlash */}
         <div>
-          <label style={fieldLabel}>EMAIL</label>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="email@example.com"
-            autoComplete="email"
-            disabled={loading}
-            style={inputStyle}
-          />
+          <label style={fieldLabel}>QAYSI USULDA RO'YXATDAN O'TASIZ?</label>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <button
+              type="button"
+              onClick={() => setMode('email')}
+              style={tabBtnStyle(mode === 'email')}
+            >📧 Email</button>
+            <button
+              type="button"
+              onClick={() => setMode('phone')}
+              style={tabBtnStyle(mode === 'phone')}
+            >📱 Telefon nomer</button>
+          </div>
         </div>
+
+        {mode === 'email' ? (
+          <div>
+            <label style={fieldLabel}>EMAIL</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="email@example.com"
+              autoComplete="email"
+              inputMode="email"
+              disabled={loading}
+              style={inputStyle}
+            />
+          </div>
+        ) : (
+          <div>
+            <label style={fieldLabel}>TELEFON NOMER</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="+998 90 123 45 67"
+              autoComplete="tel"
+              inputMode="tel"
+              disabled={loading}
+              style={inputStyle}
+            />
+            <div style={{ fontSize: 10, color: 'var(--txt-3)', marginTop: 4 }}>
+              Format: +998 XX XXX XX XX
+            </div>
+          </div>
+        )}
 
         <div>
           <label style={fieldLabel}>PAROL (kamida 8 belgi)</label>
@@ -176,3 +231,17 @@ const inputStyle = {
   fontFamily: 'inherit',
   outline: 'none',
 } as const
+
+function tabBtnStyle(active: boolean) {
+  return {
+    flex: 1,
+    padding: '10px 8px',
+    background: active ? 'rgba(123,104,238,0.15)' : 'var(--s1)',
+    border: `1px solid ${active ? 'var(--acc)' : 'var(--f)'}`,
+    color: active ? 'var(--acc-l)' : 'var(--txt-2)',
+    borderRadius: 10,
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+  } as const
+}

@@ -11,23 +11,11 @@ interface AppState {
 
   // Auth metodlari
   bootstrap: () => Promise<void>
-  loginWithEmail: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string, name: string) => Promise<void>
-  loginWithGoogle: (idToken: string) => Promise<void>
-  loginWithTelegram: () => Promise<void>
-  linkTelegram: () => Promise<void>
+  login: (identifier: string, password: string) => Promise<void>
+  register: (identifier: string, password: string, name: string) => Promise<void>
 
   refreshUser: () => Promise<void>
   logout: () => void
-}
-
-declare global {
-  interface Window {
-    Telegram?: any
-    BOT_USERNAME?: string
-    ADMIN_USERNAME?: string
-    GOOGLE_CLIENT_ID?: string
-  }
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -54,13 +42,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ user: null, loading: false, initialized: true })
   },
 
-  // ─── Email/parol bilan kirish ─────────────────────────────────────────
-  loginWithEmail: async (email, password) => {
+  // ─── Kirish (email yoki telefon + parol) ──────────────────────────────
+  login: async (identifier, password) => {
     set({ loading: true, error: null })
     try {
-      const { data } = await authApi.loginEmail(email, password)
-      setAuth(data.accessToken, data.refreshToken, data.user.telegramId || null)
-      // QUSUR TUZATILDI: initialized=true ham qilamiz, RequireAuth race condition oldini olish
+      const { data } = await authApi.login(identifier, password)
+      setAuth(data.accessToken, data.refreshToken)
       set({ user: data.user, loading: false, initialized: true })
     } catch (err) {
       set({ loading: false })
@@ -68,55 +55,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  // ─── Email/parol bilan ro'yxat ────────────────────────────────────────
-  register: async (email, password, name) => {
+  // ─── Ro'yxatdan o'tish (email yoki telefon + parol + ism) ─────────────
+  register: async (identifier, password, name) => {
     set({ loading: true, error: null })
     try {
-      const { data } = await authApi.register(email, password, name)
-      setAuth(data.accessToken, data.refreshToken, data.user.telegramId || null)
+      const { data } = await authApi.register(identifier, password, name)
+      setAuth(data.accessToken, data.refreshToken)
       set({ user: data.user, loading: false, initialized: true })
     } catch (err) {
       set({ loading: false })
       throw err
     }
-  },
-
-  // ─── Google ID token bilan kirish ─────────────────────────────────────
-  loginWithGoogle: async (idToken: string) => {
-    set({ loading: true, error: null })
-    try {
-      const { data } = await authApi.google(idToken)
-      setAuth(data.accessToken, data.refreshToken, data.user.telegramId || null)
-      set({ user: data.user, loading: false, initialized: true })
-    } catch (err) {
-      set({ loading: false })
-      throw err
-    }
-  },
-
-  // ─── Telegram orqali kirish ───────────────────────────────────────────
-  loginWithTelegram: async () => {
-    set({ loading: true, error: null })
-    try {
-      const tg = window.Telegram?.WebApp
-      const initData = tg?.initData || ''
-      if (!initData) throw new Error('Telegram initData yo\'q')
-      const { data } = await authApi.telegramLogin(initData)
-      setAuth(data.accessToken, data.refreshToken, data.user.telegramId || null)
-      set({ user: data.user, loading: false, initialized: true })
-    } catch (err) {
-      set({ loading: false })
-      throw err
-    }
-  },
-
-  // ─── Joriy akkountga Telegram bog'lash ──────────────────────────────
-  linkTelegram: async () => {
-    const tg = window.Telegram?.WebApp
-    const initData = tg?.initData || ''
-    if (!initData) throw new Error('Telegram initData yo\'q')
-    const { data } = await authApi.telegramLink(initData)
-    set({ user: data.user })
   },
 
   refreshUser: async () => {
@@ -130,6 +79,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   logout: () => {
     clearAuth()
     set({ user: null })
-    // Welcome sahifaga yo'naltirish — bu komponentlarda navigate orqali bo'ladi
   },
 }))

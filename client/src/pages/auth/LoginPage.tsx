@@ -3,23 +3,34 @@ import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../store'
 import { useToast } from '../../components/Toast'
 
+// Identifier turini aniqlash (UI uchun)
+function detectIdentifierType(s: string): 'email' | 'phone' | 'unknown' {
+  const t = s.trim()
+  if (!t) return 'unknown'
+  if (t.includes('@')) return 'email'
+  if (/^[+\d\s()-]+$/.test(t)) return 'phone'
+  return 'unknown'
+}
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const toast = useToast()
-  const { loginWithEmail } = useAppStore()
-  const [email, setEmail] = useState('')
+  const { login } = useAppStore()
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
 
+  const idType = detectIdentifierType(identifier)
+
   const submit = async () => {
-    if (!email.trim() || !password) {
-      toast.error("Email va parol kerak")
+    if (!identifier.trim() || !password) {
+      toast.error("Email/telefon va parol kerak")
       return
     }
     setLoading(true)
     try {
-      await loginWithEmail(email.trim(), password)
+      await login(identifier.trim(), password)
       navigate('/', { replace: true })
     } catch (e: any) {
       toast.error(e?.response?.data?.error || "Kirish xato")
@@ -50,18 +61,29 @@ export default function LoginPage() {
       <div style={{ marginTop: 24, display: 'grid', gap: 12 }}>
         <div>
           <label style={{ fontSize: 11, color: 'var(--txt-2)', marginBottom: 4, display: 'block', fontWeight: 700 }}>
-            EMAIL
+            EMAIL YOKI TELEFON NOMER
           </label>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="email@example.com"
-            autoComplete="email"
-            disabled={loading}
-            style={inputStyle}
-            onKeyDown={e => e.key === 'Enter' && submit()}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              value={identifier}
+              onChange={e => setIdentifier(e.target.value)}
+              placeholder="email@example.com  yoki  +998 90 123 45 67"
+              autoComplete="username"
+              disabled={loading}
+              style={inputStyle}
+              onKeyDown={e => e.key === 'Enter' && submit()}
+              inputMode={idType === 'phone' ? 'tel' : 'email'}
+            />
+            {identifier && (
+              <div style={{
+                position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                fontSize: 16, color: 'var(--txt-3)', pointerEvents: 'none',
+              }}>
+                {idType === 'email' ? '📧' : idType === 'phone' ? '📱' : ''}
+              </div>
+            )}
+          </div>
         </div>
 
         <div>

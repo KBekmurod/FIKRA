@@ -41,30 +41,10 @@ export default function ProfilePage() {
     ? Math.max(0, Math.ceil((new Date(user.planExpiresAt).getTime() - Date.now()) / 86400000))
     : 0
 
-  const refLink = user?.telegramId
-    ? `https://t.me/${(window as any).BOT_USERNAME || 'fikraai_bot'}?start=ref_${user.telegramId}`
-    : ''
-
   useEffect(() => {
     materialApi.limits().then(({ data }) => setMatLimits(data)).catch(() => {})
     levelApi.current().then(({ data }) => setLevel(data)).catch(() => {})
   }, [])
-
-  const copyRef = () => {
-    if (!refLink) return
-    navigator.clipboard.writeText(refLink).then(() => toast.success('Havola nusxalandi!'))
-  }
-
-  const shareRef = () => {
-    if (!refLink) return
-    const text = `FIKRA — DTM testlarga AI bilan tayyorlanish!\n${refLink}`
-    const tg = (window as any).Telegram?.WebApp
-    if (tg) {
-      tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(text)}`)
-    } else if (navigator.share) {
-      navigator.share({ text, url: refLink }).catch(() => {})
-    }
-  }
 
   const grade = level?.currentGrade || 'delta'
   const gradeMeta = GRADE_META[grade as keyof typeof GRADE_META]
@@ -93,11 +73,14 @@ export default function ProfilePage() {
           }}>{initials}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 16 }}>
-              {user?.firstName || user?.username || 'Foydalanuvchi'}
+              {user?.firstName || user?.displayName || 'Foydalanuvchi'}
             </div>
-            {user?.username && (
-              <div style={{ fontSize: 12, color: 'var(--txt-3)', marginTop: 2 }}>
-                @{user.username}
+            {(user?.email || user?.phone) && (
+              <div style={{
+                fontSize: 12, color: 'var(--txt-3)', marginTop: 2,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {user.email || user.phone}
               </div>
             )}
             {level && (
@@ -367,28 +350,37 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Referral */}
-      <div className="section-title">Do'stni taklif qiling</div>
+      {/* Akkount ma'lumotlari */}
+      <div className="section-title">Akkount</div>
       <div style={{ padding: '0 20px 24px' }}>
         <div className="card">
-          <div style={{ fontSize: 11, color: 'var(--txt-2)', marginBottom: 8 }}>
-            Sizning havolangiz
-          </div>
-          <div style={{
-            background: 'var(--s2)',
-            border: '1px solid var(--f)',
-            borderRadius: 'var(--br2)',
-            padding: '10px 12px',
-            fontSize: 11,
-            fontFamily: 'monospace',
-            color: 'var(--txt-2)',
-            wordBreak: 'break-all',
-            marginBottom: 10,
-          }}>{refLink}</div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={copyRef} className="btn btn-ghost btn-block">📋 Nusxa</button>
-            <button onClick={shareRef} className="btn btn-success btn-block">📤 Ulashish</button>
-          </div>
+          {user?.email && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '8px 0',
+              borderBottom: user?.phone ? '1px solid var(--f)' : 'none',
+            }}>
+              <span style={{ fontSize: 18 }}>📧</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, letterSpacing: 0.3 }}>EMAIL</div>
+                <div style={{ fontSize: 13, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {user.email}
+                </div>
+              </div>
+            </div>
+          )}
+          {user?.phone && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '8px 0',
+            }}>
+              <span style={{ fontSize: 18 }}>📱</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, letterSpacing: 0.3 }}>TELEFON</div>
+                <div style={{ fontSize: 13, color: 'var(--txt)' }}>{user.phone}</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Logout */}

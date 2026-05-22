@@ -19,11 +19,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const toast = useCallback((text: string, type: 'info' | 'ok' | 'err' = 'info') => {
     setMsg({ text, type })
-    try {
-      const tg = (window as any).Telegram?.WebApp
-      if (type === 'ok') tg?.HapticFeedback?.notificationOccurred('success')
-      else if (type === 'err') tg?.HapticFeedback?.notificationOccurred('error')
-    } catch {}
     // BEST PRACTICE: matn uzunligi va xato turiga qarab vaqt
     // Qisqa: 3s, uzun: 5s, xato: kamida 4s
     const baseDuration = type === 'err' ? 4000 : 3000

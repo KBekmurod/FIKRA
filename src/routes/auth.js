@@ -1,22 +1,18 @@
 // ─── Auth Routes ────────────────────────────────────────────────────────
-// Ilova autentifikatsiyasi: Email/parol + Google OAuth + Telegram bog'lash
+// Email yoki telefon nomer + parol orqali autentifikatsiya.
 //
 // Yo'llar:
-//   POST /api/auth/register       — email/parol orqali ro'yxat
-//   POST /api/auth/login          — email/parol orqali kirish
-//   POST /api/auth/google         — Google ID token orqali kirish/ro'yxat
-//   POST /api/auth/telegram-link  — joriy akkountga Telegram bog'lash
-//   POST /api/auth/refresh        — refresh token bilan access yangilash
-//   GET  /api/auth/me             — joriy foydalanuvchi
-//
-// Telegram avtologin OLIB TASHLANGAN — Telegram'da ham email/google kerak.
+//   POST /api/auth/register         — yangi ro'yxat (email yoki phone + parol + ism)
+//   POST /api/auth/login            — kirish (email yoki phone + parol)
+//   POST /api/auth/refresh          — refresh token bilan access yangilash
+//   GET  /api/auth/me               — joriy foydalanuvchi
+//   POST /api/auth/change-password  — parol o'zgartirish
+//   POST /api/auth/add-identifier   — mavjud akkountga email yoki phone qo'shish
 
 const express = require('express');
 const router  = express.Router();
 const bcrypt  = require('bcryptjs');
-const { OAuth2Client } = require('google-auth-library');
 const {
-  verifyTelegramInitData,
   generateTokens,
   authMiddleware,
 } = require('../middleware/auth');
@@ -24,12 +20,45 @@ const { authLimiter } = require('../middleware/rateLimit');
 const User    = require('../models/User');
 const { logger } = require('../utils/logger');
 
-// Google OAuth Client
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
-
-// Email regex (oddiy)
+// ─── Helpers: identifier (email yoki phone) aniqlash va normalize ──────────
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// E.164 telefon formati: + bilan boshlanadi va 8-15 raqamdan iborat
+// Foydalanuvchi kiritishi mumkin: "+998 90 123 45 67", "+998901234567",
+// "998901234567", "901234567" (avtomatik +998 qo'shamiz O'zbek bo'lsa).
+function normalizePhone(raw) {
+  if (!raw) return null;
+  // Faqat raqamlar va + ni qoldiramiz
+  let s = String(raw).replace(/[^\d+]/g, '');
+  if (!s) return null;
+
+  // + bilan boshlanmasa va 998 bilan boshlansa — + qo'shamiz
+  if (!s.startsWith('+')) {
+    if (s.startsWith('998')) s = '+' + s;
+    // 9 ta raqam bo'lsa (oddiy O'zbek mobil nomer) — +998 qo'shamiz
+    else if (s.length === 9) s = '+998' + s;
+    else s = '+' + s;
+  }
+
+  // Validatsiya: + dan keyin 8-15 raqam
+  if (!/^\+\d{8,15}$/.test(s)) return null;
+  return s;
+}
+
+function isEmail(s) {
+  return EMAIL_RE.test(String(s || '').trim());
+}
+
+// Bitta input qatorini email yoki phone'ga ajratamiz
+function parseIdentifier(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return { type: null, value: null };
+  if (s.includes('@')) {
+    return isEmail(s) ? { type: 'email', value: s.toLowerCase() } : { type: 'email', value: null };
+  }
+  const phone = normalizePhone(s);
+  return { type: 'phone', value: phone };
+}
 
 // ─── User ma'lumotini frontend uchun formatlash ────────────────────────────
 function _serializeUser(user) {
@@ -59,18 +88,14 @@ function _serializeUser(user) {
 
   return {
     id:            user._id,
-    telegramId:    user.telegramId,
     email:         user.email,
-    googleId:      user.googleId,
-    username:      user.username,
+    phone:         user.phone,
     firstName:     user.firstName,
     lastName:      user.lastName,
     displayName:   user.displayName || user.firstName,
     photoUrl:      user.photoUrl,
-    authProvider:  user.authProvider,
-    hasPassword:   !!user.passwordHash,
-    hasTelegram:   !!user.telegramId,
-    hasGoogle:     !!user.googleId,
+    hasEmail:      !!user.email,
+    hasPhone:      !!user.phone,
     plan:          user.plan,
     effectivePlan: effective,
     planExpiresAt: user.planExpiresAt,
@@ -81,243 +106,136 @@ function _serializeUser(user) {
 }
 
 // ─── POST /api/auth/register ──────────────────────────────────────────────
-// Email/parol orqali yangi ro'yxat
+// Body: { identifier: "email@... | +998...", password, name }
+// YOKI: { email, phone, password, name }
 router.post('/register', authLimiter, async (req, res, next) => {
   try {
-    const { email, password, name } = req.body || {};
+    const { identifier, email: rawEmail, phone: rawPhone, password, name } = req.body || {};
 
-    if (!email || !EMAIL_RE.test(email)) {
-      return res.status(400).json({ error: 'Email yaroqsiz' });
-    }
     if (!password || password.length < 8) {
       return res.status(400).json({ error: 'Parol kamida 8 belgi bo\'lsin' });
     }
-    if (!name || name.trim().length < 2) {
+    if (!name || String(name).trim().length < 2) {
       return res.status(400).json({ error: 'Ism kerak (kamida 2 belgi)' });
     }
 
-    // Mavjud email tekshirish
-    const existing = await User.findOne({ email: email.toLowerCase() });
-    if (existing) {
-      return res.status(409).json({ error: 'Bu email allaqachon ro\'yxatdan o\'tgan' });
+    // Identifier'ni yig'amiz: identifier kiritilgan bo'lsa o'sha, aks holda email/phone
+    let email = null;
+    let phone = null;
+
+    if (identifier) {
+      const parsed = parseIdentifier(identifier);
+      if (parsed.type === 'email' && parsed.value) email = parsed.value;
+      else if (parsed.type === 'phone' && parsed.value) phone = parsed.value;
+      else {
+        return res.status(400).json({ error: 'Email yoki telefon nomer yaroqsiz' });
+      }
+    } else {
+      if (rawEmail) {
+        if (!isEmail(rawEmail)) return res.status(400).json({ error: 'Email yaroqsiz' });
+        email = String(rawEmail).toLowerCase().trim();
+      }
+      if (rawPhone) {
+        const norm = normalizePhone(rawPhone);
+        if (!norm) return res.status(400).json({ error: 'Telefon nomer yaroqsiz' });
+        phone = norm;
+      }
+    }
+
+    if (!email && !phone) {
+      return res.status(400).json({ error: 'Email yoki telefon nomer kerak' });
+    }
+
+    // Mavjudligini tekshirish
+    const orChecks = [];
+    if (email) orChecks.push({ email });
+    if (phone) orChecks.push({ phone });
+    if (orChecks.length > 0) {
+      const existing = await User.findOne({ $or: orChecks });
+      if (existing) {
+        if (email && existing.email === email) {
+          return res.status(409).json({ error: 'Bu email allaqachon ro\'yxatdan o\'tgan' });
+        }
+        if (phone && existing.phone === phone) {
+          return res.status(409).json({ error: 'Bu telefon nomer allaqachon ro\'yxatdan o\'tgan' });
+        }
+        return res.status(409).json({ error: 'Bunday foydalanuvchi allaqachon mavjud' });
+      }
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
+    const cleanName = String(name).trim();
 
     const user = await User.create({
-      email:        email.toLowerCase(),
+      email,
+      phone,
       passwordHash,
-      displayName:  name.trim(),
-      firstName:    name.trim(),
-      authProvider: 'email',
+      displayName: cleanName,
+      firstName:   cleanName,
     });
 
-    const tokens = generateTokens(user._id, null);
-    logger.info(`User registered (email): ${email}`);
+    const tokens = generateTokens(user._id);
+    logger.info(`User registered: ${email || phone}`);
 
     res.json({
       ...tokens,
       user: { ..._serializeUser(user), isNew: true },
     });
   } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ error: 'Bu email yoki telefon allaqachon mavjud' });
+    }
     next(err);
   }
 });
 
 // ─── POST /api/auth/login ──────────────────────────────────────────────────
-// Email/parol orqali kirish
+// Body: { identifier, password }
+// YOKI eski: { email, password }
 router.post('/login', authLimiter, async (req, res, next) => {
   try {
-    const { email, password } = req.body || {};
+    const { identifier, email: rawEmail, phone: rawPhone, password } = req.body || {};
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email va parol kerak' });
+    if (!password) {
+      return res.status(400).json({ error: 'Parol kerak' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    // Identifier'ni aniqlash
+    let lookup = null;
+    if (identifier) {
+      const parsed = parseIdentifier(identifier);
+      if (parsed.type === 'email' && parsed.value) lookup = { email: parsed.value };
+      else if (parsed.type === 'phone' && parsed.value) lookup = { phone: parsed.value };
+      else {
+        return res.status(400).json({ error: 'Email yoki telefon nomer yaroqsiz' });
+      }
+    } else if (rawEmail) {
+      if (!isEmail(rawEmail)) return res.status(400).json({ error: 'Email yaroqsiz' });
+      lookup = { email: String(rawEmail).toLowerCase().trim() };
+    } else if (rawPhone) {
+      const norm = normalizePhone(rawPhone);
+      if (!norm) return res.status(400).json({ error: 'Telefon nomer yaroqsiz' });
+      lookup = { phone: norm };
+    } else {
+      return res.status(400).json({ error: 'Email yoki telefon nomer kerak' });
+    }
+
+    const user = await User.findOne(lookup);
     if (!user || !user.passwordHash) {
-      return res.status(401).json({ error: 'Email yoki parol noto\'g\'ri' });
+      return res.status(401).json({ error: 'Login yoki parol noto\'g\'ri' });
     }
 
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
-      return res.status(401).json({ error: 'Email yoki parol noto\'g\'ri' });
+      return res.status(401).json({ error: 'Login yoki parol noto\'g\'ri' });
     }
 
-    const tokens = generateTokens(user._id, user.telegramId);
-    logger.info(`User logged in (email): ${email}`);
+    const tokens = generateTokens(user._id);
+    logger.info(`User logged in: ${user.email || user.phone}`);
 
     res.json({
       ...tokens,
       user: _serializeUser(user),
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ─── POST /api/auth/google ─────────────────────────────────────────────────
-// Google ID token bilan kirish yoki ro'yxat
-// Body: { idToken: string }
-router.post('/google', authLimiter, async (req, res, next) => {
-  try {
-    if (!googleClient) {
-      return res.status(503).json({
-        error: 'Google kirish hozircha sozlanmagan',
-        code: 'GOOGLE_NOT_CONFIGURED',
-      });
-    }
-
-    const { idToken } = req.body || {};
-    if (!idToken) {
-      return res.status(400).json({ error: 'idToken kerak' });
-    }
-
-    // Google ID token tekshirish
-    let payload;
-    try {
-      const ticket = await googleClient.verifyIdToken({
-        idToken,
-        audience: GOOGLE_CLIENT_ID,
-      });
-      payload = ticket.getPayload();
-    } catch (e) {
-      logger.error('Google verify error:', e.message);
-      return res.status(401).json({ error: 'Google token yaroqsiz' });
-    }
-
-    if (!payload || !payload.email || !payload.sub) {
-      return res.status(401).json({ error: 'Google ma\'lumot to\'liq emas' });
-    }
-
-    const googleId = payload.sub;
-    const email    = payload.email.toLowerCase();
-    const name     = payload.name || payload.given_name || email.split('@')[0];
-    const picture  = payload.picture || '';
-
-    // 1. googleId bo'yicha qidirish
-    let user = await User.findOne({ googleId });
-    let isNew = false;
-
-    if (!user) {
-      // 2. Email bo'yicha mavjud akkountga ulash
-      user = await User.findOne({ email });
-      if (user) {
-        user.googleId = googleId;
-        if (!user.photoUrl && picture) user.photoUrl = picture;
-        if (!user.displayName) user.displayName = name;
-        await user.save();
-      } else {
-        // 3. Yangi yaratish
-        user = await User.create({
-          email,
-          googleId,
-          displayName:  name,
-          firstName:    name,
-          photoUrl:     picture,
-          authProvider: 'google',
-        });
-        isNew = true;
-      }
-    }
-
-    const tokens = generateTokens(user._id, user.telegramId);
-    logger.info(`User logged in (google): ${email}`);
-
-    res.json({
-      ...tokens,
-      user: { ..._serializeUser(user), isNew },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ─── POST /api/auth/telegram-link ──────────────────────────────────────────
-// Joriy (authentifikatsiyalangan) foydalanuvchiga Telegram bog'lash
-// Body: { initData }
-router.post('/telegram-link', authMiddleware, async (req, res, next) => {
-  try {
-    const { initData } = req.body || {};
-    if (!initData) return res.status(400).json({ error: 'initData kerak' });
-
-    const tgUser = verifyTelegramInitData(initData);
-    if (!tgUser) return res.status(401).json({ error: 'Telegram initData yaroqsiz' });
-
-    // Bu telegramId boshqa userga tegishlimi?
-    const other = await User.findOne({ telegramId: tgUser.id, _id: { $ne: req.user._id } });
-    if (other) {
-      return res.status(409).json({ error: 'Bu Telegram allaqachon boshqa akkountga bog\'langan' });
-    }
-
-    req.user.telegramId = tgUser.id;
-    if (!req.user.username && tgUser.username) req.user.username = tgUser.username;
-    if (!req.user.photoUrl && tgUser.photo_url) req.user.photoUrl = tgUser.photo_url;
-    await req.user.save();
-
-    res.json({ success: true, user: _serializeUser(req.user) });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ─── POST /api/auth/telegram-unlink ────────────────────────────────────────
-router.post('/telegram-unlink', authMiddleware, async (req, res, next) => {
-  try {
-    // Faqat Telegram orqali kirgan bo'lsa va boshqa auth yo'lini yo'q bo'lsa, ruxsat bermaymiz
-    if (!req.user.email && !req.user.googleId) {
-      return res.status(400).json({
-        error: "Telegram'ni o'chirishdan oldin email yoki Google qo'shing"
-      });
-    }
-    req.user.telegramId = null;
-    await req.user.save();
-    res.json({ success: true, user: _serializeUser(req.user) });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ─── POST /api/auth/telegram-only ──────────────────────────────────────────
-// FAQAT eski foydalanuvchilar uchun (migratsiya): Telegram orqali kirish.
-// Yangi foydalanuvchilar uchun ham xizmat qiladi, lekin ular keyin email
-// qo'shishlari mumkin.
-//
-// Bu endpoint ataylab boshqa nom bilan — auth tizimi asosiy yo'l email/google
-// bo'lib qoladi.
-router.post('/telegram-only', authLimiter, async (req, res, next) => {
-  try {
-    const { initData } = req.body || {};
-    if (!initData) return res.status(400).json({ error: 'initData kerak' });
-
-    const tgUser = verifyTelegramInitData(initData);
-    if (!tgUser) return res.status(401).json({ error: 'Telegram initData yaroqsiz' });
-
-    let user = await User.findOne({ telegramId: tgUser.id });
-    let isNew = false;
-
-    if (!user) {
-      user = await User.create({
-        telegramId:   tgUser.id,
-        username:     tgUser.username   || '',
-        firstName:    tgUser.first_name || '',
-        lastName:     tgUser.last_name  || '',
-        photoUrl:     tgUser.photo_url  || '',
-        displayName:  tgUser.first_name || tgUser.username || 'User',
-        authProvider: 'telegram',
-      });
-      isNew = true;
-    } else {
-      let dirty = false;
-      if (tgUser.username && user.username !== tgUser.username) { user.username = tgUser.username; dirty = true; }
-      if (tgUser.first_name && user.firstName !== tgUser.first_name) { user.firstName = tgUser.first_name; dirty = true; }
-      if (dirty) await user.save();
-    }
-
-    const tokens = generateTokens(user._id, tgUser.id);
-    res.json({
-      ...tokens,
-      user: { ..._serializeUser(user), isNew },
     });
   } catch (err) {
     next(err);
@@ -336,7 +254,7 @@ router.post('/refresh', async (req, res) => {
     const user = await User.findById(decoded.userId);
     if (!user) return res.status(401).json({ error: 'Foydalanuvchi topilmadi' });
 
-    const tokens = generateTokens(user._id, user.telegramId);
+    const tokens = generateTokens(user._id);
     res.json(tokens);
   } catch (err) {
     res.status(401).json({ error: 'Refresh token yaroqsiz' });
@@ -355,18 +273,57 @@ router.post('/change-password', authMiddleware, async (req, res, next) => {
     if (!newPassword || newPassword.length < 8) {
       return res.status(400).json({ error: 'Yangi parol kamida 8 belgi' });
     }
+    if (!oldPassword) return res.status(400).json({ error: 'Eski parol kerak' });
 
-    // Email orqali kirgan foydalanuvchi — eski parolni tekshirish
-    if (req.user.passwordHash) {
-      if (!oldPassword) return res.status(400).json({ error: 'Eski parol kerak' });
-      const ok = await bcrypt.compare(oldPassword, req.user.passwordHash);
-      if (!ok) return res.status(401).json({ error: 'Eski parol noto\'g\'ri' });
-    }
+    const ok = await bcrypt.compare(oldPassword, req.user.passwordHash);
+    if (!ok) return res.status(401).json({ error: 'Eski parol noto\'g\'ri' });
 
     req.user.passwordHash = await bcrypt.hash(newPassword, 10);
     await req.user.save();
     res.json({ success: true });
   } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /api/auth/add-identifier ────────────────────────────────────────
+// Mavjud akkountga email yoki telefon qo'shish (faqat birini yo'qsa)
+// Body: { email } yoki { phone }
+router.post('/add-identifier', authMiddleware, async (req, res, next) => {
+  try {
+    const { email: rawEmail, phone: rawPhone } = req.body || {};
+
+    if (rawEmail) {
+      if (req.user.email) {
+        return res.status(400).json({ error: 'Sizda allaqachon email mavjud' });
+      }
+      if (!isEmail(rawEmail)) return res.status(400).json({ error: 'Email yaroqsiz' });
+      const email = String(rawEmail).toLowerCase().trim();
+      const existing = await User.findOne({ email, _id: { $ne: req.user._id } });
+      if (existing) return res.status(409).json({ error: 'Bu email band' });
+      req.user.email = email;
+      await req.user.save();
+      return res.json({ success: true, user: _serializeUser(req.user) });
+    }
+
+    if (rawPhone) {
+      if (req.user.phone) {
+        return res.status(400).json({ error: 'Sizda allaqachon telefon nomer mavjud' });
+      }
+      const phone = normalizePhone(rawPhone);
+      if (!phone) return res.status(400).json({ error: 'Telefon nomer yaroqsiz' });
+      const existing = await User.findOne({ phone, _id: { $ne: req.user._id } });
+      if (existing) return res.status(409).json({ error: 'Bu telefon nomer band' });
+      req.user.phone = phone;
+      await req.user.save();
+      return res.json({ success: true, user: _serializeUser(req.user) });
+    }
+
+    return res.status(400).json({ error: 'email yoki phone kerak' });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ error: 'Bu email yoki telefon band' });
+    }
     next(err);
   }
 });

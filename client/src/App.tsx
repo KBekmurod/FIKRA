@@ -127,9 +127,6 @@ function BottomNav() {
       if (!allowed) return
     }
     navigate(target)
-    try {
-      (window as any).Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
-    } catch {}
   }
 
   return (
@@ -176,9 +173,7 @@ export default function App() {
     fetch('/api/config')
       .then(r => r.json())
       .then(c => {
-        ;(window as any).BOT_USERNAME = c.botUsername
         ;(window as any).ADMIN_USERNAME = c.adminUsername
-        ;(window as any).GOOGLE_CLIENT_ID = c.googleClientId
       })
       .catch(() => {})
   }, [])

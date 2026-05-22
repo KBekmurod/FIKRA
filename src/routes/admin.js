@@ -63,11 +63,11 @@ router.get('/users', adminAuth, async (req, res) => {
     const { q, plan, page = 1, limit = 20 } = req.query;
     const filter = {};
     if (q) {
-      const num = parseInt(q);
       filter.$or = [
         { firstName: { $regex: q, $options: 'i' } },
-        { username: { $regex: q, $options: 'i' } },
-        ...(isNaN(num) ? [] : [{ telegramId: num }]),
+        { displayName: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } },
+        { phone: { $regex: q, $options: 'i' } },
       ];
     }
     if (plan) filter.plan = plan;
@@ -75,7 +75,7 @@ router.get('/users', adminAuth, async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [users, total] = await Promise.all([
       User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit))
-        .select('telegramId username firstName plan planExpiresAt isActive createdAt'),
+        .select('email phone firstName displayName plan planExpiresAt isActive createdAt'),
       User.countDocuments(filter),
     ]);
 
@@ -92,7 +92,7 @@ router.post('/users/:id/ban', adminAuth, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Topilmadi' });
     user.isActive = !user.isActive;
     await user.save();
-    res.json({ success: true, isActive: user.isActive, telegramId: user.telegramId });
+    res.json({ success: true, isActive: user.isActive, userId: user._id });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -105,7 +105,7 @@ router.post('/users/:id/activate-plan', adminAuth, async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: 'User topilmadi' });
     await _activatePlan(user, plan, null);
-    logger.info(`Admin activated plan: ${user.telegramId} → ${planId}`);
+    logger.info(`Admin activated plan: user=${user._id} (${user.email || user.phone}) → ${planId}`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -146,7 +146,7 @@ router.post('/orders/:orderId/confirm', adminAuth, async (req, res) => {
     const plan = PLANS[order.planId];
     if (!plan) return res.status(400).json({ error: 'Plan topilmadi' });
 
-    const user = await User.findOne({ telegramId: order.telegramId });
+    const user = await User.findById(order.userId);
     if (!user) return res.status(404).json({ error: 'User topilmadi' });
 
     await _activatePlan(user, plan, null);
@@ -155,18 +155,7 @@ router.post('/orders/:orderId/confirm', adminAuth, async (req, res) => {
     order.note = note || '';
     await order.save();
 
-    // Foydalanuvchiga xabar
-    const axios = require('axios');
-    const botToken = process.env.BOT_TOKEN;
-    if (botToken) {
-      axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        chat_id: order.telegramId,
-        text: `✅ <b>${plan.name} ${plan.period}</b> obunangiz faollashtirildi!\n\nBuyurtma: <code>${order.orderId}</code>\n\nRahmat! FIKRA'da muvaffaqiyatlar! 🎓`,
-        parse_mode: 'HTML',
-      }).catch(() => {});
-    }
-
-    logger.info(`Admin confirmed P2P: ${order.orderId} → ${order.telegramId}`);
+    logger.info(`Admin confirmed P2P: ${order.orderId} → user=${order.userId}`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -182,16 +171,6 @@ router.post('/orders/:orderId/reject', adminAuth, async (req, res) => {
     order.status = 'rejected';
     order.rejectedReason = reason || '';
     await order.save();
-
-    const axios = require('axios');
-    const botToken = process.env.BOT_TOKEN;
-    if (botToken) {
-      axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        chat_id: order.telegramId,
-        text: `❌ Buyurtma <code>${order.orderId}</code> rad etildi.\n${reason ? 'Sabab: ' + reason : ''}`,
-        parse_mode: 'HTML',
-      }).catch(() => {});
-    }
 
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -210,7 +189,7 @@ router.get('/subscriptions', adminAuth, async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [users, total] = await Promise.all([
       User.find(filter).sort({ planExpiresAt: -1 }).skip(skip).limit(parseInt(limit))
-        .select('telegramId username firstName plan planId planExpiresAt planLastPurchaseAt createdAt'),
+        .select('email phone firstName displayName plan planId planExpiresAt planLastPurchaseAt createdAt'),
       User.countDocuments(filter),
     ]);
 
@@ -358,16 +337,8 @@ router.get('/revenue', adminAuth, async (req, res) => {
       User.find({ plan: { $ne: 'free' }, planExpiresAt: { $gt: new Date() } }).select('plan planId'),
     ]);
 
-    // P2P daromad (UZS)
+    // P2P daromad (UZS) — barcha tasdiqlangan buyurtmalar
     const p2pRevenue = confirmedOrders.reduce((sum, o) => sum + (o.priceUZS || 0), 0);
-
-    // Stars daromad (Stars'ni UZS ga: ~70 so'm per star taxminan)
-    // Stars → USD: 1 Stars ≈ $0.013 (Telegram narxi)
-    // USD → UZS: 1 USD ≈ 12700 UZS (taxminan)
-    const STAR_TO_UZS = 165; // 1 Stars ≈ 165 UZS
-    const starsOrdersRevenue = confirmedOrders
-      .filter(o => o.paymentType === 'stars')
-      .reduce((sum, o) => sum + (o.priceStars || 0) * STAR_TO_UZS, 0);
 
     // Jami AI so'rovlar (taxminiy xarajat)
     const totalReqs = 0; // v2: totalAiRequests olib tashlangan
@@ -384,15 +355,14 @@ router.get('/revenue', adminAuth, async (req, res) => {
     res.json({
       revenue: {
         p2p: p2pRevenue,
-        stars: Math.round(starsOrdersRevenue),
-        total: p2pRevenue + Math.round(starsOrdersRevenue),
+        total: p2pRevenue,
       },
       costs: {
         apiUSD: +totalApiCostUSD.toFixed(2),
         apiUZS: Math.round(totalApiCostUZS),
       },
       profit: {
-        uzs: (p2pRevenue + Math.round(starsOrdersRevenue)) - Math.round(totalApiCostUZS),
+        uzs: p2pRevenue - Math.round(totalApiCostUZS),
       },
       orders: { total: confirmedOrders.length },
       aiRequests: totalReqs,
@@ -402,68 +372,6 @@ router.get('/revenue', adminAuth, async (req, res) => {
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
-module.exports = router;
-
-// ─── GET /api/admin/revenue ──────────────────────────────────────────────────
-// Daromad kalkulyatori
-router.get('/revenue', adminAuth, async (req, res) => {
-  try {
-    const { deepseekCostPer1k = 0.27, geminiCostPer1k = 0.1 } = req.query;
-
-    const [
-      confirmedOrders, activeUsers,
-    ] = await Promise.all([
-      PendingOrder.find({ status: 'confirmed' }),
-      User.find({ plan: { $ne: 'free' }, planExpiresAt: { $gt: new Date() } }).select('plan planId'),
-    ]);
-
-    // P2P daromad (UZS)
-    const p2pRevenue = confirmedOrders.reduce((sum, o) => sum + (o.priceUZS || 0), 0);
-
-    // Stars daromad (Stars'ni UZS ga: ~70 so'm per star taxminan)
-    // Stars → USD: 1 Stars ≈ $0.013 (Telegram narxi)
-    // USD → UZS: 1 USD ≈ 12700 UZS (taxminan)
-    const STAR_TO_UZS = 165; // 1 Stars ≈ 165 UZS
-    const starsOrdersRevenue = confirmedOrders
-      .filter(o => o.paymentType === 'stars')
-      .reduce((sum, o) => sum + (o.priceStars || 0) * STAR_TO_UZS, 0);
-
-    // Jami AI so'rovlar (taxminiy xarajat)
-    const totalReqs = 0; // v2: totalAiRequests olib tashlangan
-    // Taxminan har 1000 so'rovda: 60% DeepSeek, 40% Gemini
-    const dsTokensCost = (totalReqs * 0.6 / 1000) * parseFloat(deepseekCostPer1k);
-    const gmTokensCost = (totalReqs * 0.4 / 1000) * parseFloat(geminiCostPer1k);
-    const totalApiCostUSD = dsTokensCost + gmTokensCost;
-    const totalApiCostUZS = totalApiCostUSD * 12700;
-
-    // Plan taqsimoti
-    const planDist = { basic: 0, pro: 0, vip: 0 };
-    activeUsers.forEach(u => { if (planDist[u.plan] !== undefined) planDist[u.plan]++; });
-
-    res.json({
-      revenue: {
-        p2p: p2pRevenue,
-        stars: Math.round(starsOrdersRevenue),
-        total: p2pRevenue + Math.round(starsOrdersRevenue),
-      },
-      costs: {
-        apiUSD: +totalApiCostUSD.toFixed(2),
-        apiUZS: Math.round(totalApiCostUZS),
-      },
-      profit: {
-        uzs: (p2pRevenue + Math.round(starsOrdersRevenue)) - Math.round(totalApiCostUZS),
-      },
-      orders: { total: confirmedOrders.length },
-      aiRequests: totalReqs,
-      activeSubs: activeUsers.length,
-      planDistribution: planDist,
-      note: 'API xarajat taxminiy. Aniq hisob uchun DeepSeek/Gemini dashboard\'ini tekshiring.',
-    });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-module.exports = router;
 
 // ─── POST /api/admin/questions/seed — Seed savollarni yuklash ───────────────
 router.post('/questions/seed', adminAuth, async (req, res) => {
@@ -479,3 +387,5 @@ router.post('/questions/seed', adminAuth, async (req, res) => {
     res.json({ success: true, total, stats });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+module.exports = router;
