@@ -32,13 +32,14 @@ export default function RegisterPage() {
       }
       identifier = email.trim()
     } else {
-      // Telefon validatsiyasi (frontend tomon)
+      // Telefon validatsiyasi (frontend tomon - O'zbekiston)
       const digitsOnly = phone.replace(/\D/g, '')
-      if (digitsOnly.length < 9 || digitsOnly.length > 15) {
-        toast.error("Telefon nomer yaroqsiz")
+      const uzbRegex = /^998(33|50|55|77|88|90|91|93|94|95|97|98|99)\d{7}$/
+      if (!uzbRegex.test(digitsOnly)) {
+        toast.error("Faqat O'zbekiston mobil raqamlari qabul qilinadi (+998...)")
         return
       }
-      identifier = phone.trim()
+      identifier = '+' + digitsOnly
     }
 
     if (!password || password.length < 8) {
@@ -131,7 +132,20 @@ export default function RegisterPage() {
             <input
               type="tel"
               value={phone}
-              onChange={e => setPhone(e.target.value)}
+              onChange={e => {
+                let val = e.target.value.replace(/\D/g, '');
+                if (val.startsWith('998')) val = val.substring(3);
+                let formatted = '+998 ';
+                if (val.length > 0) formatted += val.substring(0, 2);
+                if (val.length > 2) formatted += ' ' + val.substring(2, 5);
+                if (val.length > 5) formatted += ' ' + val.substring(5, 7);
+                if (val.length > 7) formatted += ' ' + val.substring(7, 9);
+                if (e.target.value === '' || e.target.value === '+998' || e.target.value === '+998 ') {
+                  setPhone('');
+                } else {
+                  setPhone(formatted.trim());
+                }
+              }}
               placeholder="+998 90 123 45 67"
               autoComplete="tel"
               inputMode="tel"
@@ -139,7 +153,7 @@ export default function RegisterPage() {
               style={inputStyle}
             />
             <div style={{ fontSize: 10, color: 'var(--txt-3)', marginTop: 4 }}>
-              Format: +998 XX XXX XX XX
+              Faqat O'zbekiston raqamlari (Masalan: +998 90 123 45 67)
             </div>
           </div>
         )}

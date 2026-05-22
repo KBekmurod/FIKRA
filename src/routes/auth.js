@@ -40,8 +40,9 @@ function normalizePhone(raw) {
     else s = '+' + s;
   }
 
-  // Validatsiya: + dan keyin 8-15 raqam
-  if (!/^\+\d{8,15}$/.test(s)) return null;
+  // Validatsiya: Faqat O'zbekiston raqamlari (+998 va 9 ta raqam, to'g'ri operator kodlari)
+  const uzbRegex = /^\+998(33|50|55|77|88|90|91|93|94|95|97|98|99)\d{7}$/;
+  if (!uzbRegex.test(s)) return null;
   return s;
 }
 
@@ -166,13 +167,15 @@ router.post('/register', authLimiter, async (req, res, next) => {
     const passwordHash = await bcrypt.hash(password, 10);
     const cleanName = String(name).trim();
 
-    const user = await User.create({
-      email,
-      phone,
+    const userData = {
       passwordHash,
       displayName: cleanName,
       firstName:   cleanName,
-    });
+    };
+    if (email) userData.email = email;
+    if (phone) userData.phone = phone;
+
+    const user = await User.create(userData);
 
     const tokens = generateTokens(user._id);
     logger.info(`User registered: ${email || phone}`);
@@ -182,8 +185,17 @@ router.post('/register', authLimiter, async (req, res, next) => {
       user: { ..._serializeUser(user), isNew: true },
     });
   } catch (err) {
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(e => e.message).join(', ');
+      return res.status(400).json({ error: messages });
+    }
     if (err.code === 11000) {
-      return res.status(409).json({ error: 'Bu email yoki telefon allaqachon mavjud' });
+      let msg = 'Bu ma\'lumot allaqachon mavjud';
+      if (err.keyPattern) {
+        if (err.keyPattern.email) msg = 'Bu email allaqachon ro\'yxatdan o\'tgan';
+        else if (err.keyPattern.phone) msg = 'Bu telefon nomer allaqachon ro\'yxatdan o\'tgan';
+      }
+      return res.status(409).json({ error: msg });
     }
     next(err);
   }

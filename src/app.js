@@ -164,6 +164,9 @@ app.get('*', (req, res) => {
 // ─── Error handler ────────────────────────────────────────────────────────────
 app.use(errorHandler);
 
+// ─── Cron Jobs ────────────────────────────────────────────────────────────────
+require('./cron/sessionCleanup').startCron();
+
 // ─── Start ────────────────────────────────────────────────────────────────────
 const server = app.listen(PORT, '0.0.0.0', () => {
   logger.info(`✅ FIKRA server ${PORT} portda ishlamoqda`);

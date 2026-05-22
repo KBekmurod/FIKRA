@@ -84,17 +84,19 @@ export const aiApi = {
     api.post<{ hint: string; used: number; limit: number | null }>(
       '/api/ai/hint', { question, options, subject, mode }
     ),
-  document: (prompt: string, format: string, history: any[] = []) =>
-    api.post<DocumentResponse>('/api/ai/document', { prompt, format, history }),
-  image: (prompt: string) =>
-    api.post<ImageResponse>('/api/ai/image', { prompt }),
+  document: (prompt: string, format: string, maxPages: number) =>
+    api.post<DocumentResponse>('/api/ai/document', { prompt, format, maxPages }),
+  chatSessions: () => api.get<{ sessions: any[] }>('/api/ai/chat/sessions'),
+  chatSession: (id: string) => api.get<{ session: any }>(`/api/ai/chat/sessions/${id}`),
+  deleteChatSession: (id: string) => api.delete(`/api/ai/chat/sessions/${id}`),
 }
 
 // ─── Streaming chat ────────────────────────────────────────────────────────
 export async function streamChat(
   message: string,
-  history: { role: string; content: string }[],
+  sessionId: string | null,
   onChunk: (chunk: string) => void,
+  onSessionId: (id: string) => void,
   onDone: () => void,
   onError: (err: any) => void
 ) {
@@ -107,9 +109,11 @@ export async function streamChat(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${auth.access || ''}`,
       },
-      body: JSON.stringify({ message, history })
+      body: JSON.stringify({ message, sessionId })
     })
     if (!res.ok) { const err = await res.json().catch(() => ({})); onError(err); return }
+    const newSessionId = res.headers.get('X-Session-Id')
+    if (newSessionId) onSessionId(newSessionId)
     const reader = res.body!.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
@@ -128,6 +132,51 @@ export async function streamChat(
     }
     onDone()
   } catch (e) { onError(e) }
+}
+
+// ─── Utility for SSE JSON fetch (Timeout oldini olish uchun) ───────────────
+export async function streamJsonFetch<T>(url: string, body: any): Promise<{ data: T }> {
+  const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}')
+  const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000'
+  const res = await fetch(`${API_BASE}${url}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${auth.access || ''}`,
+    },
+    body: JSON.stringify(body)
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw { response: { data: err } }; // Axios kabi xato qaytarish
+  }
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  return new Promise((resolve, reject) => {
+    async function read() {
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            const data = line.slice(6).trim()
+            if (data === '[DONE]') return // resolved before
+            try {
+              const parsed = JSON.parse(data)
+              if (parsed.error) reject({ response: { data: parsed } })
+              else resolve({ data: parsed })
+            } catch {}
+          }
+        }
+      } catch (e) { reject(e) }
+    }
+    read()
+  })
 }
 
 // ─── Subscription ──────────────────────────────────────────────────────────
@@ -205,21 +254,19 @@ export const personalTestApi = {
     }>(`/api/personal-tests/estimate/${subjectId}`),
 
   generate: (subjectId: string, materialIds: string[], count?: number) =>
-    api.post<{
+    streamJsonFetch<{
       testId: string; subjectId: string; subjectName: string;
       totalQuestions: number; durationSeconds: number;
       questions: PtQuestion[];
-    }>('/api/personal-tests/generate', { subjectId, materialIds, count },
-       { timeout: 90000 }),
+    }>('/api/personal-tests/generate', { subjectId, materialIds, count }),
 
   generateMini: (subjectId: string, wrongAnswers: any[], count = 10, sourceTestId?: string) =>
-    api.post<{
+    streamJsonFetch<{
       testId: string; subjectId: string; subjectName: string;
       testType: 'mini'; folderId?: string;
       totalQuestions: number; durationSeconds: number;
       questions: PtQuestion[];
-    }>('/api/personal-tests/mini', { subjectId, wrongAnswers, count, sourceTestId },
-       { timeout: 90000 }),
+    }>('/api/personal-tests/mini', { subjectId, wrongAnswers, count, sourceTestId }),
 
   explain: (testId: string, qIdx: number) =>
     api.post<{ explanation: string }>(`/api/personal-tests/${testId}/explain`, { qIdx }),
@@ -276,7 +323,7 @@ export const folderApi = {
   checkSufficiency: (id: string) =>
     api.post<any>(`/api/folders/${id}/check-sufficiency`),
   generate: (id: string, opt: 'standard' | 'ai_fill' = 'standard') =>
-    api.post<any>(`/api/folders/${id}/generate`, { opt }, { timeout: 90000 }),
+    streamJsonFetch<any>(`/api/folders/${id}/generate`, { opt }),
   retry: (id: string) =>
     api.post<any>(`/api/folders/${id}/retry`),
   delete: (id: string) =>

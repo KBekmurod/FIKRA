@@ -268,9 +268,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* MAIN — 4 ta asosiy menyu kartlari */}
       <div className="section-title">Asosiy bo'limlar</div>
-      <div style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div className="grid-responsive" style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <MenuCard icon="🏛" title="Ombor"   subtitle="Materiallar" color="rgba(167,139,250,0.15)" onClick={() => navigate('/ombor')} />
         <MenuCard icon="📝" title="Testlar" subtitle="DTM va AI"    color="rgba(0,212,170,0.15)"  onClick={() => navigate('/testlar')} />
         <MenuCard icon="📚" title="Tarix"   subtitle="Ishlagan testlar" color="rgba(59,130,246,0.15)" onClick={() => navigate('/tarix')} />

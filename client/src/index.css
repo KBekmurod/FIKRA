@@ -479,3 +479,97 @@ input, textarea, select {
   word-break: break-word;
 }
 
+/* ─── Markdown Styles ───────────────────────────────────────────────── */
+.markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 1em; font-size: 0.9em; }
+.markdown-body th, .markdown-body td { border: 1px solid var(--f); padding: 8px 10px; text-align: left; }
+.markdown-body th { background: var(--bg); font-weight: 700; }
+.markdown-body code { font-family: 'JetBrains Mono', Consolas, monospace; background: var(--bg); padding: 2px 5px; border-radius: 4px; font-size: 0.85em; color: var(--acc-l); }
+.markdown-body pre { background: var(--bg); border-radius: 8px; padding: 0px; overflow-x: auto; margin-bottom: 1em; border: 1px solid var(--f); }
+.markdown-body pre div { background: transparent !important; margin: 0 !important; }
+.markdown-body p, .markdown-body ul, .markdown-body ol { margin-bottom: 1em; line-height: 1.6; }
+.markdown-body ul, .markdown-body ol { padding-left: 24px; }
+.markdown-body li { margin-bottom: 0.5em; }
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 { margin-top: 1.5em; margin-bottom: 0.7em; font-weight: 800; }
+.markdown-body h1 { font-size: 1.4em; }
+.markdown-body h2 { font-size: 1.25em; border-bottom: 1px solid var(--f); padding-bottom: 4px; }
+.markdown-body h3 { font-size: 1.1em; }
+.markdown-body blockquote { border-left: 3px solid var(--acc); padding-left: 12px; color: var(--txt-2); margin-left: 0; background: var(--bg); padding-top: 8px; padding-bottom: 8px; border-radius: 0 8px 8px 0; }
+
+/* ─── Responsive Desktop Layout ──────────────────────────────────────── */
+@media (min-width: 768px) {
+  #root {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    background: #04040f;
+  }
+  
+  .app {
+    max-width: 1200px !important;
+    width: 100%;
+    flex-direction: row !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  .nav {
+    position: sticky !important;
+    top: 0;
+    bottom: auto;
+    left: auto !important;
+    transform: none !important;
+    width: 260px !important;
+    height: 100vh;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    padding: 30px 20px !important;
+    border-right: 1px solid rgba(240, 238, 255, 0.04) !important;
+    border-top: none !important;
+    max-width: none !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    margin: 0;
+  }
+  
+  .nav-item {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    gap: 16px !important;
+    padding: 14px 20px !important;
+    min-height: 48px !important;
+    margin-bottom: 8px;
+    border-radius: 12px !important;
+  }
+  
+  .nav-label { font-size: 14px !important; font-weight: 800 !important; }
+  .nav-icon { font-size: 20px !important; }
+
+  .app-content {
+    padding-bottom: 0 !important;
+    flex: 1;
+    min-height: 100vh;
+    background: var(--bg);
+    border-radius: 20px;
+    margin: 10px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    overflow-x: hidden;
+  }
+  
+  .header {
+    background: rgba(10, 10, 20, 0.8) !important;
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(240, 238, 255, 0.04);
+  }
+
+  /* Grids */
+  .grid-responsive {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+    gap: 14px !important;
+  }
+}
+

@@ -3,8 +3,12 @@ import { useAppStore } from '../store'
 import { aiApi, streamChat } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import SubscriptionModal from '../components/SubscriptionModal'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
-type Tab = 'chat' | 'doc' | 'image'
+type Tab = 'chat' | 'doc'
 
 export default function AIPage() {
   const [tab, setTab] = useState<Tab>('chat')
@@ -20,14 +24,12 @@ export default function AIPage() {
 
       {/* Tabs */}
       <div style={{ padding: '0 20px 8px', display: 'flex', gap: 6 }}>
-        <TabButton active={tab === 'chat'} onClick={() => setTab('chat')} icon="💬" label="Chat" />
-        <TabButton active={tab === 'doc'} onClick={() => setTab('doc')} icon="📄" label="Hujjat" />
-        <TabButton active={tab === 'image'} onClick={() => setTab('image')} icon="🎨" label="Rasm" />
+        <TabButton active={tab === 'chat'} onClick={() => setTab('chat')} icon="💬" label="Suhbat (Chat)" />
+        <TabButton active={tab === 'doc'} onClick={() => setTab('doc')} icon="📄" label="Hujjat yaratish" />
       </div>
 
       {tab === 'chat' && <ChatTab onSubOpen={() => setSubOpen(true)} />}
       {tab === 'doc' && <DocTab onSubOpen={() => setSubOpen(true)} />}
-      {tab === 'image' && <ImageTab onSubOpen={() => setSubOpen(true)} />}
 
       <SubscriptionModal open={subOpen} onClose={() => setSubOpen(false)} />
     </>
@@ -59,49 +61,62 @@ function TabButton({ active, onClick, icon, label }: any) {
 // ─── CHAT TAB ─────────────────────────────────────────────────────────
 function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
   const { user, refreshUser } = useAppStore()
-  // XAVFSIZLIK: chat tarixi har user uchun alohida saqlanadi (userId-spec key)
-  const chatStorageKey = user?.id ? `fikra_chat_history_${user.id}` : null
-
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>(() => {
-    if (!chatStorageKey) return []
-    try {
-      const saved = localStorage.getItem(chatStorageKey)
-      return saved ? JSON.parse(saved).slice(-50) : []
-    } catch { return [] }
-  })
+  
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [sessions, setSessions] = useState<any[]>([])
+  
   const { toast } = useToast()
   const msgsRef = useRef<HTMLDivElement>(null)
 
-  // User o'zgarsa, chat ni qaytadan yuklash (logout va boshqa account bilan kirgan paytda)
+  // Fetch sessions on mount
   useEffect(() => {
-    if (!chatStorageKey) {
-      setMessages([])
-      return
+    fetchSessions()
+  }, [])
+
+  const fetchSessions = async () => {
+    try {
+      const { data } = await aiApi.chatSessions()
+      setSessions(data.sessions || [])
+    } catch (e) {
+      console.error(e)
     }
-    try {
-      const saved = localStorage.getItem(chatStorageKey)
-      setMessages(saved ? JSON.parse(saved).slice(-50) : [])
-    } catch { setMessages([]) }
-    // Eski (userId'siz) keylarni avtomatik tozalash — migratsiya
-    try { localStorage.removeItem('fikra_chat_history') } catch {}
-  }, [chatStorageKey])
+  }
 
-  // Tarixni saqlash (user-scoped)
-  useEffect(() => {
-    if (!chatStorageKey) return
+  const loadSession = async (id: string) => {
     try {
-      localStorage.setItem(chatStorageKey, JSON.stringify(messages))
-    } catch {}
-  }, [messages, chatStorageKey])
+      const { data } = await aiApi.chatSession(id)
+      if (data.session) {
+        setSessionId(data.session._id)
+        setMessages(data.session.messages)
+        setShowHistoryModal(false)
+      }
+    } catch (e) {
+      toast('Sessiyani yuklashda xatolik', 'err')
+    }
+  }
 
-  const clearHistory = () => {
+  const deleteSession = async (id: string) => {
+    if (!window.confirm("Haqiqatan ham bu suhbatni o'chirmoqchimisiz?")) return
+    try {
+      await aiApi.deleteChatSession(id)
+      setSessions(s => s.filter(x => x._id !== id))
+      if (sessionId === id) {
+        setSessionId(null)
+        setMessages([])
+      }
+      toast("Suhbat o'chirildi", 'ok')
+    } catch (e) {
+      toast("Xatolik", 'err')
+    }
+  }
+
+  const startNewSession = () => {
+    setSessionId(null)
     setMessages([])
-    if (chatStorageKey) {
-      try { localStorage.removeItem(chatStorageKey) } catch {}
-    }
     setShowHistoryModal(false)
   }
 
@@ -115,7 +130,7 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
     let full = ''
     await streamChat(
       text,
-      messages.slice(-10),
+      sessionId,
       (chunk) => {
         full += chunk
         setMessages(m => {
@@ -124,9 +139,13 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
           return copy
         })
       },
+      (newId) => {
+        if (!sessionId) setSessionId(newId)
+      },
       () => {
         setSending(false)
         refreshUser()
+        fetchSessions() // Update history titles
       },
       (err) => {
         setSending(false)
@@ -137,7 +156,7 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
         } else {
           toast(err?.error || 'Xatolik', 'err')
         }
-        setMessages(m => m.slice(0, -1)) // bo'sh javobni o'chirish
+        setMessages(m => m.slice(0, -1))
       }
     )
   }
@@ -146,7 +165,6 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
   const chatsLimit = user?.aiLimits?.chats
   const canChat = chatsLimit === null || chatsUsed < (chatsLimit as number)
 
-  // Keyboard ochilganda scroll oxiriga — requestAnimationFrame bilan (DOM ready)
   useEffect(() => {
     if (!msgsRef.current) return
     const el = msgsRef.current
@@ -167,62 +185,66 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
         alignItems: 'center',
       }}>
         <span>{chatsLimit === null ? 'Cheksiz' : `${chatsUsed}/${chatsLimit} bugun ishlatildi`}</span>
-        {messages.length > 0 && (
-          <button
-            onClick={() => setShowHistoryModal(true)}
-            style={{
-              background: 'none',
-              border: '1px solid var(--f)',
-              borderRadius: 100,
-              color: 'var(--txt-2)',
-              fontSize: 10,
-              fontWeight: 700,
-              padding: '3px 10px',
-              cursor: 'pointer',
-            }}
-          >🗑 Tarix</button>
-        )}
+        <button
+          onClick={() => setShowHistoryModal(true)}
+          style={{
+            background: 'none',
+            border: '1px solid var(--f)',
+            borderRadius: 100,
+            color: 'var(--txt-2)',
+            fontSize: 10,
+            fontWeight: 700,
+            padding: '4px 12px',
+            cursor: 'pointer',
+            display: 'flex', gap: 4, alignItems: 'center'
+          }}
+        >
+          📂 Suhbatlar
+        </button>
       </div>
 
       {showHistoryModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1000,
           background: 'rgba(0,0,0,0.7)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 20,
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+          padding: '60px 20px', overflowY: 'auto'
         }}>
           <div style={{
-            background: 'var(--s1)',
-            border: '1px solid var(--f)',
-            borderRadius: 18,
-            padding: 22,
-            maxWidth: 360,
-            width: '100%',
+            background: 'var(--s1)', border: '1px solid var(--f)',
+            borderRadius: 18, padding: 22, width: '100%', maxWidth: 400,
           }}>
-            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>
-              Suhbat tarixi
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>Suhbatlar tarixi</div>
+              <button onClick={() => setShowHistoryModal(false)} style={{ background:'none', border:'none', fontSize: 20, cursor: 'pointer' }}>×</button>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: 14 }}>
-              Hozir <strong>{messages.length}</strong> ta xabar saqlangan. Tarixni tozalasangiz, AI yangi suhbatda eski kontekstni eslay olmaydi.
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setShowHistoryModal(false)} className="btn btn-ghost btn-block">
-                Bekor qilish
-              </button>
-              <button
-                onClick={clearHistory}
-                style={{
-                  flex: 1,
-                  background: 'rgba(255,95,126,0.15)',
-                  border: '1.5px solid var(--r)',
-                  color: 'var(--r)',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  padding: '11px 14px',
-                  borderRadius: 10,
-                  cursor: 'pointer',
-                }}
-              >Tozalash</button>
+            
+            <button onClick={startNewSession} className="btn btn-success btn-block" style={{ marginBottom: 16 }}>
+              + Yangi suhbat
+            </button>
+
+            <div style={{ maxHeight: '50vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {!sessions.length && <div style={{ fontSize: 12, color: 'var(--txt-3)', textAlign: 'center', padding: '20px 0' }}>Suhbatlar yo'q</div>}
+              {sessions.map(s => (
+                <div key={s._id} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '10px 14px', background: s._id === sessionId ? 'var(--acc-10)' : 'var(--s2)',
+                  border: '1px solid ' + (s._id === sessionId ? 'var(--acc)' : 'var(--f)'),
+                  borderRadius: 12, cursor: 'pointer'
+                }}>
+                  <div onClick={() => loadSession(s._id)} style={{ flex: 1, overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                      {s.title || 'Yangi suhbat'}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 4 }}>
+                      {new Date(s.updatedAt).toLocaleString('uz-UZ', { hour: '2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' })}
+                    </div>
+                  </div>
+                  <button onClick={() => deleteSession(s._id)} style={{
+                    background: 'none', border: 'none', color: 'var(--r)', padding: '5px', cursor: 'pointer'
+                  }}>🗑</button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -232,23 +254,55 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
         {!messages.length && (
           <div className="empty">
             🤖 AI bilan suhbatni boshlang.<br />
-            DTM mavzularini so'rashingiz mumkin.
+            Savol bering yoki yordam so'rang.
           </div>
         )}
         {messages.map((m, i) => (
           <div key={i} style={{
             alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-            maxWidth: '85%',
-            padding: '10px 14px',
+            maxWidth: '90%',
+            padding: m.role === 'user' ? '10px 14px' : '0px 0px',
             borderRadius: m.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-            background: m.role === 'user' ? 'var(--acc)' : 'var(--s2)',
+            background: m.role === 'user' ? 'var(--acc)' : 'transparent',
             color: m.role === 'user' ? 'white' : 'var(--txt)',
             fontSize: 13,
             lineHeight: 1.5,
-            whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
           }}>
-            {m.content || (sending && m.role === 'assistant' ? '...' : '')}
+            {m.role === 'user' ? (
+              <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
+            ) : (
+              <div className="markdown-body" style={{
+                background: 'var(--s2)', padding: '14px', borderRadius: '14px 14px 14px 4px', border: '1px solid var(--f)',
+              }}>
+                {m.content ? (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({node, inline, className, children, ...props}: any) {
+                        const match = /language-(\w+)/.exec(className || '')
+                        return !inline && match ? (
+                          <SyntaxHighlighter
+                            style={atomDark as any}
+                            language={match[1]}
+                            PreTag="div"
+                            {...props}
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        ) : (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        )
+                      }
+                    }}
+                  >
+                    {m.content}
+                  </ReactMarkdown>
+                ) : (sending && i === messages.length - 1 ? <span className="spin" style={{display:'inline-block', width:12, height:12, borderWidth:2}}/> : '')}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -263,7 +317,7 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
         <div className="chat-input-bar">
           <textarea
             className="textarea"
-            placeholder="Savol yozing..."
+            placeholder="Xabar yozing..."
             value={input}
             onChange={e => setInput(e.target.value)}
             rows={2}
@@ -293,7 +347,9 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
 function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
   const [prompt, setPrompt] = useState('')
   const [format, setFormat] = useState<'DOCX' | 'PDF' | 'PPTX'>('DOCX')
+  const [maxPages, setMaxPages] = useState<number>(2)
   const [loading, setLoading] = useState(false)
+  const [statusMsg, setStatusMsg] = useState('')
   const [result, setResult] = useState<any>(null)
   const { user, refreshUser } = useAppStore()
   const { toast } = useToast()
@@ -303,18 +359,68 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
     if (!p || loading) return
     setLoading(true)
     setResult(null)
+    setStatusMsg('Boshlanmoqda...')
+
+    const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}')
+    const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000'
+    
     try {
-      const { data } = await aiApi.document(p, format)
-      setResult(data)
-      refreshUser()
-    } catch (e: any) {
-      const code = e.response?.data?.code
-      if (code === 'DAILY_LIMIT_REACHED' || code === 'SUBSCRIPTION_REQUIRED') {
-        onSubOpen()
-      } else {
-        toast(e.response?.data?.error || 'Xatolik', 'err')
+      const res = await fetch(`${API_BASE}/api/ai/document/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${auth.access || ''}`,
+        },
+        body: JSON.stringify({ prompt: p, format, maxPages })
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        if (err?.code === 'DAILY_LIMIT_REACHED' || err?.code === 'SUBSCRIPTION_REQUIRED') {
+          onSubOpen()
+        } else {
+          toast(err?.error || 'Xatolik', 'err')
+        }
+        setLoading(false)
+        return
       }
-    } finally { setLoading(false) }
+
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6)
+          if (data === '[DONE]') {
+            setLoading(false)
+            refreshUser()
+            return
+          }
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.error) {
+              toast(parsed.error, 'err')
+              setLoading(false)
+              return
+            }
+            if (parsed.status === 'tayyor') {
+              setResult(parsed)
+            } else if (parsed.message) {
+              setStatusMsg(parsed.message)
+            }
+          } catch {}
+        }
+      }
+    } catch (e: any) {
+      toast('Aloqada xatolik', 'err')
+    }
+    setLoading(false)
   }
 
   const download = () => {
@@ -327,30 +433,27 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
 
   const docsUsed = user?.aiUsage?.docs ?? 0
   const docsLimit = user?.aiLimits?.docs
-  const canDoc = docsLimit === null || docsUsed < (docsLimit as number)
+  const targetChunks = Math.max(1, Math.min(Math.ceil(maxPages / 2), 8))
+  const canDoc = docsLimit === null || (docsUsed + targetChunks) <= (docsLimit as number)
 
   return (
-    <div style={{ padding: '0 20px' }}>
-      <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 8 }}>
-        {docsLimit === null ? 'Cheksiz' : `${docsUsed}/${docsLimit} bugun`}
+    <div style={{ padding: '0 20px', overflowY: 'auto' }}>
+      <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 14 }}>
+        {docsLimit === null ? 'Cheksiz' : `${docsUsed}/${docsLimit} bugun ishlatildi. (Max: ${docsLimit})`}
       </div>
 
-      {/* Format tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--txt-2)' }}>1. Hujjat turi (Format)</div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
         {(['DOCX', 'PDF', 'PPTX'] as const).map(f => (
           <button
             key={f}
             onClick={() => setFormat(f)}
             style={{
-              flex: 1,
-              padding: 8,
-              background: format === f ? 'var(--g)' : 'var(--s2)',
-              color: format === f ? '#00271e' : 'var(--txt-2)',
-              border: '1px solid ' + (format === f ? 'var(--g)' : 'var(--f)'),
-              borderRadius: 'var(--br2)',
-              fontWeight: 700,
-              fontSize: 12,
-              cursor: 'pointer',
+              flex: 1, padding: '10px 8px',
+              background: format === f ? 'var(--acc)' : 'var(--s2)',
+              color: format === f ? 'white' : 'var(--txt-2)',
+              border: '1px solid ' + (format === f ? 'var(--acc)' : 'var(--f)'),
+              borderRadius: 'var(--br2)', fontWeight: 700, fontSize: 13, cursor: 'pointer',
             }}
           >
             {f}
@@ -358,148 +461,74 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
         ))}
       </div>
 
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--txt-2)' }}>2. Sahifalar soni (Limit sarflanadi)</div>
+      <div style={{ marginBottom: 20 }}>
+        <input 
+          type="number" 
+          className="input" 
+          min={1} max={30} 
+          value={maxPages} 
+          onChange={e => setMaxPages(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))} 
+        />
+        <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 6 }}>
+          💡 Har {maxPages > 1 ? `2 sahifa (taxminan) uchun 1 ta limit ketadi. (Jami: ${targetChunks} ta limit)` : '1 ta limit ketadi.'}
+        </div>
+      </div>
+
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--txt-2)' }}>3. Mavzu (Batafsil yozing)</div>
       <textarea
         className="textarea"
-        placeholder="Hujjat mavzusini yozing... Masalan: 'Mendeleyev davriy jadvali haqida 2 sahifalik referat'"
+        placeholder="Mavzuni yozing... Masalan: 'Sun'iy intellektning ta'limdagi o'rni va kelajagi'"
         value={prompt}
         onChange={e => setPrompt(e.target.value)}
         rows={4}
-        style={{ marginBottom: 10 }}
+        style={{ marginBottom: 20 }}
       />
 
       {!canDoc ? (
-        <button onClick={onSubOpen} className="btn btn-primary btn-block btn-lg">
-          Limit tugadi · Obuna olish ↗
+        <button onClick={onSubOpen} className="btn btn-primary btn-block btn-lg" style={{ background: 'var(--r)' }}>
+          Limit yetarli emas (Obuna kerak)
         </button>
       ) : (
         <button
           disabled={loading || !prompt.trim()}
           onClick={generate}
           className="btn btn-primary btn-block btn-lg"
+          style={{ position: 'relative' }}
         >
-          {loading ? '⏳ Yaratilmoqda...' : '✨ Yaratish'}
+          {loading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+              <span className="spin" style={{ width: 18, height: 18, borderWidth: 2 }} />
+              {statusMsg}
+            </div>
+          ) : '✨ Hujjatni Yaratish'}
         </button>
       )}
 
-      {result && (
+      {result && !loading && (
         <div style={{
-          marginTop: 16,
+          marginTop: 20,
           background: 'rgba(0,212,170,0.07)',
           border: '1px solid rgba(0,212,170,0.25)',
           borderRadius: 'var(--br)',
-          padding: 14,
+          padding: 16,
         }}>
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>
             ✅ {result.fileName}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 8 }}>
+          <div style={{ fontSize: 12, color: 'var(--txt-3)', marginBottom: 12 }}>
             {result.sizeKb} KB · {result.format}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: 12, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: 16, lineHeight: 1.6 }}>
             {result.preview.slice(0, 200)}...
           </div>
-          <button onClick={download} className="btn btn-success btn-block">
+          <button onClick={download} className="btn btn-success btn-block btn-lg">
             ⬇ Yuklab olish
           </button>
         </div>
       )}
-    </div>
-  )
-}
-
-// ─── IMAGE TAB ────────────────────────────────────────────────────────
-function ImageTab({ onSubOpen }: { onSubOpen: () => void }) {
-  const [prompt, setPrompt] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<any>(null)
-  const { user, refreshUser } = useAppStore()
-  const { toast } = useToast()
-
-  const generate = async () => {
-    const p = prompt.trim()
-    if (p.length < 3 || loading) return
-    setLoading(true)
-    setResult(null)
-    try {
-      const { data } = await aiApi.image(p)
-      setResult(data)
-      refreshUser()
-    } catch (e: any) {
-      const code = e.response?.data?.code
-      if (code === 'DAILY_LIMIT_REACHED' || code === 'SUBSCRIPTION_REQUIRED') {
-        onSubOpen()
-      } else {
-        toast(e.response?.data?.error || 'Xatolik', 'err')
-      }
-    } finally { setLoading(false) }
-  }
-
-  const download = () => {
-    if (!result?.downloadUrl) return
-    const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000'
-    const url = `${API_BASE}${result.downloadUrl}`
-    window.open(url, '_blank')
-    toast('Yuklab olish boshlandi', 'ok')
-  }
-
-  const imagesUsed = user?.aiUsage?.images ?? 0
-  const imagesLimit = user?.aiLimits?.images
-  const canImage = imagesLimit !== 0 && (imagesLimit === null || imagesUsed < (imagesLimit as number))
-
-  if (imagesLimit === 0) {
-    return (
-      <div style={{ padding: '20px' }}>
-        <div className="empty">
-          🎨 AI Rasm yaratish<br />
-          <span style={{ color: 'var(--acc-l)' }}>Basic+ obunada ochiladi</span>
-        </div>
-        <button onClick={onSubOpen} className="btn btn-primary btn-block btn-lg">
-          Obuna ko'rish ⭐
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ padding: '0 20px' }}>
-      <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 8 }}>
-        {imagesLimit === null ? 'Cheksiz' : `${imagesUsed}/${imagesLimit} bugun`}
-      </div>
-
-      <input
-        className="input"
-        placeholder="Rasm tavsifi (ingliz tilida yaxshiroq)..."
-        value={prompt}
-        onChange={e => setPrompt(e.target.value)}
-        style={{ marginBottom: 10 }}
-      />
-
-      {!canImage ? (
-        <button onClick={onSubOpen} className="btn btn-primary btn-block btn-lg">
-          Limit tugadi · Obuna ↗
-        </button>
-      ) : (
-        <button
-          disabled={loading || prompt.length < 3}
-          onClick={generate}
-          className="btn btn-primary btn-block btn-lg"
-        >
-          {loading ? '🎨 Yaratilmoqda...' : '🎨 Yaratish'}
-        </button>
-      )}
-
-      {result && (
-        <div style={{ marginTop: 16 }}>
-          <img
-            src={`data:${result.mimeType};base64,${result.base64}`}
-            style={{ width: '100%', borderRadius: 'var(--br)' }}
-            alt="AI generated"
-          />
-          <button onClick={download} className="btn btn-success btn-block" style={{ marginTop: 10 }}>
-            ⬇ Yuklab olish
-          </button>
-        </div>
-      )}
+      
+      <div style={{ height: 40 }} />
     </div>
   )
 }

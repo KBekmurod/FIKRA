@@ -1,5 +1,23 @@
 const winston = require('winston');
 
+// In-memory transport for Admin Terminal logs
+const memoryLogs = [];
+const MAX_LOGS = 200;
+
+class MemoryTransport extends winston.Transport {
+  constructor(opts) {
+    super(opts);
+  }
+  log(info, callback) {
+    setImmediate(() => this.emit('logged', info));
+    memoryLogs.push(info);
+    if (memoryLogs.length > MAX_LOGS) {
+      memoryLogs.shift();
+    }
+    callback();
+  }
+}
+
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   format: winston.format.combine(
@@ -15,6 +33,7 @@ const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.Console(),
+    new MemoryTransport(),
     ...(process.env.NODE_ENV === 'production'
       ? [new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
          new winston.transports.File({ filename: 'logs/combined.log' })]
@@ -22,4 +41,4 @@ const logger = winston.createLogger({
   ],
 });
 
-module.exports = { logger };
+module.exports = { logger, memoryLogs };

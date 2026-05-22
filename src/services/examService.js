@@ -276,6 +276,13 @@ async function submitAnswer(sessionId, userId, questionId, selectedOption) {
   if (!session) throw new Error('Sessiya topilmadi');
   if (session.status !== 'in_progress') throw new Error('Sessiya allaqachon yakunlangan');
   if (String(session.userId) !== String(userId)) throw new Error('Ruxsat yoq');
+  
+  // Vaqt tekshiruvi (60 soniya imtiyoz bilan)
+  const sessionEndTime = new Date(session.startTime.getTime() + session.durationSeconds * 1000 + 60000);
+  if (new Date() > sessionEndTime) {
+    throw new Error('Vaqt tugagan, javob qabul qilinmaydi');
+  }
+
   if (!testQ) throw new Error('Savol topilmadi');
 
   const isCorrect = testQ.answer === selectedOption;

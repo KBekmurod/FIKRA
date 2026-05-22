@@ -71,7 +71,6 @@ const NAV_ITEMS = [
   { path: '/',         icon: '🏠', label: 'Asosiy'  },
   { path: '/ombor',    icon: '🏛',  label: 'Ombor'   },
   { path: '/testlar',  icon: '📝', label: 'Testlar' },
-  { path: '/tarix',    icon: '📚', label: 'Tarix'   },
   { path: '/ai',       icon: '🤖', label: 'AI'      },
   { path: '/profil',   icon: '👤', label: 'Profil'  },
 ]
@@ -221,6 +220,7 @@ export default function App() {
       )}
 
       <ToastProvider>
+        {!isAuthRoute && user && <BottomNav />}
         <div className="app-content">
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -263,7 +263,6 @@ export default function App() {
             </Routes>
           </Suspense>
         </div>
-        {!isAuthRoute && user && <BottomNav />}
       </ToastProvider>
     </div>
   )

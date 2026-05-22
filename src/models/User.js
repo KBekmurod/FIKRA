@@ -77,10 +77,10 @@ userSchema.pre('validate', function(next) {
 // ─── Plan limitlari (kunlik) ─────────────────────────────────────────────────
 const PLAN_LIMITS = {
   free:  {
-    hints: 5,        chats: 10,        docs: 2,        images: 0,
-    textMaterials: 1,
-    ocrUploads:    1,
-    fileUploads:   0,
+    hints: 10,       chats: 15,        docs: 2,        images: 0,
+    textMaterials: 3,
+    ocrUploads:    3,
+    fileUploads:   1,
     testsGen:      2,
   },
   basic: {

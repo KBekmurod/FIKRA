@@ -20,37 +20,71 @@ function deepseek() {
 }
 
 // ─── AI Chat (SSE stream) ──────────────────────────────────────────────────
-async function streamChat(messages, res) {
+async function streamChat(messages, res, onComplete) {
   const stream = await deepseek().chat.completions.create({
     model: 'deepseek-chat',
     messages,
     stream: true,
-    max_tokens: 1000,
+    max_tokens: 1500,
     temperature: 0.7,
   });
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  let fullContent = '';
   for await (const chunk of stream) {
     const content = chunk.choices[0]?.delta?.content || '';
-    if (content) res.write(`data: ${JSON.stringify({ content })}\n\n`);
+    if (content) {
+      fullContent += content;
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+    }
   }
   res.write('data: [DONE]\n\n');
   res.end();
+  
+  if (onComplete) {
+    await onComplete(fullContent);
+  }
 }
 
-// ─── Hujjat yaratish ───────────────────────────────────────────────────────
-async function generateDocument(prompt, format, history = []) {
-  const res = await deepseek().chat.completions.create({
-    model: 'deepseek-chat',
-    messages: [
-      { role: 'system', content: `Sen hujjat yaratish AI yordamchisisan. ${format} formatida, markdown da, o'zbek tilida yoz.` },
-      ...history.slice(-10),
-      { role: 'user', content: prompt },
-    ],
-    max_tokens: 2000,
-  });
-  return res.choices[0].message.content;
+// ─── Hujjat yaratish (Chunking / Stream) ──────────────────────────────────
+async function generateLongDocumentStream(prompt, format, maxPages, res, onComplete) {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  let fullContent = '';
+  // maxPages ni 1 dan 15 gacha cheklaymiz (1 chunk ~ 2 sahifa)
+  const targetChunks = Math.max(1, Math.min(Math.ceil(maxPages / 2), 8)); 
+  
+  try {
+    res.write(`data: ${JSON.stringify({ status: 'reja', message: 'Hujjat rejasi tuzilmoqda...' })}\n\n`);
+    
+    for (let i = 1; i <= targetChunks; i++) {
+      res.write(`data: ${JSON.stringify({ status: 'qism', current: i, total: targetChunks, message: `${i}-qism yozilmoqda...` })}\n\n`);
+      
+      const chunkPrompt = i === 1 
+        ? `Sen professional hujjat yaratuvchi AIsan. Mavzu: "${prompt}". ${format} formati uchun markdown da yoz.\nBu hujjatning 1-qismini yoz. Imkon qadar keng, professional va batafsil yoz. Jami qismlar soni: ${targetChunks}.`
+        : `Mavzu: "${prompt}". Bu hujjatning ${i}-qismini yoz. Oldingi qismlarning mantiqiy davomi bo'lsin. Takrorlanmasin. Batafsil yoz.`;
+        
+      const response = await deepseek().chat.completions.create({
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: chunkPrompt }],
+        max_tokens: 3000,
+        temperature: 0.7,
+      });
+      fullContent += '\n\n' + response.choices[0].message.content;
+    }
+
+    res.write(`data: ${JSON.stringify({ status: 'tayyorlash', message: 'Hujjat faylga o\'girilmoqda...' })}\n\n`);
+    if (onComplete) {
+      await onComplete(fullContent);
+    }
+  } catch (err) {
+    logger.error('generateLongDocumentStream error:', err.message);
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
+  }
 }
 
 // ─── DTM test: maslahat (to'g'ri javob ochilmaydi) ─────────────────────────
@@ -171,7 +205,7 @@ async function analyzeCalorie(imageBase64, mimeType = 'image/jpeg') {
 
 module.exports = {
   streamChat,
-  generateDocument,
+  generateLongDocumentStream,
   chatWithMemory,
   getTestHint,
   explainTestQuestion,

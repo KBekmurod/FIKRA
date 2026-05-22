@@ -130,6 +130,9 @@ select option{background:var(--s2)}
 
     <div class="sb-section">Kontent</div>
     <button class="sb-item" onclick="goto('questions')"><span class="icon">📝</span> Savollar <span id="sb-q-count" style="font-size:10px;color:var(--m);margin-left:auto"></span></button>
+
+    <div class="sb-section">Tizim</div>
+    <button class="sb-item" onclick="goto('logs')"><span class="icon">🖥️</span> Server Terminal</button>
   </nav>
   <div class="sb-secret">
     <label>Admin kalit</label>
@@ -326,6 +329,20 @@ select option{background:var(--s2)}
       </div>
     </div>
 
+    <!-- TERMINAL LOGS -->
+    <div class="page" id="page-logs">
+      <div style="background:#000;border:1px solid var(--f);border-radius:var(--br);padding:16px;height:calc(100vh - 120px);display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #333;padding-bottom:12px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#00d4aa">root@fikra-server:~#</div>
+          <div>
+            <label style="font-size:11px;color:var(--m);margin-right:8px"><input type="checkbox" id="log-auto-scroll" checked> Auto-scroll</label>
+            <button class="btn btn-ghost btn-sm" onclick="loadLogs()">↻ Refresh</button>
+          </div>
+        </div>
+        <div id="terminal-output" style="flex:1;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.5;color:#ddd;white-space:pre-wrap;word-break:break-all"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -393,7 +410,7 @@ function goto(page) {
 
   const titles = { stats:'Dashboard', revenue:'Daromad kalkulyatori',
     users:'Foydalanuvchilar', subscriptions:'Obunalar',
-    orders:'P2P Buyurtmalar', questions:'DTM Savollar' };
+    orders:'P2P Buyurtmalar', questions:'DTM Savollar', logs:'Server Terminal' };
   document.getElementById('page-title').textContent = titles[page] || page;
   reload();
 }
@@ -405,6 +422,7 @@ function reload() {
   else if (_currentPage === 'subscriptions') loadSubs();
   else if (_currentPage === 'orders') loadOrders();
   else if (_currentPage === 'questions') { loadQStats(); loadQuestions(); }
+  else if (_currentPage === 'logs') loadLogs();
 }
 
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
@@ -510,10 +528,13 @@ function showActivatePlan(userId, name) {
       <select id="ap-plan" style="width:100%">
         <option value="basic_1m">Basic · 1 oy</option>
         <option value="basic_3m">Basic · 3 oy</option>
+        <option value="basic_12m">Basic · 12 oy</option>
         <option value="pro_1m">Pro · 1 oy</option>
         <option value="pro_3m">Pro · 3 oy</option>
+        <option value="pro_12m">Pro · 12 oy</option>
         <option value="vip_1m">VIP · 1 oy</option>
         <option value="vip_3m">VIP · 3 oy</option>
+        <option value="vip_12m">VIP · 12 oy</option>
       </select>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -975,6 +996,26 @@ async function doImport() {
     toast(`✅ ${r.inserted} ta savol import qilindi!`, 'ok');
     closeModal(); loadQuestions();
   } catch(e) { toast('Xato: ' + e.message, 'err'); }
+}
+
+// ─── LOGS ───────────────────────────────────────────────────────────────────
+async function loadLogs() {
+  try {
+    const d = await req('/logs');
+    const out = document.getElementById('terminal-output');
+    out.innerHTML = d.logs.map(l => {
+      const ts = l.timestamp ? `<span style="color:#555">[${l.timestamp}]</span> ` : '';
+      const lvlColor = l.level === 'error' ? '#ff5f7e' : l.level === 'warn' ? '#ff9f43' : l.level === 'info' ? '#00d4aa' : '#7b68ee';
+      const lvl = `<span style="color:${lvlColor};font-weight:bold">[${l.level.toUpperCase()}]</span> `;
+      const meta = Object.keys(l).filter(k=>!['level','message','timestamp','stack'].includes(k)).length 
+        ? ' <span style="color:#888">' + JSON.stringify(Object.fromEntries(Object.entries(l).filter(([k])=>!['level','message','timestamp','stack'].includes(k)))) + '</span>' : '';
+      const stack = l.stack ? `<br><span style="color:#ff5f7e;padding-left:20px">${l.stack}</span>` : '';
+      return `<div>${ts}${lvl}${esc(l.message)}${meta}${stack}</div>`;
+    }).join('');
+    if (document.getElementById('log-auto-scroll').checked) {
+      out.scrollTop = out.scrollHeight;
+    }
+  } catch(e) { toast(e.message, 'err'); }
 }
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────

@@ -5,20 +5,50 @@ const { authMiddleware, requireAiAccess, incrementAiUsage } = require('../middle
 const { aiLimiter } = require('../middleware/rateLimit');
 const ai = require('../services/aiService');
 const { logger } = require('../utils/logger');
+const ChatHistory = require('../models/ChatHistory');
 
-// In-memory file storage (vaqtinchalik fayllar)
-// Production'da Redis yoki disk, lekin Railway uchun memory yetarli
-const fileStore = new Map();
-const FILE_TTL = 30 * 60 * 1000; // 30 daqiqa
+const TempData = require('../models/TempData');
 
-function _saveFile(buffer, mimeType, fileName) {
+// Vaqtinchalik fayllar (MongoDB orqali)
+async function _saveFile(buffer, mimeType, fileName) {
   const id = crypto.randomBytes(16).toString('hex');
-  const meta = { buffer, mimeType, fileName, createdAt: Date.now() };
-  fileStore.set(id, meta);
-  // TTL bo'yicha o'chirish
-  setTimeout(() => fileStore.delete(id), FILE_TTL);
+  await TempData.create({
+    key: id,
+    kind: 'file',
+    bufferData: buffer,
+    mimeType: mimeType,
+    fileName: fileName
+  });
   return id;
 }
+
+// ─── GET /api/ai/chat/sessions ───────────────────────────────────────────────
+router.get('/chat/sessions', authMiddleware, async (req, res, next) => {
+  try {
+    const sessions = await ChatHistory.find({ userId: req.user._id })
+      .select('title createdAt updatedAt')
+      .sort({ updatedAt: -1 })
+      .lean();
+    res.json({ sessions });
+  } catch (err) { next(err); }
+});
+
+// ─── GET /api/ai/chat/sessions/:id ───────────────────────────────────────────
+router.get('/chat/sessions/:id', authMiddleware, async (req, res, next) => {
+  try {
+    const session = await ChatHistory.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!session) return res.status(404).json({ error: 'Sessiya topilmadi' });
+    res.json({ session });
+  } catch (err) { next(err); }
+});
+
+// ─── DELETE /api/ai/chat/sessions/:id ────────────────────────────────────────
+router.delete('/chat/sessions/:id', authMiddleware, async (req, res, next) => {
+  try {
+    await ChatHistory.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
 
 // ─── POST /api/ai/chat — SSE stream ──────────────────────────────────────────
 router.post('/chat',
@@ -27,16 +57,48 @@ router.post('/chat',
   requireAiAccess('chats'),
   async (req, res, next) => {
     try {
-      const { message, history = [] } = req.body;
+      const { message, sessionId } = req.body;
       if (!message) return res.status(400).json({ error: 'Xabar kerak' });
       await incrementAiUsage(req.user._id, 'chats');
 
-      const messages = [
-        { role: 'system', content: "Sen FIKRA AI yordamchisisan. O'zbek tilida qisqa va aniq javob ber. Abituriyentlarga DTM testlariga tayyorgarlik ko'rishda yordam beradigan, do'stona, tushunarli AI'sen." },
-        ...history.slice(-10),
+      let session;
+      if (sessionId) {
+        session = await ChatHistory.findOne({ _id: sessionId, userId: req.user._id });
+      }
+      if (!session) {
+        const title = message.length > 40 ? message.slice(0, 40) + '...' : message;
+        session = new ChatHistory({ userId: req.user._id, title, messages: [] });
+      }
+
+      const systemPrompt = "Sen o'ta professional, bilimdon va yordamchi AIsan. Javoblaringni aniq, qisqa va strukturali shaklda (Markdown, Jadvallar, Listlar) yoz. Dasturlash kodlari bo'lsa `code` formatida ber. O'zbek tilida javob ber.";
+      
+      let dbMessages = session.messages.slice(-15).map(m => ({ role: m.role, content: m.content }));
+      
+      // Token (belgilar) chegarasi - OpenAI 400 xatosining oldini olish uchun
+      let charCount = dbMessages.reduce((sum, m) => sum + (m.content ? m.content.length : 0), 0) + message.length;
+      while (charCount > 15000 && dbMessages.length > 0) {
+        const removed = dbMessages.shift();
+        charCount -= (removed.content ? removed.content.length : 0);
+      }
+
+      const messagesToSend = [
+        { role: 'system', content: systemPrompt },
+        ...dbMessages,
         { role: 'user', content: message },
       ];
-      await ai.streamChat(messages, res);
+
+      res.setHeader('X-Session-Id', session._id.toString());
+      res.setHeader('Access-Control-Expose-Headers', 'X-Session-Id');
+
+      await ai.streamChat(messagesToSend, res, async (fullContent) => {
+        try {
+          session.messages.push({ role: 'user', content: message });
+          session.messages.push({ role: 'assistant', content: fullContent });
+          await session.save();
+        } catch(e) {
+          logger.error('Failed to save chat history:', e.message);
+        }
+      });
     } catch (err) {
       logger.error('AI chat error:', err.message);
       if (!res.headersSent) next(err);
@@ -74,66 +136,91 @@ router.post('/hint',
   }
 );
 
-// ─── POST /api/ai/document — Hujjat yaratish ─────────────────────────────────
-// Fayl serverda saqlanadi, frontend /api/ai/file/:id ga so'rov yuboradi
-router.post('/document',
+// ─── POST /api/ai/document/stream — Hujjat yaratish (Chunking) ──────────────────
+router.post('/document/stream',
   authMiddleware,
   aiLimiter,
-  requireAiAccess('docs'),
   async (req, res, next) => {
     try {
-      const { prompt, format = 'DOCX', history = [] } = req.body;
+      const { prompt, format = 'DOCX', maxPages = 1 } = req.body;
       if (!prompt) return res.status(400).json({ error: 'Prompt kerak' });
-      await incrementAiUsage(req.user._id, 'docs');
+      
+      const targetChunks = Math.max(1, Math.min(Math.ceil(maxPages / 2), 8)); 
+      
+      // Limit tekshirish
+      if (req.user.plan !== 'vip') {
+        const docsUsed = req.user.getAiUsage('docs');
+        const docsLimit = req.user.getAiLimit('docs');
+        if (docsLimit !== Infinity && (docsUsed + targetChunks) > docsLimit) {
+          return res.status(403).json({ error: 'Limit yetarli emas. Bitta hujjat qismi uchun 1 ta limit ketadi.', code: 'DAILY_LIMIT_REACHED' });
+        }
+      }
 
-      const content = await ai.generateDocument(prompt, format, history);
-      const titleMatch = content.match(/^#\s+(.+)$/m);
-      const title = titleMatch ? titleMatch[1].trim() : (prompt.slice(0, 60) || 'Hujjat');
+      // Limitdan ayirish (har bir chunk uchun)
+      for(let i = 0; i < targetChunks; i++) {
+        await incrementAiUsage(req.user._id, 'docs');
+      }
 
-      const documentService = require('../services/documentService');
-      const file = await documentService.generateFile(format, title, content);
-
-      const safeTitle = title
-        .replace(/[^\w\s\u0400-\u04FF\u0100-\u017F-]/g, '')
-        .replace(/\s+/g, '_')
-        .slice(0, 50) || 'fikra_document';
-      const fileName = `${safeTitle}_${Date.now()}.${file.ext}`;
-
-      // Faylni serverda saqlash, ID qaytarish
-      const fileId = _saveFile(file.buffer, file.mime, fileName);
-
-      res.json({
-        success: true,
-        format: format.toUpperCase(),
-        fileName,
-        fileId,
-        downloadUrl: `/api/ai/file/${fileId}`,
-        sizeKb: Math.round(file.buffer.length / 1024),
-        title,
-        preview: content.slice(0, 300),
+      await ai.generateLongDocumentStream(prompt, format, maxPages, res, async (fullContent) => {
+        try {
+          const titleMatch = fullContent.match(/^#\s+(.+)$/m);
+          const title = titleMatch ? titleMatch[1].trim() : (prompt.slice(0, 60) || 'Hujjat');
+    
+          const documentService = require('../services/documentService');
+          const file = await documentService.generateFile(format, title, fullContent);
+    
+          const safeTitle = title
+            .replace(/[^\w\s\u0400-\u04FF\u0100-\u017F-]/g, '')
+            .replace(/\s+/g, '_')
+            .slice(0, 50) || 'fikra_document';
+          const fileName = `${safeTitle}_${Date.now()}.${file.ext}`;
+    
+          const fileId = await _saveFile(file.buffer, file.mime, fileName);
+    
+          res.write(`data: ${JSON.stringify({
+            status: 'tayyor',
+            success: true,
+            format: format.toUpperCase(),
+            fileName,
+            fileId,
+            downloadUrl: `/api/ai/file/${fileId}`,
+            sizeKb: Math.round(file.buffer.length / 1024),
+            title,
+            preview: fullContent.slice(0, 300),
+          })}\n\n`);
+          res.write('data: [DONE]\n\n');
+          res.end();
+        } catch (e) {
+          logger.error('Fayl yaratishda xato:', e.message);
+          res.write(`data: ${JSON.stringify({ error: 'Fayl yaratishda xatolik' })}\n\n`);
+          res.end();
+        }
       });
     } catch (err) {
-      logger.error('AI document error:', err.message);
-      next(err);
+      logger.error('AI document stream error:', err.message);
+      if (!res.headersSent) next(err);
+      else { try { res.end(); } catch {} }
     }
   }
 );
 
 // ─── GET /api/ai/file/:fileId — Fayl yuklab olish ────────────────────────────
 // Authsiz — chunki fileId crypto random, faqat egasi biladi
-router.get('/file/:fileId', (req, res) => {
-  const { fileId } = req.params;
-  const file = fileStore.get(fileId);
-  if (!file) {
-    return res.status(404).json({ error: 'Fayl topilmadi yoki muddati o\'tdi' });
-  }
-  res.set({
-    'Content-Type': file.mimeType,
-    'Content-Disposition': `attachment; filename="${encodeURIComponent(file.fileName)}"`,
-    'Content-Length': file.buffer.length,
-    'Cache-Control': 'private, max-age=1800',
-  });
-  res.send(file.buffer);
+router.get('/file/:fileId', async (req, res, next) => {
+  try {
+    const { fileId } = req.params;
+    const file = await TempData.findOne({ key: fileId, kind: 'file' });
+    if (!file) {
+      return res.status(404).json({ error: 'Fayl topilmadi yoki muddati o\'tdi' });
+    }
+    res.set({
+      'Content-Type': file.mimeType,
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(file.fileName)}"`,
+      'Content-Length': file.bufferData.length,
+      'Cache-Control': 'private, max-age=1800',
+    });
+    res.send(file.bufferData);
+  } catch (err) { next(err); }
 });
 
 // ─── POST /api/ai/image ──────────────────────────────────────────────────────
@@ -151,7 +238,7 @@ router.post('/image',
       // Image ham serverda saqlash (yuklab olinishi uchun)
       const imageBuffer = Buffer.from(result.base64, 'base64');
       const fileName = `fikra_image_${Date.now()}.png`;
-      const fileId = _saveFile(imageBuffer, result.mimeType, fileName);
+      const fileId = await _saveFile(imageBuffer, result.mimeType, fileName);
 
       res.json({
         success: true,

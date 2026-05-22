@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
-import { folderApi } from '../api/endpoints'
+import { folderApi, streamJsonFetch } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import { useGoBack } from '../hooks/useGoBack'
 import { SUBJECTS, type SubjectId } from '../constants/subjects'
@@ -97,10 +97,10 @@ export default function AiBlokSetupPage() {
         subjectsPayload[sid] = { folderIds: selectedFolders[sid] || [] }
       })
 
-      const { data } = await api.post('/api/personal-tests/ai-blok', {
+      const { data } = await streamJsonFetch<any>('/api/personal-tests/ai-blok', {
         direction: dir.id,
         subjects: subjectsPayload,
-      }, { timeout: 180000 }) // 3 daqiqa - blok testda 5 ta fan
+      })
 
       navigate(`/personal-tests/${data.testId}/run`, {
         state: {

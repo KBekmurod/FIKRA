@@ -7,24 +7,38 @@ const { logger }   = require('../utils/logger');
 
 // ─── NARXLAR (UZS) ──────────────────────────────────────────────────────────
 const PLANS = {
+  // Basic
   basic_1m: { id:'basic_1m', name:'Basic', tier:'basic', period:'1 oy', durationDays:30,
     priceUZS:19900, badge:null,
     features:['AI Chat — 50/kun','AI Hujjat — 10/kun','AI test hint — cheksiz','O\'yinlar cheksiz'] },
   basic_3m: { id:'basic_3m', name:'Basic', tier:'basic', period:'3 oy', durationDays:90,
-    priceUZS:49900, badge:'11% chegirma',
-    features:['AI Chat — 50/kun','AI Hujjat — 10/kun','AI test hint — cheksiz','3 oy · arzonroq'] },
+    priceUZS:49900, badge:'16% chegirma',
+    features:['AI Chat — 50/kun','AI Hujjat — 10/kun','AI test hint — cheksiz','3 oy muddatli'] },
+  basic_12m: { id:'basic_12m', name:'Basic', tier:'basic', period:'1 yil', durationDays:365,
+    priceUZS:179000, badge:'25% chegirma',
+    features:['AI Chat — 50/kun','AI Hujjat — 10/kun','AI test hint — cheksiz','Eng arzon yillik plan'] },
+    
+  // Pro
   pro_1m: { id:'pro_1m', name:'Pro', tier:'pro', period:'1 oy', durationDays:30,
     priceUZS:39900, badge:'Mashhur',
     features:['AI Chat — cheksiz','AI Hujjat — 30/kun','AI Rasm — 20/kun','Barcha o\'yinlar'] },
   pro_3m: { id:'pro_3m', name:'Pro', tier:'pro', period:'3 oy', durationDays:90,
-    priceUZS:99900, badge:'11% chegirma',
+    priceUZS:99900, badge:'16% chegirma',
     features:['AI Chat — cheksiz','AI Hujjat — 30/kun','AI Rasm — 20/kun','3 oy muddatli'] },
+  pro_12m: { id:'pro_12m', name:'Pro', tier:'pro', period:'1 yil', durationDays:365,
+    priceUZS:349000, badge:'27% chegirma',
+    features:['AI Chat — cheksiz','AI Hujjat — 30/kun','AI Rasm — 20/kun','Uzoq va qulay'] },
+    
+  // VIP
   vip_1m: { id:'vip_1m', name:'VIP', tier:'vip', period:'1 oy', durationDays:30,
     priceUZS:69900, badge:'Eng to\'liq',
     features:['Hammasi cheksiz','Kaloriya AI','XP x1.5','Boshqalarga sovg\'a qilish'] },
   vip_3m: { id:'vip_3m', name:'VIP', tier:'vip', period:'3 oy', durationDays:90,
-    priceUZS:179900, badge:'13% chegirma',
-    features:['Hammasi cheksiz','Kaloriya AI','XP x1.5','3 oy · 13% tejaysiz'] },
+    priceUZS:179900, badge:'14% chegirma',
+    features:['Hammasi cheksiz','Kaloriya AI','XP x1.5','3 oy muddatli'] },
+  vip_12m: { id:'vip_12m', name:'VIP', tier:'vip', period:'1 yil', durationDays:365,
+    priceUZS:599000, badge:'28% chegirma',
+    features:['Hammasi cheksiz','Kaloriya AI','XP x1.5','Yillik to\'liq paket'] },
 };
 
 // Unikal order ID generator
@@ -73,9 +87,16 @@ router.post('/create-p2p-order', authMiddleware, async (req, res, next) => {
 
     const user = req.user;
 
-    // Eski pending buyurtma bormi?
+    // Agar boshqa planlar uchun oldingi pending buyurtmalar bo'lsa, bekor qilamiz
+    await PendingOrder.updateMany(
+      { userId: user._id, status: 'pending', paymentType: 'p2p', planId: { $ne: plan.id } },
+      { $set: { status: 'cancelled' } }
+    );
+
+    // Aynan shu plan uchun eski pending buyurtma bormi?
     const existing = await PendingOrder.findOne({
       userId: user._id,
+      planId: plan.id,
       status: 'pending',
       paymentType: 'p2p',
     });

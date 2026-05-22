@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
-import { folderApi } from '../api/endpoints'
+import { folderApi, streamJsonFetch } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import { useGoBack } from '../hooks/useGoBack'
 import { SUBJECTS, COMPULSORY_IDS, SPEC_BY_CATEGORY, type SubjectId, type Context } from '../constants/subjects'
@@ -77,13 +77,13 @@ export default function AiFreeSetupPage() {
     }
     setStarting(true)
     try {
-      const { data } = await api.post('/api/personal-tests/ai-free', {
+      const { data } = await streamJsonFetch<any>('/api/personal-tests/ai-free', {
         subjects: selected.map(s => ({
           id: s.id,
           folderIds: s.folderIds,
           count: s.count,
         })),
-      }, { timeout: 180000 }) // 3 daqiqa
+      })
 
       navigate(`/personal-tests/${data.testId}/run`, {
         state: {

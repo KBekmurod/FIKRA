@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { subApi } from '../api/endpoints'
 import { useAppStore } from '../store'
 import { useToast } from './Toast'
@@ -10,9 +10,12 @@ interface Props {
   onClose: () => void
 }
 
+type PeriodType = '1m' | '3m' | '12m';
+
 export default function SubscriptionModal({ open, onClose }: Props) {
   const [plans, setPlans] = useState<PlanData[]>([])
   const [loading, setLoading] = useState(false)
+  const [period, setPeriod] = useState<PeriodType>('1m')
   const { user } = useAppStore()
   const toast = useToast()
 
@@ -22,7 +25,10 @@ export default function SubscriptionModal({ open, onClose }: Props) {
     }
   }, [open])
 
-  // P2P faqat — Payme/Click kelajakda
+  const visiblePlans = useMemo(() => {
+    return plans.filter(p => p.id.endsWith(`_${period}`))
+  }, [plans, period])
+
   const handleBuy = async (planId: string) => {
     if (!user) {
       toast.error('Avval tizimga kiring')
@@ -31,7 +37,7 @@ export default function SubscriptionModal({ open, onClose }: Props) {
     setLoading(true)
     try {
       const { data } = await subApi.createP2POrder(planId)
-      const adminUsername = (window as any).ADMIN_USERNAME || ''
+      const adminUsername = (window as any).ADMIN_USERNAME || 'fikra_support'
       if (adminUsername) {
         const text = encodeURIComponent(
           `Salom! Men FIKRA ilovasidan ${data.order.planName} obunasini olmoqchiman.\n` +
@@ -39,7 +45,8 @@ export default function SubscriptionModal({ open, onClose }: Props) {
           `Narx: ${data.order.priceUZS.toLocaleString()} UZS\n\n` +
           `Rekvizitlarni yuboring!`
         )
-        window.open(`https://t.me/${adminUsername}?text=${text}`, '_blank')
+        // Use location.href instead of window.open to avoid popup blockers on mobile PWA
+        window.location.href = `https://t.me/${adminUsername}?text=${text}`
       }
       toast.success(`Buyurtma yaratildi (${data.order.orderId})! Admin javob beradi.`)
       onClose()
@@ -55,8 +62,87 @@ export default function SubscriptionModal({ open, onClose }: Props) {
   }
   const tierEmoji: Record<string, string> = { basic: '⭐', pro: '✨', vip: '💎' }
 
+  const isFree = !user?.effectivePlan || user.effectivePlan === 'free';
+
   return (
-    <Modal open={open} onClose={onClose} title="⭐ Obuna rejalari">
+    <Modal open={open} onClose={onClose} title="💎 Obuna rejalari">
+      
+      {/* Free Plan Limits (Og'riq nuqtasini ko'rsatish) */}
+      {isFree && (
+        <div style={{
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid var(--f)',
+          borderRadius: 12,
+          padding: 12,
+          marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--txt)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>🆓</span> Bepul tarifingiz cheklovlari (kunlik):
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11, color: 'var(--txt-2)' }}>
+            <div>• <b>10 ta</b> AI tushuntirish</div>
+            <div>• <b>15 ta</b> AI xabar</div>
+            <div>• <b>1 ta</b> Hujjat (PDF/Doc)</div>
+            <div>• <b>3 ta</b> Rasm (OCR)</div>
+            <div>• <b>2 ta</b> AI test generatsiya</div>
+            <div>• <b>3 ta</b> Material saqlash (har fanga)</div>
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--acc-l)', marginTop: 8, fontWeight: 700 }}>
+            Cheklovlardan xalos bo'lish uchun obunani tanlang ↓
+          </div>
+        </div>
+      )}
+
+      {/* Period Toggle */}
+      <div style={{
+        display: 'flex',
+        background: 'var(--s2)',
+        borderRadius: 10,
+        padding: 4,
+        marginBottom: 16,
+        border: '1px solid var(--f)',
+      }}>
+        <button
+          onClick={() => setPeriod('1m')}
+          style={{
+            flex: 1, padding: '8px 0', border: 'none', borderRadius: 8,
+            background: period === '1m' ? 'var(--s1)' : 'transparent',
+            color: period === '1m' ? 'var(--txt)' : 'var(--txt-3)',
+            fontWeight: period === '1m' ? 800 : 600,
+            fontSize: 13, cursor: 'pointer', transition: 'all 0.2s',
+            boxShadow: period === '1m' ? '0 2px 5px rgba(0,0,0,0.2)' : 'none',
+          }}
+        >
+          1 oy
+        </button>
+        <button
+          onClick={() => setPeriod('3m')}
+          style={{
+            flex: 1, padding: '8px 0', border: 'none', borderRadius: 8,
+            background: period === '3m' ? 'var(--s1)' : 'transparent',
+            color: period === '3m' ? 'var(--txt)' : 'var(--txt-3)',
+            fontWeight: period === '3m' ? 800 : 600,
+            fontSize: 13, cursor: 'pointer', transition: 'all 0.2s',
+            boxShadow: period === '3m' ? '0 2px 5px rgba(0,0,0,0.2)' : 'none',
+          }}
+        >
+          3 oy
+        </button>
+        <button
+          onClick={() => setPeriod('12m')}
+          style={{
+            flex: 1, padding: '8px 0', border: 'none', borderRadius: 8,
+            background: period === '12m' ? 'var(--s1)' : 'transparent',
+            color: period === '12m' ? 'var(--txt)' : 'var(--txt-3)',
+            fontWeight: period === '12m' ? 800 : 600,
+            fontSize: 13, cursor: 'pointer', transition: 'all 0.2s',
+            boxShadow: period === '12m' ? '0 2px 5px rgba(0,0,0,0.2)' : 'none',
+          }}
+        >
+          12 oy <span style={{ color: 'var(--g)', fontSize: 10, verticalAlign: 'top' }}>%</span>
+        </button>
+      </div>
+
       {/* To'lov uslubi banneri */}
       <div style={{
         display: 'grid',
@@ -64,37 +150,17 @@ export default function SubscriptionModal({ open, onClose }: Props) {
         gap: 6,
         marginBottom: 14,
       }}>
-        <div style={{
-          padding: '8px 6px',
-          background: 'rgba(0,212,170,0.12)',
-          border: '1.5px solid rgba(0,212,170,0.35)',
-          borderRadius: 10,
-          textAlign: 'center',
-        }}>
+        <div style={{ padding: '8px 6px', background: 'rgba(0,212,170,0.12)', border: '1.5px solid rgba(0,212,170,0.35)', borderRadius: 10, textAlign: 'center' }}>
           <div style={{ fontSize: 16 }}>🤝</div>
           <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--g)', marginTop: 2 }}>P2P</div>
           <div style={{ fontSize: 8, color: 'var(--g)' }}>Faol</div>
         </div>
-        <div style={{
-          padding: '8px 6px',
-          background: 'var(--s2)',
-          border: '1px solid var(--f)',
-          borderRadius: 10,
-          textAlign: 'center',
-          opacity: 0.6,
-        }}>
+        <div style={{ padding: '8px 6px', background: 'var(--s2)', border: '1px solid var(--f)', borderRadius: 10, textAlign: 'center', opacity: 0.6 }}>
           <div style={{ fontSize: 16 }}>💳</div>
           <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--txt-2)', marginTop: 2 }}>Payme</div>
           <div style={{ fontSize: 8, color: 'var(--txt-3)' }}>Tez orada</div>
         </div>
-        <div style={{
-          padding: '8px 6px',
-          background: 'var(--s2)',
-          border: '1px solid var(--f)',
-          borderRadius: 10,
-          textAlign: 'center',
-          opacity: 0.6,
-        }}>
+        <div style={{ padding: '8px 6px', background: 'var(--s2)', border: '1px solid var(--f)', borderRadius: 10, textAlign: 'center', opacity: 0.6 }}>
           <div style={{ fontSize: 16 }}>💳</div>
           <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--txt-2)', marginTop: 2 }}>Click</div>
           <div style={{ fontSize: 8, color: 'var(--txt-3)' }}>Tez orada</div>
@@ -103,56 +169,63 @@ export default function SubscriptionModal({ open, onClose }: Props) {
 
       {/* Plan kartalari */}
       <div style={{ display: 'grid', gap: 10 }}>
-        {plans.map(plan => {
+        {visiblePlans.map(plan => {
           const color = tierColor[plan.tier] || 'var(--txt-2)'
           const emoji = tierEmoji[plan.tier] || '⭐'
-          const isMostPopular = plan.tier === 'pro' && plan.durationDays >= 30 && plan.durationDays < 90
+          const isPro = plan.tier === 'pro'
 
           return (
             <div
               key={plan.id}
               style={{
                 background: 'var(--s1)',
-                border: `1.5px solid ${isMostPopular ? color : 'var(--f)'}`,
+                border: `1.5px solid ${isPro ? color : 'var(--f)'}`,
                 borderRadius: 14,
                 padding: 14,
                 position: 'relative',
               }}
             >
-              {isMostPopular && (
+              {isPro && (
                 <div style={{
-                  position: 'absolute',
-                  top: -10,
-                  right: 12,
-                  background: color,
-                  color: '#0a0a14',
-                  fontSize: 9,
-                  fontWeight: 800,
-                  padding: '3px 10px',
-                  borderRadius: 100,
-                  letterSpacing: 0.5,
+                  position: 'absolute', top: -10, right: 12,
+                  background: color, color: '#0a0a14',
+                  fontSize: 9, fontWeight: 800, padding: '3px 10px',
+                  borderRadius: 100, letterSpacing: 0.5,
                 }}>OMMABOP</div>
+              )}
+              {plan.badge && !isPro && (
+                <div style={{
+                  position: 'absolute', top: -10, right: 12,
+                  background: 'var(--s2)', color: 'var(--txt-2)', border: '1px solid var(--f)',
+                  fontSize: 9, fontWeight: 800, padding: '2px 8px',
+                  borderRadius: 100,
+                }}>{plan.badge}</div>
+              )}
+              {plan.badge && isPro && (
+                <div style={{
+                  position: 'absolute', top: -10, right: 90,
+                  background: 'var(--s2)', color: 'var(--txt)', border: `1px solid ${color}`,
+                  fontSize: 9, fontWeight: 800, padding: '2px 8px',
+                  borderRadius: 100,
+                }}>{plan.badge}</div>
               )}
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
                 <div style={{ fontSize: 26 }}>{emoji}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: 14, color }}>{plan.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
-                    {plan.period}
-                  </div>
+                  <div style={{ fontWeight: 800, fontSize: 16, color }}>{plan.name}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 900, fontSize: 16 }}>
+                  <div style={{ fontWeight: 900, fontSize: 18 }}>
                     {plan.priceUZS.toLocaleString()}
                   </div>
-                  <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>UZS</div>
+                  <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>UZS / {plan.period}</div>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gap: 4, marginBottom: 10 }}>
                 {plan.features.slice(0, 4).map((f, i) => (
-                  <div key={i} style={{ fontSize: 11, color: 'var(--txt-2)', display: 'flex', gap: 6 }}>
+                  <div key={i} style={{ fontSize: 11, color: 'var(--txt)', display: 'flex', gap: 6 }}>
                     <span style={{ color }}>✓</span>
                     <span>{f}</span>
                   </div>
@@ -165,7 +238,7 @@ export default function SubscriptionModal({ open, onClose }: Props) {
                 style={{
                   width: '100%',
                   background: `linear-gradient(135deg, ${color}, ${color}dd)`,
-                  color: 'var(--txt)',
+                  color: '#0a0a14',
                   border: 'none',
                   borderRadius: 10,
                   padding: '10px 14px',
@@ -184,19 +257,12 @@ export default function SubscriptionModal({ open, onClose }: Props) {
 
       {/* Eslatma */}
       <div style={{
-        marginTop: 14,
-        padding: 12,
-        background: 'rgba(123,104,238,0.06)',
-        border: '1px solid rgba(123,104,238,0.18)',
-        borderRadius: 10,
-        fontSize: 11,
-        color: 'var(--txt-2)',
-        lineHeight: 1.5,
+        marginTop: 14, padding: 12,
+        background: 'rgba(123,104,238,0.06)', border: '1px solid rgba(123,104,238,0.18)',
+        borderRadius: 10, fontSize: 11, color: 'var(--txt-2)', lineHeight: 1.5,
       }}>
         🤝 <strong>P2P (Peer-to-Peer)</strong> — admin bilan to'g'ridan-to'g'ri to'lov.
         Admin'ga yozib, kartani to'ldirib chek yuborasiz. Admin obunani faollashtiradi.
-        <br /><br />
-        💳 <strong>Payme va Click</strong> tez orada qo'shiladi.
       </div>
     </Modal>
   )

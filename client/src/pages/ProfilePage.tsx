@@ -6,6 +6,7 @@ import { GRADE_META } from '../constants/subjects'
 import type { MaterialLimits, UserLevelData } from '../types'
 import SubscriptionModal from '../components/SubscriptionModal'
 import { useToast } from '../components/Toast'
+import { subApi } from '../api/endpoints'
 
 export default function ProfilePage() {
   const { user, logout } = useAppStore()
@@ -22,6 +23,7 @@ export default function ProfilePage() {
 
   const [matLimits, setMatLimits] = useState<MaterialLimits | null>(null)
   const [level, setLevel] = useState<UserLevelData | null>(null)
+  const [pendingOrders, setPendingOrders] = useState<any[]>([])
 
 
 
@@ -42,6 +44,10 @@ export default function ProfilePage() {
   useEffect(() => {
     materialApi.limits().then(({ data }) => setMatLimits(data)).catch(() => {})
     levelApi.current().then(({ data }) => setLevel(data)).catch(() => {})
+    subApi.myOrders().then(({ data }) => {
+      const p = data.orders?.filter((o: any) => o.status === 'pending') || []
+      setPendingOrders(p)
+    }).catch(() => {})
   }, [])
 
   const grade = level?.currentGrade || 'delta'
@@ -134,6 +140,30 @@ export default function ProfilePage() {
         </button>
       </div>
 
+      {/* Kutayotgan buyurtmalar (P2P) */}
+      {pendingOrders.length > 0 && (
+        <div style={{ padding: '12px 20px 0' }}>
+          {pendingOrders.map(o => (
+            <div key={o.orderId} style={{
+              background: 'rgba(255,204,68,0.1)',
+              border: '1px solid rgba(255,204,68,0.3)',
+              borderRadius: 14, padding: 14,
+              marginBottom: 8,
+              display: 'flex', alignItems: 'flex-start', gap: 12
+            }}>
+              <div style={{ fontSize: 24 }}>⏳</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--y)' }}>Tasdiq kutilmoqda</div>
+                <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 4, lineHeight: 1.4 }}>
+                  <b>{o.planName}</b> tarifi uchun so'rov adminga yuborilgan.<br/>
+                  Buyurtma ID: <code style={{ color: 'var(--g)' }}>{o.orderId}</code>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Daraja statistikasi */}
       {level && (
         <>
@@ -222,6 +252,30 @@ export default function ProfilePage() {
           </div>
         </>
       )}
+
+      {/* Testlar tarixi */}
+      <div className="section-title">Testlar tarixi</div>
+      <div style={{ padding: '0 20px 12px' }}>
+        <button
+          onClick={() => navigate('/tarix')}
+          style={{
+            width: '100%',
+            background: 'var(--s1)',
+            border: '1px solid var(--f)',
+            borderRadius: 'var(--br)',
+            padding: '14px 16px',
+            display: 'flex', alignItems: 'center', gap: 12,
+            color: 'var(--txt)', cursor: 'pointer', textAlign: 'left',
+          }}
+        >
+          <div style={{ fontSize: 24 }}>📚</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Barcha testlar tarixi</div>
+            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>Avval ishlangan testlarni ko'rish va tahlil qilish</div>
+          </div>
+          <div style={{ color: 'var(--txt-3)', fontSize: 16 }}>→</div>
+        </button>
+      </div>
 
       {/* Obuna */}
       <div className="section-title">Obuna</div>

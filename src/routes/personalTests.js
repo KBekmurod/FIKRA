@@ -42,29 +42,41 @@ router.post('/generate', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'materialIds kerak' });
     }
 
-    const { test, questions } = await testGen.generateFromMaterials(req.user._id, {
-      subjectId,
-      materialIds,
-      count: count || 10,
-    });
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    const interval = setInterval(() => { res.write(': keep-alive\n\n'); }, 5000);
 
-    res.json({
-      testId:    test._id,
-      subjectId: test.subjectId,
-      subjectName: test.subjectName,
-      totalQuestions: questions.length,
-      durationSeconds: questions.length * 60, // Har savol uchun 1 daqiqa
-      questions: questions.map(q => ({
-        idx:     q.idx,
-        question: q.question,
-        options:  q.options,
-        topic:    q.topic,
-        // answer va explanation ko'rsatilmaydi — test davomida ochiladi
-      })),
-    });
+    try {
+      const { test, questions } = await testGen.generateFromMaterials(req.user._id, {
+        subjectId,
+        materialIds,
+        count: count || 10,
+      });
+      clearInterval(interval);
+      res.write(`data: ${JSON.stringify({
+        testId:    test._id,
+        subjectId: test.subjectId,
+        subjectName: test.subjectName,
+        totalQuestions: questions.length,
+        durationSeconds: questions.length * 60,
+        questions: questions.map(q => ({
+          idx:     q.idx,
+          question: q.question,
+          options:  q.options,
+          topic:    q.topic,
+        })),
+      })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch (err) {
+      clearInterval(interval);
+      res.write(`data: ${JSON.stringify({ error: err.message, code: err.code })}\n\n`);
+      res.end();
+    }
   } catch (err) {
     logger.error('Personal test generate error:', err.message);
-    _handleError(err, res, next);
+    if (!res.headersSent) _handleError(err, res, next);
   }
 });
 
@@ -83,29 +95,42 @@ router.post('/ai-blok', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'subjects (papkalar) kerak' });
     }
 
-    const result = await aiTestService.generateBlokTest(req.user._id, { direction, subjects });
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    const interval = setInterval(() => { res.write(': keep-alive\n\n'); }, 5000);
 
-    res.json({
-      testId:         result.test._id,
-      subjectId:      result.test.subjectId,
-      subjectName:    result.test.subjectName,
-      testType:       'ai_blok',
-      direction:      result.direction,
-      dirName:        result.dirName,
-      totalQuestions: result.questions.length,
-      durationSeconds: result.questions.length * 60,
-      questions: result.questions.map(q => ({
-        idx:         q.idx,
-        question:    q.question,
-        options:     q.options,
-        topic:       q.topic,
-        subjectId:   q.subjectId,
-        subjectName: q.subjectName,
-      })),
-    });
+    try {
+      const result = await aiTestService.generateBlokTest(req.user._id, { direction, subjects });
+      clearInterval(interval);
+      res.write(`data: ${JSON.stringify({
+        testId:         result.test._id,
+        subjectId:      result.test.subjectId,
+        subjectName:    result.test.subjectName,
+        testType:       'ai_blok',
+        direction:      result.direction,
+        dirName:        result.dirName,
+        totalQuestions: result.questions.length,
+        durationSeconds: result.questions.length * 60,
+        questions: result.questions.map(q => ({
+          idx:         q.idx,
+          question:    q.question,
+          options:     q.options,
+          topic:       q.topic,
+          subjectId:   q.subjectId,
+          subjectName: q.subjectName,
+        })),
+      })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch (err) {
+      clearInterval(interval);
+      res.write(`data: ${JSON.stringify({ error: err.message, code: err.code })}\n\n`);
+      res.end();
+    }
   } catch (err) {
     logger.error('AI Blok test error:', err.message);
-    _handleError(err, res, next);
+    if (!res.headersSent) _handleError(err, res, next);
   }
 });
 
@@ -121,28 +146,41 @@ router.post('/ai-free', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'subjects array kerak' });
     }
 
-    const result = await aiTestService.generateFreeTest(req.user._id, { subjects });
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    const interval = setInterval(() => { res.write(': keep-alive\n\n'); }, 5000);
 
-    res.json({
-      testId:         result.test._id,
-      subjectId:      result.test.subjectId,
-      subjectName:    result.test.subjectName,
-      testType:       'ai_free',
-      totalQuestions: result.questions.length,
-      durationSeconds: result.questions.length * 60,
-      subjects:       result.subjects,
-      questions: result.questions.map(q => ({
-        idx:         q.idx,
-        question:    q.question,
-        options:     q.options,
-        topic:       q.topic,
-        subjectId:   q.subjectId,
-        subjectName: q.subjectName,
-      })),
-    });
+    try {
+      const result = await aiTestService.generateFreeTest(req.user._id, { subjects });
+      clearInterval(interval);
+      res.write(`data: ${JSON.stringify({
+        testId:         result.test._id,
+        subjectId:      result.test.subjectId,
+        subjectName:    result.test.subjectName,
+        testType:       'ai_free',
+        totalQuestions: result.questions.length,
+        durationSeconds: result.questions.length * 60,
+        subjects:       result.subjects,
+        questions: result.questions.map(q => ({
+          idx:         q.idx,
+          question:    q.question,
+          options:     q.options,
+          topic:       q.topic,
+          subjectId:   q.subjectId,
+          subjectName: q.subjectName,
+        })),
+      })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch (err) {
+      clearInterval(interval);
+      res.write(`data: ${JSON.stringify({ error: err.message, code: err.code })}\n\n`);
+      res.end();
+    }
   } catch (err) {
     logger.error('AI Free test error:', err.message);
-    _handleError(err, res, next);
+    if (!res.headersSent) _handleError(err, res, next);
   }
 });
 
@@ -187,53 +225,64 @@ router.post('/mini', authMiddleware, async (req, res, next) => {
       }
     }
 
-    const { test, questions } = await testGen.generateMiniTest(req.user._id, {
-      subjectId,
-      wrongAnswers,
-      count: count || (wrongAnswers.length <= 5 ? 5 : 10),
-    });
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    const interval = setInterval(() => { res.write(': keep-alive\n\n'); }, 5000);
 
-    // sourceTestId va folderId saqlash
-    test.sourceTestId = sourceTestId || null;
-    if (folderId) test.folderId = folderId;
-    await test.save();
+    try {
+      const { test, questions } = await testGen.generateMiniTest(req.user._id, {
+        subjectId,
+        wrongAnswers,
+        count: count || (wrongAnswers.length <= 5 ? 5 : 10),
+      });
 
-    // Source test'ni yangilash (1 marta qoidasi)
-    if (sourceTest) {
-      sourceTest.miniTestId = test._id;
-      await sourceTest.save();
-    }
+      test.sourceTestId = sourceTestId || null;
+      if (folderId) test.folderId = folderId;
+      await test.save();
 
-    // Folder ham yangilash (agar material testi bo'lsa)
-    if (folderId) {
-      const MaterialFolder = require('../models/MaterialFolder');
-      const folder = await MaterialFolder.findById(folderId);
-      if (folder) {
-        folder.miniTestId = test._id;
-        folder.miniTestGenerated = true;
-        await folder.save();
+      if (sourceTest) {
+        sourceTest.miniTestId = test._id;
+        await sourceTest.save();
       }
-    }
 
-    res.json({
-      testId:    test._id,
-      subjectId: test.subjectId,
-      subjectName: test.subjectName,
-      testType:  'mini',
-      folderId,
-      sourceTestId: sourceTestId || null,
-      totalQuestions: questions.length,
-      durationSeconds: questions.length * 60,
-      questions: questions.map(q => ({
-        idx:      q.idx,
-        question: q.question,
-        options:  q.options,
-        topic:    q.topic,
-      })),
-    });
+      if (folderId) {
+        const MaterialFolder = require('../models/MaterialFolder');
+        const folder = await MaterialFolder.findById(folderId);
+        if (folder) {
+          folder.miniTestId = test._id;
+          folder.miniTestGenerated = true;
+          await folder.save();
+        }
+      }
+
+      clearInterval(interval);
+      res.write(`data: ${JSON.stringify({
+        testId:    test._id,
+        subjectId: test.subjectId,
+        subjectName: test.subjectName,
+        testType:  'mini',
+        folderId,
+        sourceTestId: sourceTestId || null,
+        totalQuestions: questions.length,
+        durationSeconds: questions.length * 60,
+        questions: questions.map(q => ({
+          idx:      q.idx,
+          question: q.question,
+          options:  q.options,
+          topic:    q.topic,
+        })),
+      })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch (err) {
+      clearInterval(interval);
+      res.write(`data: ${JSON.stringify({ error: err.message, code: err.code })}\n\n`);
+      res.end();
+    }
   } catch (err) {
     logger.error('Mini test generate error:', err.message);
-    _handleError(err, res, next);
+    if (!res.headersSent) _handleError(err, res, next);
   }
 });
 
@@ -272,23 +321,23 @@ router.post('/:id/explain', authMiddleware, async (req, res, next) => {
         test.subjectName,
         q.topic || ''
       );
+
+      // Usage counter faqat muvaffaqiyatli bo'lsa oshiriladi
+      await User.findOneAndUpdate({ _id: req.user._id }, [{
+        $set: {
+          aiUsage: {
+            $cond: [
+              { $eq: ['$aiUsage.date', User.todayKey()] },
+              { $mergeObjects: ['$aiUsage', { hints: { $add: [{ $ifNull: ['$aiUsage.hints', 0] }, 1] } }] },
+              { date: User.todayKey(), hints: 1 },
+            ],
+          },
+        },
+      }]);
     } catch (e) {
       logger.error('AI explain detail error:', e.message);
       explanation = q.explanation || 'Tushuntirish hozircha mavjud emas. Material va savolni qaytadan ko\'rib chiqing.';
     }
-
-    // Usage counter
-    await User.findOneAndUpdate({ _id: req.user._id }, [{
-      $set: {
-        aiUsage: {
-          $cond: [
-            { $eq: ['$aiUsage.date', User.todayKey()] },
-            { $mergeObjects: ['$aiUsage', { hints: { $add: [{ $ifNull: ['$aiUsage.hints', 0] }, 1] } }] },
-            { date: User.todayKey(), hints: 1 },
-          ],
-        },
-      },
-    }]);
 
     res.json({ explanation });
   } catch (err) {

@@ -23,6 +23,8 @@ const ocrService       = require('../services/ocrService');
 const fileParseService = require('../services/fileParseService');
 const { SUBJECT_META } = require('../services/examService');
 
+const TempData = require('../models/TempData');
+
 // ─── Multer: rasm va fayl uchun memory storage ───────────────────────────────
 const RULES = User.MATERIAL_RULES;
 
@@ -44,30 +46,28 @@ const fileUpload = multer({
   },
 });
 
-// ─── Vaqtinchalik OCR/fayl natijalari (memory, 30 daq TTL) ───────────────────
-const draftStore = new Map();
-const DRAFT_TTL  = 30 * 60 * 1000;
+// ─── Vaqtinchalik OCR/fayl natijalari (MongoDB orqali) ───────────────────
 
-function _saveDraft(userId, payload) {
+async function _saveDraft(userId, payload) {
   const id = crypto.randomBytes(12).toString('hex');
-  draftStore.set(id, {
-    userId: String(userId),
-    payload,
-    createdAt: Date.now(),
+  await TempData.create({
+    key: id,
+    userId: userId,
+    kind: payload.kind,
+    payload: payload,
   });
-  setTimeout(() => draftStore.delete(id), DRAFT_TTL);
   return id;
 }
 
-function _getDraft(userId, draftId) {
-  const d = draftStore.get(draftId);
+async function _getDraft(userId, draftId) {
+  const d = await TempData.findOne({ key: draftId });
   if (!d) return null;
-  if (d.userId !== String(userId)) return null;
+  if (String(d.userId) !== String(userId)) return null;
   return d.payload;
 }
 
-function _deleteDraft(draftId) {
-  draftStore.delete(draftId);
+async function _deleteDraft(draftId) {
+  await TempData.deleteOne({ key: draftId });
 }
 
 // ─── Helper: xatoni JSON javobga aylantirish ─────────────────────────────────
@@ -163,7 +163,7 @@ router.post(
       );
 
       // Vaqtinchalik draft (foydalanuvchi tahrirlash uchun)
-      const draftId = _saveDraft(req.user._id, {
+      const draftId = await _saveDraft(req.user._id, {
         kind: 'ocr',
         text: extractedText,
         sourceMeta: {
@@ -202,7 +202,7 @@ router.post('/ocr/save', authMiddleware, async (req, res, next) => {
     if (!draftId) return res.status(400).json({ error: 'draftId kerak' });
     if (!folderId) return res.status(400).json({ error: 'folderId kerak' });
 
-    const draft = _getDraft(req.user._id, draftId);
+    const draft = await _getDraft(req.user._id, draftId);
     if (!draft || draft.kind !== 'ocr') {
       return res.status(404).json({ error: 'Draft topilmadi yoki muddati o\'tdi' });
     }
@@ -218,7 +218,7 @@ router.post('/ocr/save', authMiddleware, async (req, res, next) => {
       },
     });
 
-    _deleteDraft(draftId);
+    await _deleteDraft(draftId);
     res.json({ success: true, material });
   } catch (err) { _handleError(err, res, next); }
 });
@@ -274,7 +274,7 @@ router.post(
 
       if (!text || text.length < User.MATERIAL_RULES.minTextChars) {
         return res.status(400).json({
-          error: 'Fayldan ma\'noli matn ajratib bo\'lmadi. Boshqa fayl yuklang.',
+          error: 'Bu hujjat faqat rasmlardan iborat bo\'lishi mumkin (Scanned PDF). Iltimos, uni rasm (JPG/PNG) shaklida saqlab, OCR orqali yuklab ko\'ring.',
           code: 'NO_TEXT_EXTRACTED',
         });
       }
@@ -285,7 +285,7 @@ router.post(
         ? text.slice(0, RULES.maxTextChars)
         : text;
 
-      const draftId = _saveDraft(req.user._id, {
+      const draftId = await _saveDraft(req.user._id, {
         kind: 'file',
         text: trimmedText,
         sourceMeta: {
@@ -328,7 +328,7 @@ router.post('/file/save', authMiddleware, async (req, res, next) => {
     if (!draftId) return res.status(400).json({ error: 'draftId kerak' });
     if (!folderId) return res.status(400).json({ error: 'folderId kerak' });
 
-    const draft = _getDraft(req.user._id, draftId);
+    const draft = await _getDraft(req.user._id, draftId);
     if (!draft || draft.kind !== 'file') {
       return res.status(404).json({ error: 'Draft topilmadi yoki muddati o\'tdi' });
     }
@@ -341,7 +341,7 @@ router.post('/file/save', authMiddleware, async (req, res, next) => {
       sourceMeta: draft.sourceMeta,
     });
 
-    _deleteDraft(draftId);
+    await _deleteDraft(draftId);
     res.json({ success: true, material });
   } catch (err) { _handleError(err, res, next); }
 });

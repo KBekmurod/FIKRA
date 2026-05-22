@@ -115,6 +115,7 @@ async function createFolder(userId, { subjectId, title, context }) {
     subjectId,
     context,
     title: title || 'Yangi papka',
+    testStandardCount: standardCount,
   });
 
   logger.info(`Folder created: ${folder._id} (${subjectId}/${context}, ${standardCount} savol)`);

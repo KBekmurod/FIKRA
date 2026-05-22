@@ -3,7 +3,7 @@ const router   = express.Router();
 const User     = require('../models/User');
 const PendingOrder = require('../models/PendingOrder');
 const TestQuestion = require('../models/TestQuestion');
-const { logger } = require('../utils/logger');
+const { logger, memoryLogs } = require('../utils/logger');
 const { PLANS, _activatePlan } = require('./subscription');
 
 // ─── Admin auth middleware ───────────────────────────────────────────────────
@@ -386,6 +386,11 @@ router.post('/questions/seed', adminAuth, async (req, res) => {
     logger.info(`Admin: seed qilindi, jami ${total} ta savol`);
     res.json({ success: true, total, stats });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── GET /api/admin/logs — Server Terminal Logs ─────────────────────────────
+router.get('/logs', adminAuth, (req, res) => {
+  res.json({ success: true, logs: memoryLogs });
 });
 
 module.exports = router;
