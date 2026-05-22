@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useAppStore } from '../store'
+import { useAppStore, useAiStore } from '../store'
 import { aiApi, streamChat } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import SubscriptionModal from '../components/SubscriptionModal'

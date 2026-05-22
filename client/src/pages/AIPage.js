@@ -1,13 +1,17 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useState, useRef, useEffect } from 'react';
-import { useAppStore } from '../store';
+import { useAppStore, useAiStore } from '../store';
 import { aiApi, streamChat } from '../api/endpoints';
 import { useToast } from '../components/Toast';
 import SubscriptionModal from '../components/SubscriptionModal';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 export default function AIPage() {
     const [tab, setTab] = useState('chat');
     const [subOpen, setSubOpen] = useState(false);
-    return (_jsxs(_Fragment, { children: [_jsx("div", { className: "header", children: _jsxs("div", { className: "header-logo", children: ["FIKRA", _jsx("span", { children: "." })] }) }), _jsx("div", { className: "section-title", children: "\uD83E\uDD16 AI yordamchi" }), _jsxs("div", { style: { padding: '0 20px 8px', display: 'flex', gap: 6 }, children: [_jsx(TabButton, { active: tab === 'chat', onClick: () => setTab('chat'), icon: "\uD83D\uDCAC", label: "Chat" }), _jsx(TabButton, { active: tab === 'doc', onClick: () => setTab('doc'), icon: "\uD83D\uDCC4", label: "Hujjat" }), _jsx(TabButton, { active: tab === 'image', onClick: () => setTab('image'), icon: "\uD83C\uDFA8", label: "Rasm" })] }), tab === 'chat' && _jsx(ChatTab, { onSubOpen: () => setSubOpen(true) }), tab === 'doc' && _jsx(DocTab, { onSubOpen: () => setSubOpen(true) }), tab === 'image' && _jsx(ImageTab, { onSubOpen: () => setSubOpen(true) }), _jsx(SubscriptionModal, { open: subOpen, onClose: () => setSubOpen(false) })] }));
+    return (_jsxs(_Fragment, { children: [_jsx("div", { className: "header", children: _jsxs("div", { className: "header-logo", children: ["FIKRA", _jsx("span", { children: "." })] }) }), _jsx("div", { className: "section-title", children: "\uD83E\uDD16 AI yordamchi" }), _jsxs("div", { style: { padding: '0 20px 8px', display: 'flex', gap: 6 }, children: [_jsx(TabButton, { active: tab === 'chat', onClick: () => setTab('chat'), icon: "\uD83D\uDCAC", label: "Suhbat (Chat)" }), _jsx(TabButton, { active: tab === 'doc', onClick: () => setTab('doc'), icon: "\uD83D\uDCC4", label: "Hujjat yaratish" })] }), tab === 'chat' && _jsx(ChatTab, { onSubOpen: () => setSubOpen(true) }), tab === 'doc' && _jsx(DocTab, { onSubOpen: () => setSubOpen(true) }), _jsx(SubscriptionModal, { open: subOpen, onClose: () => setSubOpen(false) })] }));
 }
 function TabButton({ active, onClick, icon, label }) {
     return (_jsxs("button", { onClick: onClick, style: {
@@ -25,83 +29,78 @@ function TabButton({ active, onClick, icon, label }) {
 }
 // ─── CHAT TAB ─────────────────────────────────────────────────────────
 function ChatTab({ onSubOpen }) {
-    const { user, refreshUser } = useAppStore();
-    // XAVFSIZLIK: chat tarixi har user uchun alohida saqlanadi (userId-spec key)
-    const chatStorageKey = user?.id ? `fikra_chat_history_${user.id}` : null;
-    const [messages, setMessages] = useState(() => {
-        if (!chatStorageKey)
-            return [];
-        try {
-            const saved = localStorage.getItem(chatStorageKey);
-            return saved ? JSON.parse(saved).slice(-50) : [];
-        }
-        catch {
-            return [];
-        }
-    });
-    const [input, setInput] = useState('');
-    const [sending, setSending] = useState(false);
+    const { user, refreshUser, setAuthModalOpen } = useAppStore();
+    const { chatSessionId: sessionId, chatMessages: messages, chatInput: input, chatSending: sending, setChatState } = useAiStore();
     const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [sessions, setSessions] = useState([]);
     const { toast } = useToast();
     const msgsRef = useRef(null);
-    // User o'zgarsa, chat ni qaytadan yuklash (logout va boshqa account bilan kirgan paytda)
+    // Fetch sessions on mount
     useEffect(() => {
-        if (!chatStorageKey) {
-            setMessages([]);
+        if (!user)
             return;
-        }
+        fetchSessions();
+    }, [user]);
+    const fetchSessions = async () => {
         try {
-            const saved = localStorage.getItem(chatStorageKey);
-            setMessages(saved ? JSON.parse(saved).slice(-50) : []);
+            const { data } = await aiApi.chatSessions();
+            setSessions(data.sessions || []);
         }
-        catch {
-            setMessages([]);
+        catch (e) {
+            console.error(e);
         }
-        // Eski (userId'siz) keylarni avtomatik tozalash — migratsiya
+    };
+    const loadSession = async (id) => {
         try {
-            localStorage.removeItem('fikra_chat_history');
-        }
-        catch { }
-    }, [chatStorageKey]);
-    // Tarixni saqlash (user-scoped)
-    useEffect(() => {
-        if (!chatStorageKey)
-            return;
-        try {
-            localStorage.setItem(chatStorageKey, JSON.stringify(messages));
-        }
-        catch { }
-    }, [messages, chatStorageKey]);
-    const clearHistory = () => {
-        setMessages([]);
-        if (chatStorageKey) {
-            try {
-                localStorage.removeItem(chatStorageKey);
+            const { data } = await aiApi.chatSession(id);
+            if (data.session) {
+                setChatState({ chatSessionId: data.session._id, chatMessages: data.session.messages, chatSending: false });
+                setShowHistoryModal(false);
             }
-            catch { }
         }
+        catch (e) {
+            toast('Sessiyani yuklashda xatolik', 'err');
+        }
+    };
+    const deleteSession = async (id) => {
+        if (!window.confirm("Haqiqatan ham bu suhbatni o'chirmoqchimisiz?"))
+            return;
+        try {
+            await aiApi.deleteChatSession(id);
+            setSessions(s => s.filter(x => x._id !== id));
+            if (sessionId === id) {
+                setChatState({ chatSessionId: null, chatMessages: [] });
+            }
+            toast("Suhbat o'chirildi", 'ok');
+        }
+        catch (e) {
+            toast("Xatolik", 'err');
+        }
+    };
+    const startNewSession = () => {
+        setChatState({ chatSessionId: null, chatMessages: [] });
         setShowHistoryModal(false);
     };
     const send = async () => {
+        if (!user)
+            return setAuthModalOpen(true);
         const text = input.trim();
         if (!text || sending)
             return;
-        setInput('');
-        setMessages(m => [...m, { role: 'user', content: text }, { role: 'assistant', content: '' }]);
-        setSending(true);
+        setChatState({ chatInput: '', chatMessages: [...messages, { role: 'user', content: text }, { role: 'assistant', content: '' }], chatSending: true });
         let full = '';
-        await streamChat(text, messages.slice(-10), (chunk) => {
+        await streamChat(text, sessionId, (chunk) => {
             full += chunk;
-            setMessages(m => {
-                const copy = [...m];
-                copy[copy.length - 1] = { role: 'assistant', content: full };
-                return copy;
-            });
+            setChatState({ chatMessages: [...messages, { role: 'user', content: text }, { role: 'assistant', content: full }] });
+        }, (newId) => {
+            if (!sessionId)
+                setChatState({ chatSessionId: newId });
         }, () => {
-            setSending(false);
+            setChatState({ chatSending: false });
             refreshUser();
+            fetchSessions(); // Update history titles
         }, (err) => {
-            setSending(false);
+            setChatState({ chatSending: false, chatMessages: [...messages, { role: 'user', content: text }] });
             if (err?.code === 'DAILY_LIMIT_REACHED') {
                 toast('Bugungi limit tugadi', 'err');
                 onSubOpen();
@@ -112,13 +111,11 @@ function ChatTab({ onSubOpen }) {
             else {
                 toast(err?.error || 'Xatolik', 'err');
             }
-            setMessages(m => m.slice(0, -1)); // bo'sh javobni o'chirish
         });
     };
     const chatsUsed = user?.aiUsage?.chats ?? 0;
     const chatsLimit = user?.aiLimits?.chats;
     const canChat = chatsLimit === null || chatsUsed < chatsLimit;
-    // Keyboard ochilganda scroll oxiriga — requestAnimationFrame bilan (DOM ready)
     useEffect(() => {
         if (!msgsRef.current)
             return;
@@ -135,49 +132,49 @@ function ChatTab({ onSubOpen }) {
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                }, children: [_jsx("span", { children: chatsLimit === null ? 'Cheksiz' : `${chatsUsed}/${chatsLimit} bugun ishlatildi` }), messages.length > 0 && (_jsx("button", { onClick: () => setShowHistoryModal(true), style: {
+                }, children: [_jsx("span", { children: chatsLimit === null ? 'Cheksiz' : `${chatsUsed}/${chatsLimit} bugun ishlatildi` }), _jsx("button", { onClick: () => setShowHistoryModal(true), style: {
                             background: 'none',
                             border: '1px solid var(--f)',
                             borderRadius: 100,
                             color: 'var(--txt-2)',
                             fontSize: 10,
                             fontWeight: 700,
-                            padding: '3px 10px',
+                            padding: '4px 12px',
                             cursor: 'pointer',
-                        }, children: "\uD83D\uDDD1 Tarix" }))] }), showHistoryModal && (_jsx("div", { style: {
+                            display: 'flex', gap: 4, alignItems: 'center'
+                        }, children: "\uD83D\uDCC2 Suhbatlar" })] }), showHistoryModal && (_jsx("div", { style: {
                     position: 'fixed', inset: 0, zIndex: 1000,
                     background: 'rgba(0,0,0,0.7)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: 20,
+                    display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+                    padding: '60px 20px', overflowY: 'auto'
                 }, children: _jsxs("div", { style: {
-                        background: 'var(--s1)',
-                        border: '1px solid var(--f)',
-                        borderRadius: 18,
-                        padding: 22,
-                        maxWidth: 360,
-                        width: '100%',
-                    }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 14, marginBottom: 8 }, children: "Suhbat tarixi" }), _jsxs("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginBottom: 14 }, children: ["Hozir ", _jsx("strong", { children: messages.length }), " ta xabar saqlangan. Tarixni tozalasangiz, AI yangi suhbatda eski kontekstni eslay olmaydi."] }), _jsxs("div", { style: { display: 'flex', gap: 8 }, children: [_jsx("button", { onClick: () => setShowHistoryModal(false), className: "btn btn-ghost btn-block", children: "Bekor qilish" }), _jsx("button", { onClick: clearHistory, style: {
-                                        flex: 1,
-                                        background: 'rgba(255,95,126,0.15)',
-                                        border: '1.5px solid var(--r)',
-                                        color: 'var(--r)',
-                                        fontWeight: 700,
-                                        fontSize: 13,
-                                        padding: '11px 14px',
-                                        borderRadius: 10,
-                                        cursor: 'pointer',
-                                    }, children: "Tozalash" })] })] }) })), _jsxs("div", { ref: msgsRef, className: "chat-messages", children: [!messages.length && (_jsxs("div", { className: "empty", children: ["\uD83E\uDD16 AI bilan suhbatni boshlang.", _jsx("br", {}), "DTM mavzularini so'rashingiz mumkin."] })), messages.map((m, i) => (_jsx("div", { style: {
+                        background: 'var(--s1)', border: '1px solid var(--f)',
+                        borderRadius: 18, padding: 22, width: '100%', maxWidth: 400,
+                    }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }, children: [_jsx("div", { style: { fontWeight: 800, fontSize: 16 }, children: "Suhbatlar tarixi" }), _jsx("button", { onClick: () => setShowHistoryModal(false), style: { background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }, children: "\u00D7" })] }), _jsx("button", { onClick: startNewSession, className: "btn btn-success btn-block", style: { marginBottom: 16 }, children: "+ Yangi suhbat" }), _jsxs("div", { style: { maxHeight: '50vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }, children: [!sessions.length && _jsx("div", { style: { fontSize: 12, color: 'var(--txt-3)', textAlign: 'center', padding: '20px 0' }, children: "Suhbatlar yo'q" }), sessions.map(s => (_jsxs("div", { style: {
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                        padding: '10px 14px', background: s._id === sessionId ? 'var(--acc-10)' : 'var(--s2)',
+                                        border: '1px solid ' + (s._id === sessionId ? 'var(--acc)' : 'var(--f)'),
+                                        borderRadius: 12, cursor: 'pointer'
+                                    }, children: [_jsxs("div", { onClick: () => loadSession(s._id), style: { flex: 1, overflow: 'hidden' }, children: [_jsx("div", { style: { fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }, children: s.title || 'Yangi suhbat' }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginTop: 4 }, children: new Date(s.updatedAt).toLocaleString('uz-UZ', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) })] }), _jsx("button", { onClick: () => deleteSession(s._id), style: {
+                                                background: 'none', border: 'none', color: 'var(--r)', padding: '5px', cursor: 'pointer'
+                                            }, children: "\uD83D\uDDD1" })] }, s._id)))] })] }) })), _jsxs("div", { ref: msgsRef, className: "chat-messages", children: [!messages.length && (_jsxs("div", { className: "empty", children: ["\uD83E\uDD16 AI bilan suhbatni boshlang.", _jsx("br", {}), "Savol bering yoki yordam so'rang."] })), messages.map((m, i) => (_jsx("div", { style: {
                             alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                            maxWidth: '85%',
-                            padding: '10px 14px',
+                            maxWidth: '90%',
+                            padding: m.role === 'user' ? '10px 14px' : '0px 0px',
                             borderRadius: m.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                            background: m.role === 'user' ? 'var(--acc)' : 'var(--s2)',
+                            background: m.role === 'user' ? 'var(--acc)' : 'transparent',
                             color: m.role === 'user' ? 'white' : 'var(--txt)',
                             fontSize: 13,
                             lineHeight: 1.5,
-                            whiteSpace: 'pre-wrap',
                             wordBreak: 'break-word',
-                        }, children: m.content || (sending && m.role === 'assistant' ? '...' : '') }, i)))] }), !canChat ? (_jsx("div", { className: "chat-input-bar", children: _jsx("button", { onClick: onSubOpen, className: "btn btn-primary btn-block", children: "Limit tugadi \u00B7 Obuna olish \u2197" }) })) : (_jsxs("div", { className: "chat-input-bar", children: [_jsx("textarea", { className: "textarea", placeholder: "Savol yozing...", value: input, onChange: e => setInput(e.target.value), rows: 2, style: { flex: 1, minHeight: 44, maxHeight: 120, fontSize: 14 }, onKeyDown: e => {
+                        }, children: m.role === 'user' ? (_jsx("div", { style: { whiteSpace: 'pre-wrap' }, children: m.content })) : (_jsx("div", { className: "markdown-body", style: {
+                                background: 'var(--s2)', padding: '14px', borderRadius: '14px 14px 14px 4px', border: '1px solid var(--f)',
+                            }, children: m.content ? (_jsx(ReactMarkdown, { remarkPlugins: [remarkGfm], components: {
+                                    code({ node, inline, className, children, ...props }) {
+                                        const match = /language-(\w+)/.exec(className || '');
+                                        return !inline && match ? (_jsx(SyntaxHighlighter, { style: atomDark, language: match[1], PreTag: "div", ...props, children: String(children).replace(/\n$/, '') })) : (_jsx("code", { className: className, ...props, children: children }));
+                                    }
+                                }, children: m.content })) : (sending && i === messages.length - 1 ? _jsx("span", { className: "spin", style: { display: 'inline-block', width: 12, height: 12, borderWidth: 2 } }) : '') })) }, i)))] }), !canChat ? (_jsx("div", { className: "chat-input-bar", children: _jsx("button", { onClick: onSubOpen, className: "btn btn-primary btn-block", children: "Limit tugadi \u00B7 Obuna olish \u2197" }) })) : (_jsxs("div", { className: "chat-input-bar", children: [_jsx("textarea", { className: "textarea", placeholder: "Xabar yozing...", value: input, onChange: e => setChatState({ chatInput: e.target.value }), rows: 2, style: { flex: 1, minHeight: 44, maxHeight: 120, fontSize: 14 }, onKeyDown: e => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
                                 send();
@@ -186,35 +183,80 @@ function ChatTab({ onSubOpen }) {
 }
 // ─── DOC TAB ──────────────────────────────────────────────────────────
 function DocTab({ onSubOpen }) {
-    const [prompt, setPrompt] = useState('');
-    const [format, setFormat] = useState('DOCX');
-    const [loading, setLoading] = useState(false);
-    const [result, setResult] = useState(null);
-    const { user, refreshUser } = useAppStore();
+    const { docPrompt: prompt, docFormat: format, docMaxPages: maxPages, docRemoveWatermark: removeWatermark, docLoading: loading, docStatusMsg: statusMsg, docResult: result, setDocState } = useAiStore();
+    const { user, refreshUser, setAuthModalOpen } = useAppStore();
     const { toast } = useToast();
+    const isFree = !user?.effectivePlan || user.effectivePlan === 'free';
     const generate = async () => {
+        if (!user)
+            return setAuthModalOpen(true);
         const p = prompt.trim();
         if (!p || loading)
             return;
-        setLoading(true);
-        setResult(null);
+        setDocState({ docLoading: true, docResult: null, docStatusMsg: 'Boshlanmoqda...' });
+        const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}');
+        const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000';
         try {
-            const { data } = await aiApi.document(p, format);
-            setResult(data);
-            refreshUser();
+            const res = await fetch(`${API_BASE}/api/ai/document/stream`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${auth.access || ''}`,
+                },
+                body: JSON.stringify({ prompt: p, format, maxPages, removeWatermark })
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                if (err?.code === 'DAILY_LIMIT_REACHED' || err?.code === 'SUBSCRIPTION_REQUIRED') {
+                    onSubOpen();
+                }
+                else {
+                    toast(err?.error || 'Xatolik', 'err');
+                }
+                setDocState({ docLoading: false });
+                return;
+            }
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done)
+                    break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+                for (const line of lines) {
+                    if (!line.startsWith('data: '))
+                        continue;
+                    const data = line.slice(6);
+                    if (data === '[DONE]') {
+                        setDocState({ docLoading: false });
+                        refreshUser();
+                        return;
+                    }
+                    try {
+                        const parsed = JSON.parse(data);
+                        if (parsed.error) {
+                            toast(parsed.error, 'err');
+                            setDocState({ docLoading: false });
+                            return;
+                        }
+                        if (parsed.status === 'tayyor') {
+                            setDocState({ docResult: parsed });
+                        }
+                        else if (parsed.message) {
+                            setDocState({ docStatusMsg: parsed.message });
+                        }
+                    }
+                    catch { }
+                }
+            }
         }
         catch (e) {
-            const code = e.response?.data?.code;
-            if (code === 'DAILY_LIMIT_REACHED' || code === 'SUBSCRIPTION_REQUIRED') {
-                onSubOpen();
-            }
-            else {
-                toast(e.response?.data?.error || 'Xatolik', 'err');
-            }
+            toast('Aloqada xatolik', 'err');
         }
-        finally {
-            setLoading(false);
-        }
+        setDocState({ docLoading: false });
     };
     const download = () => {
         if (!result?.downloadUrl)
@@ -226,69 +268,42 @@ function DocTab({ onSubOpen }) {
     };
     const docsUsed = user?.aiUsage?.docs ?? 0;
     const docsLimit = user?.aiLimits?.docs;
-    const canDoc = docsLimit === null || docsUsed < docsLimit;
-    return (_jsxs("div", { style: { padding: '0 20px' }, children: [_jsx("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginBottom: 8 }, children: docsLimit === null ? 'Cheksiz' : `${docsUsed}/${docsLimit} bugun` }), _jsx("div", { style: { display: 'flex', gap: 6, marginBottom: 10 }, children: ['DOCX', 'PDF', 'PPTX'].map(f => (_jsx("button", { onClick: () => setFormat(f), style: {
-                        flex: 1,
-                        padding: 8,
-                        background: format === f ? 'var(--g)' : 'var(--s2)',
-                        color: format === f ? '#00271e' : 'var(--txt-2)',
-                        border: '1px solid ' + (format === f ? 'var(--g)' : 'var(--f)'),
-                        borderRadius: 'var(--br2)',
-                        fontWeight: 700,
-                        fontSize: 12,
-                        cursor: 'pointer',
-                    }, children: f }, f))) }), _jsx("textarea", { className: "textarea", placeholder: "Hujjat mavzusini yozing... Masalan: 'Mendeleyev davriy jadvali haqida 2 sahifalik referat'", value: prompt, onChange: e => setPrompt(e.target.value), rows: 4, style: { marginBottom: 10 } }), !canDoc ? (_jsx("button", { onClick: onSubOpen, className: "btn btn-primary btn-block btn-lg", children: "Limit tugadi \u00B7 Obuna olish \u2197" })) : (_jsx("button", { disabled: loading || !prompt.trim(), onClick: generate, className: "btn btn-primary btn-block btn-lg", children: loading ? '⏳ Yaratilmoqda...' : '✨ Yaratish' })), result && (_jsxs("div", { style: {
-                    marginTop: 16,
+    const targetChunks = Math.max(1, Math.min(Math.ceil(maxPages / 2), 8));
+    const canDoc = docsLimit === null || (docsUsed + targetChunks) <= docsLimit;
+    const handleWatermarkToggle = () => {
+        if (isFree) {
+            toast("Suv belgisini olib tashlash faqat Pro/VIP obunachilar uchun!", "err");
+            onSubOpen();
+            return;
+        }
+        setDocState({ docRemoveWatermark: !removeWatermark });
+    };
+    return (_jsxs("div", { style: { padding: '0 20px', overflowY: 'auto' }, children: [isFree && (_jsxs("div", { style: {
+                    background: 'linear-gradient(90deg, rgba(255,160,0,0.1), rgba(255,100,0,0.1))',
+                    border: '1px solid rgba(255,160,0,0.3)',
+                    borderRadius: 'var(--br)',
+                    padding: '12px 16px',
+                    marginBottom: 16,
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }, children: [_jsxs("div", { children: [_jsx("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--txt)' }, children: "Pro obunaga o'ting \uD83D\uDE80" }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)' }, children: "Limitlarsiz va suv belgisisiz fayllar yarating" })] }), _jsx("button", { onClick: onSubOpen, style: {
+                            background: 'var(--y)', color: '#000', border: 'none',
+                            padding: '6px 12px', borderRadius: 100, fontSize: 11, fontWeight: 800, cursor: 'pointer'
+                        }, children: "Sotib olish" })] })), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginBottom: 14 }, children: docsLimit === null ? 'Cheksiz' : `${docsUsed}/${docsLimit} bugun ishlatildi. (Max: ${docsLimit})` }), _jsx("div", { style: { fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--txt-2)' }, children: "1. Hujjat turi (Format)" }), _jsx("div", { style: { display: 'flex', gap: 6, marginBottom: 20 }, children: ['DOCX', 'PDF', 'PPTX'].map(f => (_jsx("button", { onClick: () => setDocState({ docFormat: f }), style: {
+                        flex: 1, padding: '10px 8px',
+                        background: format === f ? 'var(--acc)' : 'var(--s2)',
+                        color: format === f ? 'white' : 'var(--txt-2)',
+                        border: '1px solid ' + (format === f ? 'var(--acc)' : 'var(--f)'),
+                        borderRadius: 'var(--br2)', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                    }, children: f }, f))) }), _jsx("div", { style: { fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--txt-2)' }, children: "2. Sahifalar soni (Limit sarflanadi)" }), _jsxs("div", { style: { marginBottom: 20 }, children: [_jsx("input", { type: "number", className: "input", min: 1, max: 30, value: maxPages, onChange: e => setDocState({ docMaxPages: Math.max(1, Math.min(30, parseInt(e.target.value) || 1)) }) }), _jsxs("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginTop: 6 }, children: ["\uD83D\uDCA1 Har ", maxPages > 1 ? `2 sahifa (taxminan) uchun 1 ta limit ketadi. (Jami: ${targetChunks} ta limit)` : '1 ta limit ketadi.'] })] }), _jsx("div", { style: { fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--txt-2)' }, children: "3. Mavzu (Batafsil yozing)" }), _jsx("textarea", { className: "textarea", placeholder: "Mavzuni yozing... Masalan: 'Sun'iy intellektning ta'limdagi o'rni va kelajagi'", value: prompt, onChange: e => setDocState({ docPrompt: e.target.value }), rows: 4, style: { marginBottom: 16 } }), _jsxs("label", { style: {
+                    display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20,
+                    background: 'var(--s2)', padding: '12px 14px', borderRadius: 'var(--br)',
+                    cursor: isFree ? 'pointer' : 'pointer',
+                    border: '1px solid ' + (removeWatermark ? 'var(--acc)' : 'var(--f)')
+                }, children: [_jsx("input", { type: "checkbox", checked: removeWatermark, onChange: handleWatermarkToggle, style: { width: 18, height: 18, accentColor: 'var(--acc)' } }), _jsxs("div", { style: { flex: 1 }, children: [_jsx("div", { style: { fontSize: 13, fontWeight: 600, color: 'var(--txt)' }, children: "Suv belgisisiz (Watermark'siz)" }), _jsxs("div", { style: { fontSize: 11, color: 'var(--txt-3)' }, children: ["Hujjatdan \"FIKRA AI\" yozuvini olib tashlash ", isFree ? '👑 (Pro)' : ''] })] })] }), !canDoc ? (_jsx("button", { onClick: onSubOpen, className: "btn btn-primary btn-block btn-lg", style: { background: 'var(--r)' }, children: "Limit yetarli emas (Obuna kerak)" })) : (_jsx("button", { disabled: loading || !prompt.trim(), onClick: generate, className: "btn btn-primary btn-block btn-lg", style: { position: 'relative' }, children: loading ? (_jsxs("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }, children: [_jsx("span", { className: "spin", style: { width: 18, height: 18, borderWidth: 2 } }), statusMsg] })) : '✨ Hujjatni Yaratish' })), result && !loading && (_jsxs("div", { style: {
+                    marginTop: 20,
                     background: 'rgba(0,212,170,0.07)',
                     border: '1px solid rgba(0,212,170,0.25)',
                     borderRadius: 'var(--br)',
-                    padding: 14,
-                }, children: [_jsxs("div", { style: { fontWeight: 700, fontSize: 13, marginBottom: 4 }, children: ["\u2705 ", result.fileName] }), _jsxs("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginBottom: 8 }, children: [result.sizeKb, " KB \u00B7 ", result.format] }), _jsxs("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginBottom: 12, lineHeight: 1.5 }, children: [result.preview.slice(0, 200), "..."] }), _jsx("button", { onClick: download, className: "btn btn-success btn-block", children: "\u2B07 Yuklab olish" })] }))] }));
-}
-// ─── IMAGE TAB ────────────────────────────────────────────────────────
-function ImageTab({ onSubOpen }) {
-    const [prompt, setPrompt] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [result, setResult] = useState(null);
-    const { user, refreshUser } = useAppStore();
-    const { toast } = useToast();
-    const generate = async () => {
-        const p = prompt.trim();
-        if (p.length < 3 || loading)
-            return;
-        setLoading(true);
-        setResult(null);
-        try {
-            const { data } = await aiApi.image(p);
-            setResult(data);
-            refreshUser();
-        }
-        catch (e) {
-            const code = e.response?.data?.code;
-            if (code === 'DAILY_LIMIT_REACHED' || code === 'SUBSCRIPTION_REQUIRED') {
-                onSubOpen();
-            }
-            else {
-                toast(e.response?.data?.error || 'Xatolik', 'err');
-            }
-        }
-        finally {
-            setLoading(false);
-        }
-    };
-    const download = () => {
-        if (!result?.downloadUrl)
-            return;
-        const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000';
-        const url = `${API_BASE}${result.downloadUrl}`;
-        window.open(url, '_blank');
-        toast('Yuklab olish boshlandi', 'ok');
-    };
-    const imagesUsed = user?.aiUsage?.images ?? 0;
-    const imagesLimit = user?.aiLimits?.images;
-    const canImage = imagesLimit !== 0 && (imagesLimit === null || imagesUsed < imagesLimit);
-    if (imagesLimit === 0) {
-        return (_jsxs("div", { style: { padding: '20px' }, children: [_jsxs("div", { className: "empty", children: ["\uD83C\uDFA8 AI Rasm yaratish", _jsx("br", {}), _jsx("span", { style: { color: 'var(--acc-l)' }, children: "Basic+ obunada ochiladi" })] }), _jsx("button", { onClick: onSubOpen, className: "btn btn-primary btn-block btn-lg", children: "Obuna ko'rish \u2B50" })] }));
-    }
-    return (_jsxs("div", { style: { padding: '0 20px' }, children: [_jsx("div", { style: { fontSize: 11, color: 'var(--txt-3)', marginBottom: 8 }, children: imagesLimit === null ? 'Cheksiz' : `${imagesUsed}/${imagesLimit} bugun` }), _jsx("input", { className: "input", placeholder: "Rasm tavsifi (ingliz tilida yaxshiroq)...", value: prompt, onChange: e => setPrompt(e.target.value), style: { marginBottom: 10 } }), !canImage ? (_jsx("button", { onClick: onSubOpen, className: "btn btn-primary btn-block btn-lg", children: "Limit tugadi \u00B7 Obuna \u2197" })) : (_jsx("button", { disabled: loading || prompt.length < 3, onClick: generate, className: "btn btn-primary btn-block btn-lg", children: loading ? '🎨 Yaratilmoqda...' : '🎨 Yaratish' })), result && (_jsxs("div", { style: { marginTop: 16 }, children: [_jsx("img", { src: `data:${result.mimeType};base64,${result.base64}`, style: { width: '100%', borderRadius: 'var(--br)' }, alt: "AI generated" }), _jsx("button", { onClick: download, className: "btn btn-success btn-block", style: { marginTop: 10 }, children: "\u2B07 Yuklab olish" })] }))] }));
+                    padding: 16,
+                }, children: [_jsxs("div", { style: { fontWeight: 700, fontSize: 14, marginBottom: 6 }, children: ["\u2705 ", result.fileName] }), _jsxs("div", { style: { fontSize: 12, color: 'var(--txt-3)', marginBottom: 12 }, children: [result.sizeKb, " KB \u00B7 ", result.format] }), _jsxs("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginBottom: 16, lineHeight: 1.6 }, children: [result.preview.slice(0, 200), "..."] }), _jsx("button", { onClick: download, className: "btn btn-success btn-block btn-lg", children: "\u2B07 Yuklab olish" })] })), _jsx("div", { style: { height: 40 } })] }));
 }

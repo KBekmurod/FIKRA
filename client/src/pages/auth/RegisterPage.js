@@ -29,13 +29,14 @@ export default function RegisterPage() {
             identifier = email.trim();
         }
         else {
-            // Telefon validatsiyasi (frontend tomon)
+            // Telefon validatsiyasi (frontend tomon - O'zbekiston)
             const digitsOnly = phone.replace(/\D/g, '');
-            if (digitsOnly.length < 9 || digitsOnly.length > 15) {
-                toast.error("Telefon nomer yaroqsiz");
+            const uzbRegex = /^998(33|50|55|77|88|90|91|93|94|95|97|98|99)\d{7}$/;
+            if (!uzbRegex.test(digitsOnly)) {
+                toast.error("Faqat O'zbekiston mobil raqamlari qabul qilinadi (+998...)");
                 return;
             }
-            identifier = phone.trim();
+            identifier = '+' + digitsOnly;
         }
         if (!password || password.length < 8) {
             toast.error("Parol kamida 8 belgi bo'lsin");
@@ -65,7 +66,26 @@ export default function RegisterPage() {
                 }, children: "\u2190" }), _jsx("h1", { style: {
                     fontFamily: "'Syne', sans-serif",
                     fontSize: 32, fontWeight: 800, margin: 0,
-                }, children: "Ro'yxatdan o'tish" }), _jsx("p", { style: { fontSize: 13, color: 'var(--txt-2)', marginTop: 6 }, children: "Yangi akkount yarating" }), _jsxs("div", { style: { marginTop: 24, display: 'grid', gap: 12 }, children: [_jsxs("div", { children: [_jsx("label", { style: fieldLabel, children: "ISM" }), _jsx("input", { value: name, onChange: e => setName(e.target.value), placeholder: "Ismingiz", autoComplete: "name", disabled: loading, style: inputStyle })] }), _jsxs("div", { children: [_jsx("label", { style: fieldLabel, children: "QAYSI USULDA RO'YXATDAN O'TASIZ?" }), _jsxs("div", { style: { display: 'flex', gap: 8, marginBottom: 8 }, children: [_jsx("button", { type: "button", onClick: () => setMode('email'), style: tabBtnStyle(mode === 'email'), children: "\uD83D\uDCE7 Email" }), _jsx("button", { type: "button", onClick: () => setMode('phone'), style: tabBtnStyle(mode === 'phone'), children: "\uD83D\uDCF1 Telefon nomer" })] })] }), mode === 'email' ? (_jsxs("div", { children: [_jsx("label", { style: fieldLabel, children: "EMAIL" }), _jsx("input", { type: "email", value: email, onChange: e => setEmail(e.target.value), placeholder: "email@example.com", autoComplete: "email", inputMode: "email", disabled: loading, style: inputStyle })] })) : (_jsxs("div", { children: [_jsx("label", { style: fieldLabel, children: "TELEFON NOMER" }), _jsx("input", { type: "tel", value: phone, onChange: e => setPhone(e.target.value), placeholder: "+998 90 123 45 67", autoComplete: "tel", inputMode: "tel", disabled: loading, style: inputStyle }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)', marginTop: 4 }, children: "Format: +998 XX XXX XX XX" })] })), _jsxs("div", { children: [_jsx("label", { style: fieldLabel, children: "PAROL (kamida 8 belgi)" }), _jsxs("div", { style: { position: 'relative' }, children: [_jsx("input", { type: showPwd ? "text" : "password", value: password, onChange: e => setPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", autoComplete: "new-password", disabled: loading, style: { ...inputStyle, paddingRight: 44 } }), _jsx("button", { type: "button", onClick: () => setShowPwd(p => !p), style: {
+                }, children: "Ro'yxatdan o'tish" }), _jsx("p", { style: { fontSize: 13, color: 'var(--txt-2)', marginTop: 6 }, children: "Yangi akkount yarating" }), _jsxs("div", { style: { marginTop: 24, display: 'grid', gap: 12 }, children: [_jsxs("div", { children: [_jsx("label", { style: fieldLabel, children: "ISM" }), _jsx("input", { value: name, onChange: e => setName(e.target.value), placeholder: "Ismingiz", autoComplete: "name", disabled: loading, style: inputStyle })] }), _jsxs("div", { children: [_jsx("label", { style: fieldLabel, children: "QAYSI USULDA RO'YXATDAN O'TASIZ?" }), _jsxs("div", { style: { display: 'flex', gap: 8, marginBottom: 8 }, children: [_jsx("button", { type: "button", onClick: () => setMode('email'), style: tabBtnStyle(mode === 'email'), children: "\uD83D\uDCE7 Email" }), _jsx("button", { type: "button", onClick: () => setMode('phone'), style: tabBtnStyle(mode === 'phone'), children: "\uD83D\uDCF1 Telefon nomer" })] })] }), mode === 'email' ? (_jsxs("div", { children: [_jsx("label", { style: fieldLabel, children: "EMAIL" }), _jsx("input", { type: "email", value: email, onChange: e => setEmail(e.target.value), placeholder: "email@example.com", autoComplete: "email", inputMode: "email", disabled: loading, style: inputStyle })] })) : (_jsxs("div", { children: [_jsx("label", { style: fieldLabel, children: "TELEFON NOMER" }), _jsx("input", { type: "tel", value: phone, onChange: e => {
+                                    let val = e.target.value.replace(/\D/g, '');
+                                    if (val.startsWith('998'))
+                                        val = val.substring(3);
+                                    let formatted = '+998 ';
+                                    if (val.length > 0)
+                                        formatted += val.substring(0, 2);
+                                    if (val.length > 2)
+                                        formatted += ' ' + val.substring(2, 5);
+                                    if (val.length > 5)
+                                        formatted += ' ' + val.substring(5, 7);
+                                    if (val.length > 7)
+                                        formatted += ' ' + val.substring(7, 9);
+                                    if (e.target.value === '' || e.target.value === '+998' || e.target.value === '+998 ') {
+                                        setPhone('');
+                                    }
+                                    else {
+                                        setPhone(formatted.trim());
+                                    }
+                                }, placeholder: "+998 90 123 45 67", autoComplete: "tel", inputMode: "tel", disabled: loading, style: inputStyle }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)', marginTop: 4 }, children: "Faqat O'zbekiston raqamlari (Masalan: +998 90 123 45 67)" })] })), _jsxs("div", { children: [_jsx("label", { style: fieldLabel, children: "PAROL (kamida 8 belgi)" }), _jsxs("div", { style: { position: 'relative' }, children: [_jsx("input", { type: showPwd ? "text" : "password", value: password, onChange: e => setPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", autoComplete: "new-password", disabled: loading, style: { ...inputStyle, paddingRight: 44 } }), _jsx("button", { type: "button", onClick: () => setShowPwd(p => !p), style: {
                                             position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
                                             background: 'none', border: 'none', color: 'var(--txt-3)',
                                             cursor: 'pointer', fontSize: 14, padding: 4,

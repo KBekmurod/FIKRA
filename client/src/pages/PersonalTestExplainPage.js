@@ -2,8 +2,11 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/client';
+import { streamJsonFetch } from '../api/endpoints';
 import { useToast } from '../components/Toast';
 import { useGoBack } from '../hooks/useGoBack';
+import SubscriptionModal from '../components/SubscriptionModal';
+import { useAppStore } from '../store';
 import RichText from '../components/RichText';
 import '../components/RichText.css';
 export default function PersonalTestExplainPage() {
@@ -11,6 +14,9 @@ export default function PersonalTestExplainPage() {
     const { id } = useParams();
     const goBack = useGoBack(`/personal-tests/${id}/result`);
     const toast = useToast();
+    const { user } = useAppStore();
+    const [subOpen, setSubOpen] = useState(false);
+    const isFree = !user?.effectivePlan || user.effectivePlan === 'free';
     const [loading, setLoading] = useState(true);
     const [wrongs, setWrongs] = useState([]);
     const [test, setTest] = useState(null);
@@ -94,11 +100,11 @@ export default function PersonalTestExplainPage() {
                 correctAnswer: w.correct,
                 topic: w.topic,
             }));
-            const { data } = await api.post('/api/personal-tests/mini', {
+            const { data } = await streamJsonFetch('/api/personal-tests/mini', {
                 sourceTestId: id,
                 subjectId: test.subjectId,
                 wrongAnswers,
-            }, { timeout: 90000 }); // 90s — AI yaratish vaqti
+            }); // streamJsonFetch uses SSE
             // QUSUR TUZATILDI: testId obyekt bo'lishi mumkin, string'ga aylantiramiz
             const newTestId = typeof data.testId === 'object'
                 ? data.testId?._id || String(data.testId)
@@ -161,7 +167,15 @@ export default function PersonalTestExplainPage() {
                             color: 'var(--txt-2)',
                             marginBottom: 14,
                             lineHeight: 1.5,
-                        }, children: ["\uD83D\uDCCB Quyida ", _jsxs("strong", { children: [wrongs.length, " ta xato"] }), " javob. AI har biri uchun tushuntirish berishi mumkin, so'ngra", _jsx("strong", { children: " mini-test " }), " ishlasangiz xatolaringizni mustahkamlaysiz."] }), _jsx("div", { style: { display: 'grid', gap: 12 }, children: wrongs.map(w => (_jsxs("div", { style: {
+                        }, children: ["\uD83D\uDCCB Quyida ", _jsxs("strong", { children: [wrongs.length, " ta xato"] }), " javob. AI har biri uchun tushuntirish berishi mumkin, so'ngra", _jsx("strong", { children: " mini-test " }), " ishlasangiz xatolaringizni mustahkamlaysiz."] }), isFree && (_jsxs("div", { style: {
+                            background: 'linear-gradient(90deg, rgba(255,160,0,0.1), rgba(255,100,0,0.1))',
+                            border: '1px solid rgba(255,160,0,0.3)',
+                            borderRadius: 10, padding: 12, marginBottom: 14,
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                        }, children: [_jsxs("div", { children: [_jsx("div", { style: { fontSize: 12, fontWeight: 700, color: 'var(--txt)' }, children: "Tushuntirishlarni cheksiz ko'ring \uD83D\uDE80" }), _jsx("div", { style: { fontSize: 10.5, color: 'var(--txt-2)' }, children: "Pro obunaga o'ting va limitlarsiz tahlil qiling" })] }), _jsx("button", { onClick: () => setSubOpen(true), style: {
+                                    background: 'var(--y)', color: '#000', border: 'none',
+                                    padding: '6px 10px', borderRadius: 100, fontSize: 10, fontWeight: 800, cursor: 'pointer'
+                                }, children: "Sotib olish" })] })), _jsx("div", { style: { display: 'grid', gap: 12 }, children: wrongs.map(w => (_jsxs("div", { style: {
                                 background: 'var(--s1)',
                                 border: '1px solid rgba(255,95,126,0.25)',
                                 borderRadius: 12,
@@ -226,5 +240,5 @@ export default function PersonalTestExplainPage() {
                                     ? '⏳ Yaratilmoqda...'
                                     : miniAlreadyGenerated
                                         ? '✓ Allaqachon yaratilgan'
-                                        : '🚀 Mini-test boshlash' })] }), _jsx("div", { style: { height: 30 } })] })] }));
+                                        : '🚀 Mini-test boshlash' })] }), _jsx("div", { style: { height: 30 } })] }), _jsx(SubscriptionModal, { open: subOpen, onClose: () => setSubOpen(false) })] }));
 }

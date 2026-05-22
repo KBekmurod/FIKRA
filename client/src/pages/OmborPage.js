@@ -4,18 +4,24 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { SUBJECTS, COMPULSORY_IDS, DUAL_CONTEXT_SUBJECTS, SPEC_BY_CATEGORY, SPEC_CATEGORY_NAMES, } from '../constants/subjects';
 import { useToast } from '../components/Toast';
+import { useAppStore } from '../store';
 export default function OmborPage() {
     const navigate = useNavigate();
     const toast = useToast();
     const [tab, setTab] = useState('majburiy');
     const [summary, setSummary] = useState({});
     const [loading, setLoading] = useState(true);
+    const { user, setAuthModalOpen } = useAppStore();
     useEffect(() => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
         api.get('/api/folders/subjects-summary')
             .then(({ data }) => setSummary(data.summary || {}))
             .catch(() => toast.error("Yuklab bo'lmadi"))
             .finally(() => setLoading(false));
-    }, []);
+    }, [user]);
     // Tab bo'yicha ko'rsatadigan fanlar
     // Majburiy: uztil, math, tarix
     // Mutaxassislik: hammasi (math/tarix dual, qolganlari fakat speciality)
@@ -41,7 +47,11 @@ export default function OmborPage() {
         const stats = getSummaryFor(subjectId, context);
         const isEmpty = !stats || stats.folderCount === 0;
         const standardCount = context === 'majburiy' ? 10 : 30;
-        return (_jsxs("button", { onClick: () => navigate(`/ombor/${subjectId}?context=${context}`), style: {
+        return (_jsxs("button", { onClick: () => {
+                if (!user)
+                    return setAuthModalOpen(true);
+                navigate(`/ombor/${subjectId}?context=${context}`);
+            }, style: {
                 width: '100%',
                 background: 'var(--s1)',
                 border: `1px solid ${isEmpty ? 'var(--f)' : 'rgba(123,104,238,0.25)'}`,

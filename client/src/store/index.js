@@ -6,6 +6,8 @@ export const useAppStore = create((set, get) => ({
     loading: true,
     initialized: false,
     error: null,
+    authModalOpen: false,
+    setAuthModalOpen: (open) => set({ authModalOpen: open }),
     // ─── Bootstrap: dastur ochilganda mavjud sessiyani tekshirish ─────────
     bootstrap: async () => {
         set({ loading: true, error: null });
@@ -94,4 +96,19 @@ export const usePwaStore = create((set, get) => ({
         }
         set({ deferredPrompt: null });
     },
+}));
+export const useAiStore = create((set) => ({
+    chatSessionId: null,
+    chatMessages: [],
+    chatInput: '',
+    chatSending: false,
+    setChatState: (state) => set(state),
+    docPrompt: '',
+    docFormat: 'DOCX',
+    docMaxPages: 2,
+    docRemoveWatermark: false,
+    docLoading: false,
+    docStatusMsg: '',
+    docResult: null,
+    setDocState: (state) => set(state),
 }));

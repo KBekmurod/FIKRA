@@ -2,6 +2,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
+import { streamJsonFetch } from '../api/endpoints';
 import { SUBJECTS } from '../constants/subjects';
 import { useToast } from '../components/Toast';
 import { useGoBack } from '../hooks/useGoBack';
@@ -59,7 +60,7 @@ export default function OmborFolderPage() {
         setSufficiency(null);
         setGenerating(true);
         try {
-            const { data: r } = await api.post(`/api/folders/${folderId}/generate`, { opt });
+            const { data: r } = await streamJsonFetch(`/api/folders/${folderId}/generate`, { opt });
             toast.success('Test yaratildi!');
             load();
         }

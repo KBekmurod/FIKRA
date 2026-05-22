@@ -173,9 +173,21 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 });
 
 // DB ga fonda ulanish
-connectDB().then(ok => {
+connectDB().then(async (ok) => {
   if (!ok) {
     logger.warn('⚠️  Server DB siz ishlamoqda. UI faqat ma\'lumotsiz ishlaydi.');
+  } else {
+    // Eskirgan va o'chirilgan unique indekslarni bazadan avtomatik o'chirish uchun
+    try {
+      const mongoose = require('mongoose');
+      const models = mongoose.modelNames();
+      for (const modelName of models) {
+        await mongoose.model(modelName).syncIndexes();
+      }
+      logger.info('✅ Barcha modellardagi eskirgan indekslar tozalandi (syncIndexes)');
+    } catch (err) {
+      logger.error('Indekslarni tozalashda xatolik (syncIndexes):', err.message);
+    }
   }
 }).catch(err => {
   logger.error('DB initial connect error:', err.message);

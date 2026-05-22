@@ -38,11 +38,13 @@ export const examApi = {
 // ─── AI ────────────────────────────────────────────────────────────────────
 export const aiApi = {
     hint: (question, options, subject, mode = 'hint') => api.post('/api/ai/hint', { question, options, subject, mode }),
-    document: (prompt, format, history = []) => api.post('/api/ai/document', { prompt, format, history }),
-    image: (prompt) => api.post('/api/ai/image', { prompt }),
+    document: (prompt, format, maxPages) => api.post('/api/ai/document', { prompt, format, maxPages }),
+    chatSessions: () => api.get('/api/ai/chat/sessions'),
+    chatSession: (id) => api.get(`/api/ai/chat/sessions/${id}`),
+    deleteChatSession: (id) => api.delete(`/api/ai/chat/sessions/${id}`),
 };
 // ─── Streaming chat ────────────────────────────────────────────────────────
-export async function streamChat(message, history, onChunk, onDone, onError) {
+export async function streamChat(message, sessionId, onChunk, onSessionId, onDone, onError) {
     const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}');
     const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000';
     try {
@@ -52,13 +54,16 @@ export async function streamChat(message, history, onChunk, onDone, onError) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${auth.access || ''}`,
             },
-            body: JSON.stringify({ message, history })
+            body: JSON.stringify({ message, sessionId })
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             onError(err);
             return;
         }
+        const newSessionId = res.headers.get('X-Session-Id');
+        if (newSessionId)
+            onSessionId(newSessionId);
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -90,6 +95,59 @@ export async function streamChat(message, history, onChunk, onDone, onError) {
     catch (e) {
         onError(e);
     }
+}
+// ─── Utility for SSE JSON fetch (Timeout oldini olish uchun) ───────────────
+export async function streamJsonFetch(url, body) {
+    const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}');
+    const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000';
+    const res = await fetch(`${API_BASE}${url}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${auth.access || ''}`,
+        },
+        body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw { response: { data: err } }; // Axios kabi xato qaytarish
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    return new Promise((resolve, reject) => {
+        async function read() {
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done)
+                        break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    for (const line of lines) {
+                        if (!line.startsWith('data: '))
+                            continue;
+                        const data = line.slice(6).trim();
+                        if (data === '[DONE]')
+                            return; // resolved before
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.error)
+                                reject({ response: { data: parsed } });
+                            else
+                                resolve({ data: parsed });
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch (e) {
+                reject(e);
+            }
+        }
+        read();
+    });
 }
 // ─── Subscription ──────────────────────────────────────────────────────────
 export const subApi = {
@@ -128,8 +186,8 @@ export const materialApi = {
 // ─── v2: Personal Tests ───────────────────────────────────────────────────
 export const personalTestApi = {
     estimate: (subjectId) => api.get(`/api/personal-tests/estimate/${subjectId}`),
-    generate: (subjectId, materialIds, count) => api.post('/api/personal-tests/generate', { subjectId, materialIds, count }, { timeout: 90000 }),
-    generateMini: (subjectId, wrongAnswers, count = 10, sourceTestId) => api.post('/api/personal-tests/mini', { subjectId, wrongAnswers, count, sourceTestId }, { timeout: 90000 }),
+    generate: (subjectId, materialIds, count) => streamJsonFetch('/api/personal-tests/generate', { subjectId, materialIds, count }),
+    generateMini: (subjectId, wrongAnswers, count = 10, sourceTestId) => streamJsonFetch('/api/personal-tests/mini', { subjectId, wrongAnswers, count, sourceTestId }),
     explain: (testId, qIdx) => api.post(`/api/personal-tests/${testId}/explain`, { qIdx }),
     answer: (testId, questionIdx, selectedOption) => api.post(`/api/personal-tests/${testId}/answer`, { questionIdx, selectedOption }),
     finish: (testId, finalAnswers) => api.post(`/api/personal-tests/${testId}/finish`, { finalAnswers }),
@@ -149,7 +207,7 @@ export const folderApi = {
     detail: (id) => api.get(`/api/folders/${id}`),
     create: (data) => api.post('/api/folders', data),
     checkSufficiency: (id) => api.post(`/api/folders/${id}/check-sufficiency`),
-    generate: (id, opt = 'standard') => api.post(`/api/folders/${id}/generate`, { opt }, { timeout: 90000 }),
+    generate: (id, opt = 'standard') => streamJsonFetch(`/api/folders/${id}/generate`, { opt }),
     retry: (id) => api.post(`/api/folders/${id}/retry`),
     delete: (id) => api.delete(`/api/folders/${id}`),
 };

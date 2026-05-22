@@ -4,9 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { examApi, personalTestApi } from '../api/endpoints';
 import { useToast } from '../components/Toast';
 import { SUBJECTS } from '../constants/subjects';
+import { useAppStore } from '../store';
 export default function HistoryPage() {
     const navigate = useNavigate();
     const toast = useToast();
+    const { user } = useAppStore();
     const [topTab, setTopTab] = useState('fikra');
     const [fikraMode, setFikraMode] = useState('blok');
     const [aiMode, setAiMode] = useState('papka');
@@ -43,7 +45,13 @@ export default function HistoryPage() {
             setLoading(false);
         }
     };
-    useEffect(() => { loadAll(); }, []);
+    useEffect(() => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+        loadAll();
+    }, [user]);
     // FIKRA testlar bo'yicha filter
     const fikraByMode = fikra.filter(s => s.testMode === fikraMode);
     // AI testlar bo'yicha filter
@@ -62,7 +70,12 @@ export default function HistoryPage() {
     // Dastlabki testlar va mini-testlarni ajratish
     const primaryAi = aiByMode.filter(t => t.testType !== 'mini');
     const miniAi = aiByMode.filter(t => t.testType === 'mini');
-    return (_jsxs(_Fragment, { children: [_jsx("div", { className: "header", children: _jsx("div", { className: "header-logo", children: "\uD83D\uDCDA Tarix" }) }), _jsxs("div", { style: { padding: '8px 20px 0' }, children: [_jsxs("div", { className: "seg-tabs", children: [_jsxs("button", { className: `seg-tab ${topTab === 'fikra' ? 'active' : ''}`, onClick: () => setTopTab('fikra'), children: ["\uD83C\uDF93 FIKRA (", fikra.length, ")"] }), _jsxs("button", { className: `seg-tab ${topTab === 'ai' ? 'active' : ''}`, onClick: () => setTopTab('ai'), children: ["\uD83E\uDD16 AI (", ai.length, ")"] })] }), topTab === 'fikra' ? (_jsxs("div", { style: { display: 'flex', gap: 6, marginBottom: 12 }, children: [_jsx(ModeChip, { active: fikraMode === 'blok', onClick: () => setFikraMode('blok'), icon: "\uD83D\uDCE6", label: "Maxsus blok", count: fikra.filter(s => s.testMode === 'blok').length }), _jsx(ModeChip, { active: fikraMode === 'free', onClick: () => setFikraMode('free'), icon: "\uD83C\uDFAF", label: "Erkin tanlov", count: fikra.filter(s => s.testMode === 'free').length })] })) : (_jsxs("div", { style: { display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }, children: [_jsx(ModeChip, { active: aiMode === 'papka', onClick: () => setAiMode('papka'), icon: "\uD83D\uDCC1", label: "Papka testlari", count: ai.filter(t => t.testType === 'material' || t.testType === 'mini').length }), _jsx(ModeChip, { active: aiMode === 'blok', onClick: () => setAiMode('blok'), icon: "\uD83D\uDCE6", label: "Maxsus blok", count: ai.filter(t => t.testType === 'ai_blok').length }), _jsx(ModeChip, { active: aiMode === 'free', onClick: () => setAiMode('free'), icon: "\uD83C\uDFAF", label: "Erkin tanlov", count: ai.filter(t => t.testType === 'ai_free').length })] })), loading ? (_jsx("div", { className: "skel-card" })) : topTab === 'fikra' ? (_jsx(FikraHistoryList, { items: fikraByMode, onClick: s => navigate(`/test-result/${s._id}`) })) : (_jsx(AiHistoryList, { primaryItems: primaryAi, miniItems: miniAi, allTests: ai, onClick: t => navigate(`/personal-tests/${t._id}/result`) })), _jsx("div", { style: { height: 30 } })] })] }));
+    return (_jsxs(_Fragment, { children: [_jsx("div", { className: "header", children: _jsx("div", { className: "header-logo", children: "\uD83D\uDCDA Tarix" }) }), !user ? (_jsxs("div", { style: { padding: '40px 20px', textAlign: 'center' }, children: [_jsx("div", { style: { fontSize: 50, marginBottom: 16 }, children: "\uD83D\uDCDA" }), _jsx("h3", { style: { fontSize: 18, color: 'var(--txt)', marginBottom: 8 }, children: "Testlar tarixi yopiq" }), _jsx("p", { style: { fontSize: 13, color: 'var(--txt-2)', marginBottom: 24, lineHeight: 1.5 }, children: "Siz ishlagan testlar va xatolar ustida qilingan ishlar bu yerda saqlanadi. Ko'rish uchun hisobingizga kiring." }), _jsx("button", { onClick: () => navigate('/auth/login'), style: {
+                            background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
+                            color: '#fff', border: 'none',
+                            padding: '12px 24px', borderRadius: 12,
+                            fontSize: 14, fontWeight: 800, cursor: 'pointer'
+                        }, children: "Tizimga kirish" })] })) : (_jsxs("div", { style: { padding: '8px 20px 0' }, children: [_jsxs("div", { className: "seg-tabs", children: [_jsxs("button", { className: `seg-tab ${topTab === 'fikra' ? 'active' : ''}`, onClick: () => setTopTab('fikra'), children: ["\uD83C\uDF93 FIKRA (", fikra.length, ")"] }), _jsxs("button", { className: `seg-tab ${topTab === 'ai' ? 'active' : ''}`, onClick: () => setTopTab('ai'), children: ["\uD83E\uDD16 AI (", ai.length, ")"] })] }), topTab === 'fikra' ? (_jsxs("div", { style: { display: 'flex', gap: 6, marginBottom: 12 }, children: [_jsx(ModeChip, { active: fikraMode === 'blok', onClick: () => setFikraMode('blok'), icon: "\uD83D\uDCE6", label: "Maxsus blok", count: fikra.filter(s => s.testMode === 'blok').length }), _jsx(ModeChip, { active: fikraMode === 'free', onClick: () => setFikraMode('free'), icon: "\uD83C\uDFAF", label: "Erkin tanlov", count: fikra.filter(s => s.testMode === 'free').length })] })) : (_jsxs("div", { style: { display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }, children: [_jsx(ModeChip, { active: aiMode === 'papka', onClick: () => setAiMode('papka'), icon: "\uD83D\uDCC1", label: "Papka testlari", count: ai.filter(t => t.testType === 'material' || t.testType === 'mini').length }), _jsx(ModeChip, { active: aiMode === 'blok', onClick: () => setAiMode('blok'), icon: "\uD83D\uDCE6", label: "Maxsus blok", count: ai.filter(t => t.testType === 'ai_blok').length }), _jsx(ModeChip, { active: aiMode === 'free', onClick: () => setAiMode('free'), icon: "\uD83C\uDFAF", label: "Erkin tanlov", count: ai.filter(t => t.testType === 'ai_free').length })] })), loading ? (_jsx("div", { className: "skel-card" })) : topTab === 'fikra' ? (_jsx(FikraHistoryList, { items: fikraByMode, onClick: s => navigate(`/test-result/${s._id}`) })) : (_jsx(AiHistoryList, { primaryItems: primaryAi, miniItems: miniAi, allTests: ai, onClick: t => navigate(`/personal-tests/${t._id}/result`) })), _jsx("div", { style: { height: 30 } })] }))] }));
 }
 // ─── Rejim chip ─────────────────────────────────────────────────────────
 function ModeChip({ active, onClick, icon, label, count }) {
