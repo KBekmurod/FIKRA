@@ -18,7 +18,7 @@ interface Folder {
     masteryLevel: 'weak' | 'medium' | 'strong' | 'unknown'
     lastAttemptDate: string | null
   }
-  materialId?: { title: string; charCount: number; source: string; createdAt: string }
+  materials?: Array<{ title: string; charCount: number; source: string; createdAt: string }>
   createdAt: string
 }
 
@@ -109,7 +109,7 @@ export default function OmborSubjectPage() {
 
         {/* + Yangi papka tugmasi */}
         <button
-          onClick={() => navigate(`/ombor/${subjectId}/add?context=${context}`)}
+          onClick={() => navigate(`/ombor/${subjectId}/add-folder?context=${context}`)}
           style={{
             width: '100%',
             background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
@@ -207,8 +207,8 @@ function FolderCard({ folder, masteryEmoji, onClick }: { folder: Folder; mastery
             {folder.title}
           </div>
           <div style={{ fontSize: 10, color: 'var(--txt-3)', marginTop: 1 }}>
-            {folder.materialId
-              ? <>{folder.materialId.charCount.toLocaleString()} belgi · {folder.testStandardCount} savol</>
+            {folder.materials && folder.materials.length > 0
+              ? <>{folder.materials.reduce((s, m) => s + m.charCount, 0).toLocaleString()} belgi · {folder.materials.length} ta material · {folder.testStandardCount} savol</>
               : <>{folder.testStandardCount} savol</>
             }
           </div>

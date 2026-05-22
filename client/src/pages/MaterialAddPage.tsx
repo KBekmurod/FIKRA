@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import api from '../api/client'
 import { SUBJECTS, type Context } from '../constants/subjects'
@@ -9,21 +9,31 @@ type Tab = 'text' | 'ocr' | 'file'
 
 export default function MaterialAddPage() {
   const navigate = useNavigate()
-  const { subjectId } = useParams<{ subjectId: string }>()
-  const [searchParams] = useSearchParams()
-  const context = (searchParams.get('context') as Context) || 'mutaxassislik'
-  const goBack = useGoBack(`/ombor/${subjectId}?context=${context}`)
+  const { folderId } = useParams<{ folderId: string }>()
+  const goBack = useGoBack(`/ombor/folder/${folderId}`)
   const toast = useToast()
+
+  const [folder, setFolder] = useState<any>(null)
+  const [loadingFolder, setLoadingFolder] = useState(true)
+
+  useEffect(() => {
+    if (!folderId) return
+    api.get(`/api/folders/${folderId}`)
+      .then(res => setFolder(res.data.folder))
+      .catch(() => toast.error('Papka topilmadi'))
+      .finally(() => setLoadingFolder(false))
+  }, [folderId])
 
   const [tab, setTab] = useState<Tab>('text')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const subj = subjectId ? SUBJECTS[subjectId as keyof typeof SUBJECTS] : null
-  if (!subj) {
-    return <div style={{ padding: 40, textAlign: 'center' }}>Fan topilmadi</div>
-  }
+  const subj = folder?.subjectId ? SUBJECTS[folder.subjectId as keyof typeof SUBJECTS] : null
+  const context = folder?.context || 'mutaxassislik'
+
+  if (loadingFolder) return <div style={{ padding: 40, textAlign: 'center' }}>Yuklanmoqda...</div>
+  if (!folder || !subj) return <div style={{ padding: 40, textAlign: 'center' }}>Papka yoki fan topilmadi</div>
 
   const standardCount = context === 'majburiy' ? 10 : 30
 
@@ -61,19 +71,11 @@ export default function MaterialAddPage() {
     const finalTitle = title.trim() || autoTitle(content)
     setSaving(true)
     try {
-      // 1. Material yaratish
-      const { data: mat } = await api.post('/api/materials/text', {
-        subjectId, title: finalTitle, content,
+      await api.post('/api/materials/text', {
+        folderId, subjectId: folder.subjectId, title: finalTitle, content,
       })
-      // 2. Papka yaratish
-      const { data: f } = await api.post('/api/folders', {
-        materialId: mat.material._id,
-        subjectId,
-        title: finalTitle,
-        context,
-      })
-      toast.success('Material va papka yaratildi!')
-      navigate(`/ombor/folder/${f.folder._id}?fresh=1`)
+      toast.success('Material qo\'shildi!')
+      navigate(`/ombor/folder/${folderId}?fresh=1`, { replace: true })
     } catch (e: any) {
       toast.error(e.response?.data?.error || 'Xatolik')
     } finally {
@@ -127,7 +129,7 @@ export default function MaterialAddPage() {
           fontSize: 22, cursor: 'pointer', padding: 0, marginRight: 8,
         }}>←</button>
         <div className="header-logo" style={{ fontSize: 15 }}>
-          ⊕ {subj.icon} {subj.name}
+          ⊕ Material ({subj.name})
         </div>
       </div>
 
@@ -216,7 +218,7 @@ export default function MaterialAddPage() {
               className="btn btn-primary btn-block btn-lg"
               style={{ marginTop: 14, opacity: (saving || content.length < 500) ? 0.5 : 1 }}
             >
-              {saving ? '⏳ Saqlanmoqda...' : '💾 Saqlash va papka yaratish'}
+              {saving ? '⏳ Saqlanmoqda...' : '💾 Materialni papkaga qo\'shish'}
             </button>
           </div>
         )}

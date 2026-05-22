@@ -16,6 +16,7 @@ import HomePage from './pages/HomePage'
 const OmborPage = lazy(() => import('./pages/OmborPage'))
 const OmborSubjectPage = lazy(() => import('./pages/OmborSubjectPage'))
 const OmborFolderPage = lazy(() => import('./pages/OmborFolderPage'))
+const FolderAddPage = lazy(() => import('./pages/FolderAddPage'))
 const MaterialAddPage = lazy(() => import('./pages/MaterialAddPage'))
 const MaterialEditPage = lazy(() => import('./pages/MaterialEditPage'))
 
@@ -64,41 +65,7 @@ function PageLoader() {
   )
 }
 
-export function usePwaInstall() {
-  const [canInstall, setCanInstall] = useState(false)
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
-  const [isInstalled, setIsInstalled] = useState(false)
-
-  useEffect(() => {
-    const standalone =
-      window.matchMedia?.('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true
-    if (standalone) {
-      setIsInstalled(true)
-      return
-    }
-
-    const handler = (e: any) => { e.preventDefault(); setDeferredPrompt(e); setCanInstall(true) }
-    window.addEventListener('beforeinstallprompt', handler)
-
-    const onInstalled = () => setIsInstalled(true)
-    window.addEventListener('appinstalled', onInstalled)
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handler)
-      window.removeEventListener('appinstalled', onInstalled)
-    }
-  }, [])
-
-  const install = async () => {
-    if (!deferredPrompt) return
-    deferredPrompt.prompt()
-    const { outcome } = await deferredPrompt.userChoice
-    if (outcome === 'accepted') setCanInstall(false)
-    setDeferredPrompt(null)
-  }
-
-  return { canInstall, install, isInstalled }
-}
+// PWA state is now managed globally in store/index.ts
 
 const NAV_ITEMS = [
   { path: '/',         icon: '🏠', label: 'Asosiy'  },
@@ -161,14 +128,18 @@ function RequireAuth({ children }: { children: JSX.Element }) {
   return children
 }
 
+import { usePwaStore } from './store'
+
 export default function App() {
   const { user, initialized, bootstrap, refreshUser } = useAppStore()
+  const { initPwa, canInstall, isInstalled, installPwa } = usePwaStore()
   const location = useLocation()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // App ochilganda config va sessiyani yuklash
   useEffect(() => {
     bootstrap()
+    initPwa()
 
     fetch('/api/config')
       .then(r => r.json())
@@ -209,6 +180,46 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* Global PWA Install Banner */}
+      {!isInstalled && canInstall && !isAuthRoute && (
+        <div style={{
+          background: 'linear-gradient(90deg, var(--acc), var(--acc-l))',
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          color: '#fff',
+          position: 'sticky',
+          top: 0,
+          zIndex: 1000,
+          boxShadow: '0 2px 10px rgba(123,104,238,0.3)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 20 }}>📲</span>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Ilovani yuklab oling</span>
+              <span style={{ fontSize: 11, opacity: 0.9 }}>Tezroq va qulay ishlash uchun</span>
+            </div>
+          </div>
+          <button
+            onClick={installPwa}
+            style={{
+              background: '#fff',
+              color: 'var(--acc)',
+              border: 'none',
+              padding: '6px 14px',
+              borderRadius: 100,
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            }}
+          >
+            O'rnatish
+          </button>
+        </div>
+      )}
+
       <ToastProvider>
         <div className="app-content">
           <Suspense fallback={<PageLoader />}>
@@ -223,8 +234,9 @@ export default function App() {
 
             <Route path="/ombor"                       element={<RequireAuth><OmborPage /></RequireAuth>} />
             <Route path="/ombor/:subjectId"            element={<RequireAuth><OmborSubjectPage /></RequireAuth>} />
-            <Route path="/ombor/:subjectId/add"        element={<RequireAuth><MaterialAddPage /></RequireAuth>} />
+            <Route path="/ombor/:subjectId/add-folder" element={<RequireAuth><FolderAddPage /></RequireAuth>} />
             <Route path="/ombor/folder/:folderId"      element={<RequireAuth><OmborFolderPage /></RequireAuth>} />
+            <Route path="/ombor/folder/:folderId/add"  element={<RequireAuth><MaterialAddPage /></RequireAuth>} />
             <Route path="/materials/:id/edit"          element={<RequireAuth><MaterialEditPage /></RequireAuth>} />
 
             <Route path="/testlar"                     element={<RequireAuth><TestsPage /></RequireAuth>} />

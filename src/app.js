@@ -8,6 +8,7 @@ const fs      = require('fs');
 const { connectDB }    = require('./utils/db');
 const { logger }       = require('./utils/logger');
 const { errorHandler, notFoundHandler, setupGlobalHandlers } = require('./middleware/errorHandler');
+const { apiLimiter } = require('./middleware/rateLimit');
 
 // Global handlers (uncaught exceptions, promise rejections)
 setupGlobalHandlers();
@@ -83,6 +84,9 @@ if (fs.existsSync(publicDir)) {
   logger.warn('public/ papkasi topilmadi: ' + publicDir);
 }
 
+// ─── API Rate Limit (umumiy) ──────────────────────────────────────────────────
+app.use('/api/', apiLimiter);
+
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth',           authRoutes);
 app.use('/api/games',          gameRoutes);
@@ -142,7 +146,12 @@ app.get('/admin', (req, res) => {
   else res.status(404).send('Admin panel topilmadi');
 });
 
+// ─── API 404 handler ──────────────────────────────────────────────────────────
+// API yo'llari uchun 404 — SPA fallback'dan OLDIN bo'lishi kerak
+app.use(notFoundHandler);
+
 // ─── SPA fallback ─────────────────────────────────────────────────────────────
+// Faqat API bo'lmagan GET yo'llar uchun — React Router ishlashi uchun
 app.get('*', (req, res) => {
   const index = path.join(publicDir, 'index.html');
   if (fs.existsSync(index)) {
@@ -153,7 +162,6 @@ app.get('*', (req, res) => {
 });
 
 // ─── Error handler ────────────────────────────────────────────────────────────
-app.use(notFoundHandler);
 app.use(errorHandler);
 
 // ─── Start ────────────────────────────────────────────────────────────────────
@@ -170,7 +178,6 @@ connectDB().then(ok => {
   logger.error('DB initial connect error:', err.message);
 });
 
-process.on('uncaughtException',  err => logger.error('Uncaught:', err));
-process.on('unhandledRejection', err => logger.error('UnhandledRejection:', err));
+// Eslatma: global error handlers setupGlobalHandlers() orqali o'rnatilgan (L13)
 
 module.exports = server;

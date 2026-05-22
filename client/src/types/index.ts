@@ -170,7 +170,7 @@ export interface PersonalTest {
   totalCorrect: number
   scorePercent: number
   status: 'in_progress' | 'completed' | 'abandoned'
-  testType: 'material' | 'mini'
+  testType: 'material' | 'mini' | 'ai_blok' | 'ai_free'
   startTime: string
   endTime?: string
   createdAt: string

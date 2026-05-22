@@ -160,7 +160,7 @@ export default function OmborFolderPage() {
 
   const { folder, attempts } = data
   const subj = SUBJECTS[folder.subjectId as keyof typeof SUBJECTS]
-  const material = folder.materialId
+  const materials = folder.materials || []
   const hasTest = folder.testStatus === 'has_test'
   const isGenerating = folder.testStatus === 'generating' || generating
   const standardCount = folder.testStandardCount
@@ -225,102 +225,98 @@ export default function OmborFolderPage() {
           </div>
         )}
 
-        {/* Material kartasi */}
-        {material && (
+        {/* Materiallar ro'yxati */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5 }}>
+            📄 MATERIALLAR ({materials.length})
+          </div>
+        </div>
+
+        {materials.length === 0 ? (
           <div style={{
-            padding: 14,
-            background: 'var(--s1)',
-            border: '1px solid var(--f)',
-            borderRadius: 12,
-            marginBottom: 12,
+            padding: 20, textAlign: 'center',
+            background: 'var(--s1)', border: '1px dashed var(--f)', borderRadius: 12, marginBottom: 12
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5 }}>
-                📄 MATERIAL
-              </div>
-              <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>
-                {material.source === 'text' ? 'Matn' : material.source === 'ocr' ? 'Rasm' : 'Fayl'}
-              </div>
-            </div>
-            <div style={{
-              fontWeight: 700,
-              fontSize: 13,
-              marginTop: 6,
-              lineHeight: 1.4,
-              display: '-webkit-box',
-              WebkitBoxOrient: 'vertical',
-              WebkitLineClamp: 2,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              wordBreak: 'break-word',
-            }}>{material.title}</div>
-            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
-              {material.charCount.toLocaleString()} belgi
-            </div>
-
-            {/* Material amallar — agar test hali yo'q bo'lsa */}
-            {!hasTest && (
-              <div style={{
-                display: 'flex', gap: 6, marginTop: 10,
-                paddingTop: 10, borderTop: '1px solid var(--f)',
+            <div style={{ fontSize: 12, color: 'var(--txt-2)' }}>Papkada material yo'q</div>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
+            {materials.map((m: any) => (
+              <div key={m._id} style={{
+                padding: 12,
+                background: 'var(--s1)',
+                border: '1px solid var(--f)',
+                borderRadius: 12,
               }}>
-                <button
-                  onClick={() => navigate(`/materials/${material._id}/edit?folderId=${folderId}`)}
-                  style={{
-                    flex: 1,
-                    background: 'rgba(123,104,238,0.1)',
-                    border: '1px solid rgba(123,104,238,0.25)',
-                    color: 'var(--acc-l)',
-                    borderRadius: 8,
-                    padding: '8px 10px',
-                    fontSize: 11, fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >✏️ Tahrirlash / Qo'shimcha qo'shish</button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{
+                    fontWeight: 700, fontSize: 13, lineHeight: 1.4,
+                    display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden',
+                  }}>{m.title}</div>
+                  <div style={{ fontSize: 10, color: 'var(--txt-3)', background: 'var(--s2)', padding: '2px 6px', borderRadius: 4 }}>
+                    {m.source === 'text' ? 'Matn' : m.source === 'ocr' ? 'Rasm' : 'Fayl'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                  <div style={{ fontSize: 11, color: 'var(--txt-2)' }}>{m.charCount.toLocaleString()} belgi</div>
+                  <button
+                    onClick={() => navigate(`/materials/${m._id}/edit`)}
+                    style={{ background: 'none', border: 'none', color: 'var(--acc-l)', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}
+                  >✏️ Tahrir</button>
+                </div>
               </div>
-            )}
-
-            {/* Test mavjud bo'lsa - ogohlantirish */}
-            {hasTest && (
-              <div style={{
-                marginTop: 10, padding: 8,
-                background: 'rgba(255,204,68,0.06)',
-                border: '1px solid rgba(255,204,68,0.18)',
-                borderRadius: 6,
-                fontSize: 10, color: 'var(--txt-3)', lineHeight: 1.4,
-              }}>
-                ℹ️ Test allaqachon yaratilgan. Material o'zgartirilsa,
-                test eski versiyaga asoslangan qoladi.
-              </div>
-            )}
+            ))}
           </div>
         )}
 
-        {/* Test holati */}
-        {!hasTest && !isGenerating && (
-          <div style={{
-            padding: 14,
-            background: 'rgba(255,204,68,0.08)',
-            border: '1px solid rgba(255,204,68,0.25)',
+        <button
+          onClick={() => navigate(`/ombor/folder/${folderId}/add`)}
+          style={{
+            width: '100%',
+            background: 'rgba(123,104,238,0.1)',
+            border: '1px solid rgba(123,104,238,0.25)',
+            color: 'var(--acc-l)',
             borderRadius: 12,
-            marginBottom: 12,
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--y)' }}>
-              ⚠️ Test hali yaratilmagan
+            padding: '12px',
+            fontSize: 13,
+            fontWeight: 800,
+            cursor: 'pointer',
+            marginBottom: 20,
+          }}
+        >➕ Yangi material qo'shish</button>
+
+        {/* Test yaratish moduli */}
+        <div style={{
+          padding: 14,
+          background: hasTest ? 'var(--s1)' : 'rgba(255,204,68,0.08)',
+          border: `1px solid ${hasTest ? 'var(--f)' : 'rgba(255,204,68,0.25)'}`,
+          borderRadius: 12,
+          marginBottom: 12,
+        }}>
+          {!hasTest && !isGenerating && (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--y)' }}>⚠️ Test hali yaratilmagan</div>
+              <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 4, lineHeight: 1.5, marginBottom: 10 }}>
+                AI papkadagi barcha materiallarni birlashtirib {standardCount} ta test savol yaratadi.
+              </div>
+            </>
+          )}
+          {hasTest && !isGenerating && (
+            <div style={{ fontSize: 11, color: 'var(--txt-2)', lineHeight: 1.5, marginBottom: 10 }}>
+              Yana ko'proq savollar kerakmi? AI barcha materiallarni o'qib, yana <strong>mutlaqo yangi {standardCount} ta test savol</strong> tuza oladi!
             </div>
-            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 4, lineHeight: 1.5 }}>
-              AI sizning materialingizdan {standardCount} ta test savol yaratadi.
-            </div>
+          )}
+          
+          {!isGenerating && (
             <button
               onClick={handleGenerateClick}
               disabled={generating}
               className="btn btn-primary btn-block"
-              style={{ marginTop: 10 }}
             >
-              {generating ? '⏳ Tekshirilmoqda...' : '🤖 AI test yaratish'}
+              {generating ? '⏳ Tekshirilmoqda...' : hasTest ? '✨ Yangi test generatsiya qilish' : '🤖 AI test yaratish'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {isGenerating && (
           <div style={{
@@ -354,7 +350,7 @@ export default function OmborFolderPage() {
               marginBottom: 12,
             }}
           >
-            {starting ? '⏳ Boshlanmoqda...' : `🧪 Testni ishlash (${standardCount} ta savol)`}
+            {starting ? '⏳ Boshlanmoqda...' : `🔄 Aynan oxirgi testni qayta ishlash (${standardCount} ta savol)`}
           </button>
         )}
 
@@ -461,10 +457,10 @@ export default function OmborFolderPage() {
               <button
                 onClick={() => {
                   setSufficiency(null)
-                  navigate(`/materials/${material._id}/edit?folderId=${folderId}`)
+                  navigate(`/ombor/folder/${folderId}/add`)
                 }}
                 className="btn btn-primary btn-block"
-              >➕ Materialga qo'shimcha qo'shaman</button>
+              >➕ Yana yangi material qo'shaman</button>
               {sufficiency.canAiFill && (
                 <button
                   onClick={() => triggerGenerate('ai_fill')}

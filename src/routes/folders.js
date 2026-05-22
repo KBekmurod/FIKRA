@@ -64,16 +64,16 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
 });
 
 // ─── POST /api/folders ──────────────────────────────────────────────────
-// Yangi papka yaratish (material allaqachon mavjud bo'lishi kerak)
-// Body: { materialId, subjectId, title, context: 'majburiy' | 'mutaxassislik' }
+// Yangi papka yaratish
+// Body: { subjectId, title, context: 'majburiy' | 'mutaxassislik' }
 router.post('/', authMiddleware, async (req, res, next) => {
   try {
-    const { materialId, subjectId, title, context } = req.body;
-    if (!materialId || !subjectId) {
-      return res.status(400).json({ error: 'materialId va subjectId kerak' });
+    const { subjectId, title, context } = req.body;
+    if (!subjectId) {
+      return res.status(400).json({ error: 'subjectId kerak' });
     }
     const folder = await folderService.createFolder(req.user._id, {
-      materialId, subjectId, title, context,
+      subjectId, title, context,
     });
     res.json({ success: true, folder });
   } catch (err) { _handleError(err, res, next); }
@@ -83,26 +83,8 @@ router.post('/', authMiddleware, async (req, res, next) => {
 // Material yetarliligini tekshirish (test yaratishdan oldin)
 router.post('/:id/check-sufficiency', authMiddleware, async (req, res, next) => {
   try {
-    const MaterialFolder = require('../models/MaterialFolder');
-    const folder = await MaterialFolder.findOne({
-      _id: req.params.id, userId: req.user._id, isActive: true,
-    });
-    if (!folder) return res.status(404).json({ error: 'Papka topilmadi' });
-
-    const StudyMaterial = require('../models/StudyMaterial');
-    const material = await StudyMaterial.findById(folder.materialId).lean();
-    if (!material) return res.status(404).json({ error: 'Material topilmadi' });
-
-    // folder.context'ni hisobga olamiz
-    const check = folderService.checkSufficiency(
-      material.subjectId, material.charCount, folder.context
-    );
-    res.json({
-      ...check,
-      title: material.title,
-      hasGeneratedTest: !!material.hasGeneratedTest,
-      folderTestStatus: folder.testStatus,
-    });
+    const check = await testGen.checkMaterialSufficiency(req.user._id, req.params.id);
+    res.json(check);
   } catch (err) { _handleError(err, res, next); }
 });
 

@@ -16,14 +16,6 @@ const authLimiter = rateLimit({
   message: { error: 'Juda ko\'p urinish. 15 daqiqadan keyin.' },
 });
 
-// Ads reward uchun limit (suistemodallikni oldini olish)
-const adsLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 daqiqa
-  max: parseInt(process.env.ADS_RATE_LIMIT_PER_MINUTE) || 3,
-  keyGenerator: (req) => req.user ? req.user.id : req.ip,
-  message: { error: 'Reklama chastotasi haddan oshdi.' },
-});
-
 // AI uchun limit
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -32,4 +24,4 @@ const aiLimiter = rateLimit({
   message: { error: 'AI so\'rovlar haddan oshdi. Bir daqiqada max 20 ta.' },
 });
 
-module.exports = { apiLimiter, authLimiter, adsLimiter, aiLimiter };
+module.exports = { apiLimiter, authLimiter, aiLimiter };

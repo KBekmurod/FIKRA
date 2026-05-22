@@ -110,8 +110,10 @@ router.get('/subjects-summary', authMiddleware, async (req, res, next) => {
 // POST /api/materials/text — yangi matn material
 router.post('/text', authMiddleware, async (req, res, next) => {
   try {
-    const { subjectId, title, content } = req.body;
+    const { folderId, subjectId, title, content } = req.body;
+    if (!folderId) return res.status(400).json({ error: 'folderId kerak' });
     const material = await materialService.createTextMaterial(req.user._id, {
+      folderId,
       subjectId,
       title,
       content,
@@ -196,8 +198,9 @@ router.post(
 // POST /api/materials/ocr/save — OCR draftni saqlash (tahrirlangan matn bilan)
 router.post('/ocr/save', authMiddleware, async (req, res, next) => {
   try {
-    const { draftId, subjectId, title, content } = req.body;
+    const { draftId, folderId, subjectId, title, content } = req.body;
     if (!draftId) return res.status(400).json({ error: 'draftId kerak' });
+    if (!folderId) return res.status(400).json({ error: 'folderId kerak' });
 
     const draft = _getDraft(req.user._id, draftId);
     if (!draft || draft.kind !== 'ocr') {
@@ -205,6 +208,7 @@ router.post('/ocr/save', authMiddleware, async (req, res, next) => {
     }
 
     const material = await materialService.createOcrMaterial(req.user._id, {
+      folderId,
       subjectId,
       title,
       content,
@@ -320,8 +324,9 @@ router.post(
 // POST /api/materials/file/save — fayl draftni saqlash
 router.post('/file/save', authMiddleware, async (req, res, next) => {
   try {
-    const { draftId, subjectId, title, content } = req.body;
+    const { draftId, folderId, subjectId, title, content } = req.body;
     if (!draftId) return res.status(400).json({ error: 'draftId kerak' });
+    if (!folderId) return res.status(400).json({ error: 'folderId kerak' });
 
     const draft = _getDraft(req.user._id, draftId);
     if (!draft || draft.kind !== 'file') {
@@ -329,6 +334,7 @@ router.post('/file/save', authMiddleware, async (req, res, next) => {
     }
 
     const material = await materialService.createFileMaterial(req.user._id, {
+      folderId,
       subjectId,
       title,
       content,

@@ -81,3 +81,50 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ user: null })
   },
 }))
+
+interface PwaState {
+  canInstall: boolean
+  isInstalled: boolean
+  deferredPrompt: any
+  initPwa: () => void
+  installPwa: () => Promise<void>
+}
+
+export const usePwaStore = create<PwaState>((set, get) => ({
+  canInstall: false,
+  isInstalled: false,
+  deferredPrompt: null,
+
+  initPwa: () => {
+    const standalone =
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true
+    if (standalone) {
+      set({ isInstalled: true })
+      return
+    }
+
+    const handler = (e: any) => {
+      e.preventDefault()
+      set({ deferredPrompt: e, canInstall: true })
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+
+    const onInstalled = () => set({ isInstalled: true, canInstall: false })
+    window.addEventListener('appinstalled', onInstalled)
+
+    // Optional cleanup is generally not needed for singleton store, but good practice
+    // We just attach once.
+  },
+
+  installPwa: async () => {
+    const { deferredPrompt } = get()
+    if (!deferredPrompt) return
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'accepted') {
+      set({ canInstall: false })
+    }
+    set({ deferredPrompt: null })
+  },
+}))

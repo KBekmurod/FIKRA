@@ -155,9 +155,14 @@ function _validateTitle(title, fallback = 'Material') {
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 // 1) Matn material yaratish (copy-paste)
-async function createTextMaterial(userId, { subjectId, title, content }) {
+async function createTextMaterial(userId, { folderId, subjectId, title, content }) {
   _assertValidSubject(subjectId);
   const user = await _ensureUser(userId);
+
+  // Folder check
+  const MaterialFolder = require('../models/MaterialFolder');
+  const folder = await MaterialFolder.findOne({ _id: folderId, userId, isActive: true });
+  if (!folder) throw new MaterialError("Korsatilgan papka topilmadi", 'FOLDER_NOT_FOUND', 404);
 
   await _assertTextLimit(user, subjectId);
   const safeContent = _validateContent(content);
@@ -165,6 +170,7 @@ async function createTextMaterial(userId, { subjectId, title, content }) {
 
   const material = await StudyMaterial.create({
     userId: user._id,
+    folderId: folder._id,
     subjectId,
     source: 'text',
     title:  safeTitle,
@@ -176,22 +182,22 @@ async function createTextMaterial(userId, { subjectId, title, content }) {
 }
 
 // 2) OCR material yaratish (rasmdan olingan matn TAHRIRLANGAN holatda keladi)
-//    Bu funksiya OCR ishlatib bo'lgandan keyin chaqiriladi —
-//    foydalanuvchi natijani tahrir oynasida ko'rib bo'lgan.
-async function createOcrMaterial(userId, { subjectId, title, content, sourceMeta = {} }) {
+async function createOcrMaterial(userId, { folderId, subjectId, title, content, sourceMeta = {} }) {
   _assertValidSubject(subjectId);
   const user = await _ensureUser(userId);
 
+  const MaterialFolder = require('../models/MaterialFolder');
+  const folder = await MaterialFolder.findOne({ _id: folderId, userId, isActive: true });
+  if (!folder) throw new MaterialError("Korsatilgan papka topilmadi", 'FOLDER_NOT_FOUND', 404);
+
   _assertDailyLimit(user, 'ocrUploads');
-  // Eslatma: OCR uchun ham textMaterials limiti emas, alohida hisoblanadi.
-  // Foydalanuvchi qancha OCR qilsa, hammasi alohida material bo'ladi.
-  // Lekin kuniga 'ocrUploads' limiti bor.
 
   const safeContent = _validateContent(content);
   const safeTitle = _validateTitle(title, `${SUBJECT_META[subjectId].name} — rasm`);
 
   const material = await StudyMaterial.create({
     userId: user._id,
+    folderId: folder._id,
     subjectId,
     source: 'ocr',
     title:  safeTitle,
@@ -210,9 +216,13 @@ async function createOcrMaterial(userId, { subjectId, title, content, sourceMeta
 }
 
 // 3) Fayl material yaratish (PDF/DOCX/PPTX dan olingan matn TAHRIRLANGAN holatda)
-async function createFileMaterial(userId, { subjectId, title, content, sourceMeta = {} }) {
+async function createFileMaterial(userId, { folderId, subjectId, title, content, sourceMeta = {} }) {
   _assertValidSubject(subjectId);
   const user = await _ensureUser(userId);
+
+  const MaterialFolder = require('../models/MaterialFolder');
+  const folder = await MaterialFolder.findOne({ _id: folderId, userId, isActive: true });
+  if (!folder) throw new MaterialError("Korsatilgan papka topilmadi", 'FOLDER_NOT_FOUND', 404);
 
   _assertDailyLimit(user, 'fileUploads');
 
@@ -231,6 +241,7 @@ async function createFileMaterial(userId, { subjectId, title, content, sourceMet
 
   const material = await StudyMaterial.create({
     userId: user._id,
+    folderId: folder._id,
     subjectId,
     source: 'file',
     title:  safeTitle,

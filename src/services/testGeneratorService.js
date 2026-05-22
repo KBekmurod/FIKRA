@@ -60,7 +60,8 @@ ${safeMaterial}
 QOIDALAR:
 1. AYNAN ${count} ta savol — kam ham emas, ko'p ham emas
 2. Har bir savol material mavzusiga to'g'ridan-to'g'ri yoki bilvosita bog'liq bo'lsin
-3. 4 ta variant (A, B, C, D) — bittasi to'g'ri, uchtasi mantiqli noto'g'ri
+3. Agar oldin shu mavzuda test tuzgan bo'lsang, SAVOLLARNI TAKRORLAMA. Yangi rakursdan, yangi tushunchalarni tekshiradigan mutlaqo yangi test tuz.
+4. 4 ta variant (A, B, C, D) — bittasi to'g'ri, uchtasi mantiqli noto'g'ri
 4. DTM uslubida — aniq, qisqa, bir ma'noli savollar
 5. O'zbek tilida yoz (chet tili fanlari bundan mustasno — yuqorida ko'rsatilgan)
 6. Mavzuni "topic" sifatida ko'rsat
@@ -126,34 +127,40 @@ function getStandardCount(subjectId) {
 }
 
 // ─── Yetarlilik tekshirish (UI uchun) ─────────────────────────────────────
-async function checkMaterialSufficiency(userId, materialId) {
-  const StudyMaterial  = require('../models/StudyMaterial');
-  const material = await StudyMaterial.findOne({ _id: materialId, userId, isActive: true }).lean();
-  if (!material) throw new Error("Material topilmadi");
+async function checkMaterialSufficiency(userId, folderId) {
+  const MaterialFolder = require('../models/MaterialFolder');
+  const folder = await MaterialFolder.findOne({ _id: folderId, userId, isActive: true }).lean();
+  if (!folder) throw new Error("Papka topilmadi");
 
-  const standardCount = getStandardCount(material.subjectId);
+  const StudyMaterial = require('../models/StudyMaterial');
+  const materials = await StudyMaterial.find({ folderId, userId, isActive: true }).lean();
+  
+  const totalChars = materials.reduce((sum, m) => sum + m.charCount, 0);
+  const standardCount = folder.context 
+    ? (folder.context === 'majburiy' ? 10 : 30) 
+    : getStandardCount(folder.subjectId);
+    
   const requiredChars = standardCount * 500;     // sifatli savol uchun
   const minimumChars  = 2000;                     // AI yetkazib berishi uchun min
 
   return {
-    materialId,
-    subjectId: material.subjectId,
-    title: material.title,
-    charCount: material.charCount,
+    folderId,
+    subjectId: folder.subjectId,
+    title: folder.title,
+    charCount: totalChars,
     standardCount,
     requiredChars,
     minimumChars,
-    isSufficient: material.charCount >= requiredChars,
-    canAiFill: material.charCount >= minimumChars && material.charCount < requiredChars,
-    isTooSmall: material.charCount < minimumChars,
-    hasGeneratedTest: !!material.hasGeneratedTest,
-    folderId: material.folderId,
+    isSufficient: totalChars >= requiredChars,
+    canAiFill: totalChars >= minimumChars && totalChars < requiredChars,
+    isTooSmall: totalChars < minimumChars,
+    hasGeneratedTest: folder.testStatus === 'has_test',
   };
 }
 
 // ─── Asosiy: papka uchun standart test yaratish ───────────────────────────
 // QAT'IY QOIDA:
-//   • Bir material = bir test (1-1)
+//   • 1 Papka = N Material = N Test
 //   • Standart son: majburiy=10, mutaxassislik=30
 //   • Yetarli emas bo'lsa: opt='ai_fill' yoki 'add_material'
 async function generateForFolder(userId, { folderId, opt = 'standard' }) {
@@ -163,16 +170,9 @@ async function generateForFolder(userId, { folderId, opt = 'standard' }) {
   const folder = await MaterialFolder.findOne({ _id: folderId, userId, isActive: true });
   if (!folder) throw new Error('Papka topilmadi');
 
-  if (folder.testStatus === 'has_test' && folder.testId) {
-    throw new Error('Bu papkada test allaqachon yaratilgan');
-  }
-
-  // Material
-  const material = await StudyMaterial.findById(folder.materialId);
-  if (!material) throw new Error('Material topilmadi');
-  if (material.hasGeneratedTest) {
-    throw new Error('Bu materialdan test allaqachon yaratilgan');
-  }
+  // Papkadagi barcha materiallarni yig'amiz
+  const materials = await StudyMaterial.find({ folderId, userId, isActive: true }).sort({ createdAt: 1 });
+  if (materials.length === 0) throw new Error('Papkada hech qanday material yo\'q');
 
   // Limit
   const user = await User.findById(userId);
@@ -188,22 +188,23 @@ async function generateForFolder(userId, { folderId, opt = 'standard' }) {
 
   const standardCount = folder.context
     ? (folder.context === 'majburiy' ? 10 : 30)
-    : getStandardCount(material.subjectId);
+    : getStandardCount(folder.subjectId);
   const requiredChars = standardCount * 500;
   const minimumChars  = 2000;
 
+  const totalCharCount = materials.reduce((sum, m) => sum + m.charCount, 0);
+
   // Yetarlilik tekshirish
-  if (material.charCount < requiredChars) {
-    if (material.charCount < minimumChars) {
-      throw new Error('Material juda kichik (minimum 2,000 belgi kerak). Qo\'shimcha qo\'shing.');
+  if (totalCharCount < requiredChars) {
+    if (totalCharCount < minimumChars) {
+      throw new Error('Material hajmi juda kichik (minimum 2,000 belgi kerak). Iltimos papkaga yana material qo\'shing.');
     }
     if (opt !== 'ai_fill') {
-      // Foydalanuvchi explicit ravishda ai_fill ni tanlashi kerak
-      throw new Error(`Material yetarli emas (${material.charCount}/${requiredChars} belgi). ai_fill yoki add_material tanlang.`);
+      throw new Error(`Material hajmi to'liq yetarli emas (${totalCharCount}/${requiredChars} belgi). ai_fill yoki add_material tanlang.`);
     }
   }
 
-  const wasAiAdjusted = material.charCount < requiredChars && opt === 'ai_fill';
+  const wasAiAdjusted = totalCharCount < requiredChars && opt === 'ai_fill';
 
   // Generatsiya boshlandi belgisini qo'yamiz
   folder.testStatus = 'generating';
@@ -211,19 +212,51 @@ async function generateForFolder(userId, { folderId, opt = 'standard' }) {
   folder.generationLog.aiAdjustedContent = wasAiAdjusted;
   await folder.save();
 
-  const subjectName = SUBJECT_META[material.subjectId]?.name || material.subjectId;
+  const subjectName = SUBJECT_META[folder.subjectId]?.name || folder.subjectId;
 
-  // AI generatsiya
-  let questions;
+  // Materiallarni birlashtirish (45,000 belgidan oshmasligi kerak - ~15k token)
+  let combinedContent = materials.map(m => m.content).join('\n\n---\n\n');
+  if (combinedContent.length > 45000) {
+    combinedContent = combinedContent.slice(-45000); // Oxirgi eng yangi qismini olamiz
+  }
+
+  // AI generatsiya (Multi-step response if count > 10)
+  let questions = [];
   try {
-    const prompt = _buildPrompt(subjectName, material.content, standardCount, wasAiAdjusted, material.subjectId);
-    const res = await _deepseek().chat.completions.create({
-      model: 'deepseek-chat',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 6000,
-      temperature: 0.4,
-    });
-    questions = _parseAiResponse(res.choices[0].message.content);
+    const BATCH_SIZE = 10;
+    const numBatches = Math.ceil(standardCount / BATCH_SIZE);
+    
+    // We will append previously generated questions' topics to avoid duplicates
+    let generatedTopics = [];
+
+    for (let i = 0; i < numBatches; i++) {
+      const batchCount = Math.min(BATCH_SIZE, standardCount - i * BATCH_SIZE);
+      
+      // Add context about already generated questions to avoid duplication
+      let previousContext = '';
+      if (generatedTopics.length > 0) {
+        previousContext = `\n\nDIQQAT: Sen oldingi so'rovlarda quyidagi mavzularda savollar tuzding:\n- ${generatedTopics.join('\n- ')}\nIltimos, endi faqat YANGI mavzular, tushunchalar yoki materialning boshqa qismlaridan savol tuz. Eski savollarni umuman takrorlama.`;
+      }
+
+      const prompt = _buildPrompt(subjectName, combinedContent, batchCount, wasAiAdjusted, folder.subjectId) + previousContext;
+      
+      const res = await _deepseek().chat.completions.create({
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 6000,
+        temperature: 0.7, // Slightly higher temp for diversity across batches
+      });
+      
+      const batchQuestions = _parseAiResponse(res.choices[0].message.content);
+      questions = questions.concat(batchQuestions);
+      
+      // Update topics for the next batch
+      generatedTopics = generatedTopics.concat(batchQuestions.map(q => q.topic).filter(Boolean));
+    }
+    
+    // Re-index all questions
+    questions = questions.map((q, idx) => ({ ...q, idx }));
+
   } catch (err) {
     folder.testStatus = 'generation_failed';
     folder.generationLog.errorMessage = err.message;
@@ -235,10 +268,9 @@ async function generateForFolder(userId, { folderId, opt = 'standard' }) {
   // PersonalTest yaratish
   const test = await PersonalTest.create({
     userId,
-    subjectId: material.subjectId,
+    subjectId: folder.subjectId,
     subjectName,
-    materialIds: [material._id],
-    materialId: material._id,
+    materialIds: materials.map(m => m._id),
     folderId: folder._id,
     questions,
     totalQuestions: questions.length,
@@ -247,15 +279,16 @@ async function generateForFolder(userId, { folderId, opt = 'standard' }) {
     startTime: new Date(),
   });
 
-  // Folderni va materialni yangilaymiz
   folder.testId = test._id;
   folder.testStatus = 'has_test';
   folder.generationLog.completedAt = new Date();
   await folder.save();
 
-  material.hasGeneratedTest = true;
-  material.testGenCount += 1;
-  await material.save();
+  for (const m of materials) {
+    m.hasGeneratedTest = true;
+    m.testGenCount += 1;
+    await m.save();
+  }
 
   // Usage counter
   await User.findOneAndUpdate({ _id: userId }, [{

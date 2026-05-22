@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore, } from '../store'
-import { usePwaInstall } from '../App'
+import { usePwaStore } from '../store'
 import { levelApi, examApi, personalTestApi } from '../api/endpoints'
 import { GRADE_META, versionToGrade, versionInGrade } from '../constants/subjects'
 import type { UserLevelData } from '../types'
@@ -19,7 +19,7 @@ interface LastActivity {
 export default function HomePage() {
   const navigate = useNavigate()
   const { user } = useAppStore()
-  const { canInstall, install, isInstalled } = usePwaInstall()
+  const { canInstall, installPwa, isInstalled } = usePwaStore()
 
   const [level, setLevel] = useState<UserLevelData | null>(null)
   const [lastActivity, setLastActivity] = useState<LastActivity | null>(null)
@@ -138,7 +138,7 @@ export default function HomePage() {
         <div style={{ padding: '24px 20px 24px' }}>
           {canInstall ? (
             <button
-              onClick={install}
+              onClick={installPwa}
               style={{
                 width: '100%',
                 background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
@@ -281,7 +281,7 @@ export default function HomePage() {
       {!isInstalled && canInstall && (
         <div style={{ padding: '16px 20px 0' }}>
           <button
-            onClick={install}
+            onClick={installPwa}
             style={{
               width: '100%',
               background: 'linear-gradient(135deg, rgba(0,212,170,0.12), rgba(123,104,238,0.05))',

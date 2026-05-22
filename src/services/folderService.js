@@ -94,7 +94,7 @@ function checkSufficiency(subjectId, charCount, context) {
 }
 
 // ─── Papka yaratish ───────────────────────────────────────────────────────
-async function createFolder(userId, { materialId, subjectId, title, context }) {
+async function createFolder(userId, { subjectId, title, context }) {
   // Kontekstni validatsiya
   const allowed = getAllowedContexts(subjectId);
   if (!context) {
@@ -106,12 +106,7 @@ async function createFolder(userId, { materialId, subjectId, title, context }) {
     throw new Error(`'${subjectId}' fani '${context}' kontekstda yaroqsiz. Ruxsat: ${allowed.join(', ')}`);
   }
 
-  const material = await StudyMaterial.findOne({ _id: materialId, userId, isActive: true });
-  if (!material) throw new Error("Material topilmadi");
-
-  // Bir material faqat bitta papkada bo'lishi mumkin
-  const existing = await MaterialFolder.findOne({ materialId, isActive: true });
-  if (existing) return existing;
+  // (Yangi tizimda bitta papka material bilan bog'lanmaydi, balki materiallar papkaga bog'lanadi)
 
   const standardCount = getStandardCountByContext(context);
 
@@ -119,14 +114,8 @@ async function createFolder(userId, { materialId, subjectId, title, context }) {
     userId,
     subjectId,
     context,
-    title: title || material.title,
-    materialId,
-    testStatus: 'no_test',
-    testStandardCount: standardCount,
+    title: title || 'Yangi papka',
   });
-
-  material.folderId = folder._id;
-  await material.save();
 
   logger.info(`Folder created: ${folder._id} (${subjectId}/${context}, ${standardCount} savol)`);
   return folder;
@@ -139,9 +128,18 @@ async function getFoldersBySubject(userId, subjectId, context = null) {
 
   const folders = await MaterialFolder.find(filter)
     .sort({ createdAt: -1 })
-    .populate('materialId', 'title charCount source createdAt sourceMeta')
     .populate('testId', 'totalQuestions status startTime endTime')
     .lean();
+
+  const folderIds = folders.map(f => f._id);
+  const materials = await StudyMaterial.find({ folderId: { $in: folderIds }, isActive: true })
+    .select('folderId title charCount source createdAt sourceMeta')
+    .lean();
+
+  // Attach materials array to each folder
+  folders.forEach(f => {
+    f.materials = materials.filter(m => String(m.folderId) === String(f._id));
+  });
 
   return folders;
 }
@@ -186,14 +184,18 @@ async function getSubjectsSummary(userId) {
   return summary;
 }
 
-// ─── Bitta papka ma'lumotlari (papka ichi sahifasi) ────────────────────────
 async function getFolderDetails(userId, folderId) {
   const folder = await MaterialFolder.findOne({ _id: folderId, userId, isActive: true })
-    .populate('materialId')
     .populate('testId')
     .lean();
 
   if (!folder) throw new Error("Papka topilmadi");
+
+  const materials = await StudyMaterial.find({ folderId: folder._id, isActive: true })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  folder.materials = materials;
 
   // Bu papka testidan barcha urinishlarni olish
   let attempts = [];
@@ -220,10 +222,8 @@ async function deleteFolder(userId, folderId) {
   const folder = await MaterialFolder.findOne({ _id: folderId, userId });
   if (!folder) throw new Error("Papka topilmadi");
 
-  // Material ni o'chiramiz
-  if (folder.materialId) {
-    await StudyMaterial.findByIdAndUpdate(folder.materialId, { isActive: false });
-  }
+  // Materiallarni o'chiramiz (soft delete)
+  await StudyMaterial.updateMany({ folderId: folder._id }, { isActive: false });
   // Asosiy testni o'chirmaymiz - tarixda kerak bo'lishi mumkin, faqat folder ni o'chiramiz
   folder.isActive = false;
   await folder.save();
@@ -263,7 +263,6 @@ async function createRetryAttempt(userId, folderId) {
     subjectId: originalTest.subjectId,
     subjectName: originalTest.subjectName,
     materialIds: originalTest.materialIds,
-    materialId: originalTest.materialId,
     folderId: folder._id,
     questions: shuffledQuestions,
     totalQuestions: shuffledQuestions.length,

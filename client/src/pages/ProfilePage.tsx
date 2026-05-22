@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { usePwaInstall } from '../App'
-import { useAppStore } from '../store'
+import { useAppStore, usePwaStore } from '../store'
 import { materialApi, levelApi } from '../api/endpoints'
 import { GRADE_META } from '../constants/subjects'
 import type { MaterialLimits, UserLevelData } from '../types'
@@ -19,13 +18,12 @@ export default function ProfilePage() {
   }
   const [subOpen, setSubOpen] = useState(false)
   const toast = useToast()
-  const { canInstall, install } = usePwaInstall()
+  const { canInstall, installPwa, isInstalled } = usePwaStore()
 
   const [matLimits, setMatLimits] = useState<MaterialLimits | null>(null)
   const [level, setLevel] = useState<UserLevelData | null>(null)
 
-  const openCount = parseInt(localStorage.getItem('fikra_open_count') || '0', 10)
-  const showInstallBanner = canInstall && openCount >= 3
+
 
   const isSub = user?.effectivePlan && user.effectivePlan !== 'free'
   const planLabel: Record<string, { name: string; emoji: string; color: string }> = {
@@ -102,33 +100,39 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* PWA install banner */}
-      {showInstallBanner && (
-        <div style={{ padding: '12px 20px 0' }}>
-          <button
-            onClick={install}
-            style={{
-              width: '100%',
-              background: 'linear-gradient(135deg, rgba(0,212,170,0.12), rgba(123,104,238,0.08))',
-              border: '1px solid rgba(0,212,170,0.3)',
-              borderRadius: 14, padding: '14px 16px',
-              display: 'flex', alignItems: 'center', gap: 12,
-              color: 'var(--txt)', cursor: 'pointer', textAlign: 'left',
-            }}
-          >
-            <div style={{ fontSize: 28 }}>📲</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--g)' }}>
-                Ilovani o'rnatish
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
-                Telefonga yuklab oling — tezroq, offline ham ishlaydi
-              </div>
+      {/* Ilovani yuklab olish (Doimiy) */}
+      <div style={{ padding: '12px 20px 0' }}>
+        <button
+          onClick={isInstalled ? undefined : installPwa}
+          disabled={isInstalled || (!canInstall && !isInstalled)}
+          style={{
+            width: '100%',
+            background: isInstalled
+              ? 'rgba(0,212,170,0.1)'
+              : 'linear-gradient(135deg, rgba(0,212,170,0.12), rgba(123,104,238,0.08))',
+            border: isInstalled
+              ? '1px solid rgba(0,212,170,0.15)'
+              : '1px solid rgba(0,212,170,0.3)',
+            borderRadius: 14, padding: '14px 16px',
+            display: 'flex', alignItems: 'center', gap: 12,
+            color: 'var(--txt)', cursor: isInstalled || !canInstall ? 'default' : 'pointer', textAlign: 'left',
+            opacity: (!isInstalled && !canInstall) ? 0.6 : 1,
+          }}
+        >
+          <div style={{ fontSize: 28 }}>{isInstalled ? '✅' : '📲'}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--g)' }}>
+              {isInstalled ? 'Ilova o\'rnatilgan' : 'Ilovani o\'rnatish'}
             </div>
-            <div style={{ color: 'var(--g)', fontSize: 18, fontWeight: 800 }}>↓</div>
-          </button>
-        </div>
-      )}
+            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
+              {isInstalled
+                ? 'Siz PWA ilovadan foydalanyapsiz'
+                : 'Telefonga yuklab oling — tezroq ishlaydi'}
+            </div>
+          </div>
+          {!isInstalled && canInstall && <div style={{ color: 'var(--g)', fontSize: 18, fontWeight: 800 }}>↓</div>}
+        </button>
+      </div>
 
       {/* Daraja statistikasi */}
       {level && (

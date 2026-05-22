@@ -14,7 +14,7 @@ export default function SubscriptionModal({ open, onClose }: Props) {
   const [plans, setPlans] = useState<PlanData[]>([])
   const [loading, setLoading] = useState(false)
   const { user } = useAppStore()
-  const { toast } = useToast()
+  const toast = useToast()
 
   useEffect(() => {
     if (open) {
@@ -25,7 +25,7 @@ export default function SubscriptionModal({ open, onClose }: Props) {
   // P2P faqat — Payme/Click kelajakda
   const handleBuy = async (planId: string) => {
     if (!user) {
-      toast('Avval tizimga kiring', 'err')
+      toast.error('Avval tizimga kiring')
       return
     }
     setLoading(true)
@@ -41,10 +41,10 @@ export default function SubscriptionModal({ open, onClose }: Props) {
         )
         window.open(`https://t.me/${adminUsername}?text=${text}`, '_blank')
       }
-      toast(`Buyurtma yaratildi (${data.order.orderId})! Admin javob beradi.`, 'ok')
+      toast.success(`Buyurtma yaratildi (${data.order.orderId})! Admin javob beradi.`)
       onClose()
     } catch (e: any) {
-      toast(e.response?.data?.error || 'Xatolik', 'err')
+      toast.error(e.response?.data?.error || 'Xatolik')
     } finally {
       setLoading(false)
     }

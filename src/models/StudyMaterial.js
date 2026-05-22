@@ -64,12 +64,11 @@ const studyMaterialSchema = new mongoose.Schema({
     default: 0,
   },
 
-  // Yaratilgan papka (1-1 bog'lanish)
-  // Material yaratilganidan keyin papka tashkil etiladi
+  // Qaysi papkaga tegishli (1-N bog'lanish)
   folderId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'MaterialFolder',
-    default: null,
+    required: true,
     index: true,
   },
 

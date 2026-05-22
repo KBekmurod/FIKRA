@@ -134,8 +134,6 @@ export async function streamChat(
 export const subApi = {
   plans: () => api.get<PlanData[]>('/api/sub/plans'),
   status: () => api.get('/api/sub/status'),
-  createInvoice: (planId: string) =>
-    api.post<{ invoiceUrl: string }>('/api/sub/create-invoice', { planId }),
   createP2POrder: (planId: string) =>
     api.post<{ order: { orderId: string; planName: string; priceUZS: number } }>('/api/sub/create-p2p-order', { planId }),
   myOrders: () => api.get('/api/sub/my-orders'),
@@ -152,9 +150,9 @@ export const materialApi = {
   get: (id: string) =>
     api.get<{ material: StudyMaterial }>(`/api/materials/${id}`),
 
-  createText: (subjectId: string, title: string, content: string) =>
+  createText: (folderId: string, subjectId: string, title: string, content: string) =>
     api.post<{ success: boolean; material: StudyMaterial }>(
-      '/api/materials/text', { subjectId, title, content }
+      '/api/materials/text', { folderId, subjectId, title, content }
     ),
 
   ocrExtract: (file: File) => {
@@ -168,9 +166,9 @@ export const materialApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
-  ocrSave: (draftId: string, subjectId: string, title: string, content: string) =>
+  ocrSave: (draftId: string, folderId: string, subjectId: string, title: string, content: string) =>
     api.post<{ success: boolean; material: StudyMaterial }>(
-      '/api/materials/ocr/save', { draftId, subjectId, title, content }
+      '/api/materials/ocr/save', { draftId, folderId, subjectId, title, content }
     ),
 
   fileParse: (file: File) => {
@@ -186,9 +184,9 @@ export const materialApi = {
       timeout: 60000,
     })
   },
-  fileSave: (draftId: string, subjectId: string, title: string, content: string) =>
+  fileSave: (draftId: string, folderId: string, subjectId: string, title: string, content: string) =>
     api.post<{ success: boolean; material: StudyMaterial }>(
-      '/api/materials/file/save', { draftId, subjectId, title, content }
+      '/api/materials/file/save', { draftId, folderId, subjectId, title, content }
     ),
 
   update: (id: string, data: { title?: string; content?: string }) =>
@@ -235,7 +233,7 @@ export const personalTestApi = {
   finish: (testId: string, finalAnswers?: Array<{ questionIdx: number; selectedOption: number }>) =>
     api.post<{
       testId: string; subjectId: string; subjectName: string;
-      testType: 'material' | 'mini';
+      testType: 'material' | 'mini' | 'ai_blok' | 'ai_free';
       totalCorrect: number; totalQuestions: number; scorePercent: number;
       level: { versionBefore: number; versionAfter: number; levelUp: boolean } | null;
     }>(`/api/personal-tests/${testId}/finish`, { finalAnswers }),
@@ -273,7 +271,7 @@ export const folderApi = {
     api.get<{ summary: Record<string, any> }>('/api/folders/subjects-summary'),
   detail: (id: string) =>
     api.get<{ folder: any; attempts: any[] }>(`/api/folders/${id}`),
-  create: (data: { materialId: string; subjectId: string; title?: string; context?: string }) =>
+  create: (data: { subjectId: string; title?: string; context?: string }) =>
     api.post<{ success: boolean; folder: any }>('/api/folders', data),
   checkSufficiency: (id: string) =>
     api.post<any>(`/api/folders/${id}/check-sufficiency`),

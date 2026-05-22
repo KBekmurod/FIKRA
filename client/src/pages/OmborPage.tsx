@@ -180,9 +180,8 @@ export default function OmborPage() {
           color: 'var(--txt-2)',
           lineHeight: 1.55,
         }}>
-          💡 <strong>Qoida:</strong> Har bir material — 1 ta papka — 1 ta AI test.
-          {' '}Yetarli ma'lumot bermasangiz, AI o'zi yetkazib berishi yoki sizdan
-          qo'shimcha so'rashi mumkin.
+          💡 <strong>Qoida:</strong> Bitta fan ichida mavzular bo'yicha papkalar oching. Har bir papkaga istagancha konspekt, rasm yoki PDF yuklashingiz mumkin.
+          {' '}AI shu papkadagi barcha ma'lumotlarni o'qib, mutlaqo yangi test yaratib beradi.
         </div>
       </div>
     </>

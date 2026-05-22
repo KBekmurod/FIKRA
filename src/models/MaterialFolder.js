@@ -1,11 +1,11 @@
 const mongoose = require('mongoose');
 
 // ─── MaterialFolder ─────────────────────────────────────────────────────────
-// Qat'iy qoida: 1 Material = 1 Papka = 1 AI Test
+// Qat'iy qoida: 1 Papka = N Material = N AI Test
 //
-// Bu papka tizimi materiallarni va ulardan yaratilgan testlarni tartibga soladi.
+// Bu papka tizimi ma'lum bir mavzuni anglatadi (Masalan, "Kvadrat tenglamalar").
 // Har papka:
-//   - Bitta materialga bog'lanadi (1-1)
+//   - Bir nechta materiallarni o'z ichiga oladi (1-N)
 //   - Bitta AI testga bog'lanadi (1 marta yaratilgan)
 //   - Bir nechta urinishlar statistikasi saqlaydi
 
@@ -40,15 +40,7 @@ const folderSchema = new mongoose.Schema({
   // Papka nomi (material sarlavhasi bilan bir xil bo'ladi default)
   title: { type: String, required: true, trim: true, maxlength: 200 },
 
-  // Materialga bog'lanish (1-1)
-  materialId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'StudyMaterial',
-    required: true,
-    unique: true,  // Bir material faqat bitta papkada bo'lishi mumkin
-  },
-
-  // Asosiy test (AI yaratgan)
+  // Asosiy test (AI yaratgan oxirgi test)
   testId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'PersonalTest',
