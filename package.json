@@ -9,8 +9,7 @@
     "client:install": "cd client && npm install",
     "client:build": "cd client && npm install && npm run build",
     "build": "npm run client:build",
-    "seed": "node src/utils/seedQuestions.js",
-    "postinstall": "npm run client:build"
+    "seed": "node src/utils/seedQuestions.js"
   },
   "dependencies": {
     "axios": "^1.7.7",

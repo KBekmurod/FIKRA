@@ -47,7 +47,7 @@ export default function OmborPage() {
         const stats = getSummaryFor(subjectId, context);
         const isEmpty = !stats || stats.folderCount === 0;
         const standardCount = context === 'majburiy' ? 10 : 30;
-        return (_jsxs("button", { onClick: () => {
+        return (_jsxs("button", { className: `tilt-card ${!isEmpty ? 'glass' : ''}`, onClick: () => {
                 if (!user)
                     return setAuthModalOpen(true);
                 navigate(`/ombor/${subjectId}?context=${context}`);

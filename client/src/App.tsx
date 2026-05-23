@@ -19,6 +19,7 @@ const OmborFolderPage = lazy(() => import('./pages/OmborFolderPage'))
 const FolderAddPage = lazy(() => import('./pages/FolderAddPage'))
 const MaterialAddPage = lazy(() => import('./pages/MaterialAddPage'))
 const MaterialEditPage = lazy(() => import('./pages/MaterialEditPage'))
+const FlashcardPage = lazy(() => import('./pages/FlashcardPage'))
 
 const TestsPage = lazy(() => import('./pages/TestsPage'))
 const FikraTestsPage = lazy(() => import('./pages/FikraTestsPage'))
@@ -129,6 +130,7 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 
 import { usePwaStore } from './store'
 import AuthModal from './components/AuthModal'
+import AnnouncementBanner from './components/AnnouncementBanner'
 
 export default function App() {
   const { user, initialized, bootstrap, refreshUser } = useAppStore()
@@ -181,6 +183,7 @@ export default function App() {
   return (
     <div className="app">
       <AuthModal />
+      <AnnouncementBanner />
       {/* Global PWA Install Banner */}
       {!isInstalled && canInstall && !isAuthRoute && (
         <div style={{
@@ -239,6 +242,7 @@ export default function App() {
             <Route path="/ombor/:subjectId/add-folder" element={<RequireAuth><FolderAddPage /></RequireAuth>} />
             <Route path="/ombor/folder/:folderId"      element={<RequireAuth><OmborFolderPage /></RequireAuth>} />
             <Route path="/ombor/folder/:folderId/add"  element={<RequireAuth><MaterialAddPage /></RequireAuth>} />
+            <Route path="/ombor/folder/:folderId/flash" element={<RequireAuth><FlashcardPage /></RequireAuth>} />
             <Route path="/materials/:id/edit"          element={<RequireAuth><MaterialEditPage /></RequireAuth>} />
 
             <Route path="/testlar"                     element={<TestsPage />} />

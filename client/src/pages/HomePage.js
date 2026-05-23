@@ -6,6 +6,7 @@ import { usePwaStore } from '../store';
 import { levelApi, examApi, personalTestApi } from '../api/endpoints';
 import { GRADE_META, versionInGrade } from '../constants/subjects';
 import SubscriptionModal from '../components/SubscriptionModal';
+import LevelCrystal from '../components/LevelCrystal';
 export default function HomePage() {
     const navigate = useNavigate();
     const { user } = useAppStore();
@@ -127,22 +128,31 @@ export default function HomePage() {
                             ? _jsx("span", { style: { color: 'var(--y)' }, children: user.effectivePlan === 'basic' ? '⭐ Basic' :
                                     user.effectivePlan === 'pro' ? '✨ Pro' :
                                         user.effectivePlan === 'vip' ? '💎 VIP' : '' })
-                            : _jsxs(_Fragment, { children: [_jsx("span", { style: { color: 'var(--txt-2)' }, children: "Bepul" }), " ", _jsx("span", { style: { color: 'var(--acc-l)' }, children: "\u2197" })] }) })] }), _jsx("div", { style: { padding: '6px 20px 0' }, children: _jsxs("div", { style: {
-                        background: `linear-gradient(135deg, ${gradeMeta.bgColor}, transparent)`,
+                            : _jsxs(_Fragment, { children: [_jsx("span", { style: { color: 'var(--txt-2)' }, children: "Bepul" }), " ", _jsx("span", { style: { color: 'var(--acc-l)' }, children: "\u2197" })] }) })] }), _jsx("div", { style: { padding: '6px 20px 0' }, children: _jsxs("div", { className: "tilt-card glass", style: {
+                        background: `linear-gradient(135deg, ${gradeMeta.bgColor}, rgba(20,20,42,0.8))`,
                         border: `1px solid ${gradeMeta.color}40`,
                         borderRadius: 'var(--br)',
                         padding: 18,
                         display: 'flex',
-                        alignItems: 'center',
+                        flexDirection: 'column',
                         gap: 14,
-                    }, children: [_jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsxs("div", { style: { fontWeight: 800, fontSize: 16 }, children: ["\uD83D\uDC4B Salom, ", user.firstName || 'Abituriyent', "!"] }), _jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginTop: 4 }, children: "Joriy darajangiz" }), _jsxs("div", { style: {
-                                        marginTop: 6,
-                                        display: 'inline-block',
-                                        fontSize: 13,
-                                        fontWeight: 800,
-                                        color: gradeMeta.color,
-                                        letterSpacing: 0.3,
-                                    }, children: [gradeMeta.icon, " ", gradeMeta.name, " ", versionInGr] })] }), _jsx(CircularProgress, { percent: accuracy, color: gradeMeta.color, size: 72 })] }) }), user?.isNew && (_jsx("div", { style: { padding: '12px 20px 0' }, children: _jsxs("div", { style: {
+                    }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 14 }, children: [_jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsxs("div", { style: { fontWeight: 800, fontSize: 16 }, children: ["\uD83D\uDC4B Salom, ", user.firstName || 'Abituriyent', "!"] }), _jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginTop: 4 }, children: "Joriy darajangiz" }), _jsxs("div", { style: {
+                                                marginTop: 6,
+                                                display: 'inline-block',
+                                                fontSize: 13,
+                                                fontWeight: 800,
+                                                color: gradeMeta.color,
+                                                letterSpacing: 0.3,
+                                            }, children: [gradeMeta.icon, " ", gradeMeta.name, " ", versionInGr] })] }), _jsx(LevelCrystal, { level: level ? level.currentVersion : 1, streak: level ? level.streak : 0 })] }), _jsxs("div", { style: {
+                                background: 'rgba(0,0,0,0.2)',
+                                borderRadius: 12,
+                                padding: '10px 14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                fontSize: 12,
+                                color: 'var(--txt-2)'
+                            }, children: [_jsxs("span", { children: ["Aniqlik (Accuracy): ", _jsxs("strong", { style: { color: 'var(--txt)' }, children: [accuracy, "%"] })] }), _jsxs("span", { children: ["Kristall Quvvati: ", _jsx("strong", { style: { color: gradeMeta.color }, children: "Max" })] })] })] }) }), user?.isNew && (_jsx("div", { style: { padding: '12px 20px 0' }, children: _jsxs("div", { style: {
                         background: 'linear-gradient(135deg, rgba(123,104,238,0.15), rgba(167,139,250,0.05))',
                         border: '1px solid rgba(123,104,238,0.3)',
                         borderRadius: 14,

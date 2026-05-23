@@ -153,7 +153,8 @@ export async function streamJsonFetch(url, body) {
 export const subApi = {
     plans: () => api.get('/api/sub/plans'),
     status: () => api.get('/api/sub/status'),
-    createP2POrder: (planId) => api.post('/api/sub/create-p2p-order', { planId }),
+    validatePromo: (code) => api.post('/api/sub/validate-promo', { code }),
+    createP2POrder: (planId, promoCode) => api.post('/api/sub/create-p2p-order', { planId, promoCode }),
     myOrders: () => api.get('/api/sub/my-orders'),
 };
 // ─── v2: Materials ────────────────────────────────────────────────────────
@@ -210,4 +211,10 @@ export const folderApi = {
     generate: (id, opt = 'standard') => streamJsonFetch(`/api/folders/${id}/generate`, { opt }),
     retry: (id) => api.post(`/api/folders/${id}/retry`),
     delete: (id) => api.delete(`/api/folders/${id}`),
+    getFlashcards: (id) => api.get(`/api/folders/${id}/flashcards`),
+    generateFlashcards: (id) => api.post(`/api/folders/${id}/flashcards`),
+};
+// ─── Misc (E'lonlar) ────────────────────────────────────────────────────────
+export const miscApi = {
+    activeAnnouncement: () => api.get('/api/misc/announcements/active'),
 };

@@ -8,6 +8,10 @@ export default function SubscriptionModal({ open, onClose }) {
     const [plans, setPlans] = useState([]);
     const [loading, setLoading] = useState(false);
     const [period, setPeriod] = useState('1m');
+    const [promoCode, setPromoCode] = useState('');
+    const [promoDiscount, setPromoDiscount] = useState(0);
+    const [promoLoading, setPromoLoading] = useState(false);
+    const [promoApplied, setPromoApplied] = useState(false);
     const { user } = useAppStore();
     const toast = useToast();
     useEffect(() => {
@@ -18,6 +22,25 @@ export default function SubscriptionModal({ open, onClose }) {
     const visiblePlans = useMemo(() => {
         return plans.filter(p => p.id.endsWith(`_${period}`));
     }, [plans, period]);
+    const applyPromo = async () => {
+        if (!promoCode.trim())
+            return;
+        setPromoLoading(true);
+        try {
+            const res = await subApi.validatePromo(promoCode.trim());
+            setPromoDiscount(res.data.discountPercent);
+            setPromoApplied(true);
+            toast.success(`Tabriklaymiz! ${res.data.discountPercent}% chegirma qo'llanildi.`);
+        }
+        catch (e) {
+            toast.error(e.response?.data?.error || 'Promokod xato yoki muddati tugagan');
+            setPromoDiscount(0);
+            setPromoApplied(false);
+        }
+        finally {
+            setPromoLoading(false);
+        }
+    };
     const handleBuy = async (planId) => {
         if (!user) {
             toast.error('Avval tizimga kiring');
@@ -25,7 +48,7 @@ export default function SubscriptionModal({ open, onClose }) {
         }
         setLoading(true);
         try {
-            const { data } = await subApi.createP2POrder(planId);
+            const { data } = await subApi.createP2POrder(planId, promoApplied ? promoCode.trim() : undefined);
             const adminUsername = window.ADMIN_USERNAME || 'fikra_support';
             if (adminUsername) {
                 const text = encodeURIComponent(`Salom! Men FIKRA ilovasidan ${data.order.planName} obunasini olmoqchiman.\n` +
@@ -89,10 +112,23 @@ export default function SubscriptionModal({ open, onClose }) {
                     gridTemplateColumns: '1fr 1fr 1fr',
                     gap: 6,
                     marginBottom: 14,
-                }, children: [_jsxs("div", { style: { padding: '8px 6px', background: 'rgba(0,212,170,0.12)', border: '1.5px solid rgba(0,212,170,0.35)', borderRadius: 10, textAlign: 'center' }, children: [_jsx("div", { style: { fontSize: 16 }, children: "\uD83E\uDD1D" }), _jsx("div", { style: { fontSize: 9, fontWeight: 800, color: 'var(--g)', marginTop: 2 }, children: "P2P" }), _jsx("div", { style: { fontSize: 8, color: 'var(--g)' }, children: "Faol" })] }), _jsxs("div", { style: { padding: '8px 6px', background: 'var(--s2)', border: '1px solid var(--f)', borderRadius: 10, textAlign: 'center', opacity: 0.6 }, children: [_jsx("div", { style: { fontSize: 16 }, children: "\uD83D\uDCB3" }), _jsx("div", { style: { fontSize: 9, fontWeight: 800, color: 'var(--txt-2)', marginTop: 2 }, children: "Payme" }), _jsx("div", { style: { fontSize: 8, color: 'var(--txt-3)' }, children: "Tez orada" })] }), _jsxs("div", { style: { padding: '8px 6px', background: 'var(--s2)', border: '1px solid var(--f)', borderRadius: 10, textAlign: 'center', opacity: 0.6 }, children: [_jsx("div", { style: { fontSize: 16 }, children: "\uD83D\uDCB3" }), _jsx("div", { style: { fontSize: 9, fontWeight: 800, color: 'var(--txt-2)', marginTop: 2 }, children: "Click" }), _jsx("div", { style: { fontSize: 8, color: 'var(--txt-3)' }, children: "Tez orada" })] })] }), _jsx("div", { style: { display: 'grid', gap: 10 }, children: visiblePlans.map(plan => {
+                }, children: [_jsxs("div", { style: { padding: '8px 6px', background: 'rgba(0,212,170,0.12)', border: '1.5px solid rgba(0,212,170,0.35)', borderRadius: 10, textAlign: 'center' }, children: [_jsx("div", { style: { fontSize: 16 }, children: "\uD83E\uDD1D" }), _jsx("div", { style: { fontSize: 9, fontWeight: 800, color: 'var(--g)', marginTop: 2 }, children: "P2P" }), _jsx("div", { style: { fontSize: 8, color: 'var(--g)' }, children: "Faol" })] }), _jsxs("div", { style: { padding: '8px 6px', background: 'var(--s2)', border: '1px solid var(--f)', borderRadius: 10, textAlign: 'center', opacity: 0.6 }, children: [_jsx("div", { style: { fontSize: 16 }, children: "\uD83D\uDCB3" }), _jsx("div", { style: { fontSize: 9, fontWeight: 800, color: 'var(--txt-2)', marginTop: 2 }, children: "Payme" }), _jsx("div", { style: { fontSize: 8, color: 'var(--txt-3)' }, children: "Tez orada" })] }), _jsxs("div", { style: { padding: '8px 6px', background: 'var(--s2)', border: '1px solid var(--f)', borderRadius: 10, textAlign: 'center', opacity: 0.6 }, children: [_jsx("div", { style: { fontSize: 16 }, children: "\uD83D\uDCB3" }), _jsx("div", { style: { fontSize: 9, fontWeight: 800, color: 'var(--txt-2)', marginTop: 2 }, children: "Click" }), _jsx("div", { style: { fontSize: 8, color: 'var(--txt-3)' }, children: "Tez orada" })] })] }), _jsxs("div", { style: {
+                    background: 'var(--s2)', borderRadius: 10, padding: 12, marginBottom: 16, border: '1px solid var(--f)',
+                    display: 'flex', gap: 8, alignItems: 'center'
+                }, children: [_jsx("div", { style: { fontSize: 16 }, children: "\uD83C\uDF9F\uFE0F" }), _jsx("input", { type: "text", placeholder: "Promokod (agar bo'lsa)", value: promoCode, onChange: e => { setPromoCode(e.target.value); setPromoApplied(false); setPromoDiscount(0); }, style: {
+                            flex: 1, background: 'transparent', border: 'none', color: 'var(--txt)',
+                            fontSize: 13, outline: 'none', textTransform: 'uppercase'
+                        }, disabled: promoApplied || promoLoading }), promoApplied ? (_jsx("span", { style: { color: 'var(--g)', fontSize: 12, fontWeight: 700 }, children: "\u2713 Qo'llanildi" })) : (_jsx("button", { onClick: applyPromo, disabled: !promoCode.trim() || promoLoading, style: {
+                            background: 'var(--s3)', border: '1px solid var(--f)', color: 'var(--txt)',
+                            padding: '6px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+                            opacity: !promoCode.trim() || promoLoading ? 0.5 : 1
+                        }, children: promoLoading ? '...' : "Qo'llash" }))] }), _jsx("div", { style: { display: 'grid', gap: 10 }, children: visiblePlans.map(plan => {
                     const color = tierColor[plan.tier] || 'var(--txt-2)';
                     const emoji = tierEmoji[plan.tier] || '⭐';
                     const isPro = plan.tier === 'pro';
+                    const finalPrice = promoApplied
+                        ? Math.max(0, Math.round(plan.priceUZS * (1 - promoDiscount / 100)))
+                        : plan.priceUZS;
                     return (_jsxs("div", { style: {
                             background: 'var(--s1)',
                             border: `1.5px solid ${isPro ? color : 'var(--f)'}`,
@@ -114,7 +150,7 @@ export default function SubscriptionModal({ open, onClose }) {
                                     background: 'var(--s2)', color: 'var(--txt)', border: `1px solid ${color}`,
                                     fontSize: 9, fontWeight: 800, padding: '2px 8px',
                                     borderRadius: 100,
-                                }, children: plan.badge })), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }, children: [_jsx("div", { style: { fontSize: 26 }, children: emoji }), _jsx("div", { style: { flex: 1 }, children: _jsx("div", { style: { fontWeight: 800, fontSize: 16, color }, children: plan.name }) }), _jsxs("div", { style: { textAlign: 'right' }, children: [_jsx("div", { style: { fontWeight: 900, fontSize: 18 }, children: plan.priceUZS.toLocaleString() }), _jsxs("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: ["UZS / ", plan.period] })] })] }), _jsx("div", { style: { display: 'grid', gap: 4, marginBottom: 10 }, children: plan.features.slice(0, 4).map((f, i) => (_jsxs("div", { style: { fontSize: 11, color: 'var(--txt)', display: 'flex', gap: 6 }, children: [_jsx("span", { style: { color }, children: "\u2713" }), _jsx("span", { children: f })] }, i))) }), _jsx("button", { onClick: () => handleBuy(plan.id), disabled: loading, style: {
+                                }, children: plan.badge })), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }, children: [_jsx("div", { style: { fontSize: 26 }, children: emoji }), _jsx("div", { style: { flex: 1 }, children: _jsx("div", { style: { fontWeight: 800, fontSize: 16, color }, children: plan.name }) }), _jsxs("div", { style: { textAlign: 'right' }, children: [promoApplied && (_jsx("div", { style: { fontSize: 11, textDecoration: 'line-through', color: 'var(--txt-3)', marginBottom: -2 }, children: plan.priceUZS.toLocaleString() })), _jsx("div", { style: { fontWeight: 900, fontSize: 18, color: promoApplied ? 'var(--g)' : 'inherit' }, children: finalPrice.toLocaleString() }), _jsxs("div", { style: { fontSize: 10, color: 'var(--txt-3)' }, children: ["UZS / ", plan.period] })] })] }), _jsx("div", { style: { display: 'grid', gap: 4, marginBottom: 10 }, children: plan.features.slice(0, 4).map((f, i) => (_jsxs("div", { style: { fontSize: 11, color: 'var(--txt)', display: 'flex', gap: 6 }, children: [_jsx("span", { style: { color }, children: "\u2713" }), _jsx("span", { children: f })] }, i))) }), _jsx("button", { onClick: () => handleBuy(plan.id), disabled: loading, style: {
                                     width: '100%',
                                     background: `linear-gradient(135deg, ${color}, ${color}dd)`,
                                     color: '#0a0a14',

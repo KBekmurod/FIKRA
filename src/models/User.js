@@ -61,6 +61,10 @@ const userSchema = new mongoose.Schema({
   // ─── AI kunlik ishlatish ─────────────────────────────────────────────────
   aiUsage: { type: aiUsageSchema, default: () => ({}) },
 
+  // ─── Gamifikatsiya (Streak) ─────────────────────────────────────────────
+  currentStreak:  { type: Number, default: 0 },
+  lastActiveDate: { type: String, default: null }, // 'YYYY-MM-DD'
+
   isActive: { type: Boolean, default: true },
 }, {
   timestamps: true,

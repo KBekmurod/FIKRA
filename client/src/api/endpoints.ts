@@ -183,8 +183,10 @@ export async function streamJsonFetch<T>(url: string, body: any): Promise<{ data
 export const subApi = {
   plans: () => api.get<PlanData[]>('/api/sub/plans'),
   status: () => api.get('/api/sub/status'),
-  createP2POrder: (planId: string) =>
-    api.post<{ order: { orderId: string; planName: string; priceUZS: number } }>('/api/sub/create-p2p-order', { planId }),
+  validatePromo: (code: string) =>
+    api.post<{ success: boolean; discountPercent: number }>('/api/sub/validate-promo', { code }),
+  createP2POrder: (planId: string, promoCode?: string) =>
+    api.post<{ order: { orderId: string; planName: string; priceUZS: number } }>('/api/sub/create-p2p-order', { planId, promoCode }),
   myOrders: () => api.get('/api/sub/my-orders'),
 }
 
@@ -328,4 +330,14 @@ export const folderApi = {
     api.post<any>(`/api/folders/${id}/retry`),
   delete: (id: string) =>
     api.delete(`/api/folders/${id}`),
+  getFlashcards: (id: string) =>
+    api.get<any>(`/api/folders/${id}/flashcards`),
+  generateFlashcards: (id: string) =>
+    api.post<any>(`/api/folders/${id}/flashcards`),
+}
+
+// ─── Misc (E'lonlar) ────────────────────────────────────────────────────────
+export const miscApi = {
+  activeAnnouncement: () =>
+    api.get<{ announcement: any }>('/api/misc/announcements/active'),
 }

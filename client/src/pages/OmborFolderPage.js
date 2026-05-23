@@ -170,19 +170,15 @@ export default function OmborFolderPage() {
                             fontWeight: 800,
                             color: ctx === 'majburiy' ? 'var(--g)' : 'var(--acc-l)',
                             marginBottom: 12,
-                        }, children: [ctx === 'majburiy' ? '📌 Majburiy' : '⭐ Mutaxassislik', " \u00B7 ", standardCount, " savol"] }), folder.stats.attemptsCount > 0 && (_jsxs("div", { style: {
+                        }, children: [ctx === 'majburiy' ? '📌 Majburiy' : '⭐ Mutaxassislik', " \u00B7 ", standardCount, " savol"] }), folder.stats.attemptsCount > 0 && (_jsxs("div", { className: "tilt-card glass", style: {
                             padding: 14,
-                            background: 'var(--s1)',
-                            border: '1px solid var(--f)',
                             borderRadius: 12,
                             marginBottom: 14,
                         }, children: [_jsx("div", { style: { fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 8 }, children: "\uD83D\uDCCA BU PAPKA STATISTIKASI" }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }, children: [_jsx(StatBox, { label: "Urinishlar", value: folder.stats.attemptsCount, color: "var(--acc-l)" }), _jsx(StatBox, { label: "Eng yaxshi", value: `${folder.stats.bestScore}%`, color: "var(--g)" }), _jsx(StatBox, { label: "O'rtacha", value: `${folder.stats.avgScore}%`, color: "var(--y)" })] })] })), _jsx("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }, children: _jsxs("div", { style: { fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5 }, children: ["\uD83D\uDCC4 MATERIALLAR (", materials.length, ")"] }) }), materials.length === 0 ? (_jsx("div", { style: {
                             padding: 20, textAlign: 'center',
                             background: 'var(--s1)', border: '1px dashed var(--f)', borderRadius: 12, marginBottom: 12
-                        }, children: _jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)' }, children: "Papkada material yo'q" }) })) : (_jsx("div", { style: { display: 'grid', gap: 10, marginBottom: 14 }, children: materials.map((m) => (_jsxs("div", { style: {
+                        }, children: _jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)' }, children: "Papkada material yo'q" }) })) : (_jsx("div", { style: { display: 'grid', gap: 10, marginBottom: 14 }, children: materials.map((m) => (_jsxs("div", { className: "tilt-card glass", style: {
                                 padding: 12,
-                                background: 'var(--s1)',
-                                border: '1px solid var(--f)',
                                 borderRadius: 12,
                             }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }, children: [_jsx("div", { style: {
                                                 fontWeight: 700, fontSize: 13, lineHeight: 1.4,
@@ -210,18 +206,33 @@ export default function OmborFolderPage() {
                             border: '1px solid rgba(123,104,238,0.25)',
                             borderRadius: 12,
                             marginBottom: 12,
-                        }, children: [_jsx("div", { className: "spin", style: { margin: '0 auto 10px' } }), _jsxs("div", { style: { fontSize: 12, color: 'var(--txt-2)' }, children: ["AI ", standardCount, " ta test yaratmoqda... Bu 20-40 soniya davom etishi mumkin."] })] })), hasTest && (_jsx("button", { onClick: startTest, disabled: starting, style: {
-                            width: '100%',
-                            background: 'linear-gradient(135deg, var(--g), #00b08e)',
-                            color: '#0a0a14',
-                            border: 'none',
-                            borderRadius: 14,
-                            padding: '16px 18px',
-                            fontSize: 14,
-                            fontWeight: 800,
-                            cursor: 'pointer',
-                            marginBottom: 12,
-                        }, children: starting ? '⏳ Boshlanmoqda...' : `🔄 Aynan oxirgi testni qayta ishlash (${standardCount} ta savol)` })), attempts.length > 0 && (_jsxs(_Fragment, { children: [_jsxs("div", { style: { fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, margin: '14px 0 8px' }, children: ["\uD83D\uDCC8 URINISHLAR TARIXI (", attempts.length, ")"] }), _jsx("div", { style: { display: 'grid', gap: 6 }, children: attempts.slice(0, 5).map((a, i) => {
+                        }, children: [_jsx("div", { className: "spin", style: { margin: '0 auto 10px' } }), _jsxs("div", { style: { fontSize: 12, color: 'var(--txt-2)' }, children: ["AI ", standardCount, " ta test yaratmoqda... Bu 20-40 soniya davom etishi mumkin."] })] })), hasTest && (_jsxs(_Fragment, { children: [_jsx("button", { onClick: startTest, disabled: starting, style: {
+                                    width: '100%',
+                                    background: 'linear-gradient(135deg, var(--g), #00b08e)',
+                                    color: '#0a0a14',
+                                    border: 'none',
+                                    borderRadius: 14,
+                                    padding: '16px 18px',
+                                    fontSize: 14,
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    marginBottom: 12,
+                                }, children: starting ? '⏳ Boshlanmoqda...' : `🔄 Aynan oxirgi testni qayta ishlash (${standardCount} ta savol)` }), _jsx("button", { onClick: () => navigate(`/ombor/folder/${folderId}/flash`), className: "tilt-card", style: {
+                                    width: '100%',
+                                    background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: 14,
+                                    padding: '16px 18px',
+                                    fontSize: 14,
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    marginBottom: 12,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8,
+                                }, children: "\u26A1 FIKRA Flash (Qisqa Takrorlash)" })] })), attempts.length > 0 && (_jsxs(_Fragment, { children: [_jsxs("div", { style: { fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, margin: '14px 0 8px' }, children: ["\uD83D\uDCC8 URINISHLAR TARIXI (", attempts.length, ")"] }), _jsx("div", { style: { display: 'grid', gap: 6 }, children: attempts.slice(0, 5).map((a, i) => {
                                     const pct = a.scorePercent || 0;
                                     // Safe ID
                                     const attemptId = typeof a._id === 'object' ? a._id._id || String(a._id) : a._id;

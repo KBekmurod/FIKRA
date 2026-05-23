@@ -208,10 +208,8 @@ export default function OmborFolderPage() {
 
         {/* Statistika kartasi */}
         {folder.stats.attemptsCount > 0 && (
-          <div style={{
+          <div className="tilt-card glass" style={{
             padding: 14,
-            background: 'var(--s1)',
-            border: '1px solid var(--f)',
             borderRadius: 12,
             marginBottom: 14,
           }}>
@@ -243,10 +241,8 @@ export default function OmborFolderPage() {
         ) : (
           <div style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
             {materials.map((m: any) => (
-              <div key={m._id} style={{
+              <div key={m._id} className="tilt-card glass" style={{
                 padding: 12,
-                background: 'var(--s1)',
-                border: '1px solid var(--f)',
                 borderRadius: 12,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -335,24 +331,48 @@ export default function OmborFolderPage() {
         )}
 
         {hasTest && (
-          <button
-            onClick={startTest}
-            disabled={starting}
-            style={{
-              width: '100%',
-              background: 'linear-gradient(135deg, var(--g), #00b08e)',
-              color: '#0a0a14',
-              border: 'none',
-              borderRadius: 14,
-              padding: '16px 18px',
-              fontSize: 14,
-              fontWeight: 800,
-              cursor: 'pointer',
-              marginBottom: 12,
-            }}
-          >
-            {starting ? '⏳ Boshlanmoqda...' : `🔄 Aynan oxirgi testni qayta ishlash (${standardCount} ta savol)`}
-          </button>
+          <>
+            <button
+              onClick={startTest}
+              disabled={starting}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, var(--g), #00b08e)',
+                color: '#0a0a14',
+                border: 'none',
+                borderRadius: 14,
+                padding: '16px 18px',
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: 'pointer',
+                marginBottom: 12,
+              }}
+            >
+              {starting ? '⏳ Boshlanmoqda...' : `🔄 Aynan oxirgi testni qayta ishlash (${standardCount} ta savol)`}
+            </button>
+            <button
+              onClick={() => navigate(`/ombor/folder/${folderId}/flash`)}
+              className="tilt-card"
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 14,
+                padding: '16px 18px',
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: 'pointer',
+                marginBottom: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              ⚡ FIKRA Flash (Qisqa Takrorlash)
+            </button>
+          </>
         )}
 
         {/* Urinishlar tarixi */}

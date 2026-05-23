@@ -6,6 +6,7 @@ import { levelApi, examApi, personalTestApi } from '../api/endpoints'
 import { GRADE_META, versionToGrade, versionInGrade } from '../constants/subjects'
 import type { UserLevelData } from '../types'
 import SubscriptionModal from '../components/SubscriptionModal'
+import LevelCrystal from '../components/LevelCrystal'
 
 interface LastActivity {
   kind: 'fikra_test' | 'ai_test' | 'ai_chat' | 'material'
@@ -211,36 +212,51 @@ export default function HomePage() {
 
       {/* TOP — Salomlashish + daraja grafik */}
       <div style={{ padding: '6px 20px 0' }}>
-        <div style={{
-          background: `linear-gradient(135deg, ${gradeMeta.bgColor}, transparent)`,
+        <div className="tilt-card glass" style={{
+          background: `linear-gradient(135deg, ${gradeMeta.bgColor}, rgba(20,20,42,0.8))`,
           border: `1px solid ${gradeMeta.color}40`,
           borderRadius: 'var(--br)',
           padding: 18,
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: 'column',
           gap: 14,
         }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: 16 }}>
-              👋 Salom, {user.firstName || 'Abituriyent'}!
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>
+                👋 Salom, {user.firstName || 'Abituriyent'}!
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--txt-2)', marginTop: 4 }}>
+                Joriy darajangiz
+              </div>
+              <div style={{
+                marginTop: 6,
+                display: 'inline-block',
+                fontSize: 13,
+                fontWeight: 800,
+                color: gradeMeta.color,
+                letterSpacing: 0.3,
+              }}>
+                {gradeMeta.icon} {gradeMeta.name} {versionInGr}
+              </div>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--txt-2)', marginTop: 4 }}>
-              Joriy darajangiz
-            </div>
-            <div style={{
-              marginTop: 6,
-              display: 'inline-block',
-              fontSize: 13,
-              fontWeight: 800,
-              color: gradeMeta.color,
-              letterSpacing: 0.3,
-            }}>
-              {gradeMeta.icon} {gradeMeta.name} {versionInGr}
-            </div>
+            {/* Aylanma grafik o'rniga Kristall */}
+            <LevelCrystal level={level ? level.currentVersion : 1} streak={level ? level.streak : 0} />
           </div>
-
-          {/* Aylanma grafik */}
-          <CircularProgress percent={accuracy} color={gradeMeta.color} size={72} />
+          
+          <div style={{
+            background: 'rgba(0,0,0,0.2)',
+            borderRadius: 12,
+            padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: 12,
+            color: 'var(--txt-2)'
+          }}>
+            <span>Aniqlik (Accuracy): <strong style={{color: 'var(--txt)'}}>{accuracy}%</strong></span>
+            <span>Kristall Quvvati: <strong style={{color: gradeMeta.color}}>Max</strong></span>
+          </div>
         </div>
       </div>
 

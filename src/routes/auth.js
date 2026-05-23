@@ -274,8 +274,34 @@ router.post('/refresh', async (req, res) => {
 });
 
 // ─── GET /api/auth/me ──────────────────────────────────────────────────────
-router.get('/me', authMiddleware, async (req, res) => {
-  res.json(_serializeUser(req.user));
+router.get('/me', authMiddleware, async (req, res, next) => {
+  try {
+    const user = req.user;
+    
+    // Streak logic
+    const today = new Date().toISOString().split('T')[0];
+    if (user.lastActiveDate !== today) {
+      if (!user.lastActiveDate) {
+        user.currentStreak = 1;
+      } else {
+        const last = new Date(user.lastActiveDate);
+        const curr = new Date(today);
+        const diffDays = Math.floor((curr - last) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+          user.currentStreak += 1;
+        } else if (diffDays > 1) {
+          user.currentStreak = 1;
+        }
+      }
+      user.lastActiveDate = today;
+      await user.save();
+    }
+
+    res.json(_serializeUser(user));
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ─── POST /api/auth/change-password ───────────────────────────────────────

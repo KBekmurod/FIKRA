@@ -16,6 +16,11 @@ export default function SubscriptionModal({ open, onClose }: Props) {
   const [plans, setPlans] = useState<PlanData[]>([])
   const [loading, setLoading] = useState(false)
   const [period, setPeriod] = useState<PeriodType>('1m')
+  const [promoCode, setPromoCode] = useState('')
+  const [promoDiscount, setPromoDiscount] = useState(0)
+  const [promoLoading, setPromoLoading] = useState(false)
+  const [promoApplied, setPromoApplied] = useState(false)
+
   const { user } = useAppStore()
   const toast = useToast()
 
@@ -29,6 +34,23 @@ export default function SubscriptionModal({ open, onClose }: Props) {
     return plans.filter(p => p.id.endsWith(`_${period}`))
   }, [plans, period])
 
+  const applyPromo = async () => {
+    if (!promoCode.trim()) return;
+    setPromoLoading(true);
+    try {
+      const res = await subApi.validatePromo(promoCode.trim());
+      setPromoDiscount(res.data.discountPercent);
+      setPromoApplied(true);
+      toast.success(`Tabriklaymiz! ${res.data.discountPercent}% chegirma qo'llanildi.`);
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Promokod xato yoki muddati tugagan');
+      setPromoDiscount(0);
+      setPromoApplied(false);
+    } finally {
+      setPromoLoading(false);
+    }
+  }
+
   const handleBuy = async (planId: string) => {
     if (!user) {
       toast.error('Avval tizimga kiring')
@@ -36,7 +58,7 @@ export default function SubscriptionModal({ open, onClose }: Props) {
     }
     setLoading(true)
     try {
-      const { data } = await subApi.createP2POrder(planId)
+      const { data } = await subApi.createP2POrder(planId, promoApplied ? promoCode.trim() : undefined)
       const adminUsername = (window as any).ADMIN_USERNAME || 'fikra_support'
       if (adminUsername) {
         const text = encodeURIComponent(
@@ -167,12 +189,50 @@ export default function SubscriptionModal({ open, onClose }: Props) {
         </div>
       </div>
 
+      {/* Promokod bo'limi */}
+      <div style={{
+        background: 'var(--s2)', borderRadius: 10, padding: 12, marginBottom: 16, border: '1px solid var(--f)',
+        display: 'flex', gap: 8, alignItems: 'center'
+      }}>
+        <div style={{ fontSize: 16 }}>🎟️</div>
+        <input 
+          type="text" 
+          placeholder="Promokod (agar bo'lsa)" 
+          value={promoCode}
+          onChange={e => { setPromoCode(e.target.value); setPromoApplied(false); setPromoDiscount(0); }}
+          style={{
+            flex: 1, background: 'transparent', border: 'none', color: 'var(--txt)', 
+            fontSize: 13, outline: 'none', textTransform: 'uppercase'
+          }}
+          disabled={promoApplied || promoLoading}
+        />
+        {promoApplied ? (
+          <span style={{ color: 'var(--g)', fontSize: 12, fontWeight: 700 }}>✓ Qo'llanildi</span>
+        ) : (
+          <button 
+            onClick={applyPromo}
+            disabled={!promoCode.trim() || promoLoading}
+            style={{
+              background: 'var(--s3)', border: '1px solid var(--f)', color: 'var(--txt)',
+              padding: '6px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+              opacity: !promoCode.trim() || promoLoading ? 0.5 : 1
+            }}
+          >
+            {promoLoading ? '...' : "Qo'llash"}
+          </button>
+        )}
+      </div>
+
       {/* Plan kartalari */}
       <div style={{ display: 'grid', gap: 10 }}>
         {visiblePlans.map(plan => {
           const color = tierColor[plan.tier] || 'var(--txt-2)'
           const emoji = tierEmoji[plan.tier] || '⭐'
           const isPro = plan.tier === 'pro'
+          
+          const finalPrice = promoApplied 
+            ? Math.max(0, Math.round(plan.priceUZS * (1 - promoDiscount / 100))) 
+            : plan.priceUZS;
 
           return (
             <div
@@ -216,8 +276,13 @@ export default function SubscriptionModal({ open, onClose }: Props) {
                   <div style={{ fontWeight: 800, fontSize: 16, color }}>{plan.name}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 900, fontSize: 18 }}>
-                    {plan.priceUZS.toLocaleString()}
+                  {promoApplied && (
+                    <div style={{ fontSize: 11, textDecoration: 'line-through', color: 'var(--txt-3)', marginBottom: -2 }}>
+                      {plan.priceUZS.toLocaleString()}
+                    </div>
+                  )}
+                  <div style={{ fontWeight: 900, fontSize: 18, color: promoApplied ? 'var(--g)' : 'inherit' }}>
+                    {finalPrice.toLocaleString()}
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>UZS / {plan.period}</div>
                 </div>

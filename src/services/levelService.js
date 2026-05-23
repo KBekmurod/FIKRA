@@ -158,7 +158,10 @@ async function recordResult(userId, { source, correct, total }) {
 
 // Joriy daraja ma'lumotlarini olish
 async function getLevel(userId) {
+  const User = require('../models/User');
   let levelDoc = await UserLevel.findOne({ userId }).lean();
+  const userDoc = await User.findById(userId).select('currentStreak').lean();
+  const streak = userDoc?.currentStreak || 0;
   if (!levelDoc) {
     return {
       currentVersion: 1,
@@ -191,6 +194,7 @@ async function getLevel(userId) {
 
   return {
     ...levelDoc,
+    streak,
     accuracyPercent,
     nextVersionInfo: _getNextVersionInfo(levelDoc.currentVersion, levelDoc),
   };

@@ -5,6 +5,11 @@ const PendingOrder = require('../models/PendingOrder');
 const TestQuestion = require('../models/TestQuestion');
 const { logger, memoryLogs } = require('../utils/logger');
 const { PLANS, _activatePlan } = require('./subscription');
+const StudyMaterial = require('../models/StudyMaterial');
+const PromoCode = require('../models/PromoCode');
+const Announcement = require('../models/Announcement');
+const ExamSession = require('../models/ExamSession');
+const PersonalTest = require('../models/PersonalTest');
 
 // ─── Admin auth middleware ───────────────────────────────────────────────────
 function adminAuth(req, res, next) {
@@ -52,6 +57,72 @@ router.get('/stats', adminAuth, async (req, res) => {
       orders: { pending: pendingOrders, confirmed: confirmedOrders },
       activity: { totalGames: totalGames[0]?.total || 0, aiRequests: aiRequests[0]?.total || 0 },
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET /api/admin/analytics ────────────────────────────────────────────────
+router.get('/analytics', adminAuth, async (req, res) => {
+  try {
+    // 1. ExamSession statistikasi (Umumiy bazaviy testlar)
+    const examStats = await ExamSession.aggregate([
+      { $match: { status: 'completed' } },
+      { $unwind: "$subjectBreakdown" },
+      {
+        $group: {
+          _id: "$subjectBreakdown.subjectId",
+          name: { $first: "$subjectBreakdown.subjectName" },
+          count: { $sum: 1 },
+          avgScore: { $avg: "$subjectBreakdown.score" },
+          maxPossibleScore: { $first: "$subjectBreakdown.maxScore" } // approx
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // 2. PersonalTest statistikasi (AI generatsiya testlar)
+    const personalTestStats = await PersonalTest.aggregate([
+      { $match: { status: 'completed' } },
+      {
+        $group: {
+          _id: "$subjectId",
+          name: { $first: "$subjectName" },
+          count: { $sum: 1 },
+          avgPercent: { $avg: "$scorePercent" }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // 3. User retention (Eng ko'p test ishlaganlar)
+    const topUsers = await ExamSession.aggregate([
+      { $match: { status: 'completed' } },
+      { $group: { _id: "$userId", testCount: { $sum: 1 } } },
+      { $sort: { testCount: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      { $unwind: "$user" },
+      {
+        $project: {
+          firstName: "$user.firstName",
+          phone: "$user.phone",
+          email: "$user.email",
+          testCount: 1
+        }
+      }
+    ]);
+
+    res.json({ success: true, examStats, personalTestStats, topUsers });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -391,6 +462,80 @@ router.post('/questions/seed', adminAuth, async (req, res) => {
 // ─── GET /api/admin/logs — Server Terminal Logs ─────────────────────────────
 router.get('/logs', adminAuth, (req, res) => {
   res.json({ success: true, logs: memoryLogs });
+});
+
+// ─── MATERIALS (Xotira va fayllar) ──────────────────────────────────────────
+router.get('/materials', adminAuth, async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [materials, total] = await Promise.all([
+      StudyMaterial.find().sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)).populate('userId', 'firstName email phone'),
+      StudyMaterial.countDocuments()
+    ]);
+    
+    // Calculate total size (approximate based on text size + sourceMeta.fileSizeKb)
+    const stats = await StudyMaterial.aggregate([
+      { $group: { _id: null, totalSizeKb: { $sum: '$sourceMeta.fileSizeKb' }, totalDocs: { $sum: 1 } } }
+    ]);
+    
+    res.json({ materials, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)), stats: stats[0] || { totalSizeKb: 0, totalDocs: 0 } });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/materials/:id', adminAuth, async (req, res) => {
+  try {
+    await StudyMaterial.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── PROMOCODES ─────────────────────────────────────────────────────────────
+router.get('/promocodes', adminAuth, async (req, res) => {
+  try {
+    const codes = await PromoCode.find().sort({ createdAt: -1 });
+    res.json({ promocodes: codes });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/promocodes', adminAuth, async (req, res) => {
+  try {
+    const { code, discountPercent, maxUses, expiresAt } = req.body;
+    const pc = await PromoCode.create({ code, discountPercent, maxUses, expiresAt });
+    res.json({ success: true, promocode: pc });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/promocodes/:id', adminAuth, async (req, res) => {
+  try {
+    await PromoCode.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── ANNOUNCEMENTS ──────────────────────────────────────────────────────────
+router.get('/announcements', adminAuth, async (req, res) => {
+  try {
+    const anns = await Announcement.find().sort({ createdAt: -1 });
+    res.json({ announcements: anns });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/announcements', adminAuth, async (req, res) => {
+  try {
+    const { title, message, type } = req.body;
+    // Faqat bitta aktiv bo'lishi uchun qolganlarini o'chiramiz
+    await Announcement.updateMany({}, { isActive: false });
+    const ann = await Announcement.create({ title, message, type, isActive: true });
+    res.json({ success: true, announcement: ann });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/announcements/:id', adminAuth, async (req, res) => {
+  try {
+    await Announcement.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;

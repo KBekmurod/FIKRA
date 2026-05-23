@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { personalTestApi } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import RichText from '../components/RichText'
+import { triggerHaptic } from '../utils/haptics'
 import '../components/RichText.css'
 
 interface Question {
@@ -137,6 +138,7 @@ export default function PersonalTestRunPage() {
 
   const pickAnswer = async (i: number) => {
     if (selected[qIdx] !== undefined) return
+    triggerHaptic('click')
     setSelected(prev => ({ ...prev, [qIdx]: i }))
     try {
       await personalTestApi.answer(id, qIdx, i)

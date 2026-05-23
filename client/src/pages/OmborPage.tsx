@@ -68,6 +68,7 @@ export default function OmborPage() {
     return (
       <button
         key={`${subjectId}_${context}`}
+        className={`tilt-card ${!isEmpty ? 'glass' : ''}`}
         onClick={() => {
           if (!user) return setAuthModalOpen(true)
           navigate(`/ombor/${subjectId}?context=${context}`)

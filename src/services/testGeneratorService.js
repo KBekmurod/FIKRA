@@ -83,6 +83,35 @@ FAQAT quyidagi JSON formatda javob ber:
 "answer" — to'g'ri variantning 0-indexed raqami (0=A, 1=B, 2=C, 3=D).`;
 }
 
+function _buildFlashcardPrompt(subjectName, materialContent, count, subjectId = null) {
+  const safeMaterial = materialContent.slice(0, 20000); // 20k characters for flashcards
+  return `Sen ta'limiy AI yordamchisan.
+Quyidagi o'quv materialidan AYNAN ${count} ta qisqa, tushunarli Flashcard (savol-javob yoki fakt-izoh) yarat.
+
+Fan: ${subjectName}
+Material:
+"""
+${safeMaterial}
+"""
+
+QOIDALAR:
+1. AYNAN ${count} ta flashcard yarat.
+2. "front" da qisqa savol, atama yoki faktning boshlanishi yoziladi (Masalan: "Amir Temur qachon tug'ilgan?" yoki "Nyutonning 1-qonuni").
+3. "back" da aniq va qisqa javob, tushuntirish yoziladi (Masalan: "1336-yil 9-aprel" yoki "Jismga tashqi kuch ta'sir etmaguncha u o'zining tinch yoki tekis harakat holatini saqlaydi").
+4. "topic" da mavzu nomi ko'rsatiladi.
+
+FAQAT quyidagi JSON formatda javob ber:
+{
+  "flashcards": [
+    {
+      "front": "qisqa savol yoki atama",
+      "back": "qisqa javob yoki izoh",
+      "topic": "Mavzu"
+    }
+  ]
+}`;
+}
+
 // ─── AI javobini parse qilish ─────────────────────────────────────────────────
 function _parseAiResponse(text) {
   // Markdown code block'larni olib tashlaymiz
@@ -309,6 +338,72 @@ async function generateForFolder(userId, { folderId, opt = 'standard' }) {
     folder: await MaterialFolder.findById(folder._id).lean(),
     wasAiAdjusted,
   };
+}
+
+// ─── Flashcards generatsiyasi ────────────────────────────────────────────────
+async function generateFlashcardsForFolder(userId, folderId) {
+  const MaterialFolder = require('../models/MaterialFolder');
+  const StudyMaterial = require('../models/StudyMaterial');
+  const FlashcardDeck = require('../models/FlashcardDeck');
+  const User = require('../models/User');
+
+  const folder = await MaterialFolder.findOne({ _id: folderId, userId, isActive: true });
+  if (!folder) throw new Error('Papka topilmadi');
+
+  // Check if deck already exists
+  let deck = await FlashcardDeck.findOne({ folderId });
+  if (deck && deck.status === 'ready') return deck;
+
+  const materials = await StudyMaterial.find({ folderId, userId, isActive: true }).sort({ createdAt: 1 });
+  if (materials.length === 0) throw new Error("Papkada hech qanday material yo'q");
+
+  if (!deck) {
+    deck = await FlashcardDeck.create({ userId, folderId, status: 'generating' });
+  } else {
+    deck.status = 'generating';
+    await deck.save();
+  }
+
+  const subjectName = SUBJECT_META[folder.subjectId]?.name || folder.subjectId;
+  let combinedContent = materials.map(m => m.content).join('\n\n---\n\n');
+  if (combinedContent.length > 20000) {
+    combinedContent = combinedContent.slice(-20000);
+  }
+
+  const count = 20; // Generate 20 flashcards per deck
+
+  try {
+    const prompt = _buildFlashcardPrompt(subjectName, combinedContent, count, folder.subjectId);
+    const res = await _deepseek().chat.completions.create({
+      model: 'deepseek-chat',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 3000,
+      temperature: 0.5,
+    });
+
+    let clean = res.choices[0].message.content.trim();
+    clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+    const parsed = JSON.parse(clean);
+    
+    if (!parsed.flashcards || !Array.isArray(parsed.flashcards)) {
+      throw new Error('flashcards array topilmadi');
+    }
+
+    deck.cards = parsed.flashcards.map(f => ({
+      front: String(f.front || '').trim(),
+      back: String(f.back || '').trim(),
+      topic: String(f.topic || '').trim(),
+    }));
+    deck.status = 'ready';
+    await deck.save();
+
+  } catch (err) {
+    deck.status = 'failed';
+    await deck.save();
+    throw new Error('Flashcard generatsiyasida xatolik: ' + err.message);
+  }
+
+  return deck;
 }
 
 // ─── Eski: bir nechta materialdan test yaratish (kelajak uchun saqlanadi) ──
@@ -654,6 +749,7 @@ module.exports = {
   getStandardCount,
   checkMaterialSufficiency,
   generateForFolder,           // YANGI: papka uchun qat'iy standart
+  generateFlashcardsForFolder, // YANGI: Swipe Flashcards uchun
   generateFromMaterials,       // Eski (kelajak uchun)
   generateMiniTest,
   submitAnswer,

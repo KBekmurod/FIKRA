@@ -54,6 +54,26 @@ router.get('/subjects-summary', authMiddleware, async (req, res, next) => {
   } catch (err) { _handleError(err, res, next); }
 });
 
+// ─── GET /api/folders/:id/flashcards ────────────────────────────────────
+router.get('/:id/flashcards', authMiddleware, async (req, res, next) => {
+  try {
+    const FlashcardDeck = require('../models/FlashcardDeck');
+    const deck = await FlashcardDeck.findOne({ folderId: req.params.id, userId: req.user._id });
+    if (!deck) {
+      return res.json({ status: 'not_found' });
+    }
+    res.json(deck);
+  } catch (err) { _handleError(err, res, next); }
+});
+
+// ─── POST /api/folders/:id/flashcards ───────────────────────────────────
+router.post('/:id/flashcards', authMiddleware, async (req, res, next) => {
+  try {
+    const deck = await testGen.generateFlashcardsForFolder(req.user._id, req.params.id);
+    res.json(deck);
+  } catch (err) { _handleError(err, res, next); }
+});
+
 // ─── GET /api/folders/:id ───────────────────────────────────────────────
 // Bitta papka detali (material + test + urinishlar tarixi)
 router.get('/:id', authMiddleware, async (req, res, next) => {

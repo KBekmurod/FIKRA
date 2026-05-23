@@ -1,0 +1,53 @@
+.crystal-container {
+  width: 120px;
+  height: 120px;
+  position: relative;
+  perspective: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  transition: opacity 0.5s ease;
+}
+
+.crystal {
+  width: 50px;
+  height: 80px;
+  position: relative;
+  transform-style: preserve-3d;
+  animation: rotateCrystal infinite linear;
+}
+
+.face {
+  position: absolute;
+  width: 50px;
+  height: 80px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+.front  { transform: translateZ(25px); }
+.back   { transform: rotateY(180deg) translateZ(25px); }
+.right  { transform: rotateY(60deg) translateZ(25px); }
+.left   { transform: rotateY(-60deg) translateZ(25px); }
+.top    { transform: rotateY(120deg) translateZ(25px); }
+.bottom { transform: rotateY(-120deg) translateZ(25px); }
+
+@keyframes rotateCrystal {
+  0% { transform: rotateX(-10deg) rotateY(0deg); }
+  100% { transform: rotateX(-10deg) rotateY(360deg); }
+}
+
+.crystal-glow {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: -1;
+  pointer-events: none;
+  transition: opacity 0.5s ease, background 0.5s ease;
+}

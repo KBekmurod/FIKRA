@@ -183,6 +183,7 @@ export interface UserLevelData {
   currentVersion: number
   currentGrade: Grade
   currentMonth: string
+  streak: number
   standardTests: { correct: number; total: number }
   personalTests: { correct: number; total: number }
   miniTests:     { correct: number; total: number }

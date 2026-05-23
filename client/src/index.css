@@ -210,7 +210,25 @@ input, textarea, select {
   border: 1px solid var(--f);
   border-radius: var(--br);
   padding: 16px;
+  transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.2s;
 }
+
+/* ─── 3D & Depth (Glassmorphism) ─────────────────────────────────────── */
+.tilt-card {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+.tilt-card:active {
+  transform: perspective(1000px) rotateX(4deg) scale(0.98);
+}
+.glass {
+  background: rgba(20, 20, 42, 0.55) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(240, 238, 255, 0.12) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
 
 .section-title {
   font-size: 11px; font-weight: 700;

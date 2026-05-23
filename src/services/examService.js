@@ -183,7 +183,46 @@ async function startDtmSession(userId, direction) {
     topic:      q.topic,
   }));
 
-  return { session, questions: safeQuestions, directionName: dirInfo.name };
+  // Generate Shadow Rival data
+  // Try to find a real completed session for this direction, preferably not the current user's
+  let rivalSession = await ExamSession.findOne({
+    mode: 'dtm',
+    direction: direction.toLowerCase(),
+    status: 'completed',
+    userId: { $ne: userId }
+  }).sort({ createdAt: -1 }).lean();
+  
+  if (!rivalSession) {
+    // Fallback to any completed dtm session
+    rivalSession = await ExamSession.findOne({
+      mode: 'dtm',
+      status: 'completed',
+      userId: { $ne: userId }
+    }).sort({ createdAt: -1 }).lean();
+  }
+
+  let rivalData;
+  if (rivalSession) {
+    const rDuration = (new Date(rivalSession.endTime).getTime() - new Date(rivalSession.startTime).getTime()) / 1000;
+    const rExpectedScore = rivalSession.totalScore || 0;
+    const rMaxScore = rivalSession.maxTotalScore || 1;
+    rivalData = {
+      name: 'Anonim Raqib 🥷',
+      expectedScore: rExpectedScore,
+      accuracy: Math.floor((rExpectedScore / rMaxScore) * 100),
+      duration: Math.max(rDuration, 300), // at least 5 mins so bar doesn't zoom instantly
+    };
+  } else {
+    // Fallback if database has no history yet
+    rivalData = {
+      name: 'Anonim Raqib 🥷',
+      expectedScore: parseFloat((maxTotalScore * (0.4 + Math.random() * 0.4)).toFixed(2)),
+      accuracy: Math.floor(40 + Math.random() * 40),
+      duration: 10800 * (0.5 + Math.random() * 0.4), // 50-90% of max time
+    };
+  }
+
+  return { session, questions: safeQuestions, directionName: dirInfo.name, rivalData };
 }
 
 function getBlock(subjectId, direction) {

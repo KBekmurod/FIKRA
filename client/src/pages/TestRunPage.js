@@ -3,7 +3,9 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { examApi } from '../api/endpoints';
 import { useToast } from '../components/Toast';
+import { triggerHaptic } from '../utils/haptics';
 import RichText from '../components/RichText';
+import ShadowRival from '../components/ShadowRival';
 import '../components/RichText.css';
 export default function TestRunPage() {
     const navigate = useNavigate();
@@ -86,6 +88,7 @@ export default function TestRunPage() {
     const pickAnswer = async (i) => {
         if (selected[qIdx] !== undefined)
             return;
+        triggerHaptic('click');
         setSelected(prev => ({ ...prev, [qIdx]: i }));
         try {
             await examApi.answer(sessionId, q._id, i);
@@ -159,7 +162,7 @@ export default function TestRunPage() {
                                 background: 'var(--acc)',
                                 borderRadius: 100,
                                 transition: 'width 0.3s',
-                            } }) }), _jsxs("div", { style: { fontSize: 10, color: 'var(--txt-3)', marginTop: 4, textAlign: 'right' }, children: [answered, "/", total, " javob berildi"] })] }), _jsxs("div", { style: { padding: '8px 16px 100px' }, children: [_jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, letterSpacing: 0.5, marginBottom: 6 }, children: q.subjectName || q.subject }), _jsx("div", { style: {
+                            } }) }), _jsxs("div", { style: { fontSize: 10, color: 'var(--txt-3)', marginTop: 4, textAlign: 'right' }, children: [answered, "/", total, " javob berildi"] })] }), state?.rivalData && (_jsx("div", { style: { padding: '0 16px' }, children: _jsx(ShadowRival, { name: state.rivalData.name, expectedScore: state.rivalData.expectedScore, accuracy: state.rivalData.accuracy, duration: state.durationSeconds || 10800, isActive: !finishing }) })), _jsxs("div", { style: { padding: '8px 16px 100px' }, children: [_jsx("div", { style: { fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, letterSpacing: 0.5, marginBottom: 6 }, children: q.subjectName || q.subject }), _jsx("div", { style: {
                             background: 'var(--s1)',
                             border: '1px solid var(--f)',
                             borderRadius: 14,

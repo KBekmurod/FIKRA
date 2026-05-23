@@ -23,6 +23,7 @@ const materialRoutes      = require('./routes/materials');
 const folderRoutes        = require('./routes/folders');
 const personalTestRoutes  = require('./routes/personalTests');
 const levelRoutes         = require('./routes/level');
+const miscRoutes          = require('./routes/misc');
 const logRoutes           = require('./routes/log');
 
 const app  = express();
@@ -98,6 +99,7 @@ app.use('/api/materials',      materialRoutes);
 app.use('/api/folders',        folderRoutes);
 app.use('/api/personal-tests', personalTestRoutes);
 app.use('/api/level',          levelRoutes);
+app.use('/api/misc',           miscRoutes);
 app.use('/api/log',            logRoutes);
 
 // ─── Bir martalik seed endpoint ──────────────────────────────────────────────

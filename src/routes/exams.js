@@ -61,6 +61,7 @@ router.post('/start-dtm', authMiddleware, async (req, res, next) => {
       subjectBreakdown: result.session.subjectBreakdown,
       maxTotalScore:result.session.maxTotalScore,
       questions:    result.questions,
+      rivalData:    result.rivalData,
     });
   } catch (err) { next(err); }
 });

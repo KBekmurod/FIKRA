@@ -3,6 +3,7 @@ const router  = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const User         = require('../models/User');
 const PendingOrder = require('../models/PendingOrder');
+const PromoCode    = require('../models/PromoCode');
 const { logger }   = require('../utils/logger');
 
 // ─── NARXLAR (UZS) ──────────────────────────────────────────────────────────
@@ -78,14 +79,42 @@ router.post('/create-invoice', authMiddleware, (req, res) => {
   });
 });
 
+// ─── Promocode tekshirish ────────────────────────────────────────────────────
+router.post('/validate-promo', authMiddleware, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: 'Kod kiritilmadi' });
+    
+    const pc = await PromoCode.findOne({ code: code.toUpperCase() });
+    if (!pc) return res.status(404).json({ error: 'Promokod topilmadi' });
+    if (!pc.isActive) return res.status(400).json({ error: 'Promokod faol emas' });
+    if (pc.expiresAt && pc.expiresAt < new Date()) return res.status(400).json({ error: 'Promokod muddati o\'tgan' });
+    if (pc.maxUses > 0 && pc.usedCount >= pc.maxUses) return res.status(400).json({ error: 'Promokod limitiga yetgan' });
+    
+    res.json({ success: true, discountPercent: pc.discountPercent });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── P2P buyurtma yaratish ───────────────────────────────────────────────────
 router.post('/create-p2p-order', authMiddleware, async (req, res, next) => {
   try {
-    const { planId } = req.body;
+    const { planId, promoCode } = req.body;
     const plan = PLANS[planId];
     if (!plan) return res.status(400).json({ error: 'Yaroqsiz tariff' });
 
     const user = req.user;
+    let finalPrice = plan.priceUZS;
+
+    // Promokodni tekshirish va chegirma qo'llash
+    if (promoCode) {
+      const pc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
+      if (pc && pc.isActive && (!pc.expiresAt || pc.expiresAt > new Date()) && (pc.maxUses === 0 || pc.usedCount < pc.maxUses)) {
+        finalPrice = Math.max(0, Math.round(plan.priceUZS * (1 - pc.discountPercent / 100)));
+        // Incremet usedCount when confirming order, not here. But we can mark it.
+      }
+    }
 
     // Agar boshqa planlar uchun oldingi pending buyurtmalar bo'lsa, bekor qilamiz
     await PendingOrder.updateMany(
@@ -99,7 +128,9 @@ router.post('/create-p2p-order', authMiddleware, async (req, res, next) => {
       planId: plan.id,
       status: 'pending',
       paymentType: 'p2p',
+      priceUZS: finalPrice, // faqat narxi bir xil bo'lsa
     });
+    
     if (existing) {
       return res.json({
         success: true,
@@ -129,12 +160,17 @@ router.post('/create-p2p-order', authMiddleware, async (req, res, next) => {
       firstName: user.firstName || '',
       orderId,
       planId: plan.id,
-      planName: `${plan.name} ${plan.period}`,
-      priceUZS: plan.priceUZS,
+      planName: `${plan.name} ${plan.period}${promoCode ? ` (Promo: ${promoCode.toUpperCase()})` : ''}`,
+      priceUZS: finalPrice,
       paymentType: 'p2p',
     });
 
-    logger.info(`P2P order created: ${orderId} for user=${user._id} plan=${plan.id}`);
+    // Increment promocode use count (temporary logic: increment on create, but strictly should be on payment)
+    if (promoCode && finalPrice < plan.priceUZS) {
+      await PromoCode.updateOne({ code: promoCode.toUpperCase() }, { $inc: { usedCount: 1 } });
+    }
+
+    logger.info(`P2P order created: ${orderId} for user=${user._id} plan=${plan.id} price=${finalPrice}`);
 
     res.json({
       success: true,
