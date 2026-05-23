@@ -64,6 +64,10 @@ export default defineConfig({
         manualChunks: {
           // React kutubxonalari (kamdan-kam o'zgaradi, agressiv cache)
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          // Markdown and Syntax Highlighting
+          'markdown-vendor': ['react-markdown', 'remark-gfm', 'react-syntax-highlighter'],
+          // Animations
+          'framer-motion': ['framer-motion'],
           // KaTeX (faqat test sahifalarida kerak)
           'katex': ['katex', 'react-katex'],
           // State management

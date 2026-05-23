@@ -11,9 +11,17 @@ interface EntityState {
   isThiefActive: boolean
   prankMessage: string
   
-  // Amallar
+  // Tutorial
+  tutorialStep: number // 0 = no tutorial, 1 = ombor, 2 = test, 3 = tarix
+  
+  // Actionlar
   setMode: (mode: EntityMode) => void
-  setIsVisible: (val: boolean) => void
+  setVisibility: (isVisible: boolean) => void
+  setTutorialStep: (step: number) => void
+  startTutorial: () => void
+  nextTutorialStep: () => void
+  
+  // Prank triggers
   triggerHammerPrank: () => void
   triggerMatrixHack: () => void
   triggerScreenWipe: () => void
@@ -29,9 +37,26 @@ export const useEntityStore = create<EntityState>((set, get) => ({
   isScreenWiped: false,
   isThiefActive: false,
   prankMessage: '',
+  tutorialStep: 0,
 
-  setMode: (mode) => set({ mode, isVisible: mode !== 'hidden' }),
-  setIsVisible: (isVisible) => set({ isVisible }),
+  setMode: (mode) => set({ mode }),
+  setVisibility: (isVisible) => set({ isVisible }),
+  
+  setTutorialStep: (step) => set({ tutorialStep: step, isVisible: step > 0 }),
+  
+  startTutorial: () => {
+    set({ tutorialStep: 1, isVisible: true, mode: 'converse' })
+  },
+  
+  nextTutorialStep: () => {
+    set((state) => {
+      const next = state.tutorialStep + 1
+      if (next > 3) {
+        return { tutorialStep: 0, isVisible: false, mode: 'hidden' }
+      }
+      return { tutorialStep: next }
+    })
+  },
   
   triggerHammerPrank: () => {
     // 1. Maxluqot paydo bo'ladi

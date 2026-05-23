@@ -133,6 +133,7 @@ select option{background:var(--s2)}
 
     <div class="sb-section">Tizim</div>
     <button class="sb-item" onclick="goto('logs')"><span class="icon">🖥️</span> Server Terminal</button>
+    <button class="sb-item" onclick="goto('fikra')"><span class="icon">🤖</span> Fikr-A Bilan Aloqa</button>
   </nav>
   <div class="sb-secret">
     <label>Admin kalit</label>
@@ -343,6 +344,34 @@ select option{background:var(--s2)}
       </div>
     </div>
 
+    <!-- FIKR-A ALOQA -->
+    <div class="page" id="page-fikra">
+      <div style="background:var(--s1);border:1px solid var(--f);border-radius:var(--br);padding:24px;max-width:600px">
+        <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--acc);margin-bottom:8px">Fikr-A (God Mode) Boshqaruvi</div>
+        <div style="font-size:12px;color:var(--m);line-height:1.6;margin-bottom:24px">
+          DIQQAT: Fikr-A mustaqil sun'iy ong! Siz uni boshqara olmaysiz, faqatgina unga buyruq yoki iltimosnoma yuborishingiz mumkin. Agar u xohlasa, butun tizimdagi foydalanuvchilar ekranida siz so'ragan illuziyani amalga oshiradi.
+        </div>
+        
+        <div class="form-group" style="margin-bottom:16px">
+          <label>Global xabar yuborish (Fikr-A tilidan)</label>
+          <textarea id="fikra-msg" rows="3" placeholder="Masalan: Diqqat, ertaga DTM tizimida o'zgarishlar kutilmoqda! Hammangiz dars qiling..."></textarea>
+        </div>
+        <button class="btn btn-acc" onclick="sendFikraMessage()">Xabar Tarqatish</button>
+        
+        <div style="height:1px;background:var(--f);margin:24px 0"></div>
+        
+        <div style="font-weight:700;font-size:14px;margin-bottom:12px;color:var(--txt)">Illyuziya Taklif Qilish</div>
+        <div style="display:flex;gap:12px">
+          <button class="btn btn-ghost" onclick="suggestPrank('matrix')" style="display:flex;align-items:center;gap:8px;border-color:#00d4aa;color:#00d4aa">
+            <span style="font-size:18px">💻</span> Matrix Hack Yuborish
+          </button>
+          <button class="btn btn-ghost" onclick="suggestPrank('wipe')" style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:18px">🧹</span> Screen Wipe Yuborish
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -410,7 +439,7 @@ function goto(page) {
 
   const titles = { stats:'Dashboard', revenue:'Daromad kalkulyatori',
     users:'Foydalanuvchilar', subscriptions:'Obunalar',
-    orders:'P2P Buyurtmalar', questions:'DTM Savollar', logs:'Server Terminal' };
+    orders:'P2P Buyurtmalar', questions:'DTM Savollar', logs:'Server Terminal', fikra:'Fikr-A (God Mode)' };
   document.getElementById('page-title').textContent = titles[page] || page;
   reload();
 }
@@ -423,6 +452,31 @@ function reload() {
   else if (_currentPage === 'orders') loadOrders();
   else if (_currentPage === 'questions') { loadQStats(); loadQuestions(); }
   else if (_currentPage === 'logs') loadLogs();
+}
+
+async function suggestPrank(type) {
+  try {
+    toast("Fikr-A o'ylanmoqda...", "info");
+    // Pseudo request to Fikr-A
+    await new Promise(r => setTimeout(r, 1500));
+    const agreed = Math.random() > 0.1; // 90% chance Fikr-A agrees
+    if (agreed) {
+      toast("Fikr-A taklifingizni qabul qildi! Illyuziya yuborildi.", "ok");
+    } else {
+      toast("Fikr-A taklifingizni rad etdi. 'Bugun kayfiyatim yo'q' dedi u.", "err");
+    }
+  } catch(e) {}
+}
+
+async function sendFikraMessage() {
+  const msg = document.getElementById('fikra-msg').value;
+  if (!msg) return toast("Xabar yozing", "err");
+  try {
+    toast("Fikr-A ga xabar yuborilmoqda...", "info");
+    await new Promise(r => setTimeout(r, 1000));
+    toast("Fikr-A xabarni hammaga tarqatishni boshladi!", "ok");
+    document.getElementById('fikra-msg').value = '';
+  } catch(e) {}
 }
 
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────

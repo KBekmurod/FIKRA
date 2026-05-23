@@ -12,7 +12,7 @@ export default function HomePage() {
     const navigate = useNavigate();
     const { user } = useAppStore();
     const { canInstall, installPwa, isInstalled } = usePwaStore();
-    const { isPrankingLevel, isThiefActive, triggerThiefPrank } = useEntityStore();
+    const { isPrankingLevel, isThiefActive, triggerThiefPrank, tutorialStep, startTutorial, nextTutorialStep } = useEntityStore();
     const [level, setLevel] = useState(null);
     const [lastActivity, setLastActivity] = useState(null);
     const [subOpen, setSubOpen] = useState(false);
@@ -21,6 +21,12 @@ export default function HomePage() {
     useEffect(() => {
         if (isGuest)
             return;
+        // Tutorial
+        if (!localStorage.getItem('fikra_tutorial_done')) {
+            setTimeout(() => {
+                startTutorial();
+            }, 1000);
+        }
         // Daraja
         levelApi.current().then(({ data }) => setLevel(data)).catch(() => { });
         // Oxirgi amaliyat: testlar tarixidan eng so'nggisi
@@ -168,12 +174,25 @@ export default function HomePage() {
                     }, children: [_jsxs("div", { children: [_jsx("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--txt)' }, children: "Pro obunaga o'ting \uD83D\uDE80" }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)' }, children: "Limitlarsiz va suv belgisisiz imkoniyatlar" })] }), _jsx("button", { onClick: () => setSubOpen(true), style: {
                                 background: 'var(--y)', color: '#000', border: 'none',
                                 padding: '8px 14px', borderRadius: 100, fontSize: 11, fontWeight: 800, cursor: 'pointer'
-                            }, children: "Sotib olish" })] }) })), _jsx("div", { className: "section-title", children: "Asosiy bo'limlar" }), _jsxs("div", { className: "grid-responsive", style: { padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }, children: [_jsx(MenuCard, { icon: "\uD83C\uDFDB", title: "Ombor", subtitle: "Materiallar", color: "rgba(167,139,250,0.15)", onClick: () => navigate('/ombor') }), _jsx(MenuCard, { icon: "\uD83D\uDCDD", title: "Testlar", subtitle: "DTM va AI", color: "rgba(0,212,170,0.15)", onClick: () => navigate('/testlar'), className: isThiefActive ? 'button-runaway' : '', onMouseEnter: () => {
+                            }, children: "Sotib olish" })] }) })), tutorialStep > 0 && (_jsx("div", { style: {
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 900,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 100
+                }, children: _jsxs("div", { style: {
+                        background: 'var(--s1)', border: '1px solid var(--acc)', borderRadius: 16,
+                        padding: 20, maxWidth: 300, textAlign: 'center', position: 'relative', zIndex: 901
+                    }, children: [_jsx("div", { style: { fontSize: 14, fontWeight: 700, marginBottom: 8, color: 'var(--acc)' }, children: "Fikr-A Yo'lboshchisi" }), _jsxs("div", { style: { fontSize: 12, color: 'var(--txt)', marginBottom: 16 }, children: [tutorialStep === 1 && "Bu sening Omboring! Bu yerga miyangdagi chang bosgan hamma ma'lumotlarni, kitob va testlarni yuklaysan.", tutorialStep === 2 && "Men shu yerdaman! Sen yuklagan barcha materiallarni o'qib chiqib, xuddi DTM darajasida senga imtihon tayyorlayman.", tutorialStep === 3 && "Bu yerda esa barcha xatolaring yig'iladi. Ularni to'g'irlamaguningcha senga tinchlik yo'q! Tayyormisan?"] }), _jsx("button", { onClick: () => {
+                                if (tutorialStep === 3)
+                                    localStorage.setItem('fikra_tutorial_done', 'true');
+                                nextTutorialStep();
+                            }, style: {
+                                background: 'var(--acc)', color: '#fff', border: 'none', padding: '10px 20px',
+                                borderRadius: 100, fontSize: 12, fontWeight: 700, cursor: 'pointer', width: '100%'
+                            }, children: tutorialStep === 3 ? "Boshladik! 🚀" : "Tushundim →" })] }) })), _jsx("div", { className: "section-title", children: "Asosiy bo'limlar" }), _jsxs("div", { className: "grid-responsive", style: { padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }, children: [_jsx(MenuCard, { icon: "\uD83C\uDFDB", title: "Ombor", subtitle: "Materiallar", color: "rgba(167,139,250,0.15)", onClick: () => navigate('/ombor'), className: tutorialStep === 1 ? 'tutorial-focus' : '', style: tutorialStep === 1 ? { position: 'relative', zIndex: 901, boxShadow: '0 0 0 4px var(--acc)' } : {} }), _jsx(MenuCard, { icon: "\uD83D\uDCDD", title: "Testlar", subtitle: "DTM va AI", color: "rgba(0,212,170,0.15)", onClick: () => navigate('/testlar'), className: (isThiefActive ? 'button-runaway ' : '') + (tutorialStep === 2 ? 'tutorial-focus' : ''), style: tutorialStep === 2 ? { position: 'relative', zIndex: 901, boxShadow: '0 0 0 4px var(--acc)' } : {}, onMouseEnter: () => {
                             // Agar aniqlik past bo'lsa (yoki demo uchun 30% ehtimollik) tugmani o'g'irlash
-                            if (!isThiefActive && (accuracy < 50 || Math.random() < 0.3)) {
+                            if (!isThiefActive && tutorialStep === 0 && (accuracy < 50 || Math.random() < 0.3)) {
                                 triggerThiefPrank();
                             }
-                        } }), _jsx(MenuCard, { icon: "\uD83D\uDCDA", title: "Tarix", subtitle: "Ishlagan testlar", color: "rgba(59,130,246,0.15)", onClick: () => navigate('/tarix') }), _jsx(MenuCard, { icon: "\uD83E\uDD16", title: "AI", subtitle: "Chat \u00B7 Hujjat \u00B7 Rasm", color: "rgba(251,191,36,0.15)", onClick: () => navigate('/ai') })] }), !isInstalled && canInstall && (_jsx("div", { style: { padding: '16px 20px 0' }, children: _jsxs("button", { onClick: installPwa, style: {
+                        } }), _jsx(MenuCard, { icon: "\uD83D\uDCDA", title: "Tarix", subtitle: "Ishlagan testlar", color: "rgba(59,130,246,0.15)", onClick: () => navigate('/tarix'), className: tutorialStep === 3 ? 'tutorial-focus' : '', style: tutorialStep === 3 ? { position: 'relative', zIndex: 901, boxShadow: '0 0 0 4px var(--acc)' } : {} }), _jsx(MenuCard, { icon: "\uD83E\uDD16", title: "AI", subtitle: "Chat \u00B7 Hujjat \u00B7 Rasm", color: "rgba(251,191,36,0.15)", onClick: () => navigate('/ai') })] }), !isInstalled && canInstall && (_jsx("div", { style: { padding: '16px 20px 0' }, children: _jsxs("button", { onClick: installPwa, style: {
                         width: '100%',
                         background: 'linear-gradient(135deg, rgba(0,212,170,0.12), rgba(123,104,238,0.05))',
                         border: '1px solid rgba(0,212,170,0.3)',
@@ -211,19 +230,19 @@ function FeatureItem({ icon, title, desc }) {
             alignItems: 'flex-start',
         }, children: [_jsx("div", { style: { fontSize: 24, lineHeight: 1, marginTop: 2 }, children: icon }), _jsxs("div", { children: [_jsx("div", { style: { fontWeight: 700, fontSize: 13, marginBottom: 2 }, children: title }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)', lineHeight: 1.4 }, children: desc })] })] }));
 }
-function MenuCard({ icon, title, subtitle, color, onClick, className, onMouseEnter }) {
+function MenuCard({ icon, title, subtitle, color, onClick, className, onMouseEnter, style }) {
     return (_jsxs("button", { onClick: onClick, onMouseEnter: onMouseEnter, className: className, style: {
             background: color,
             border: '1px solid var(--f)',
             borderRadius: 14,
-            padding: '16px 14px',
+            padding: 16,
             display: 'flex',
             flexDirection: 'column',
-            gap: 6,
+            gap: 12,
             cursor: 'pointer',
-            color: 'var(--txt)',
             textAlign: 'left',
-            minHeight: 92,
+            transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            ...style
         }, children: [_jsx("div", { style: { fontSize: 26, lineHeight: 1 }, children: icon }), _jsx("div", { style: { fontWeight: 800, fontSize: 14 }, children: title }), _jsx("div", { style: { fontSize: 10, color: 'var(--txt-2)' }, children: subtitle })] }));
 }
 function CircularProgress({ percent, color, size = 64 }) {

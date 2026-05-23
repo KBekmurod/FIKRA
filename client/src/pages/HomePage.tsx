@@ -22,7 +22,7 @@ export default function HomePage() {
   const navigate = useNavigate()
   const { user } = useAppStore()
   const { canInstall, installPwa, isInstalled } = usePwaStore()
-  const { isPrankingLevel, isThiefActive, triggerThiefPrank } = useEntityStore()
+  const { isPrankingLevel, isThiefActive, triggerThiefPrank, tutorialStep, startTutorial, nextTutorialStep } = useEntityStore()
 
   const [level, setLevel] = useState<UserLevelData | null>(null)
   const [lastActivity, setLastActivity] = useState<LastActivity | null>(null)
@@ -33,6 +33,14 @@ export default function HomePage() {
 
   useEffect(() => {
     if (isGuest) return
+    
+    // Tutorial
+    if (!localStorage.getItem('fikra_tutorial_done')) {
+      setTimeout(() => {
+        startTutorial()
+      }, 1000)
+    }
+
     // Daraja
     levelApi.current().then(({ data }) => setLevel(data)).catch(() => {})
 
@@ -312,24 +320,69 @@ export default function HomePage() {
         </div>
       )}
 
+      {tutorialStep > 0 && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 900,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 100
+        }}>
+          <div style={{
+            background: 'var(--s1)', border: '1px solid var(--acc)', borderRadius: 16,
+            padding: 20, maxWidth: 300, textAlign: 'center', position: 'relative', zIndex: 901
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, color: 'var(--acc)' }}>Fikr-A Yo'lboshchisi</div>
+            <div style={{ fontSize: 12, color: 'var(--txt)', marginBottom: 16 }}>
+              {tutorialStep === 1 && "Bu sening Omboring! Bu yerga miyangdagi chang bosgan hamma ma'lumotlarni, kitob va testlarni yuklaysan."}
+              {tutorialStep === 2 && "Men shu yerdaman! Sen yuklagan barcha materiallarni o'qib chiqib, xuddi DTM darajasida senga imtihon tayyorlayman."}
+              {tutorialStep === 3 && "Bu yerda esa barcha xatolaring yig'iladi. Ularni to'g'irlamaguningcha senga tinchlik yo'q! Tayyormisan?"}
+            </div>
+            <button onClick={() => {
+              if (tutorialStep === 3) localStorage.setItem('fikra_tutorial_done', 'true')
+              nextTutorialStep()
+            }} style={{
+              background: 'var(--acc)', color: '#fff', border: 'none', padding: '10px 20px',
+              borderRadius: 100, fontSize: 12, fontWeight: 700, cursor: 'pointer', width: '100%'
+            }}>
+              {tutorialStep === 3 ? "Boshladik! 🚀" : "Tushundim →"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="section-title">Asosiy bo'limlar</div>
       <div className="grid-responsive" style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <MenuCard icon="🏛" title="Ombor"   subtitle="Materiallar" color="rgba(167,139,250,0.15)" onClick={() => navigate('/ombor')} />
+        <MenuCard 
+          icon="🏛" 
+          title="Ombor"   
+          subtitle="Materiallar" 
+          color="rgba(167,139,250,0.15)" 
+          onClick={() => navigate('/ombor')} 
+          className={tutorialStep === 1 ? 'tutorial-focus' : ''}
+          style={tutorialStep === 1 ? { position: 'relative', zIndex: 901, boxShadow: '0 0 0 4px var(--acc)' } : {}}
+        />
         <MenuCard 
           icon="📝" 
           title="Testlar" 
           subtitle="DTM va AI" 
           color="rgba(0,212,170,0.15)"  
           onClick={() => navigate('/testlar')} 
-          className={isThiefActive ? 'button-runaway' : ''}
+          className={(isThiefActive ? 'button-runaway ' : '') + (tutorialStep === 2 ? 'tutorial-focus' : '')}
+          style={tutorialStep === 2 ? { position: 'relative', zIndex: 901, boxShadow: '0 0 0 4px var(--acc)' } : {}}
           onMouseEnter={() => {
             // Agar aniqlik past bo'lsa (yoki demo uchun 30% ehtimollik) tugmani o'g'irlash
-            if (!isThiefActive && (accuracy < 50 || Math.random() < 0.3)) {
+            if (!isThiefActive && tutorialStep === 0 && (accuracy < 50 || Math.random() < 0.3)) {
               triggerThiefPrank()
             }
           }}
         />
-        <MenuCard icon="📚" title="Tarix"   subtitle="Ishlagan testlar" color="rgba(59,130,246,0.15)" onClick={() => navigate('/tarix')} />
+        <MenuCard 
+          icon="📚" 
+          title="Tarix"   
+          subtitle="Ishlagan testlar" 
+          color="rgba(59,130,246,0.15)" 
+          onClick={() => navigate('/tarix')} 
+          className={tutorialStep === 3 ? 'tutorial-focus' : ''}
+          style={tutorialStep === 3 ? { position: 'relative', zIndex: 901, boxShadow: '0 0 0 4px var(--acc)' } : {}}
+        />
         <MenuCard icon="🤖" title="AI"      subtitle="Chat · Hujjat · Rasm" color="rgba(251,191,36,0.15)" onClick={() => navigate('/ai')} />
       </div>
 
@@ -427,22 +480,22 @@ function FeatureItem({ icon, title, desc }: { icon: string; title: string; desc:
   )
 }
 
-function MenuCard({ icon, title, subtitle, color, onClick, className, onMouseEnter }: {
-  icon: string; title: string; subtitle: string; color: string; onClick: () => void; className?: string; onMouseEnter?: () => void
+function MenuCard({ icon, title, subtitle, color, onClick, className, onMouseEnter, style }: {
+  icon: string; title: string; subtitle: string; color: string; onClick: () => void; className?: string; onMouseEnter?: () => void; style?: React.CSSProperties
 }) {
   return (
     <button onClick={onClick} onMouseEnter={onMouseEnter} className={className} style={{
       background: color,
       border: '1px solid var(--f)',
       borderRadius: 14,
-      padding: '16px 14px',
+      padding: 16,
       display: 'flex',
       flexDirection: 'column',
-      gap: 6,
+      gap: 12,
       cursor: 'pointer',
-      color: 'var(--txt)',
       textAlign: 'left',
-      minHeight: 92,
+      transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+      ...style
     }}>
       <div style={{ fontSize: 26, lineHeight: 1 }}>{icon}</div>
       <div style={{ fontWeight: 800, fontSize: 14 }}>{title}</div>

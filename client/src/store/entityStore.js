@@ -7,8 +7,22 @@ export const useEntityStore = create((set, get) => ({
     isScreenWiped: false,
     isThiefActive: false,
     prankMessage: '',
-    setMode: (mode) => set({ mode, isVisible: mode !== 'hidden' }),
-    setIsVisible: (isVisible) => set({ isVisible }),
+    tutorialStep: 0,
+    setMode: (mode) => set({ mode }),
+    setVisibility: (isVisible) => set({ isVisible }),
+    setTutorialStep: (step) => set({ tutorialStep: step, isVisible: step > 0 }),
+    startTutorial: () => {
+        set({ tutorialStep: 1, isVisible: true, mode: 'converse' });
+    },
+    nextTutorialStep: () => {
+        set((state) => {
+            const next = state.tutorialStep + 1;
+            if (next > 3) {
+                return { tutorialStep: 0, isVisible: false, mode: 'hidden' };
+            }
+            return { tutorialStep: next };
+        });
+    },
     triggerHammerPrank: () => {
         // 1. Maxluqot paydo bo'ladi
         set({ mode: 'prank_hammer', isVisible: true });
