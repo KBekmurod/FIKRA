@@ -89,18 +89,19 @@ if (fs.existsSync(publicDir)) {
 app.use('/api/', apiLimiter);
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/auth',           authRoutes);
-app.use('/api/games',          gameRoutes);
-app.use('/api/ai',             aiRoutes);
+app.use('/api/entity', require('./routes/entity'));
 app.use('/api/sub',            subRoutes);
 app.use('/api/admin',          adminRoutes);
 app.use('/api/exams',          examRoutes);
 app.use('/api/materials',      materialRoutes);
 app.use('/api/folders',        folderRoutes);
+app.use('/api/auth',           authRoutes);
+app.use('/api/ai',             aiRoutes);
 app.use('/api/personal-tests', personalTestRoutes);
 app.use('/api/level',          levelRoutes);
 app.use('/api/misc',           miscRoutes);
 app.use('/api/log',            logRoutes);
+app.use('/api/games',          gameRoutes);
 
 // ─── Bir martalik seed endpoint ──────────────────────────────────────────────
 app.get('/api/seed-questions', async (req, res) => {

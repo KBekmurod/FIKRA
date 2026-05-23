@@ -1,0 +1,15 @@
+  
+/* FIKRA Entity Prank Effects */  
+@keyframes screenShake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(3px, 2px) rotate(0deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(3px, 1px) rotate(-1deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(1px, 2px) rotate(0deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }  
+.screen-shake { animation: screenShake 0.5s cubic-bezier(.36,.07,.19,.97) both; }  
+.cracked-text { color: #ff3333 !important; text-shadow: 2px 2px 0 #000, -2px -2px 0 #4a0000; position: relative; }  
+.cracked-text::after { content: ''; position: absolute; top: 50%; left: -10%; width: 120%; height: 2px; background: rgba(255, 0, 0, 0.8); transform: rotate(-5deg); box-shadow: 0 0 10px red; pointer-events: none; } 
+  
+/* Prank Matrix Mode */  
+body.matrix-mode { background: #000 !important; color: #0f0 !important; font-family: monospace !important; }  
+.matrix-mode * { color: #0f0 !important; border-color: #0f0 !important; background: transparent !important; box-shadow: none !important; }  
+/* Screen Blur Prank */  
+.screen-blur { filter: blur(8px) contrast(1.5) brightness(0.8); transition: filter 1s ease-in-out; pointer-events: none; }  
+/* Button Thief Prank */  
+.button-runaway { position: relative; animation: runAway 0.5s forwards; }  
+@keyframes runAway { 0% { transform: translateX(0); } 100% { transform: translateX(-150px) scale(0.9); opacity: 0.5; pointer-events: none; } } 

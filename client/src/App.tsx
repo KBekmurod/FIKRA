@@ -42,8 +42,8 @@ const PersonalTestExplainPage = lazy(() => import('./pages/PersonalTestExplainPa
 const HistoryPage = lazy(() => import('./pages/HistoryPage'))
 const AIPage = lazy(() => import('./pages/AIPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
-
 import { ToastProvider } from './components/Toast'
+import { FikraEntity } from './components/FikraEntity'
 
 function FullLoader() {
   return (
@@ -223,7 +223,7 @@ export default function App() {
           </button>
         </div>
       )}
-
+      {user && !isAuthRoute && <FikraEntity />}
       <ToastProvider>
         {!isAuthRoute && <BottomNav />}
         <div className="app-content">

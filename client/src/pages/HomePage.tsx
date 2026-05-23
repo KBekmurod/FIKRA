@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAppStore, } from '../store'
+import { useAppStore } from '../store'
 import { usePwaStore } from '../store'
+import { useEntityStore } from '../store/entityStore'
 import { levelApi, examApi, personalTestApi } from '../api/endpoints'
 import { GRADE_META, versionToGrade, versionInGrade } from '../constants/subjects'
 import type { UserLevelData } from '../types'
@@ -21,6 +22,7 @@ export default function HomePage() {
   const navigate = useNavigate()
   const { user } = useAppStore()
   const { canInstall, installPwa, isInstalled } = usePwaStore()
+  const { isPrankingLevel, isThiefActive, triggerThiefPrank } = useEntityStore()
 
   const [level, setLevel] = useState<UserLevelData | null>(null)
   const [lastActivity, setLastActivity] = useState<LastActivity | null>(null)
@@ -229,15 +231,19 @@ export default function HomePage() {
               <div style={{ fontSize: 12, color: 'var(--txt-2)', marginTop: 4 }}>
                 Joriy darajangiz
               </div>
-              <div style={{
+              <div className={isPrankingLevel ? 'cracked-text' : ''} style={{
                 marginTop: 6,
                 display: 'inline-block',
                 fontSize: 13,
                 fontWeight: 800,
-                color: gradeMeta.color,
+                color: isPrankingLevel ? '#ff0000' : gradeMeta.color,
                 letterSpacing: 0.3,
               }}>
-                {gradeMeta.icon} {gradeMeta.name} {versionInGr}
+                {isPrankingLevel ? (
+                  <>💥 Delta 1</>
+                ) : (
+                  <>{gradeMeta.icon} {gradeMeta.name} {versionInGr}</>
+                )}
               </div>
             </div>
             {/* Aylanma grafik o'rniga Kristall */}
@@ -309,7 +315,20 @@ export default function HomePage() {
       <div className="section-title">Asosiy bo'limlar</div>
       <div className="grid-responsive" style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <MenuCard icon="🏛" title="Ombor"   subtitle="Materiallar" color="rgba(167,139,250,0.15)" onClick={() => navigate('/ombor')} />
-        <MenuCard icon="📝" title="Testlar" subtitle="DTM va AI"    color="rgba(0,212,170,0.15)"  onClick={() => navigate('/testlar')} />
+        <MenuCard 
+          icon="📝" 
+          title="Testlar" 
+          subtitle="DTM va AI" 
+          color="rgba(0,212,170,0.15)"  
+          onClick={() => navigate('/testlar')} 
+          className={isThiefActive ? 'button-runaway' : ''}
+          onMouseEnter={() => {
+            // Agar aniqlik past bo'lsa (yoki demo uchun 30% ehtimollik) tugmani o'g'irlash
+            if (!isThiefActive && (accuracy < 50 || Math.random() < 0.3)) {
+              triggerThiefPrank()
+            }
+          }}
+        />
         <MenuCard icon="📚" title="Tarix"   subtitle="Ishlagan testlar" color="rgba(59,130,246,0.15)" onClick={() => navigate('/tarix')} />
         <MenuCard icon="🤖" title="AI"      subtitle="Chat · Hujjat · Rasm" color="rgba(251,191,36,0.15)" onClick={() => navigate('/ai')} />
       </div>
@@ -408,11 +427,11 @@ function FeatureItem({ icon, title, desc }: { icon: string; title: string; desc:
   )
 }
 
-function MenuCard({ icon, title, subtitle, color, onClick }: {
-  icon: string; title: string; subtitle: string; color: string; onClick: () => void
+function MenuCard({ icon, title, subtitle, color, onClick, className, onMouseEnter }: {
+  icon: string; title: string; subtitle: string; color: string; onClick: () => void; className?: string; onMouseEnter?: () => void
 }) {
   return (
-    <button onClick={onClick} style={{
+    <button onClick={onClick} onMouseEnter={onMouseEnter} className={className} style={{
       background: color,
       border: '1px solid var(--f)',
       borderRadius: 14,

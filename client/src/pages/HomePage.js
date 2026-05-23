@@ -1,8 +1,9 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppStore, } from '../store';
+import { useAppStore } from '../store';
 import { usePwaStore } from '../store';
+import { useEntityStore } from '../store/entityStore';
 import { levelApi, examApi, personalTestApi } from '../api/endpoints';
 import { GRADE_META, versionInGrade } from '../constants/subjects';
 import SubscriptionModal from '../components/SubscriptionModal';
@@ -11,6 +12,7 @@ export default function HomePage() {
     const navigate = useNavigate();
     const { user } = useAppStore();
     const { canInstall, installPwa, isInstalled } = usePwaStore();
+    const { isPrankingLevel, isThiefActive, triggerThiefPrank } = useEntityStore();
     const [level, setLevel] = useState(null);
     const [lastActivity, setLastActivity] = useState(null);
     const [subOpen, setSubOpen] = useState(false);
@@ -136,14 +138,14 @@ export default function HomePage() {
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 14,
-                    }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 14 }, children: [_jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsxs("div", { style: { fontWeight: 800, fontSize: 16 }, children: ["\uD83D\uDC4B Salom, ", user.firstName || 'Abituriyent', "!"] }), _jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginTop: 4 }, children: "Joriy darajangiz" }), _jsxs("div", { style: {
+                    }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 14 }, children: [_jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsxs("div", { style: { fontWeight: 800, fontSize: 16 }, children: ["\uD83D\uDC4B Salom, ", user.firstName || 'Abituriyent', "!"] }), _jsx("div", { style: { fontSize: 12, color: 'var(--txt-2)', marginTop: 4 }, children: "Joriy darajangiz" }), _jsx("div", { className: isPrankingLevel ? 'cracked-text' : '', style: {
                                                 marginTop: 6,
                                                 display: 'inline-block',
                                                 fontSize: 13,
                                                 fontWeight: 800,
-                                                color: gradeMeta.color,
+                                                color: isPrankingLevel ? '#ff0000' : gradeMeta.color,
                                                 letterSpacing: 0.3,
-                                            }, children: [gradeMeta.icon, " ", gradeMeta.name, " ", versionInGr] })] }), _jsx(LevelCrystal, { level: level ? level.currentVersion : 1, streak: level ? level.streak : 0 })] }), _jsxs("div", { style: {
+                                            }, children: isPrankingLevel ? (_jsx(_Fragment, { children: "\uD83D\uDCA5 Delta 1" })) : (_jsxs(_Fragment, { children: [gradeMeta.icon, " ", gradeMeta.name, " ", versionInGr] })) })] }), _jsx(LevelCrystal, { level: level ? level.currentVersion : 1, streak: level ? level.streak : 0 })] }), _jsxs("div", { style: {
                                 background: 'rgba(0,0,0,0.2)',
                                 borderRadius: 12,
                                 padding: '10px 14px',
@@ -166,7 +168,12 @@ export default function HomePage() {
                     }, children: [_jsxs("div", { children: [_jsx("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--txt)' }, children: "Pro obunaga o'ting \uD83D\uDE80" }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)' }, children: "Limitlarsiz va suv belgisisiz imkoniyatlar" })] }), _jsx("button", { onClick: () => setSubOpen(true), style: {
                                 background: 'var(--y)', color: '#000', border: 'none',
                                 padding: '8px 14px', borderRadius: 100, fontSize: 11, fontWeight: 800, cursor: 'pointer'
-                            }, children: "Sotib olish" })] }) })), _jsx("div", { className: "section-title", children: "Asosiy bo'limlar" }), _jsxs("div", { className: "grid-responsive", style: { padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }, children: [_jsx(MenuCard, { icon: "\uD83C\uDFDB", title: "Ombor", subtitle: "Materiallar", color: "rgba(167,139,250,0.15)", onClick: () => navigate('/ombor') }), _jsx(MenuCard, { icon: "\uD83D\uDCDD", title: "Testlar", subtitle: "DTM va AI", color: "rgba(0,212,170,0.15)", onClick: () => navigate('/testlar') }), _jsx(MenuCard, { icon: "\uD83D\uDCDA", title: "Tarix", subtitle: "Ishlagan testlar", color: "rgba(59,130,246,0.15)", onClick: () => navigate('/tarix') }), _jsx(MenuCard, { icon: "\uD83E\uDD16", title: "AI", subtitle: "Chat \u00B7 Hujjat \u00B7 Rasm", color: "rgba(251,191,36,0.15)", onClick: () => navigate('/ai') })] }), !isInstalled && canInstall && (_jsx("div", { style: { padding: '16px 20px 0' }, children: _jsxs("button", { onClick: installPwa, style: {
+                            }, children: "Sotib olish" })] }) })), _jsx("div", { className: "section-title", children: "Asosiy bo'limlar" }), _jsxs("div", { className: "grid-responsive", style: { padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }, children: [_jsx(MenuCard, { icon: "\uD83C\uDFDB", title: "Ombor", subtitle: "Materiallar", color: "rgba(167,139,250,0.15)", onClick: () => navigate('/ombor') }), _jsx(MenuCard, { icon: "\uD83D\uDCDD", title: "Testlar", subtitle: "DTM va AI", color: "rgba(0,212,170,0.15)", onClick: () => navigate('/testlar'), className: isThiefActive ? 'button-runaway' : '', onMouseEnter: () => {
+                            // Agar aniqlik past bo'lsa (yoki demo uchun 30% ehtimollik) tugmani o'g'irlash
+                            if (!isThiefActive && (accuracy < 50 || Math.random() < 0.3)) {
+                                triggerThiefPrank();
+                            }
+                        } }), _jsx(MenuCard, { icon: "\uD83D\uDCDA", title: "Tarix", subtitle: "Ishlagan testlar", color: "rgba(59,130,246,0.15)", onClick: () => navigate('/tarix') }), _jsx(MenuCard, { icon: "\uD83E\uDD16", title: "AI", subtitle: "Chat \u00B7 Hujjat \u00B7 Rasm", color: "rgba(251,191,36,0.15)", onClick: () => navigate('/ai') })] }), !isInstalled && canInstall && (_jsx("div", { style: { padding: '16px 20px 0' }, children: _jsxs("button", { onClick: installPwa, style: {
                         width: '100%',
                         background: 'linear-gradient(135deg, rgba(0,212,170,0.12), rgba(123,104,238,0.05))',
                         border: '1px solid rgba(0,212,170,0.3)',
@@ -204,8 +211,8 @@ function FeatureItem({ icon, title, desc }) {
             alignItems: 'flex-start',
         }, children: [_jsx("div", { style: { fontSize: 24, lineHeight: 1, marginTop: 2 }, children: icon }), _jsxs("div", { children: [_jsx("div", { style: { fontWeight: 700, fontSize: 13, marginBottom: 2 }, children: title }), _jsx("div", { style: { fontSize: 11, color: 'var(--txt-2)', lineHeight: 1.4 }, children: desc })] })] }));
 }
-function MenuCard({ icon, title, subtitle, color, onClick }) {
-    return (_jsxs("button", { onClick: onClick, style: {
+function MenuCard({ icon, title, subtitle, color, onClick, className, onMouseEnter }) {
+    return (_jsxs("button", { onClick: onClick, onMouseEnter: onMouseEnter, className: className, style: {
             background: color,
             border: '1px solid var(--f)',
             borderRadius: 14,
