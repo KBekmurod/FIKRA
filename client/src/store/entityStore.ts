@@ -124,8 +124,6 @@ export const useEntityStore = create<EntityState>((set, get) => ({
       isThiefActive: false, 
       isPrankingLevel: false,
       isPassingBy: false,
-      mode: 'hidden', 
-      isVisible: false, 
       prankMessage: '' 
     })
   },
