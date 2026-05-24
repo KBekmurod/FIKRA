@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useAppStore } from '../store'
-import { useAiStore } from '../store/aiStore'
+import { useAppStore, useAiStore } from '../store'
 import { useEntityStore } from '../store/entityStore'
 import { aiApi, streamChat } from '../api/endpoints'
 import { useToast } from '../components/Toast'
