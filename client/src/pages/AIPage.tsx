@@ -373,7 +373,7 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
 function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
   const { docPrompt: prompt, docFormat: format, docMaxPages: maxPages, docRemoveWatermark: removeWatermark, docLoading: loading, docStatusMsg: statusMsg, docResult: result, setDocState } = useAiStore()
   const { user, refreshUser, setAuthModalOpen } = useAppStore()
-  const { triggerEditText } = useEntityStore()
+
   const { toast } = useToast()
   
   const isFree = !user?.effectivePlan || user.effectivePlan === 'free';
@@ -383,7 +383,7 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
     const p = prompt.trim()
     if (!p || loading) return
     setDocState({ docLoading: true, docResult: null, docStatusMsg: 'Boshlanmoqda...' })
-    triggerEditText()
+
 
     const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}')
     const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000'

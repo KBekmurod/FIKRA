@@ -1,3 +1,4 @@
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
@@ -5,152 +6,85 @@ import { SUBJECTS, COMPULSORY_IDS, DUAL_CONTEXT_SUBJECTS, SPEC_BY_CATEGORY, SPEC
 import { useToast } from '../components/Toast';
 import { useAppStore } from '../store';
 export default function OmborPage() {
-    var navigate = useNavigate();
-    var toast = useToast();
-    var _a = useState('majburiy'), tab = _a[0], setTab = _a[1];
-    var _b = useState({}), summary = _b[0], setSummary = _b[1];
-    var _c = useState(true), loading = _c[0], setLoading = _c[1];
-    var _d = useAppStore(), user = _d.user, setAuthModalOpen = _d.setAuthModalOpen;
-    useEffect(function () {
+    const navigate = useNavigate();
+    const toast = useToast();
+    const [tab, setTab] = useState('majburiy');
+    const [summary, setSummary] = useState({});
+    const [loading, setLoading] = useState(true);
+    const { user, setAuthModalOpen } = useAppStore();
+    useEffect(() => {
         if (!user) {
             setLoading(false);
             return;
         }
         api.get('/api/folders/subjects-summary')
-            .then(function (_a) {
-            var data = _a.data;
-            return setSummary(data.summary || {});
-        })["catch"](function () { return toast.error("Yuklab bo'lmadi"); })["finally"](function () { return setLoading(false); });
+            .then(({ data }) => setSummary(data.summary || {}))
+            .catch(() => toast.error("Yuklab bo'lmadi"))
+            .finally(() => setLoading(false));
     }, [user]);
     // Tab bo'yicha ko'rsatadigan fanlar
     // Majburiy: uztil, math, tarix
     // Mutaxassislik: hammasi (math/tarix dual, qolganlari fakat speciality)
-    var compulsoryList = COMPULSORY_IDS;
+    const compulsoryList = COMPULSORY_IDS;
     // Mutaxassislikda: math, tarix (dual) + 13 ta faqat-mutaxassislik fani = 15 ta
-    var specialtyList = [
+    const specialtyList = [
         'math', 'tarix',
         'fizika', 'kimyo', 'bio', 'geo',
         'adab', 'huquq',
         'ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk',
     ];
-    var getSummaryFor = function (subjectId, context) {
+    const getSummaryFor = (subjectId, context) => {
         // Dual subjects: key = subjectId__context
         if (DUAL_CONTEXT_SUBJECTS.has(subjectId)) {
-            return summary[subjectId + "__" + context] || null;
+            return summary[`${subjectId}__${context}`] || null;
         }
         return summary[subjectId] || null;
     };
-    var renderSubjectCard = function (subjectId, context) {
-        var subj = SUBJECTS[subjectId];
+    const renderSubjectCard = (subjectId, context) => {
+        const subj = SUBJECTS[subjectId];
         if (!subj)
             return null;
-        var stats = getSummaryFor(subjectId, context);
-        var isEmpty = !stats || stats.folderCount === 0;
-        var standardCount = context === 'majburiy' ? 10 : 30;
-        return (<button key={subjectId + "_" + context} className={"tilt-card " + (!isEmpty ? 'glass' : '')} onClick={function () {
-            if (!user)
-                return setAuthModalOpen(true);
-            navigate("/ombor/" + subjectId + "?context=" + context);
-        }} style={{
-            width: '100%',
-            background: 'var(--s1)',
-            border: "1px solid " + (isEmpty ? 'var(--f)' : 'rgba(123,104,238,0.25)'),
-            borderRadius: 14,
-            padding: '14px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            cursor: 'pointer',
-            color: 'var(--txt)',
-            textAlign: 'left'
-        }}>
-        <div style={{
-            width: 44, height: 44, borderRadius: 12,
-            background: context === 'majburiy' ? 'rgba(0,212,170,0.12)' : 'rgba(123,104,238,0.12)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 22, flexShrink: 0
-        }}>{subj.icon}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5 }}>{subj.name}</div>
-          <div style={{ fontSize: 10.5, color: 'var(--txt-3)', marginTop: 2 }}>
-            {isEmpty
-            ? <span style={{ fontStyle: 'italic' }}>Bo'sh — papka yaratish uchun bosing</span>
-            : (<span>
-                  {stats.folderCount} ta papka
-                  {stats.testsCompleted > 0 && (<> · {stats.testsCompleted} test · <strong style={{ color: stats.avgScore >= 70 ? 'var(--g)' : stats.avgScore >= 50 ? 'var(--y)' : 'var(--r)' }}>{stats.avgScore}%</strong></>)}
-                </span>)}
-          </div>
-        </div>
-        <div style={{
-            fontSize: 10, color: 'var(--txt-3)', fontWeight: 700,
-            padding: '2px 8px', borderRadius: 100,
-            background: 'var(--s2)',
-            whiteSpace: 'nowrap'
-        }}>{standardCount} ta</div>
-        <div style={{ color: 'var(--txt-3)', fontSize: 18 }}>→</div>
-      </button>);
+        const stats = getSummaryFor(subjectId, context);
+        const isEmpty = !stats || stats.folderCount === 0;
+        const standardCount = context === 'majburiy' ? 10 : 30;
+        return (_jsxs("button", { className: `tilt-card ${!isEmpty ? 'glass' : ''}`, onClick: () => {
+                if (!user)
+                    return setAuthModalOpen(true);
+                navigate(`/ombor/${subjectId}?context=${context}`);
+            }, style: {
+                width: '100%',
+                background: 'var(--s1)',
+                border: `1px solid ${isEmpty ? 'var(--f)' : 'rgba(123,104,238,0.25)'}`,
+                borderRadius: 14,
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                cursor: 'pointer',
+                color: 'var(--txt)',
+                textAlign: 'left',
+            }, children: [_jsx("div", { style: {
+                        width: 44, height: 44, borderRadius: 12,
+                        background: context === 'majburiy' ? 'rgba(0,212,170,0.12)' : 'rgba(123,104,238,0.12)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 22, flexShrink: 0,
+                    }, children: subj.icon }), _jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [_jsx("div", { style: { fontWeight: 700, fontSize: 13.5 }, children: subj.name }), _jsx("div", { style: { fontSize: 10.5, color: 'var(--txt-3)', marginTop: 2 }, children: isEmpty
+                                ? _jsx("span", { style: { fontStyle: 'italic' }, children: "Bo'sh \u2014 papka yaratish uchun bosing" })
+                                : (_jsxs("span", { children: [stats.folderCount, " ta papka", stats.testsCompleted > 0 && (_jsxs(_Fragment, { children: [" \u00B7 ", stats.testsCompleted, " test \u00B7 ", _jsxs("strong", { style: { color: stats.avgScore >= 70 ? 'var(--g)' : stats.avgScore >= 50 ? 'var(--y)' : 'var(--r)' }, children: [stats.avgScore, "%"] })] }))] })) })] }), _jsxs("div", { style: {
+                        fontSize: 10, color: 'var(--txt-3)', fontWeight: 700,
+                        padding: '2px 8px', borderRadius: 100,
+                        background: 'var(--s2)',
+                        whiteSpace: 'nowrap',
+                    }, children: [standardCount, " ta"] }), _jsx("div", { style: { color: 'var(--txt-3)', fontSize: 18 }, children: "\u2192" })] }, `${subjectId}_${context}`));
     };
-    return (<>
-      <div className="header">
-        <div className="header-logo">🏛 Ombor</div>
-      </div>
-
-      <div style={{ padding: '6px 20px 0' }}>
-        <p style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: 14 }}>
-          Materiallaringizni saqlang, AI testlar yarating
-        </p>
-
-        <div className="seg-tabs">
-          <button className={"seg-tab " + (tab === 'majburiy' ? 'active' : '')} onClick={function () { return setTab('majburiy'); }}>Majburiy</button>
-          <button className={"seg-tab " + (tab === 'mutaxassislik' ? 'active' : '')} onClick={function () { return setTab('mutaxassislik'); }}>Mutaxassislik</button>
-        </div>
-
-        {loading ? (<div className="skel-card"/>) : tab === 'majburiy' ? (<>
-            <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--g)', letterSpacing: 0.5, marginBottom: 8 }}>
-              📌 MAJBURIY 3 FAN · har birida 10 ta savol · 1.1 ball
-            </div>
-            <div style={{ display: 'grid', gap: 8 }}>
-              {compulsoryList.map(function (id) { return renderSubjectCard(id, 'majburiy'); })}
-            </div>
-          </>) : (<>
-            <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--acc-l)', letterSpacing: 0.5, marginBottom: 8 }}>
-              ⭐ MUTAXASSISLIK · har biri 30 ta savol · 2.1–3.1 ball
-            </div>
-
-            
-            <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--y)', letterSpacing: 0.5, margin: '8px 0 6px' }}>
-              🔁 IKKALA KONTEKSTDA HAM (chuqurroq)
-            </div>
-            <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
-              {['math', 'tarix'].map(function (id) { return renderSubjectCard(id, 'mutaxassislik'); })}
-            </div>
-
-            {Object.entries(SPEC_BY_CATEGORY).map(function (_a) {
-        var cat = _a[0], ids = _a[1];
-        return (<div key={cat} style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 6 }}>
-                  {SPEC_CATEGORY_NAMES[cat] ? .toUpperCase() : }
-                </div>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  {ids.map(function (id) { return renderSubjectCard(id, 'mutaxassislik'); })}
-                </div>
-              </div>);
-    })}
-          </>)}
-
-        <div style={{
-        marginTop: 14, marginBottom: 16,
-        padding: 12,
-        background: 'rgba(255,204,68,0.08)',
-        border: '1px solid rgba(255,204,68,0.2)',
-        borderRadius: 10,
-        fontSize: 10.5,
-        color: 'var(--txt-2)',
-        lineHeight: 1.55
-    }}>
-          💡 <strong>Qoida:</strong> Bitta fan ichida mavzular bo'yicha papkalar oching. Har bir papkaga istagancha konspekt, rasm yoki PDF yuklashingiz mumkin.
-          {' '}AI shu papkadagi barcha ma'lumotlarni o'qib, mutlaqo yangi test yaratib beradi.
-        </div>
-      </div>
-    </>);
+    return (_jsxs(_Fragment, { children: [_jsx("div", { className: "header", children: _jsx("div", { className: "header-logo", children: "\uD83C\uDFDB Ombor" }) }), _jsxs("div", { style: { padding: '6px 20px 0' }, children: [_jsx("p", { style: { fontSize: 12, color: 'var(--txt-2)', marginBottom: 14 }, children: "Materiallaringizni saqlang, AI testlar yarating" }), _jsxs("div", { className: "seg-tabs", children: [_jsx("button", { className: `seg-tab ${tab === 'majburiy' ? 'active' : ''}`, onClick: () => setTab('majburiy'), children: "Majburiy" }), _jsx("button", { className: `seg-tab ${tab === 'mutaxassislik' ? 'active' : ''}`, onClick: () => setTab('mutaxassislik'), children: "Mutaxassislik" })] }), loading ? (_jsx("div", { className: "skel-card" })) : tab === 'majburiy' ? (_jsxs(_Fragment, { children: [_jsx("div", { style: { fontSize: 10, fontWeight: 800, color: 'var(--g)', letterSpacing: 0.5, marginBottom: 8 }, children: "\uD83D\uDCCC MAJBURIY 3 FAN \u00B7 har birida 10 ta savol \u00B7 1.1 ball" }), _jsx("div", { style: { display: 'grid', gap: 8 }, children: compulsoryList.map(id => renderSubjectCard(id, 'majburiy')) })] })) : (_jsxs(_Fragment, { children: [_jsx("div", { style: { fontSize: 10, fontWeight: 800, color: 'var(--acc-l)', letterSpacing: 0.5, marginBottom: 8 }, children: "\u2B50 MUTAXASSISLIK \u00B7 har biri 30 ta savol \u00B7 2.1\u20133.1 ball" }), _jsx("div", { style: { fontSize: 9.5, fontWeight: 700, color: 'var(--y)', letterSpacing: 0.5, margin: '8px 0 6px' }, children: "\uD83D\uDD01 IKKALA KONTEKSTDA HAM (chuqurroq)" }), _jsx("div", { style: { display: 'grid', gap: 8, marginBottom: 14 }, children: ['math', 'tarix'].map(id => renderSubjectCard(id, 'mutaxassislik')) }), Object.entries(SPEC_BY_CATEGORY).map(([cat, ids]) => (_jsxs("div", { style: { marginBottom: 14 }, children: [_jsx("div", { style: { fontSize: 9.5, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 6 }, children: SPEC_CATEGORY_NAMES[cat]?.toUpperCase() }), _jsx("div", { style: { display: 'grid', gap: 8 }, children: ids.map(id => renderSubjectCard(id, 'mutaxassislik')) })] }, cat)))] })), _jsxs("div", { style: {
+                            marginTop: 14, marginBottom: 16,
+                            padding: 12,
+                            background: 'rgba(255,204,68,0.08)',
+                            border: '1px solid rgba(255,204,68,0.2)',
+                            borderRadius: 10,
+                            fontSize: 10.5,
+                            color: 'var(--txt-2)',
+                            lineHeight: 1.55,
+                        }, children: ["\uD83D\uDCA1 ", _jsx("strong", { children: "Qoida:" }), " Bitta fan ichida mavzular bo'yicha papkalar oching. Har bir papkaga istagancha konspekt, rasm yoki PDF yuklashingiz mumkin.", ' ', "AI shu papkadagi barcha ma'lumotlarni o'qib, mutlaqo yangi test yaratib beradi."] })] })] }));
 }
