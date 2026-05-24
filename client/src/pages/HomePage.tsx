@@ -256,7 +256,7 @@ export default function HomePage() {
             color: 'var(--txt-2)'
           }}>
             <span>Aniqlik (Accuracy): <strong style={{color: 'var(--txt)'}}>{accuracy}%</strong></span>
-            <span>Kristall Quvvati: <strong style={{color: gradeMeta.color}}>Max</strong></span>
+            <span>Kristall Quvvati: <strong style={{color: gradeMeta.color}}>{Math.min(100, 20 + (level?.streak || 0) * 10)}%</strong></span>
           </div>
         </div>
       </div>

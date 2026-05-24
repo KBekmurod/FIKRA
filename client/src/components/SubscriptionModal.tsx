@@ -68,7 +68,7 @@ export default function SubscriptionModal({ open, onClose }: Props) {
           `Rekvizitlarni yuboring!`
         )
         // Use location.href instead of window.open to avoid popup blockers on mobile PWA
-        window.location.href = `https://t.me/${adminUsername}?text=${text}`
+        window.location.href = `https://t.me/${adminUsername}?text=${text}&_t=${Date.now()}`
       }
       toast.success(`Buyurtma yaratildi (${data.order.orderId})! Admin javob beradi.`)
       onClose()
@@ -102,12 +102,12 @@ export default function SubscriptionModal({ open, onClose }: Props) {
             <span>🆓</span> Bepul tarifingiz cheklovlari (kunlik):
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11, color: 'var(--txt-2)' }}>
-            <div>• <b>10 ta</b> AI tushuntirish</div>
-            <div>• <b>15 ta</b> AI xabar</div>
-            <div>• <b>1 ta</b> Hujjat (PDF/Doc)</div>
-            <div>• <b>3 ta</b> Rasm (OCR)</div>
-            <div>• <b>2 ta</b> AI test generatsiya</div>
-            <div>• <b>3 ta</b> Material saqlash (har fanga)</div>
+            <div>• <b>20 ta</b> AI tushuntirish</div>
+            <div>• <b>30 ta</b> AI xabar</div>
+            <div>• <b>3 ta</b> Hujjat (PDF/Doc)</div>
+            <div>• <b>5 ta</b> Rasm (OCR)</div>
+            <div>• <b>5 ta</b> AI test generatsiya</div>
+            <div>• <b>5 ta</b> Material saqlash (har fanga)</div>
           </div>
           <div style={{ fontSize: 10, color: 'var(--acc-l)', marginTop: 8, fontWeight: 700 }}>
             Cheklovlardan xalos bo'lish uchun obunani tanlang ↓
@@ -305,15 +305,20 @@ export default function SubscriptionModal({ open, onClose }: Props) {
                   background: `linear-gradient(135deg, ${color}, ${color}dd)`,
                   color: '#0a0a14',
                   border: 'none',
-                  borderRadius: 10,
-                  padding: '10px 14px',
-                  fontSize: 13,
-                  fontWeight: 800,
+                  borderRadius: 12,
+                  padding: '14px 16px',
+                  fontSize: 14,
+                  fontWeight: 900,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  boxShadow: `0 4px 14px ${color}66`,
                   cursor: loading ? 'wait' : 'pointer',
-                  opacity: loading ? 0.6 : 1,
+                  opacity: loading ? 0.7 : 1,
+                  transform: 'translateY(-1px)',
+                  transition: 'all 0.2s',
                 }}
               >
-                {loading ? '⏳ ...' : '🤝 P2P orqali olish'}
+                {loading ? '⏳ Bajarilmoqda...' : '🤝 P2P orqali olish'}
               </button>
             </div>
           )

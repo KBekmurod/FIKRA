@@ -59,9 +59,7 @@ router.post('/start-dtm', authMiddleware, async (req, res, next) => {
       directionName:result.directionName,
       durationSeconds: result.session.durationSeconds,
       subjectBreakdown: result.session.subjectBreakdown,
-      maxTotalScore:result.session.maxTotalScore,
       questions:    result.questions,
-      rivalData:    result.rivalData,
     });
   } catch (err) { next(err); }
 });

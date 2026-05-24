@@ -60,8 +60,6 @@ export default function WelcomePage() {
         <FeatureItem icon="📊" text="Delta → Beta → Alfa darajalar" />
       </div>
 
-      <div style={{ flex: 1 }} />
-
       {/* Google bilan kirish */}
       <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
         {loading ? (

@@ -42,7 +42,7 @@ export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
   ingliz:  { id: 'ingliz',  name: 'Ingliz tili',  icon: '🇬🇧', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
   nemis:   { id: 'nemis',   name: 'Nemis tili',   icon: '🇩🇪', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
   fransuz: { id: 'fransuz', name: 'Fransuz tili', icon: '🇫🇷', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
-  arab:    { id: 'arab',    name: 'Arab tili',    icon: '🕌', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
+  arab:    { id: 'arab',    name: 'Arab tili',    icon: '🇸🇦', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
   fors:    { id: 'fors',    name: 'Fors tili',    icon: '🌙', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
   turk:    { id: 'turk',    name: 'Turk tili',    icon: '🇹🇷', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
 

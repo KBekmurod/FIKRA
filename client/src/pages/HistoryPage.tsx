@@ -5,6 +5,15 @@ import { useToast } from '../components/Toast'
 import { SUBJECTS } from '../constants/subjects'
 import { useAppStore } from '../store'
 
+const DIRECTION_NAMES: Record<string, {name: string, icon: string}> = {
+  engineering: { name: 'Muhandislik · Texnologiya', icon: '⚙️' },
+  medicine: { name: 'Tibbiyot · Q-xo\'jaligi', icon: '🏥' },
+  international: { name: 'Xalqaro · Turizm', icon: '🌍' },
+  philology: { name: 'Filologiya', icon: '📖' },
+  economy: { name: "Iqtisod · IT", icon: '💰' },
+  geodesy: { name: 'Geodeziya · Kadastr', icon: '🗺' },
+}
+
 type TopTab = 'fikra' | 'ai'
 type FikraMode = 'blok' | 'free'
 type AiMode = 'papka' | 'blok' | 'free'
@@ -189,7 +198,7 @@ export default function HistoryPage() {
         {loading ? (
           <div className="skel-card" />
         ) : topTab === 'fikra' ? (
-          <FikraHistoryList items={fikraByMode} onClick={s => navigate(`/test-result/${s._id}`)} />
+          <FikraHistoryList items={fikraByMode} onClick={s => navigate(`/test-review/${s._id}`)} />
         ) : (
           <AiHistoryList
             primaryItems={primaryAi}
@@ -262,7 +271,14 @@ function FikraHistoryList({ items, onClick }: { items: FikraSession[]; onClick: 
           let metaText = ''
           if (s.testMode === 'blok' && s.blockSubject) {
             const subj = (SUBJECTS as any)[s.blockSubject]
-            metaText = subj ? `Yo'nalish: ${subj.icon} ${subj.name}` : s.blockSubject
+            const dir = DIRECTION_NAMES[s.blockSubject]
+            if (dir) {
+              metaText = `Yo'nalish: ${dir.icon} ${dir.name}`
+            } else if (subj) {
+              metaText = `Yo'nalish: ${subj.icon} ${subj.name}`
+            } else {
+              metaText = s.blockSubject
+            }
           } else if (s.freeSubjects?.length) {
             metaText = 'Fanlar: ' + s.freeSubjects.map(sid => {
               const x = (SUBJECTS as any)[sid]; return x ? x.icon : sid

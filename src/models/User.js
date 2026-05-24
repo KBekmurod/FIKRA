@@ -57,11 +57,11 @@ const userSchema = new mongoose.Schema({
 // ─── Plan limitlari (kunlik) ─────────────────────────────────────────────────
 const PLAN_LIMITS = {
   free:  {
-    hints: 10,       chats: 15,        docs: 2,        images: 0,
-    textMaterials: 3,
-    ocrUploads:    3,
-    fileUploads:   1,
-    testsGen:      2,
+    hints: 20,       chats: 30,        docs: 3,        images: 5,
+    textMaterials: 5,
+    ocrUploads:    5,
+    fileUploads:   3,
+    testsGen:      5,
   },
   basic: {
     hints: Infinity, chats: 50,        docs: 10,       images: 5,

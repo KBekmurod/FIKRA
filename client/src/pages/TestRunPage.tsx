@@ -4,7 +4,7 @@ import { examApi } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import { triggerHaptic } from '../utils/haptics'
 import RichText from '../components/RichText'
-import ShadowRival from '../components/ShadowRival'
+
 import '../components/RichText.css'
 
 interface Question {
@@ -20,11 +20,7 @@ interface RunState {
   questions: Question[]
   durationSeconds: number
   subjectBreakdown?: any[]
-  rivalData?: {
-    name: string
-    expectedScore: number
-    accuracy: number
-  }
+
 }
 
 export default function TestRunPage() {
@@ -221,17 +217,7 @@ export default function TestRunPage() {
         </div>
       </div>
 
-      {state?.rivalData && (
-        <div style={{ padding: '0 16px' }}>
-          <ShadowRival 
-            name={state.rivalData.name} 
-            expectedScore={state.rivalData.expectedScore} 
-            accuracy={state.rivalData.accuracy} 
-            duration={state.durationSeconds || 10800} 
-            isActive={!finishing} 
-          />
-        </div>
-      )}
+
 
       {/* Savol */}
       <div style={{ padding: '8px 16px 100px' }}>
