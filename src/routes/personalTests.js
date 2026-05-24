@@ -95,42 +95,17 @@ router.post('/ai-blok', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'subjects (papkalar) kerak' });
     }
 
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    const interval = setInterval(() => { res.write(': keep-alive\n\n'); }, 5000);
+    const result = await aiTestService.generateBlokTest(req.user._id, { direction, subjects });
+    
+    res.json({
+      testId: result.testId,
+      dirName: result.dirName,
+      status: 'generating'
+    });
 
-    try {
-      const result = await aiTestService.generateBlokTest(req.user._id, { direction, subjects });
-      clearInterval(interval);
-      res.write(`data: ${JSON.stringify({
-        testId:         result.test._id,
-        subjectId:      result.test.subjectId,
-        subjectName:    result.test.subjectName,
-        testType:       'ai_blok',
-        direction:      result.direction,
-        dirName:        result.dirName,
-        totalQuestions: result.questions.length,
-        durationSeconds: result.questions.length * 60,
-        questions: result.questions.map(q => ({
-          idx:         q.idx,
-          question:    q.question,
-          options:     q.options,
-          topic:       q.topic,
-          subjectId:   q.subjectId,
-          subjectName: q.subjectName,
-        })),
-      })}\n\n`);
-      res.write('data: [DONE]\n\n');
-      res.end();
-    } catch (err) {
-      clearInterval(interval);
-      res.write(`data: ${JSON.stringify({ error: err.message, code: err.code })}\n\n`);
-      res.end();
-    }
   } catch (err) {
     logger.error('AI Blok test error:', err.message);
-    if (!res.headersSent) _handleError(err, res, next);
+    _handleError(err, res, next);
   }
 });
 
@@ -146,41 +121,55 @@ router.post('/ai-free', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'subjects array kerak' });
     }
 
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    const interval = setInterval(() => { res.write(': keep-alive\n\n'); }, 5000);
+    const result = await aiTestService.generateFreeTest(req.user._id, { subjects });
 
-    try {
-      const result = await aiTestService.generateFreeTest(req.user._id, { subjects });
-      clearInterval(interval);
-      res.write(`data: ${JSON.stringify({
-        testId:         result.test._id,
-        subjectId:      result.test.subjectId,
-        subjectName:    result.test.subjectName,
-        testType:       'ai_free',
-        totalQuestions: result.questions.length,
-        durationSeconds: result.questions.length * 60,
-        subjects:       result.subjects,
-        questions: result.questions.map(q => ({
-          idx:         q.idx,
-          question:    q.question,
-          options:     q.options,
-          topic:       q.topic,
-          subjectId:   q.subjectId,
-          subjectName: q.subjectName,
-        })),
-      })}\n\n`);
-      res.write('data: [DONE]\n\n');
-      res.end();
-    } catch (err) {
-      clearInterval(interval);
-      res.write(`data: ${JSON.stringify({ error: err.message, code: err.code })}\n\n`);
-      res.end();
-    }
+    res.json({
+      testId: result.testId,
+      status: 'generating'
+    });
+
   } catch (err) {
     logger.error('AI Free test error:', err.message);
-    if (!res.headersSent) _handleError(err, res, next);
+    _handleError(err, res, next);
+  }
+});
+
+// ─── GET /api/personal-tests/:id/status
+// Generatsiya bo'layotgan test holatini tekshirish
+router.get('/:id/status', authMiddleware, async (req, res, next) => {
+  try {
+    const PersonalTest = require('../models/PersonalTest');
+    const test = await PersonalTest.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!test) return res.status(404).json({ error: 'Test topilmadi' });
+
+    if (test.status === 'generating') {
+      return res.json({ status: 'generating' });
+    }
+
+    if (test.status === 'failed') {
+      return res.json({ status: 'failed', error: test.metadata?.error || 'Test yaratishda xatolik' });
+    }
+
+    // Agar in_progress yoki completed bo'lsa, demak tayyor
+    res.json({
+      status: 'ready',
+      testId: test._id,
+      subjectId: test.subjectId,
+      subjectName: test.subjectName,
+      testType: test.testType,
+      totalQuestions: test.totalQuestions,
+      durationSeconds: test.totalQuestions * 60,
+      questions: test.questions.map(q => ({
+        idx:         q.idx,
+        question:    q.question,
+        options:     q.options,
+        topic:       q.topic,
+        subjectId:   q.subjectId,
+        subjectName: q.subjectName,
+      })),
+    });
+  } catch (err) {
+    _handleError(err, res, next);
   }
 });
 

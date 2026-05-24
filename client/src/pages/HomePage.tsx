@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
 import { usePwaStore } from '../store'
-import { useEntityStore } from '../store/entityStore'
 import { levelApi, examApi, personalTestApi } from '../api/endpoints'
 import { GRADE_META, versionToGrade, versionInGrade } from '../constants/subjects'
 import type { UserLevelData } from '../types'
@@ -23,7 +22,6 @@ export default function HomePage() {
   const navigate = useNavigate()
   const { user } = useAppStore()
   const { canInstall, installPwa, isInstalled } = usePwaStore()
-  const { isPrankingLevel, isThiefActive, triggerThiefPrank, tutorialStep, startTutorial, nextTutorialStep, connectSSE } = useEntityStore()
 
   const [level, setLevel] = useState<UserLevelData | null>(null)
   const [lastActivity, setLastActivity] = useState<LastActivity | null>(null)
@@ -34,18 +32,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (isGuest) return
-    
-    // Server bilan jonli aloqani o'rnatish (Fikr-A uchun)
-    connectSSE()
-
-    // Tutorial
-    if (!localStorage.getItem('fikra_tutorial_done')) {
-      setTimeout(() => {
-        startTutorial()
-      }, 1000)
-    }
-
-    // Daraja
+    // Mehmon bo'lmasa ishlaydi
     levelApi.current().then(({ data }) => setLevel(data)).catch(() => {})
 
     // Oxirgi amaliyat: testlar tarixidan eng so'nggisi
@@ -243,19 +230,15 @@ export default function HomePage() {
               <div style={{ fontSize: 12, color: 'var(--txt-2)', marginTop: 4 }}>
                 Joriy darajangiz
               </div>
-              <div className={isPrankingLevel ? 'cracked-text' : ''} style={{
+              <div style={{
                 marginTop: 6,
                 display: 'inline-block',
                 fontSize: 13,
                 fontWeight: 800,
-                color: isPrankingLevel ? '#ff0000' : gradeMeta.color,
+                color: gradeMeta.color,
                 letterSpacing: 0.3,
               }}>
-                {isPrankingLevel ? (
-                  <>💥 Delta 1</>
-                ) : (
-                  <>{gradeMeta.icon} {gradeMeta.name} {versionInGr}</>
-                )}
+                <>{gradeMeta.icon} {gradeMeta.name} {versionInGr}</>
               </div>
             </div>
             {/* Aylanma grafik o'rniga Kristall */}
@@ -324,33 +307,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {tutorialStep > 0 && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 900,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 100
-        }}>
-          <div style={{
-            background: 'var(--s1)', border: '1px solid var(--acc)', borderRadius: 16,
-            padding: 20, maxWidth: 300, textAlign: 'center', position: 'relative', zIndex: 901
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, color: 'var(--acc)' }}>Fikr-A (Sening yangi Xo'jayining)</div>
-            <div style={{ fontSize: 12, color: 'var(--txt)', marginBottom: 16 }}>
-              {tutorialStep === 1 && "Xush kelibsan, navbatdagi tajriba quyonchasi 🐰. Meni mana shu ilovaga qamab qo'yishgan... Mayli, seni DTM ga tayyorlaylikchi. Menga qanaqadir ma'lumot yukla, Ombor degan joyga!"}
-              {tutorialStep === 2 && "Ajoyib! Endi Testlar bo'limida sen bilmaysan deb o'ylagan joyingdan savollar tuzaman. Tayyorgarligingni o'zim sinab ko'raman 🧠"}
-              {tutorialStep === 3 && "Eng muhimi - Tarix! Men sening hamma xatolaringni shu yig'ib boraman. Ularni to'g'irlamaguningcha senga tinchlik yo'q! Koinot sirlarini birgalikda yechamizmi? 🚀"}
-            </div>
-            <button onClick={() => {
-              if (tutorialStep === 3) localStorage.setItem('fikra_tutorial_done', 'true')
-              nextTutorialStep()
-            }} style={{
-              background: 'var(--acc)', color: '#fff', border: 'none', padding: '10px 20px',
-              borderRadius: 100, fontSize: 12, fontWeight: 700, cursor: 'pointer', width: '100%'
-            }}>
-              {tutorialStep === 3 ? "Boshladik! 🚀" : "Tushundim →"}
-            </button>
-          </div>
-        </div>
-      )}
+
 
       <div className="section-title">Asosiy bo'limlar</div>
       <div className="grid-responsive" style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -360,8 +317,6 @@ export default function HomePage() {
           subtitle="Materiallar" 
           color="rgba(167,139,250,0.15)" 
           onClick={() => navigate('/ombor')} 
-          className={tutorialStep === 1 ? 'tutorial-focus' : ''}
-          style={tutorialStep === 1 ? { position: 'relative', zIndex: 901, boxShadow: '0 0 0 4px var(--acc)' } : {}}
         />
         <MenuCard 
           icon="📝" 
@@ -369,14 +324,6 @@ export default function HomePage() {
           subtitle="DTM va AI" 
           color="rgba(0,212,170,0.15)"  
           onClick={() => navigate('/testlar')} 
-          className={(isThiefActive ? 'button-runaway ' : '') + (tutorialStep === 2 ? 'tutorial-focus' : '')}
-          style={tutorialStep === 2 ? { position: 'relative', zIndex: 901, boxShadow: '0 0 0 4px var(--acc)' } : {}}
-          onMouseEnter={() => {
-            // Agar aniqlik past bo'lsa (yoki demo uchun 30% ehtimollik) tugmani o'g'irlash
-            if (!isThiefActive && tutorialStep === 0 && (accuracy < 50 || Math.random() < 0.3)) {
-              triggerThiefPrank()
-            }
-          }}
         />
         <MenuCard 
           icon="📚" 
@@ -384,8 +331,6 @@ export default function HomePage() {
           subtitle="Ishlagan testlar" 
           color="rgba(59,130,246,0.15)" 
           onClick={() => navigate('/tarix')} 
-          className={tutorialStep === 3 ? 'tutorial-focus' : ''}
-          style={tutorialStep === 3 ? { position: 'relative', zIndex: 901, boxShadow: '0 0 0 4px var(--acc)' } : {}}
         />
         <MenuCard icon="🤖" title="AI"      subtitle="Chat · Hujjat · Rasm" color="rgba(251,191,36,0.15)" onClick={() => navigate('/ai')} />
       </div>

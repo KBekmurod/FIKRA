@@ -144,8 +144,56 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 }
 
 import { usePwaStore } from './store'
+import { useJobStore, initJobPoller } from './store/jobStore'
+import { useToast } from './components/Toast'
 import AuthModal from './components/AuthModal'
 import AnnouncementBanner from './components/AnnouncementBanner'
+
+function GlobalJobWatcher() {
+  const { jobs, removeJob } = useJobStore()
+  const navigate = useNavigate()
+  const toast = useToast()
+
+  const runningJobs = Object.values(jobs).filter(j => j.status === 'running')
+
+  useEffect(() => {
+    Object.values(jobs).forEach(job => {
+      if (job.status === 'success') {
+        toast.success(`${job.title} tayyor!`)
+        if (job.type === 'test_generation' && job.result?.testId) {
+          navigate(`/personal-tests/${job.result.testId}/run`)
+        } else if (job.type === 'ai_chat' && job.result?.sessionId) {
+          navigate(`/ai/chat/${job.result.sessionId}`)
+        }
+        removeJob(job.id)
+      } else if (job.status === 'error') {
+        toast.error(`${job.title} da xato: ${job.error}`)
+        removeJob(job.id)
+      }
+    })
+  }, [jobs, navigate, toast, removeJob])
+
+  if (runningJobs.length === 0) return null
+
+  return (
+    <div style={{
+      background: 'rgba(255,165,0,0.9)',
+      padding: '8px 16px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#fff',
+      position: 'sticky',
+      top: 0,
+      zIndex: 1000,
+      fontSize: 13,
+      fontWeight: 'bold',
+      boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+    }}>
+      ⏳ {runningJobs.length} ta jarayon orqa fonda ishlamoqda...
+    </div>
+  )
+}
 
 export default function App() {
   const { user, initialized, bootstrap, refreshUser } = useAppStore()
@@ -157,6 +205,7 @@ export default function App() {
   useEffect(() => {
     bootstrap()
     initPwa()
+    initJobPoller()
 
     fetch('/api/config')
       .then(r => r.json())
@@ -238,8 +287,8 @@ export default function App() {
           </button>
         </div>
       )}
-      {user && !isAuthRoute && <FikraEntity />}
       <ToastProvider>
+        <GlobalJobWatcher />
         {!isAuthRoute && <BottomNav />}
         <div className="app-content">
           <Suspense fallback={<PageLoader />}>

@@ -4,6 +4,7 @@ import api from '../api/client'
 import { folderApi, streamJsonFetch } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import { useGoBack } from '../hooks/useGoBack'
+import { useJobStore } from '../store/jobStore'
 import { SUBJECTS, COMPULSORY_IDS, SPEC_BY_CATEGORY, type SubjectId, type Context } from '../constants/subjects'
 
 interface Folder {
@@ -24,10 +25,10 @@ export default function AiFreeSetupPage() {
   const navigate = useNavigate()
   const goBack = useGoBack('/testlar/ai')
   const toast = useToast()
+  const { startJob } = useJobStore()
 
   const [selected, setSelected] = useState<SelectedSubject[]>([])
   const [foldersBySubj, setFoldersBySubj] = useState<Record<string, Folder[]>>({})
-  const [starting, setStarting] = useState(false)
 
   // Fan qo'shish
   const addSubject = async (id: SubjectId) => {
@@ -71,13 +72,19 @@ export default function AiFreeSetupPage() {
   const isReady = selected.length >= 2 && selected.every(s => s.folderIds.length > 0)
 
   const startTest = async () => {
-    if (!isReady) {
-      toast.error("Kamida 2 ta fan va har biri uchun papka tanlash kerak")
+    if (selected.length < 2) {
+      toast.error("Kamida 2 ta fan tanlash kerak")
       return
     }
-    setStarting(true)
+    const missing = selected.find(s => s.folderIds.length === 0)
+    if (missing) {
+      toast.error(`"${SUBJECTS[missing.id]?.name}" uchun papka tanlanmagan`)
+      return
+    }
+
     try {
-      const { data } = await streamJsonFetch<any>('/api/personal-tests/ai-free', {
+      toast.info("Jarayon yuborilmoqda...")
+      const { data } = await api.post('/api/personal-tests/ai-free', {
         subjects: selected.map(s => ({
           id: s.id,
           folderIds: s.folderIds,
@@ -85,19 +92,12 @@ export default function AiFreeSetupPage() {
         })),
       })
 
-      navigate(`/personal-tests/${data.testId}/run`, {
-        state: {
-          testId: data.testId,
-          subjectId: data.subjectId,
-          subjectName: data.subjectName,
-          totalQuestions: data.totalQuestions,
-          durationSeconds: data.durationSeconds,
-          questions: data.questions,
-        },
-      })
+      if (data.testId) {
+        startJob(data.testId, 'test_generation', 'AI Erkin Test')
+        navigate('/testlar/ai', { replace: true })
+      }
     } catch (e: any) {
-      toast.error(e.response?.data?.error || "Test yaratishda xato")
-      setStarting(false)
+      toast.error(e?.response?.data?.error || "Xatolik yuz berdi")
     }
   }
 
@@ -258,7 +258,7 @@ export default function AiFreeSetupPage() {
         {/* Boshlash tugmasi */}
         <button
           onClick={startTest}
-          disabled={!isReady || starting}
+          disabled={!isReady}
           style={{
             width: '100%',
             background: isReady ? 'linear-gradient(135deg, var(--acc), var(--acc-l))' : 'var(--s2)',
@@ -266,13 +266,10 @@ export default function AiFreeSetupPage() {
             border: 'none', borderRadius: 14,
             padding: '15px 18px',
             fontSize: 14, fontWeight: 800,
-            cursor: isReady && !starting ? 'pointer' : 'default',
-            opacity: starting ? 0.6 : 1,
+            cursor: isReady ? 'pointer' : 'default',
           }}
         >
-          {starting ? '⏳ Yaratilmoqda...' :
-            isReady ? `🚀 ${totalQuestions} ta savolli testni boshlash` :
-            'Kamida 2 ta fan tanlang'}
+          {isReady ? `🚀 ${totalQuestions} ta savolli testni boshlash` : 'Kamida 2 ta fan tanlang'}
         </button>
 
         <div style={{ height: 30 }} />

@@ -106,151 +106,59 @@ function _serializeUser(user) {
   };
 }
 
-// ─── POST /api/auth/register ──────────────────────────────────────────────
-// Body: { identifier: "email@... | +998...", password, name }
-// YOKI: { email, phone, password, name }
-router.post('/register', authLimiter, async (req, res, next) => {
+// ─── LENGACY ROUTES REMOVED ────────────────────────────────────────────────
+// register and login with password were removed for Google-only auth.
+
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'dummy');
+
+// ─── POST /api/auth/google ──────────────────────────────────────────────────
+router.post('/google', authLimiter, async (req, res, next) => {
   try {
-    const { identifier, email: rawEmail, phone: rawPhone, password, name } = req.body || {};
+    const { token } = req.body || {};
+    if (!token) return res.status(400).json({ error: 'Google token kerak' });
 
-    if (!password || password.length < 8) {
-      return res.status(400).json({ error: 'Parol kamida 8 belgi bo\'lsin' });
-    }
-    if (!name || String(name).trim().length < 2) {
-      return res.status(400).json({ error: 'Ism kerak (kamida 2 belgi)' });
-    }
-
-    // Identifier'ni yig'amiz: identifier kiritilgan bo'lsa o'sha, aks holda email/phone
-    let email = null;
-    let phone = null;
-
-    if (identifier) {
-      const parsed = parseIdentifier(identifier);
-      if (parsed.type === 'email' && parsed.value) email = parsed.value;
-      else if (parsed.type === 'phone' && parsed.value) phone = parsed.value;
-      else {
-        return res.status(400).json({ error: 'Email yoki telefon nomer yaroqsiz' });
-      }
-    } else {
-      if (rawEmail) {
-        if (!isEmail(rawEmail)) return res.status(400).json({ error: 'Email yaroqsiz' });
-        email = String(rawEmail).toLowerCase().trim();
-      }
-      if (rawPhone) {
-        const norm = normalizePhone(rawPhone);
-        if (!norm) return res.status(400).json({ error: 'Telefon nomer yaroqsiz' });
-        phone = norm;
-      }
-    }
-
-    if (!email && !phone) {
-      return res.status(400).json({ error: 'Email yoki telefon nomer kerak' });
-    }
-
-    // Mavjudligini tekshirish
-    const orChecks = [];
-    if (email) orChecks.push({ email });
-    if (phone) orChecks.push({ phone });
-    if (orChecks.length > 0) {
-      const existing = await User.findOne({ $or: orChecks });
-      if (existing) {
-        if (email && existing.email === email) {
-          return res.status(409).json({ error: 'Bu email allaqachon ro\'yxatdan o\'tgan' });
-        }
-        if (phone && existing.phone === phone) {
-          return res.status(409).json({ error: 'Bu telefon nomer allaqachon ro\'yxatdan o\'tgan' });
-        }
-        return res.status(409).json({ error: 'Bunday foydalanuvchi allaqachon mavjud' });
-      }
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    const cleanName = String(name).trim();
-
-    const userData = {
-      passwordHash,
-      displayName: cleanName,
-      firstName:   cleanName,
-    };
-    if (email) userData.email = email;
-    if (phone) userData.phone = phone;
-
-    const user = await User.create(userData);
-
-    const tokens = generateTokens(user._id);
-    logger.info(`User registered: ${email || phone}`);
-
-    res.json({
-      ...tokens,
-      user: { ..._serializeUser(user), isNew: true },
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
-  } catch (err) {
-    if (err.name === 'ValidationError') {
-      const messages = Object.values(err.errors).map(e => e.message).join(', ');
-      return res.status(400).json({ error: messages });
-    }
-    if (err.code === 11000) {
-      let msg = 'Bu ma\'lumot allaqachon mavjud';
-      if (err.keyPattern) {
-        if (err.keyPattern.email) msg = 'Bu email allaqachon ro\'yxatdan o\'tgan';
-        else if (err.keyPattern.phone) msg = 'Bu telefon nomer allaqachon ro\'yxatdan o\'tgan';
-      }
-      return res.status(409).json({ error: msg });
-    }
-    next(err);
-  }
-});
+    const payload = ticket.getPayload();
+    const email = payload.email.toLowerCase().trim();
+    const firstName = payload.given_name || 'Foydalanuvchi';
+    const lastName = payload.family_name || '';
+    const photoUrl = payload.picture || '';
 
-// ─── POST /api/auth/login ──────────────────────────────────────────────────
-// Body: { identifier, password }
-// YOKI eski: { email, password }
-router.post('/login', authLimiter, async (req, res, next) => {
-  try {
-    const { identifier, email: rawEmail, phone: rawPhone, password } = req.body || {};
+    let user = await User.findOne({ email });
 
-    if (!password) {
-      return res.status(400).json({ error: 'Parol kerak' });
-    }
-
-    // Identifier'ni aniqlash
-    let lookup = null;
-    if (identifier) {
-      const parsed = parseIdentifier(identifier);
-      if (parsed.type === 'email' && parsed.value) lookup = { email: parsed.value };
-      else if (parsed.type === 'phone' && parsed.value) lookup = { phone: parsed.value };
-      else {
-        return res.status(400).json({ error: 'Email yoki telefon nomer yaroqsiz' });
-      }
-    } else if (rawEmail) {
-      if (!isEmail(rawEmail)) return res.status(400).json({ error: 'Email yaroqsiz' });
-      lookup = { email: String(rawEmail).toLowerCase().trim() };
-    } else if (rawPhone) {
-      const norm = normalizePhone(rawPhone);
-      if (!norm) return res.status(400).json({ error: 'Telefon nomer yaroqsiz' });
-      lookup = { phone: norm };
+    if (!user) {
+      // Yangi foydalanuvchi ro'yxatdan o'tmoqda
+      user = await User.create({
+        email,
+        firstName,
+        lastName,
+        displayName: `${firstName} ${lastName}`.trim(),
+        photoUrl,
+        passwordHash: '', // Parol yo'q
+      });
+      logger.info(`User registered via Google: ${email}`);
     } else {
-      return res.status(400).json({ error: 'Email yoki telefon nomer kerak' });
-    }
-
-    const user = await User.findOne(lookup);
-    if (!user || !user.passwordHash) {
-      return res.status(401).json({ error: 'Login yoki parol noto\'g\'ri' });
-    }
-
-    const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) {
-      return res.status(401).json({ error: 'Login yoki parol noto\'g\'ri' });
+      // Agar rasm bo'lmasa, Google rasmini qo'yib qo'yamiz
+      if (!user.photoUrl && photoUrl) {
+        user.photoUrl = photoUrl;
+        await user.save();
+      }
+      logger.info(`User logged in via Google: ${email}`);
     }
 
     const tokens = generateTokens(user._id);
-    logger.info(`User logged in: ${user.email || user.phone}`);
 
     res.json({
       ...tokens,
       user: _serializeUser(user),
     });
   } catch (err) {
-    next(err);
+    logger.error('Google Auth xatosi: ' + err.message);
+    res.status(401).json({ error: 'Google autentifikatsiyasida xatolik' });
   }
 });
 
@@ -305,24 +213,7 @@ router.get('/me', authMiddleware, async (req, res, next) => {
 });
 
 // ─── POST /api/auth/change-password ───────────────────────────────────────
-router.post('/change-password', authMiddleware, async (req, res, next) => {
-  try {
-    const { oldPassword, newPassword } = req.body || {};
-    if (!newPassword || newPassword.length < 8) {
-      return res.status(400).json({ error: 'Yangi parol kamida 8 belgi' });
-    }
-    if (!oldPassword) return res.status(400).json({ error: 'Eski parol kerak' });
-
-    const ok = await bcrypt.compare(oldPassword, req.user.passwordHash);
-    if (!ok) return res.status(401).json({ error: 'Eski parol noto\'g\'ri' });
-
-    req.user.passwordHash = await bcrypt.hash(newPassword, 10);
-    await req.user.save();
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-});
+// Legacy password route removed
 
 // ─── POST /api/auth/add-identifier ────────────────────────────────────────
 // Mavjud akkountga email yoki telefon qo'shish (faqat birini yo'qsa)

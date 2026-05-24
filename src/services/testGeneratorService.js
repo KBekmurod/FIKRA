@@ -24,6 +24,22 @@ function _deepseek() {
   return _ds;
 }
 
+// Timeout helper for AI calls
+async function _safeDeepseekCall(prompt, maxTokens, temperature) {
+  const timeoutPromise = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error("AI server javob berishda kechikdi (Timeout). Jarayon bekor qilindi.")), 170000)
+  );
+  return Promise.race([
+    _deepseek().chat.completions.create({
+      model: 'deepseek-chat',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: maxTokens,
+      temperature,
+    }),
+    timeoutPromise
+  ]);
+}
+
 // ─── Nechta savol yaratish mumkinligini taxminlash ───────────────────────────
 // Har taxminan 500 belgi uchun 1 ta savol
 // Min: 3, Max: 20
@@ -243,48 +259,49 @@ async function generateForFolder(userId, { folderId, opt = 'standard' }) {
 
   const subjectName = SUBJECT_META[folder.subjectId]?.name || folder.subjectId;
 
-  // Materiallarni birlashtirish (45,000 belgidan oshmasligi kerak - ~15k token)
+  // Materiallarni birlashtirish va Chunking (Silent Truncation yechimi)
   let combinedContent = materials.map(m => m.content).join('\n\n---\n\n');
-  if (combinedContent.length > 45000) {
-    combinedContent = combinedContent.slice(-45000); // Oxirgi eng yangi qismini olamiz
-  }
+  const MAX_CHUNK_LENGTH = 35000;
+  const MAX_QUESTIONS_PER_BATCH = 10;
 
-  // AI generatsiya (Multi-step response if count > 10)
+  const chunksByText = Math.ceil(combinedContent.length / MAX_CHUNK_LENGTH) || 1;
+  const chunksByQuestions = Math.ceil(standardCount / MAX_QUESTIONS_PER_BATCH) || 1;
+  const actualBatches = Math.min(Math.max(chunksByText, chunksByQuestions), 10);
+  
+  const chunkSize = Math.ceil(combinedContent.length / actualBatches);
+
+  // AI generatsiya (Multi-step map-reduce)
   let questions = [];
   try {
-    const BATCH_SIZE = 10;
-    const numBatches = Math.ceil(standardCount / BATCH_SIZE);
-    
-    // We will append previously generated questions' topics to avoid duplicates
     let generatedTopics = [];
 
-    for (let i = 0; i < numBatches; i++) {
-      const batchCount = Math.min(BATCH_SIZE, standardCount - i * BATCH_SIZE);
-      
+    for (let i = 0; i < actualBatches; i++) {
+      const questionsToGenerate = (i === actualBatches - 1) 
+        ? standardCount - questions.length 
+        : Math.floor(standardCount / actualBatches);
+        
+      if (questionsToGenerate <= 0) continue;
+
+      const chunkContent = combinedContent.slice(i * chunkSize, (i + 1) * chunkSize);
+
       // Add context about already generated questions to avoid duplication
       let previousContext = '';
       if (generatedTopics.length > 0) {
-        previousContext = `\n\nDIQQAT: Sen oldingi so'rovlarda quyidagi mavzularda savollar tuzding:\n- ${generatedTopics.join('\n- ')}\nIltimos, endi faqat YANGI mavzular, tushunchalar yoki materialning boshqa qismlaridan savol tuz. Eski savollarni umuman takrorlama.`;
+        previousContext = `\n\nDIQQAT: Sen oldingi so'rovlarda quyidagi mavzularda savollar tuzding:\n- ${generatedTopics.slice(-15).join('\n- ')}\nIltimos, endi faqat YANGI mavzular, tushunchalar yoki materialning boshqa qismlaridan savol tuz. Eski savollarni umuman takrorlama.`;
       }
 
-      const prompt = _buildPrompt(subjectName, combinedContent, batchCount, wasAiAdjusted, folder.subjectId) + previousContext;
+      const prompt = _buildPrompt(subjectName, chunkContent, questionsToGenerate, wasAiAdjusted, folder.subjectId) + previousContext;
       
-      const res = await _deepseek().chat.completions.create({
-        model: 'deepseek-chat',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 6000,
-        temperature: 0.7, // Slightly higher temp for diversity across batches
-      });
+      const res = await _safeDeepseekCall(prompt, 6000, 0.5);
       
       const batchQuestions = _parseAiResponse(res.choices[0].message.content);
       questions = questions.concat(batchQuestions);
       
-      // Update topics for the next batch
       generatedTopics = generatedTopics.concat(batchQuestions.map(q => q.topic).filter(Boolean));
     }
     
-    // Re-index all questions
-    questions = questions.map((q, idx) => ({ ...q, idx }));
+    // Exact count and re-index
+    questions = questions.slice(0, standardCount).map((q, idx) => ({ ...q, idx }));
 
   } catch (err) {
     folder.testStatus = 'generation_failed';
@@ -374,12 +391,7 @@ async function generateFlashcardsForFolder(userId, folderId) {
 
   try {
     const prompt = _buildFlashcardPrompt(subjectName, combinedContent, count, folder.subjectId);
-    const res = await _deepseek().chat.completions.create({
-      model: 'deepseek-chat',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 3000,
-      temperature: 0.5,
-    });
+    const res = await _safeDeepseekCall(prompt, 3000, 0.5);
 
     let clean = res.choices[0].message.content.trim();
     clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
@@ -442,12 +454,7 @@ async function generateFromMaterials(userId, { subjectId, materialIds, count }) 
 
   let aiResponse;
   try {
-    const res = await _deepseek().chat.completions.create({
-      model: 'deepseek-chat',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 6000,
-      temperature: 0.4,
-    });
+    const res = await _safeDeepseekCall(prompt, 6000, 0.4);
     aiResponse = res.choices[0].message.content;
   } catch (err) {
     logger.error('DeepSeek API error (testGen):', err.message);
@@ -533,12 +540,7 @@ FAQAT quyidagi JSON formatda javob ber:
 
   let aiResponse;
   try {
-    const res = await _deepseek().chat.completions.create({
-      model: 'deepseek-chat',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 3000,
-      temperature: 0.5,
-    });
+    const res = await _safeDeepseekCall(prompt, 3000, 0.5);
     aiResponse = res.choices[0].message.content;
   } catch (err) {
     throw new Error('AI xizmati bilan bog\'lanishda xatolik.');

@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAppStore, useAiStore } from '../store'
-import { useEntityStore } from '../store/entityStore'
 import { aiApi, streamChat } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import SubscriptionModal from '../components/SubscriptionModal'
@@ -63,13 +62,13 @@ function TabButton({ active, onClick, icon, label }: any) {
 function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
   const { user, refreshUser, setAuthModalOpen } = useAppStore()
   const { chatSessionId: sessionId, chatMessages: messages, chatInput: input, chatSending: sending, setChatState } = useAiStore()
-  const { triggerEditText } = useEntityStore()
   
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [sessions, setSessions] = useState<any[]>([])
   
   const { toast } = useToast()
   const msgsRef = useRef<HTMLDivElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // Fetch sessions on mount
   useEffect(() => {
@@ -117,14 +116,33 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
     setShowHistoryModal(false)
   }
 
+  const abortChat = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+    setChatState({ chatSending: false })
+    toast("Suhbat to'xtatildi", 'ok')
+  }
+
   const send = async () => {
     if (!user) return setAuthModalOpen(true)
     const text = input.trim()
     if (!text || sending) return
     setChatState({ chatInput: '', chatMessages: [...messages, { role: 'user', content: text }, { role: 'assistant', content: '' }], chatSending: true })
-    triggerEditText()
+
+    abortControllerRef.current = new AbortController()
 
     let full = ''
+    
+    // Yuborilgan xabar uchun 3 daqiqalik qat'iy timeout (180,000 ms)
+    const timeoutId = setTimeout(() => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        toast("Kutish vaqti tugadi (Timeout)", "err")
+      }
+    }, 180000)
+
     await streamChat(
       text,
       sessionId,
@@ -136,11 +154,15 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
         if (!sessionId) setChatState({ chatSessionId: newId })
       },
       () => {
+        clearTimeout(timeoutId)
+        abortControllerRef.current = null
         setChatState({ chatSending: false })
         refreshUser()
         fetchSessions() // Update history titles
       },
       (err) => {
+        clearTimeout(timeoutId)
+        abortControllerRef.current = null
         setChatState({ chatSending: false, chatMessages: [...messages, { role: 'user', content: text }] })
         if (err?.code === 'DAILY_LIMIT_REACHED') {
           toast('Bugungi limit tugadi', 'err'); onSubOpen()
@@ -149,7 +171,8 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
         } else {
           toast(err?.error || 'Xatolik', 'err')
         }
-      }
+      },
+      abortControllerRef.current.signal
     )
   }
 
@@ -321,14 +344,25 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
               }
             }}
           />
-          <button
-            disabled={sending || !input.trim()}
-            onClick={send}
-            className="btn btn-primary"
-            style={{ width: 44, height: 44, padding: 0, flexShrink: 0 }}
-          >
-            {sending ? <span className="spin" style={{ width: 16, height: 16, borderWidth: 2 }} /> : '→'}
-          </button>
+          {sending ? (
+            <button
+              onClick={abortChat}
+              className="btn"
+              style={{ width: 44, height: 44, padding: 0, flexShrink: 0, background: 'var(--r)', color: 'white', border: 'none', borderRadius: '12px' }}
+              title="To'xtatish"
+            >
+              ⏹
+            </button>
+          ) : (
+            <button
+              disabled={!input.trim()}
+              onClick={send}
+              className="btn btn-primary"
+              style={{ width: 44, height: 44, padding: 0, flexShrink: 0 }}
+            >
+              →
+            </button>
+          )}
         </div>
       )}
     </div>

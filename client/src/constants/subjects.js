@@ -1,6 +1,6 @@
 // Frontend SUBJECT_META — backend examService.js bilan moslashtirilgan
 // To'liq DTM fanlari ro'yxati (18 ta fan)
-export const SUBJECTS = {
+export var SUBJECTS = {
     // Majburiy fanlar (3)
     uztil: { id: 'uztil', name: 'Ona tili', icon: '📖', block: 'majburiy', weight: 1.1 },
     math: { id: 'math', name: 'Matematika', icon: '🔢', block: 'majburiy', weight: 1.1 },
@@ -23,10 +23,10 @@ export const SUBJECTS = {
     // Boshqalar (DTM da bor)
     rus: { id: 'rus', name: 'Rus tili', icon: '🇷🇺', block: 'mutaxassislik', category: 'boshqa', weight: 2.1 },
     inform: { id: 'inform', name: 'Informatika', icon: '💻', block: 'mutaxassislik', category: 'boshqa', weight: 3.1 },
-    iqtisod: { id: 'iqtisod', name: 'Iqtisodiyot', icon: '📊', block: 'mutaxassislik', category: 'boshqa', weight: 2.1 },
+    iqtisod: { id: 'iqtisod', name: 'Iqtisodiyot', icon: '📊', block: 'mutaxassislik', category: 'boshqa', weight: 2.1 }
 };
-export const COMPULSORY_IDS = ['uztil', 'math', 'tarix'];
-export const SPEC_IDS = [
+export var COMPULSORY_IDS = ['uztil', 'math', 'tarix'];
+export var SPEC_IDS = [
     // Aniq va tabiiy
     'fizika', 'kimyo', 'bio', 'geo',
     // Gumanitar
@@ -39,11 +39,11 @@ export const SPEC_IDS = [
     'math', 'tarix',
 ];
 // Dual-context fanlar (majburiy va mutaxassislik ikkalasida bo'la oladi)
-export const DUAL_CONTEXT_SUBJECTS = new Set(['math', 'tarix']);
+export var DUAL_CONTEXT_SUBJECTS = new Set(['math', 'tarix']);
 // Faqat majburiy
-export const ONLY_COMPULSORY_SUBJECTS = new Set(['uztil']);
+export var ONLY_COMPULSORY_SUBJECTS = new Set(['uztil']);
 // Faqat mutaxassislik
-export const ONLY_SPECIALTY_SUBJECTS = new Set([
+export var ONLY_SPECIALTY_SUBJECTS = new Set([
     'fizika', 'kimyo', 'bio', 'geo',
     'adab', 'huquq',
     'ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk',
@@ -60,17 +60,17 @@ export function getStandardCountByContext(context) {
     return context === 'majburiy' ? 10 : 30;
 }
 // Mutaxassislik fanlarini kategoriya bo'yicha guruhlash
-export const SPEC_BY_CATEGORY = {
+export var SPEC_BY_CATEGORY = {
     aniq_tabiiy: ['fizika', 'kimyo', 'bio', 'geo'],
     gumanitar: ['adab', 'huquq'],
     chet_tili: ['ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk'],
-    boshqa: ['rus', 'inform', 'iqtisod'],
+    boshqa: ['rus', 'inform', 'iqtisod']
 };
-export const SPEC_CATEGORY_NAMES = {
+export var SPEC_CATEGORY_NAMES = {
     aniq_tabiiy: 'Aniq va tabiiy fanlar',
     gumanitar: 'Gumanitar fanlar',
     chet_tili: 'Chet tillari',
-    boshqa: 'Boshqalar',
+    boshqa: 'Boshqalar'
 };
 export function getSubject(id) {
     return SUBJECTS[id] || null;
@@ -79,7 +79,7 @@ export function getSubject(id) {
 // Majburiy fan papkasi: 10 ta
 // Mutaxassislik fan papkasi: 30 ta
 export function getStandardTestCount(subjectId) {
-    const subj = getSubject(subjectId);
+    var subj = getSubject(subjectId);
     if (!subj)
         return 10;
     return subj.block === 'majburiy' ? 10 : 30;
@@ -89,17 +89,17 @@ export function getMinCharsRequired(subjectId) {
     return getStandardTestCount(subjectId) * 500;
 }
 // Plan badge'lari
-export const PLAN_BADGES = {
+export var PLAN_BADGES = {
     free: { name: 'Free', color: '#9ca3af', icon: '🆓' },
     basic: { name: 'Basic', color: '#3b82f6', icon: '⭐' },
     pro: { name: 'Pro', color: '#a855f7', icon: '💎' },
-    vip: { name: 'VIP', color: '#fbbf24', icon: '👑' },
+    vip: { name: 'VIP', color: '#fbbf24', icon: '👑' }
 };
 // Daraja rang/icon — Delta (v1-3) → Beta (v4-7) → Alfa (v8-10)
-export const GRADE_META = {
+export var GRADE_META = {
     delta: { name: 'Delta', icon: 'δ', color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.12)' },
     beta: { name: 'Beta', icon: 'β', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.12)' },
-    alfa: { name: 'Alfa', icon: 'α', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.12)' },
+    alfa: { name: 'Alfa', icon: 'α', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.12)' }
 };
 export function versionToGrade(version) {
     if (version <= 3)
@@ -109,8 +109,8 @@ export function versionToGrade(version) {
     return 'alfa';
 }
 export function versionInGrade(version) {
-    const grade = versionToGrade(version);
-    const offset = grade === 'delta' ? 0 : grade === 'beta' ? 3 : 7;
+    var grade = versionToGrade(version);
+    var offset = grade === 'delta' ? 0 : grade === 'beta' ? 3 : 7;
     return version - offset;
 }
 export function formatChars(n) {
@@ -120,6 +120,6 @@ export function formatChars(n) {
 }
 export function formatBytes(kb) {
     if (kb < 1024)
-        return `${kb} KB`;
-    return `${(kb / 1024).toFixed(1)} MB`;
+        return kb + " KB";
+    return (kb / 1024).toFixed(1) + " MB";
 }

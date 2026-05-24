@@ -37,8 +37,8 @@ const userSchema = new mongoose.Schema({
     index: true,
   },
 
-  // Parol (majburiy — barcha foydalanuvchilar uchun)
-  passwordHash: { type: String, required: true },
+  // Parol (Google bilan kirganda shart emas)
+  passwordHash: { type: String, default: '' },
 
   // ─── Profil ma'lumotlari ──────────────────────────────────────────────────
   firstName: { type: String, default: '' },

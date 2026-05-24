@@ -14,6 +14,7 @@ interface AppState {
   setAuthModalOpen: (open: boolean) => void
   bootstrap: () => Promise<void>
   login: (identifier: string, password: string) => Promise<void>
+  googleLogin: (token: string) => Promise<void>
   register: (identifier: string, password: string, name: string) => Promise<void>
 
   refreshUser: () => Promise<void>
@@ -52,6 +53,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const { data } = await authApi.login(identifier, password)
+      setAuth(data.accessToken, data.refreshToken)
+      set({ user: data.user, loading: false, initialized: true })
+    } catch (err) {
+      set({ loading: false })
+      throw err
+    }
+  },
+
+  // ─── Google orqali kirish/ro'yxatdan o'tish ───────────────────────────
+  googleLogin: async (token) => {
+    set({ loading: true, error: null })
+    try {
+      const { data } = await authApi.googleLogin(token)
       setAuth(data.accessToken, data.refreshToken)
       set({ user: data.user, loading: false, initialized: true })
     } catch (err) {

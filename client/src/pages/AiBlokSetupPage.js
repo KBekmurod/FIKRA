@@ -1,4 +1,46 @@
-import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+var __assign = (this && this.__assign) || Object.assign || function(t) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+        s = arguments[i];
+        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+            t[p] = s[p];
+    }
+    return t;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { folderApi, streamJsonFetch } from '../api/endpoints';
@@ -6,7 +48,7 @@ import { useToast } from '../components/Toast';
 import { useGoBack } from '../hooks/useGoBack';
 import { SUBJECTS } from '../constants/subjects';
 // Frontend yo'nalishlar — backend bilan moslashtirilgan
-const DIRECTIONS = [
+var DIRECTIONS = [
     { id: 'engineering', name: 'Muhandislik · Texnologiya', icon: '⚙️', spec: ['math', 'fizika'] },
     { id: 'medicine', name: "Tibbiyot · Q-xo'jaligi", icon: '🏥', spec: ['bio', 'kimyo'] },
     { id: 'international', name: 'Xalqaro · Turizm', icon: '🌍', spec: ['tarix', 'ingliz'] },
@@ -18,132 +60,226 @@ const DIRECTIONS = [
     { id: 'french_studies', name: 'Fransuz tili va madaniyati', icon: '🇫🇷', spec: ['fransuz', 'adab'] },
     { id: 'arabic_studies', name: 'Arab tili va sharqshunoslik', icon: '🕌', spec: ['arab', 'tarix'] },
 ];
-const COMPULSORY = ['uztil', 'math', 'tarix'];
+var COMPULSORY = ['uztil', 'math', 'tarix'];
 export default function AiBlokSetupPage() {
-    const navigate = useNavigate();
-    const goBack = useGoBack('/testlar/ai');
-    const toast = useToast();
-    const [selectedDir, setSelectedDir] = useState(null);
-    const [folders, setFolders] = useState({});
-    const [selectedFolders, setSelectedFolders] = useState({});
-    const [loading, setLoading] = useState(false);
-    const [starting, setStarting] = useState(false);
-    const dir = DIRECTIONS.find(d => d.id === selectedDir);
-    const allSubjects = dir ? [...COMPULSORY, ...dir.spec] : [];
+    var _this = this;
+    var navigate = useNavigate();
+    var goBack = useGoBack('/testlar/ai');
+    var toast = useToast();
+    var _a = useState(null), selectedDir = _a[0], setSelectedDir = _a[1];
+    var _b = useState({}), folders = _b[0], setFolders = _b[1];
+    var _c = useState({}), selectedFolders = _c[0], setSelectedFolders = _c[1];
+    var _d = useState(false), loading = _d[0], setLoading = _d[1];
+    var _e = useState(false), starting = _e[0], setStarting = _e[1];
+    var dir = DIRECTIONS.find(function (d) { return d.id === selectedDir; });
+    var allSubjects = dir ? COMPULSORY.concat(dir.spec) : [];
     // Yo'nalish tanlanganda har fan uchun papkalarni yuklash
-    useEffect(() => {
+    useEffect(function () {
         if (!dir)
             return;
         setLoading(true);
-        const subjectsToLoad = [...COMPULSORY, ...dir.spec];
-        Promise.all(subjectsToLoad.map(async (sid) => {
-            try {
-                // Majburiy fanlar uchun context=majburiy, mutaxassislik uchun context=mutaxassislik
-                const context = COMPULSORY.includes(sid) ? 'majburiy' : 'mutaxassislik';
-                // math/tarix dual-context — agar dir.spec'da bo'lsa mutaxassislik
-                const isInSpec = dir.spec.includes(sid);
-                const finalContext = isInSpec ? 'mutaxassislik' : 'majburiy';
-                const { data } = await folderApi.bySubject(sid, finalContext);
-                return [sid, data.folders];
-            }
-            catch {
-                return [sid, []];
-            }
-        })).then(results => {
-            const map = {};
-            results.forEach(([sid, list]) => { map[sid] = list; });
+        var subjectsToLoad = COMPULSORY.concat(dir.spec);
+        Promise.all(subjectsToLoad.map(function (sid) { return __awaiter(_this, void 0, void 0, function () {
+            var context, isInSpec, finalContext, data, _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        _b.trys.push([0, 2, , 3]);
+                        context = COMPULSORY.includes(sid) ? 'majburiy' : 'mutaxassislik';
+                        isInSpec = dir.spec.includes(sid);
+                        finalContext = isInSpec ? 'mutaxassislik' : 'majburiy';
+                        return [4 /*yield*/, folderApi.bySubject(sid, finalContext)];
+                    case 1:
+                        data = (_b.sent()).data;
+                        return [2 /*return*/, [sid, data.folders]];
+                    case 2:
+                        _a = _b.sent();
+                        return [2 /*return*/, [sid, []]];
+                    case 3: return [2 /*return*/];
+                }
+            });
+        }); })).then(function (results) {
+            var map = {};
+            results.forEach(function (_a) {
+                var sid = _a[0], list = _a[1];
+                map[sid] = list;
+            });
             setFolders(map);
             setLoading(false);
         });
     }, [selectedDir]);
-    const toggleFolder = (subjectId, folderId) => {
-        setSelectedFolders(prev => {
-            const curr = prev[subjectId] || [];
-            const next = curr.includes(folderId)
-                ? curr.filter(id => id !== folderId)
-                : [...curr, folderId];
-            return { ...prev, [subjectId]: next };
+    var toggleFolder = function (subjectId, folderId) {
+        setSelectedFolders(function (prev) {
+            var _a;
+            var curr = prev[subjectId] || [];
+            var next = curr.includes(folderId)
+                ? curr.filter(function (id) { return id !== folderId; })
+                : curr.concat([folderId]);
+            return __assign({}, prev, (_a = {}, _a[subjectId] = next, _a));
         });
     };
-    const allReady = dir && allSubjects.every(sid => (selectedFolders[sid] || []).length > 0);
-    const startTest = async () => {
-        if (!dir || !allReady) {
-            toast.error("Barcha fanlar uchun papka tanlash kerak");
-            return;
-        }
-        setStarting(true);
-        try {
-            const subjectsPayload = {};
-            allSubjects.forEach(sid => {
-                subjectsPayload[sid] = { folderIds: selectedFolders[sid] || [] };
-            });
-            const { data } = await streamJsonFetch('/api/personal-tests/ai-blok', {
-                direction: dir.id,
-                subjects: subjectsPayload,
-            });
-            navigate(`/personal-tests/${data.testId}/run`, {
-                state: {
-                    testId: data.testId,
-                    subjectId: data.subjectId,
-                    subjectName: data.subjectName,
-                    totalQuestions: data.totalQuestions,
-                    durationSeconds: data.durationSeconds,
-                    questions: data.questions,
-                },
-            });
-        }
-        catch (e) {
-            toast.error(e.response?.data?.error || "Test yaratishda xato");
-            setStarting(false);
-        }
-    };
-    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: "header", children: [_jsx("button", { onClick: goBack, style: {
-                            background: 'none', border: 'none', color: 'var(--txt-2)',
-                            fontSize: 22, cursor: 'pointer', padding: 0, marginRight: 8,
-                        }, children: "\u2190" }), _jsx("div", { className: "header-logo", style: { fontSize: 15 }, children: "\uD83D\uDCE6 AI maxsus blok" })] }), _jsxs("div", { style: { padding: '6px 20px 0' }, children: [_jsx("div", { style: { fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 8 }, children: "1. YO'NALISH TANLANG" }), _jsx("div", { style: { display: 'grid', gap: 6, marginBottom: 16 }, children: DIRECTIONS.map(d => (_jsxs("button", { onClick: () => { setSelectedDir(d.id); setSelectedFolders({}); }, style: {
-                                background: selectedDir === d.id ? 'rgba(123,104,238,0.15)' : 'var(--s1)',
-                                border: `1.5px solid ${selectedDir === d.id ? 'var(--acc)' : 'var(--f)'}`,
-                                borderRadius: 12, padding: '10px 14px',
-                                display: 'flex', alignItems: 'center', gap: 10,
-                                cursor: 'pointer', color: 'var(--txt)', textAlign: 'left',
-                            }, children: [_jsx("span", { style: { fontSize: 20 }, children: d.icon }), _jsxs("div", { style: { flex: 1 }, children: [_jsx("div", { style: { fontWeight: 700, fontSize: 13 }, children: d.name }), _jsxs("div", { style: { fontSize: 10, color: 'var(--txt-3)', marginTop: 1 }, children: ["Spec: ", d.spec.map(s => SUBJECTS[s]?.name).join(' + ')] })] }), selectedDir === d.id && _jsx("span", { style: { color: 'var(--acc-l)' }, children: "\u2713" })] }, d.id))) }), dir && (_jsxs(_Fragment, { children: [_jsx("div", { style: { fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 8 }, children: "2. HAR FAN UCHUN PAPKA TANLANG" }), loading ? (_jsx("div", { className: "skel-card" })) : (_jsx("div", { style: { display: 'grid', gap: 10, marginBottom: 16 }, children: allSubjects.map(sid => {
-                                    const subj = SUBJECTS[sid];
-                                    const list = folders[sid] || [];
-                                    const isCompulsory = COMPULSORY.includes(sid);
-                                    const count = isCompulsory ? 10 : 30;
-                                    const selected = selectedFolders[sid] || [];
-                                    return (_jsxs("div", { style: {
-                                            background: 'var(--s1)',
-                                            border: `1px solid ${selected.length > 0 ? 'rgba(0,212,170,0.3)' : 'var(--f)'}`,
-                                            borderRadius: 12, padding: 12,
-                                        }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }, children: [_jsx("span", { style: { fontSize: 18 }, children: subj?.icon }), _jsxs("div", { style: { flex: 1, fontWeight: 700, fontSize: 13 }, children: [subj?.name, _jsxs("span", { style: { fontSize: 10, color: 'var(--txt-3)', fontWeight: 500, marginLeft: 6 }, children: ["\u00B7 ", count, " savol \u00B7 ", isCompulsory ? 'majburiy' : 'mutaxassislik'] })] }), selected.length > 0 && (_jsxs("span", { style: { fontSize: 10, color: 'var(--g)', fontWeight: 700 }, children: [selected.length, " ta tanlandi"] }))] }), list.length === 0 ? (_jsx("div", { style: {
-                                                    fontSize: 11, color: 'var(--r)',
-                                                    padding: '8px 0', fontStyle: 'italic',
-                                                }, children: "\u26A0\uFE0F Papka yo'q \u2014 Omborga material yuklang" })) : (_jsx("div", { style: { display: 'grid', gap: 4 }, children: list.map(f => {
-                                                    const isSel = selected.includes(f._id);
-                                                    return (_jsxs("button", { onClick: () => toggleFolder(sid, f._id), style: {
-                                                            background: isSel ? 'rgba(0,212,170,0.1)' : 'var(--s2)',
-                                                            border: `1px solid ${isSel ? 'var(--g)' : 'var(--f)'}`,
-                                                            borderRadius: 8, padding: '7px 10px',
-                                                            display: 'flex', alignItems: 'center', gap: 8,
-                                                            cursor: 'pointer', color: 'var(--txt)',
-                                                            fontSize: 11, textAlign: 'left',
-                                                        }, children: [_jsx("span", { style: {
-                                                                    width: 16, height: 16, borderRadius: 4,
-                                                                    background: isSel ? 'var(--g)' : 'transparent',
-                                                                    border: `1.5px solid ${isSel ? 'var(--g)' : 'var(--txt-3)'}`,
-                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                    flexShrink: 0,
-                                                                }, children: isSel && _jsx("span", { style: { color: '#0a0a14', fontSize: 11, fontWeight: 800 }, children: "\u2713" }) }), _jsx("span", { style: { flex: 1 }, children: f.title }), f.materialId && (_jsxs("span", { style: { color: 'var(--txt-3)', fontSize: 9 }, children: [f.materialId.charCount.toLocaleString(), " b."] }))] }, f._id));
-                                                }) }))] }, sid));
-                                }) })), _jsx("button", { onClick: startTest, disabled: !allReady || starting, style: {
-                                    width: '100%',
-                                    background: allReady ? 'linear-gradient(135deg, var(--acc), var(--acc-l))' : 'var(--s2)',
-                                    color: allReady ? 'white' : 'var(--txt-3)',
-                                    border: 'none', borderRadius: 14,
-                                    padding: '15px 18px',
-                                    fontSize: 14, fontWeight: 800,
-                                    cursor: allReady && !starting ? 'pointer' : 'default',
-                                    opacity: starting ? 0.6 : 1,
-                                }, children: starting ? '⏳ Yaratilmoqda... (30-90 sek)' : '🚀 90 ta savolli blok testni boshlash' })] })), _jsx("div", { style: { height: 30 } })] })] }));
+    var allReady = dir && allSubjects.every(function (sid) {
+        return (selectedFolders[sid] || []).length > 0;
+    });
+    var startTest = function () { return __awaiter(_this, void 0, void 0, function () {
+        var subjectsPayload_1, data, e_1;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    if (!dir || !allReady) {
+                        toast.error("Barcha fanlar uchun papka tanlash kerak");
+                        return [2 /*return*/];
+                    }
+                    setStarting(true);
+                    _a.label = 1;
+                case 1:
+                    _a.trys.push([1, 3, , 4]);
+                    subjectsPayload_1 = {};
+                    allSubjects.forEach(function (sid) {
+                        subjectsPayload_1[sid] = { folderIds: selectedFolders[sid] || [] };
+                    });
+                    return [4 /*yield*/, streamJsonFetch('/api/personal-tests/ai-blok', {
+                            direction: dir.id,
+                            subjects: subjectsPayload_1
+                        })];
+                case 2:
+                    data = (_a.sent()).data;
+                    navigate("/personal-tests/" + data.testId + "/run", {
+                        state: {
+                            testId: data.testId,
+                            subjectId: data.subjectId,
+                            subjectName: data.subjectName,
+                            totalQuestions: data.totalQuestions,
+                            durationSeconds: data.durationSeconds,
+                            questions: data.questions
+                        }
+                    });
+                    return [3 /*break*/, 4];
+                case 3:
+                    e_1 = _a.sent();
+                    toast.error(e_1.response ? .data ? .error || "Test yaratishda xato" :  : );
+                    setStarting(false);
+                    return [3 /*break*/, 4];
+                case 4: return [2 /*return*/];
+            }
+        });
+    }); };
+    return (<>
+      <div className="header">
+        <button onClick={goBack} style={{
+        background: 'none', border: 'none', color: 'var(--txt-2)',
+        fontSize: 22, cursor: 'pointer', padding: 0, marginRight: 8
+    }}>←</button>
+        <div className="header-logo" style={{ fontSize: 15 }}>📦 AI maxsus blok</div>
+      </div>
+
+      <div style={{ padding: '6px 20px 0' }}>
+        
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 8 }}>
+          1. YO'NALISH TANLANG
+        </div>
+        <div style={{ display: 'grid', gap: 6, marginBottom: 16 }}>
+          {DIRECTIONS.map(function (d) { return (<button key={d.id} onClick={function () { setSelectedDir(d.id); setSelectedFolders({}); }} style={{
+        background: selectedDir === d.id ? 'rgba(123,104,238,0.15)' : 'var(--s1)',
+        border: "1.5px solid " + (selectedDir === d.id ? 'var(--acc)' : 'var(--f)'),
+        borderRadius: 12, padding: '10px 14px',
+        display: 'flex', alignItems: 'center', gap: 10,
+        cursor: 'pointer', color: 'var(--txt)', textAlign: 'left'
+    }}>
+              <span style={{ fontSize: 20 }}>{d.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{d.name}</div>
+                <div style={{ fontSize: 10, color: 'var(--txt-3)', marginTop: 1 }}>
+                  Spec: {d.spec.map(function (s) { return SUBJECTS[s] ? .name : ; }).join(' + ')}
+                </div>
+              </div>
+              {selectedDir === d.id && <span style={{ color: 'var(--acc-l)' }}>✓</span>}
+            </button>); })}
+        </div>
+
+        
+        {dir && (<>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 8 }}>
+              2. HAR FAN UCHUN PAPKA TANLANG
+            </div>
+
+            {loading ? (<div className="skel-card"/>) : (<div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+                {allSubjects.map(function (sid) {
+        var subj = SUBJECTS[sid];
+        var list = folders[sid] || [];
+        var isCompulsory = COMPULSORY.includes(sid);
+        var count = isCompulsory ? 10 : 30;
+        var selected = selectedFolders[sid] || [];
+        return (<div key={sid} style={{
+            background: 'var(--s1)',
+            border: "1px solid " + (selected.length > 0 ? 'rgba(0,212,170,0.3)' : 'var(--f)'),
+            borderRadius: 12, padding: 12
+        }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontSize: 18 }}>{subj ? .icon : }</span>
+                        <div style={{ flex: 1, fontWeight: 700, fontSize: 13 }}>
+                          {subj ? .name : }
+                          <span style={{ fontSize: 10, color: 'var(--txt-3)', fontWeight: 500, marginLeft: 6 }}>
+                            · {count} savol · {isCompulsory ? 'majburiy' : 'mutaxassislik'}
+                          </span>
+                        </div>
+                        {selected.length > 0 && (<span style={{ fontSize: 10, color: 'var(--g)', fontWeight: 700 }}>
+                            {selected.length} ta tanlandi
+                          </span>)}
+                      </div>
+
+                      {list.length === 0 ? (<div style={{
+            fontSize: 11, color: 'var(--r)',
+            padding: '8px 0', fontStyle: 'italic'
+        }}>
+                          ⚠️ Papka yo'q — Omborga material yuklang
+                        </div>) : (<div style={{ display: 'grid', gap: 4 }}>
+                          {list.map(function (f) {
+            var isSel = selected.includes(f._id);
+            return (<button key={f._id} onClick={function () { return toggleFolder(sid, f._id); }} style={{
+                background: isSel ? 'rgba(0,212,170,0.1)' : 'var(--s2)',
+                border: "1px solid " + (isSel ? 'var(--g)' : 'var(--f)'),
+                borderRadius: 8, padding: '7px 10px',
+                display: 'flex', alignItems: 'center', gap: 8,
+                cursor: 'pointer', color: 'var(--txt)',
+                fontSize: 11, textAlign: 'left'
+            }}>
+                                <span style={{
+                width: 16, height: 16, borderRadius: 4,
+                background: isSel ? 'var(--g)' : 'transparent',
+                border: "1.5px solid " + (isSel ? 'var(--g)' : 'var(--txt-3)'),
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0
+            }}>
+                                  {isSel && <span style={{ color: '#0a0a14', fontSize: 11, fontWeight: 800 }}>✓</span>}
+                                </span>
+                                <span style={{ flex: 1 }}>{f.title}</span>
+                                {f.materialId && (<span style={{ color: 'var(--txt-3)', fontSize: 9 }}>
+                                    {f.materialId.charCount.toLocaleString()} b.
+                                  </span>)}
+                              </button>);
+        })}
+                        </div>)}
+                    </div>);
+    })}
+              </div>)}
+
+            
+            <button onClick={startTest} disabled={!allReady || starting} style={{
+        width: '100%',
+        background: allReady ? 'linear-gradient(135deg, var(--acc), var(--acc-l))' : 'var(--s2)',
+        color: allReady ? 'white' : 'var(--txt-3)',
+        border: 'none', borderRadius: 14,
+        padding: '15px 18px',
+        fontSize: 14, fontWeight: 800,
+        cursor: allReady && !starting ? 'pointer' : 'default',
+        opacity: starting ? 0.6 : 1
+    }}>
+              {starting ? '⏳ Yaratilmoqda... (30-90 sek)' : '🚀 90 ta savolli blok testni boshlash'}
+            </button>
+          </>)}
+
+        <div style={{ height: 30 }}/>
+      </div>
+    </>);
 }

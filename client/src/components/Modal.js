@@ -1,21 +1,29 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-export default function Modal({ open, onClose, title, children }) {
-    useEffect(() => {
+export default function Modal(_a) {
+    var open = _a.open, onClose = _a.onClose, title = _a.title, children = _a.children;
+    useEffect(function () {
         if (!open)
             return;
-        const onKey = (e) => { if (e.key === 'Escape')
+        var onKey = function (e) { if (e.key === 'Escape')
             onClose(); };
         document.addEventListener('keydown', onKey);
         document.body.style.overflow = 'hidden';
-        return () => {
+        return function () {
             document.removeEventListener('keydown', onKey);
             document.body.style.overflow = '';
         };
     }, [open, onClose]);
     if (!open)
         return null;
-    return createPortal(_jsx("div", { className: "modal-backdrop", onClick: (e) => { if (e.target === e.currentTarget)
-            onClose(); }, children: _jsxs("div", { className: "modal", children: [title && (_jsxs("div", { className: "modal-header", children: [_jsx("div", { className: "modal-title", children: title }), _jsx("button", { className: "modal-close", onClick: onClose, children: "\u00D7" })] })), _jsx("div", { className: "modal-body", children: children })] }) }), document.body);
+    return createPortal(<div className="modal-backdrop" onClick={function (e) { if (e.target === e.currentTarget)
+        onClose(); }}>
+      <div className="modal">
+        {title && (<div className="modal-header">
+            <div className="modal-title">{title}</div>
+            <button className="modal-close" onClick={onClose}>×</button>
+          </div>)}
+        <div className="modal-body">{children}</div>
+      </div>
+    </div>, document.body);
 }

@@ -1,6 +1,6 @@
 // client/src/utils/haptics.ts
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-let audioCtx = null;
+var AudioContext = window.AudioContext || window.webkitAudioContext;
+var audioCtx = null;
 function getAudioCtx() {
     if (!audioCtx) {
         audioCtx = new AudioContext();
@@ -9,15 +9,15 @@ function getAudioCtx() {
 }
 export function playSound(type) {
     try {
-        const ctx = getAudioCtx();
+        var ctx = getAudioCtx();
         if (ctx.state === 'suspended') {
             ctx.resume();
         }
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
         osc.connect(gain);
         gain.connect(ctx.destination);
-        const now = ctx.currentTime;
+        var now = ctx.currentTime;
         if (type === 'click' || type === 'swipe') {
             osc.type = 'sine';
             osc.frequency.setValueAtTime(600, now);

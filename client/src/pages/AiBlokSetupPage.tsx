@@ -4,6 +4,7 @@ import api from '../api/client'
 import { folderApi, streamJsonFetch } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import { useGoBack } from '../hooks/useGoBack'
+import { useJobStore } from '../store/jobStore'
 import { SUBJECTS, type SubjectId } from '../constants/subjects'
 
 // Frontend yo'nalishlar — backend bilan moslashtirilgan
@@ -81,6 +82,8 @@ export default function AiBlokSetupPage() {
     })
   }
 
+  const { startJob } = useJobStore()
+
   const allReady = dir && allSubjects.every(sid =>
     (selectedFolders[sid] || []).length > 0
   )
@@ -90,31 +93,25 @@ export default function AiBlokSetupPage() {
       toast.error("Barcha fanlar uchun papka tanlash kerak")
       return
     }
-    setStarting(true)
-    try {
-      const subjectsPayload: Record<string, { folderIds: string[] }> = {}
-      allSubjects.forEach(sid => {
-        subjectsPayload[sid] = { folderIds: selectedFolders[sid] || [] }
-      })
+    
+    const subjectsPayload: Record<string, { folderIds: string[] }> = {}
+    allSubjects.forEach(sid => {
+      subjectsPayload[sid] = { folderIds: selectedFolders[sid] || [] }
+    })
 
-      const { data } = await streamJsonFetch<any>('/api/personal-tests/ai-blok', {
+    try {
+      toast.info("Jarayon yuborilmoqda...")
+      const { data } = await api.post('/api/personal-tests/ai-blok', {
         direction: dir.id,
         subjects: subjectsPayload,
       })
 
-      navigate(`/personal-tests/${data.testId}/run`, {
-        state: {
-          testId: data.testId,
-          subjectId: data.subjectId,
-          subjectName: data.subjectName,
-          totalQuestions: data.totalQuestions,
-          durationSeconds: data.durationSeconds,
-          questions: data.questions,
-        },
-      })
+      if (data.testId) {
+        startJob(data.testId, 'test_generation', 'AI Blok Test')
+        navigate('/testlar/ai', { replace: true })
+      }
     } catch (e: any) {
-      toast.error(e.response?.data?.error || "Test yaratishda xato")
-      setStarting(false)
+      toast.error(e?.response?.data?.error || "Xatolik yuz berdi")
     }
   }
 
@@ -250,7 +247,7 @@ export default function AiBlokSetupPage() {
             {/* Boshlash tugmasi */}
             <button
               onClick={startTest}
-              disabled={!allReady || starting}
+              disabled={!allReady}
               style={{
                 width: '100%',
                 background: allReady ? 'linear-gradient(135deg, var(--acc), var(--acc-l))' : 'var(--s2)',
@@ -258,11 +255,10 @@ export default function AiBlokSetupPage() {
                 border: 'none', borderRadius: 14,
                 padding: '15px 18px',
                 fontSize: 14, fontWeight: 800,
-                cursor: allReady && !starting ? 'pointer' : 'default',
-                opacity: starting ? 0.6 : 1,
+                cursor: allReady ? 'pointer' : 'default',
               }}
             >
-              {starting ? '⏳ Yaratilmoqda... (30-90 sek)' : '🚀 90 ta savolli blok testni boshlash'}
+              🚀 90 ta savolli blok testni boshlash
             </button>
           </>
         )}

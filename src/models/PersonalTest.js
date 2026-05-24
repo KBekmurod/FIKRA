@@ -95,7 +95,7 @@ const personalTestSchema = new mongoose.Schema({
   // Sessiya holati
   status: {
     type: String,
-    enum: ['in_progress', 'completed', 'abandoned'],
+    enum: ['generating', 'failed', 'in_progress', 'completed', 'abandoned'],
     default: 'in_progress',
     index: true,
   },

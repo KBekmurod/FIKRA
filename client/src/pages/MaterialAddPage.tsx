@@ -4,7 +4,6 @@ import api from '../api/client'
 import { SUBJECTS, type Context } from '../constants/subjects'
 import { useToast } from '../components/Toast'
 import { useGoBack } from '../hooks/useGoBack'
-import { useEntityStore } from '../store/entityStore'
 
 type Tab = 'text' | 'ocr' | 'file'
 
@@ -13,7 +12,6 @@ export default function MaterialAddPage() {
   const { folderId } = useParams<{ folderId: string }>()
   const goBack = useGoBack(`/ombor/folder/${folderId}`)
   const toast = useToast()
-  const { triggerEatFile } = useEntityStore()
 
   const [folder, setFolder] = useState<any>(null)
   const [loadingFolder, setLoadingFolder] = useState(true)
@@ -87,7 +85,6 @@ export default function MaterialAddPage() {
 
   const submitOcr = async (file: File) => {
     setSaving(true)
-    triggerEatFile()
     try {
       const fd = new FormData()
       fd.append('image', file)
@@ -107,7 +104,6 @@ export default function MaterialAddPage() {
 
   const submitFile = async (file: File) => {
     setSaving(true)
-    triggerEatFile()
     try {
       const fd = new FormData()
       fd.append('file', file)

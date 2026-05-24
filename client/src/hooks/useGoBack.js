@@ -11,9 +11,10 @@ import { useCallback } from 'react';
  *   const goBack = useGoBack('/testlar')
  *   <button onClick={goBack}>←</button>
  */
-export function useGoBack(fallback = '/') {
-    const navigate = useNavigate();
-    return useCallback(() => {
+export function useGoBack(fallback) {
+    if (fallback === void 0) { fallback = '/'; }
+    var navigate = useNavigate();
+    return useCallback(function () {
         navigate(fallback);
     }, [navigate, fallback]);
 }

@@ -21,6 +21,10 @@ export const authApi = {
   login: (identifier: string, password: string) =>
     api.post<AuthResponse>('/api/auth/login', { identifier, password }),
 
+  // Google orqali kirish/ro'yxatdan o'tish
+  googleLogin: (token: string) =>
+    api.post<AuthResponse>('/api/auth/google', { token }),
+
   // Parol o'zgartirish
   changePassword: (oldPassword: string, newPassword: string) =>
     api.post<{ success: boolean }>('/api/auth/change-password', { oldPassword, newPassword }),
@@ -98,7 +102,8 @@ export async function streamChat(
   onChunk: (chunk: string) => void,
   onSessionId: (id: string) => void,
   onDone: () => void,
-  onError: (err: any) => void
+  onError: (err: any) => void,
+  signal?: AbortSignal
 ) {
   const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}')
   const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000'
@@ -109,7 +114,8 @@ export async function streamChat(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${auth.access || ''}`,
       },
-      body: JSON.stringify({ message, sessionId })
+      body: JSON.stringify({ message, sessionId }),
+      signal
     })
     if (!res.ok) { const err = await res.json().catch(() => ({})); onError(err); return }
     const newSessionId = res.headers.get('X-Session-Id')
@@ -131,52 +137,72 @@ export async function streamChat(
       }
     }
     onDone()
-  } catch (e) { onError(e) }
+  } catch (e: any) { 
+    if (e.name === 'AbortError') {
+      onDone() // Silently finish if aborted
+    } else {
+      onError(e) 
+    }
+  }
 }
 
 // ─── Utility for SSE JSON fetch (Timeout oldini olish uchun) ───────────────
-export async function streamJsonFetch<T>(url: string, body: any): Promise<{ data: T }> {
+export async function streamJsonFetch<T>(url: string, body: any, timeoutMs: number = 180000): Promise<{ data: T }> {
   const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}')
   const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000'
-  const res = await fetch(`${API_BASE}${url}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${auth.access || ''}`,
-    },
-    body: JSON.stringify(body)
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw { response: { data: err } }; // Axios kabi xato qaytarish
-  }
-  const reader = res.body!.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-  return new Promise((resolve, reject) => {
-    async function read() {
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n')
-          buffer = lines.pop() || ''
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue
-            const data = line.slice(6).trim()
-            if (data === '[DONE]') return // resolved before
-            try {
-              const parsed = JSON.parse(data)
-              if (parsed.error) reject({ response: { data: parsed } })
-              else resolve({ data: parsed })
-            } catch {}
-          }
-        }
-      } catch (e) { reject(e) }
+  
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const res = await fetch(`${API_BASE}${url}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${auth.access || ''}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw { response: { data: err } }; // Axios kabi xato qaytarish
     }
-    read()
-  })
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    return await new Promise((resolve, reject) => {
+      async function read() {
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || ''
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue
+              const data = line.slice(6).trim()
+              if (data === '[DONE]') return // resolved before
+              try {
+                const parsed = JSON.parse(data)
+                if (parsed.error) reject({ response: { data: parsed } })
+                else resolve({ data: parsed })
+              } catch {}
+            }
+          }
+        } catch (e) { reject(e) }
+      }
+      read()
+    })
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      throw { response: { data: { error: "Kechirasiz, jarayon juda cho'zilib ketdi (Timeout). Iltimos qayta urinib ko'ring." } } }
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 // ─── Subscription ──────────────────────────────────────────────────────────

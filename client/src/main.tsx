@@ -30,13 +30,17 @@ window.addEventListener('unhandledrejection', (e) => {
   console.error('Unhandled promise rejection:', e.reason)
 })
 
+import { GoogleOAuthProvider } from '@react-oauth/google'
+
 // Production'da StrictMode'ni olib tashlash
 const Root = (
-  <BrowserRouter>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </BrowserRouter>
+  <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || 'dummy'}>
+    <BrowserRouter>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </BrowserRouter>
+  </GoogleOAuthProvider>
 )
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
