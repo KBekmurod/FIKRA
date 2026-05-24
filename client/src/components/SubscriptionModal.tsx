@@ -61,16 +61,19 @@ export default function SubscriptionModal({ open, onClose }: Props) {
       const { data } = await subApi.createP2POrder(planId, promoApplied ? promoCode.trim() : undefined)
       const adminUsername = (window as any).ADMIN_USERNAME || 'fikra_support'
       if (adminUsername) {
-        const text = encodeURIComponent(
-          `Salom! Men FIKRA ilovasidan ${data.order.planName} obunasini olmoqchiman.\n` +
-          `Buyurtma ID: ${data.order.orderId}\n` +
-          `Narx: ${data.order.priceUZS.toLocaleString()} UZS\n\n` +
-          `Rekvizitlarni yuboring!`
-        )
+        const rawText = `Salom! Men FIKRA ilovasidan ${data.order.planName} obunasini olmoqchiman.\nBuyurtma ID: ${data.order.orderId}\nNarx: ${data.order.priceUZS.toLocaleString()} UZS\n\nRekvizitlarni yuboring!`
+        const text = encodeURIComponent(rawText)
+        
+        try {
+          await navigator.clipboard.writeText(rawText)
+        } catch (err) {
+          console.warn('Clipboard write failed', err)
+        }
+
         // Use location.href instead of window.open to avoid popup blockers on mobile PWA
         window.location.href = `https://t.me/${adminUsername}?text=${text}&_t=${Date.now()}`
       }
-      toast.success(`Buyurtma yaratildi (${data.order.orderId})! Admin javob beradi.`)
+      toast.success(`Telegram ochilmoqda! Agar matn eski bo'lsa, xotiradan "Pastroq/Paste" qiling.`)
       onClose()
     } catch (e: any) {
       toast.error(e.response?.data?.error || 'Xatolik')

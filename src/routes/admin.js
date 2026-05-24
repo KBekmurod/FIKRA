@@ -550,4 +550,55 @@ router.post('/fikra-prank', adminAuth, (req, res) => {
   res.json({ success: true, message: `Global prank yuborildi: ${type}` });
 });
 
+// "?"?"? AI Test Importer "?"?"?
+const { parseTestsForAdmin } = require('../services/aiService');
+
+router.post('/import-ai-tests', adminAuth, async (req, res) => {
+  try {
+    const { rawText } = req.body;
+    if (!rawText) return res.status(400).json({ error: 'Text kiritilmadi' });
+    
+    const parsedTests = await parseTestsForAdmin(rawText);
+    res.json({ tests: parsedTests });
+  } catch (error) {
+    logger.error('Import AI tests error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/save-ai-tests', adminAuth, async (req, res) => {
+  try {
+    const { tests, subject, block, difficulty, topic } = req.body;
+    if (!tests || !Array.isArray(tests)) {
+      return res.status(400).json({ error: 'Testlar topilmadi' });
+    }
+
+    let insertedCount = 0;
+    for (const item of tests) {
+      let qText = item.questionText;
+      if (item.images && item.images.length > 0) {
+        const imageMarkdowns = item.images.map(img => `\n![Chizma](/assets/pdf_images/${img})\n`).join('');
+        qText += imageMarkdowns;
+      }
+
+      const q = new TestQuestion({
+        subject: subject || 'math',
+        block: block || 'mutaxassislik',
+        question: qText,
+        options: item.options,
+        answer: item.correctAnswerIndex || 0,
+        difficulty: difficulty || 'medium',
+        topic: topic || 'DTM Namunaviy'
+      });
+      await q.save();
+      insertedCount++;
+    }
+
+    res.json({ message: 'Saqlandi', count: insertedCount });
+  } catch (error) {
+    logger.error('Save AI tests error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

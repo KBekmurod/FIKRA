@@ -317,3 +317,43 @@ Menga aytib ber:
 
 module.exports.explainWrongAnswer = explainWrongAnswer;
 module.exports.analyzeUserPerformance = analyzeUserPerformance;
+
+async function parseTestsForAdmin(rawText) {
+  const prompt = `Siz qattiq qoidalarga amal qiluvchi DTM test tahlilchisisiz.
+Foydalanuvchi PDF yoki Word dan olingan xom test matnlarini (HTML yoki oddiy matn) beradi.
+Vazifangiz barcha savollar va variantlarni aniqlash hamda matematik ifodalarni (kasrlar, darajalar, ildizlar va hokazo) bexato KaTeX formatiga ($...$ yoki $$...$$ ichiga) o'tkazishdir.
+Masalan: "x2 = y3" ni "$x^2 = y^3$" deb o'zgartiring.
+Agar matnda rasmlar (masalan <img src="..."> yoki ![Chizma](...)) bo'lsa, ularni QATIYAN O'ZGARTIRMASDAN "questionText" ichida saqlab qoling.
+Natijani FAQAT JSON array formatida qaytaring. Markdown bloklari (masalan, \`\`\`json) yoki qo'shimcha izohlar ishlata ko'rmang, faqatgina toza JSON matnini qaytaring.
+JSON strukturasi:
+[
+  {
+    "questionText": "Savolning to'liq matni, <img src='...'> kabi rasmlar va $x^2+y^2=r^2$ kabi formatlangan formulalar",
+    "options": ["A) variant 1", "B) variant 2", "C) variant 3", "D) variant 4"],
+    "correctAnswerIndex": 0,
+    "isKaTeX": true
+  }
+]`;
+
+  const res = await deepseek().chat.completions.create({
+    model: 'deepseek-chat',
+    messages: [
+      { role: 'system', content: prompt },
+      { role: 'user', content: rawText }
+    ],
+    temperature: 0.1,
+    max_tokens: 8000,
+  });
+
+  const responseText = res.choices[0].message.content;
+  // Deepseek ba'zan ```json ... ``` qilib beradi, shuni tozalaymiz
+  const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+  
+  try {
+    return JSON.parse(cleanJson);
+  } catch (err) {
+    throw new Error('AI javobini JSON ga o\'girib bo\'lmadi: ' + err.message);
+  }
+}
+
+module.exports.parseTestsForAdmin = parseTestsForAdmin;
