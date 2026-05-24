@@ -14,7 +14,7 @@ interface Message {
 }
 
 export const FikraEntity: React.FC = () => {
-  const { mode, isVisible, isPrankingLevel, isMatrixMode, isScreenWiped, isThiefActive, isSleepingOnLogo, isPassingBy, prankMessage, setMode, triggerHammerPrank, triggerMatrixHack, triggerScreenWipe, triggerLogoSleep } = useEntityStore()
+  const { mode, isVisible, isPrankingLevel, isMatrixMode, isScreenWiped, isThiefActive, isSleepingOnLogo, isPassingBy, isEditingText, isEatingFile, isFacepalming, isCelebrating, isHangingUpsideDown, prankMessage, setMode, triggerHammerPrank, triggerMatrixHack, triggerScreenWipe, triggerLogoSleep, triggerHangUpsideDown, endPrank } = useEntityStore()
   const { user } = useAppStore()
   
   const [isOpen, setIsOpen] = useState(false)
@@ -29,11 +29,14 @@ export const FikraEntity: React.FC = () => {
   
   const location = useLocation()
 
-  // DND Mode (Chalg'itmaslik qoidasi)
+  // DND Mode & Ko'rshapalak rejimi
   useEffect(() => {
     if (location.pathname.includes('/test-run') || location.pathname.includes('/personal-tests/')) {
-      setMode('hidden')
+      // Test ishlayotganda tepaga osiladi
+      triggerHangUpsideDown()
       setIsOpen(false)
+    } else if (mode === 'hang_upside_down') {
+      endPrank()
     }
   }, [location.pathname])
 
@@ -110,17 +113,14 @@ export const FikraEntity: React.FC = () => {
   useEffect(() => {
     if (isSleepingOnLogo) {
       const logo = document.querySelector('.header-logo')
-      if (logo) {
-        const rect = logo.getBoundingClientRect()
-        // We calculate distance from bottom right (where Fikr-A usually is)
-        // Fikr-A is typically at bottom: 20px, right: 20px
-        const fikraWidth = 100
-        const fikraHeight = 100
-        const windowWidth = window.innerWidth
-        const windowHeight = window.innerHeight
+      const container = document.querySelector('.fikra-entity-container')
+      if (logo && container) {
+        const logoRect = logo.getBoundingClientRect()
+        const contRect = container.getBoundingClientRect()
         
-        const targetX = rect.left + rect.width / 2 - (windowWidth - 20 - fikraWidth / 2)
-        const targetY = rect.top - (windowHeight - 20 - fikraHeight / 2) - 30 // above logo
+        // Fikra-A markazini logotip markaziga nisbatan aniqlaymiz
+        const targetX = logoRect.left + logoRect.width / 2 - (contRect.left + contRect.width / 2)
+        const targetY = logoRect.top + logoRect.height / 2 - (contRect.top + contRect.height / 2)
         setLogoPos({ x: targetX, y: targetY })
       }
     }
@@ -339,6 +339,33 @@ export const FikraEntity: React.FC = () => {
             y: -window.innerHeight / 2 + 100,
             scale: 1.5,
             rotate: [0, -20, 20, 0]
+          } : isEditingText ? {
+            x: -20, // slightly step out
+            y: -window.innerHeight / 2 + 150, // center-ish vertical
+            scale: 1.2,
+            rotate: [0, 5, -5, 0] // looking around
+          } : isEatingFile ? {
+            x: -window.innerWidth / 2 + 150, // go to center where upload box usually is
+            y: -window.innerHeight / 2 + 50,
+            scale: [1, 1.5, 1], // pac-man chewing effect
+            rotate: 0,
+            transition: { repeat: Infinity, duration: 0.5 }
+          } : isFacepalming ? {
+            y: 0,
+            rotate: 180, // upside down on floor or just flipped? facepalm:
+            scale: 0.9,
+            filter: "grayscale(100%)" // make him look sad/gray
+          } : isCelebrating ? {
+            y: -window.innerHeight / 2 + 100,
+            x: -window.innerWidth / 2 + 100,
+            scale: [1, 1.2, 1, 1.3],
+            rotate: [0, 360, 720], // spinning celebration
+            transition: { duration: 2, ease: "easeInOut" }
+          } : isHangingUpsideDown ? {
+            y: -window.innerHeight + 100, // Top of screen
+            x: 0,
+            rotate: 180, // hanging
+            scale: 0.9
           } : isAnyPrankActive ? {
             y: -window.innerHeight * 0.4, 
             scale: 1.5,
@@ -346,7 +373,8 @@ export const FikraEntity: React.FC = () => {
             x: 0,
             y: isOpen ? [0, -10, 0] : [0, -5, 0],
             scale: isOpen ? 1.2 : 1,
-            rotate: isPrankingLevel ? [-10, 10, -10, 0] : 0
+            rotate: isPrankingLevel ? [-10, 10, -10, 0] : 0,
+            filter: "grayscale(0%)"
           }
         }
         transition={{ type: 'spring', damping: 20 }}
@@ -369,6 +397,32 @@ export const FikraEntity: React.FC = () => {
               style={{ position: 'absolute', top: -20, right: -20, fontSize: 24, fontWeight: 'bold', color: 'var(--acc)', zIndex: 100 }}
             >
               Zzz...
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        {/* Lazer nuri (Editing text) */}
+        <AnimatePresence>
+          {isEditingText && (
+            <motion.div 
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 300, opacity: 0.8 }}
+              exit={{ width: 0, opacity: 0 }}
+              style={{ position: 'absolute', top: 50, right: 100, height: 4, background: '#00ffcc', boxShadow: '0 0 10px #00ffcc, 0 0 20px #00ffcc' }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Yulduzchalar (Celebrate) */}
+        <AnimatePresence>
+          {isCelebrating && (
+            <motion.div 
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: [1, 2, 0], opacity: [1, 0, 0] }}
+              transition={{ repeat: Infinity, duration: 1 }}
+              style={{ position: 'absolute', top: -50, left: -50, fontSize: 40 }}
+            >
+              ✨🎆✨
             </motion.div>
           )}
         </AnimatePresence>

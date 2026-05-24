@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { GRADE_META, versionToGrade, versionInGrade } from '../constants/subjects'
+import { useEntityStore } from '../store/entityStore'
 
 interface ResultState {
   sessionId: string
@@ -23,10 +24,18 @@ export default function TestResultPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const location = useLocation()
   const state = location.state as ResultState | null
+  const { triggerFacepalm, triggerCelebrate } = useEntityStore()
 
   useEffect(() => {
     // Browser back ga ruxsat berib, history ga test-result qoldirmaymiz
-  }, [])
+    if (state && state.percent) {
+      if (state.percent < 40) {
+        triggerFacepalm()
+      } else if (state.percent >= 80) {
+        triggerCelebrate()
+      }
+    }
+  }, [state])
 
   if (!state || !sessionId) {
     return (

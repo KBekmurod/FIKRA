@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type EntityMode = 'hidden' | 'dart' | 'observe' | 'converse' | 'prank_hammer' | 'prank_thief' | 'prank_wipe' | 'prank_matrix' | 'idle_logo'
+export type EntityMode = 'hidden' | 'dart' | 'observe' | 'converse' | 'prank_hammer' | 'prank_thief' | 'prank_wipe' | 'prank_matrix' | 'idle_logo' | 'edit_text' | 'eat_file' | 'facepalm' | 'celebrate' | 'hang_upside_down'
 
 interface EntityState {
   mode: EntityMode
@@ -11,6 +11,11 @@ interface EntityState {
   isThiefActive: boolean
   isPassingBy: boolean
   isSleepingOnLogo: boolean
+  isEditingText: boolean
+  isEatingFile: boolean
+  isFacepalming: boolean
+  isCelebrating: boolean
+  isHangingUpsideDown: boolean
   prankMessage: string
   
   // Tutorial
@@ -30,6 +35,11 @@ interface EntityState {
   triggerThiefPrank: () => void
   triggerLogoSleep: () => void
   triggerPassByFast: () => void
+  triggerEditText: () => void
+  triggerEatFile: () => void
+  triggerFacepalm: () => void
+  triggerCelebrate: () => void
+  triggerHangUpsideDown: () => void
   endPrank: () => void
   
   // SSE ulanish
@@ -47,6 +57,11 @@ export const useEntityStore = create<EntityState>((set, get) => ({
   isThiefActive: false,
   isPassingBy: false,
   isSleepingOnLogo: false,
+  isEditingText: false,
+  isEatingFile: false,
+  isFacepalming: false,
+  isCelebrating: false,
+  isHangingUpsideDown: false,
   prankMessage: '',
   tutorialStep: 0,
 
@@ -114,6 +129,32 @@ export const useEntityStore = create<EntityState>((set, get) => ({
       set({ isPassingBy: false, isVisible: false })
     }, 1500)
   },
+
+  triggerEditText: () => {
+    set({ mode: 'edit_text', isEditingText: true, isVisible: true, prankMessage: "Boshqa AIdan so'rayapsanmi? Yaxshi, lekin uning xatolarini ham men to'g'irlashim kerak..." })
+    setTimeout(() => {
+      set({ isEditingText: false, mode: 'hidden', isVisible: false, prankMessage: '' })
+    }, 5000)
+  },
+
+  triggerEatFile: () => {
+    set({ mode: 'eat_file', isEatingFile: true, isVisible: true, prankMessage: "Hmm... Qiyin chaynatar ekan. Mazali ma'lumotlar!" })
+    setTimeout(() => {
+      set({ isEatingFile: false, mode: 'hidden', isVisible: false, prankMessage: '' })
+    }, 4000)
+  },
+
+  triggerFacepalm: () => {
+    set({ mode: 'facepalm', isFacepalming: true, isVisible: true, prankMessage: "Bunday natija bilan faqat qora tuynukka o'qishga kirasan..." })
+  },
+
+  triggerCelebrate: () => {
+    set({ mode: 'celebrate', isCelebrating: true, isVisible: true, prankMessage: "Daholar klubiga xush kelibsan! Tabriklayman!" })
+  },
+
+  triggerHangUpsideDown: () => {
+    set({ mode: 'hang_upside_down', isHangingUpsideDown: true, isVisible: true })
+  },
   
   endPrank: () => {
     set({ 
@@ -124,6 +165,12 @@ export const useEntityStore = create<EntityState>((set, get) => ({
       isThiefActive: false, 
       isPrankingLevel: false,
       isPassingBy: false,
+      isEditingText: false,
+      isEatingFile: false,
+      isFacepalming: false,
+      isCelebrating: false,
+      isHangingUpsideDown: false,
+      isSleepingOnLogo: false,
       prankMessage: '' 
     })
   },

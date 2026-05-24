@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { useAppStore, useAiStore } from '../store'
+import { useAppStore } from '../store'
+import { useAiStore } from '../store/aiStore'
+import { useEntityStore } from '../store/entityStore'
 import { aiApi, streamChat } from '../api/endpoints'
 import { useToast } from '../components/Toast'
 import SubscriptionModal from '../components/SubscriptionModal'
@@ -62,6 +64,7 @@ function TabButton({ active, onClick, icon, label }: any) {
 function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
   const { user, refreshUser, setAuthModalOpen } = useAppStore()
   const { chatSessionId: sessionId, chatMessages: messages, chatInput: input, chatSending: sending, setChatState } = useAiStore()
+  const { triggerEditText } = useEntityStore()
   
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [sessions, setSessions] = useState<any[]>([])
@@ -120,6 +123,7 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
     const text = input.trim()
     if (!text || sending) return
     setChatState({ chatInput: '', chatMessages: [...messages, { role: 'user', content: text }, { role: 'assistant', content: '' }], chatSending: true })
+    triggerEditText()
 
     let full = ''
     await streamChat(
@@ -336,6 +340,7 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
 function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
   const { docPrompt: prompt, docFormat: format, docMaxPages: maxPages, docRemoveWatermark: removeWatermark, docLoading: loading, docStatusMsg: statusMsg, docResult: result, setDocState } = useAiStore()
   const { user, refreshUser, setAuthModalOpen } = useAppStore()
+  const { triggerEditText } = useEntityStore()
   const { toast } = useToast()
   
   const isFree = !user?.effectivePlan || user.effectivePlan === 'free';
@@ -345,6 +350,7 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
     const p = prompt.trim()
     if (!p || loading) return
     setDocState({ docLoading: true, docResult: null, docStatusMsg: 'Boshlanmoqda...' })
+    triggerEditText()
 
     const auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}')
     const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3000'
