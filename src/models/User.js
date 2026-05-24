@@ -14,31 +14,15 @@ const aiUsageSchema = new mongoose.Schema({
 }, { _id: false });
 
 const userSchema = new mongoose.Schema({
-  // ─── Identifikatsiya (email yoki telefon — kamida bittasi majburiy) ──────
-  // Foydalanuvchi email yoki telefon (yoki ikkalasini ham) bilan ro'yxatdan
-  // o'tishi mumkin. Login paytida bittasini ishlatadi.
+  // ─── Identifikatsiya (Faqat Google email) ──────────────────────────────
   email: {
     type: String,
-    default: null,
+    required: true,
     lowercase: true,
     trim: true,
     unique: true,
-    sparse: true,    // null bo'lsa unique tekshirilmaydi
     index: true,
   },
-
-  // Telefon nomer — E.164 formatda saqlanadi (masalan: +998901234567)
-  phone: {
-    type: String,
-    default: null,
-    trim: true,
-    unique: true,
-    sparse: true,
-    index: true,
-  },
-
-  // Parol (Google bilan kirganda shart emas)
-  passwordHash: { type: String, default: '' },
 
   // ─── Profil ma'lumotlari ──────────────────────────────────────────────────
   firstName: { type: String, default: '' },
@@ -68,14 +52,6 @@ const userSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, {
   timestamps: true,
-});
-
-// ─── Validatsiya: email yoki phone — kamida bittasi bo'lishi shart ──────────
-userSchema.pre('validate', function(next) {
-  if (!this.email && !this.phone) {
-    return next(new Error('Email yoki telefon nomer kerak'));
-  }
-  next();
 });
 
 // ─── Plan limitlari (kunlik) ─────────────────────────────────────────────────

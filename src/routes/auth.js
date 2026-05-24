@@ -1,17 +1,13 @@
-// ─── Auth Routes ────────────────────────────────────────────────────────
-// Email yoki telefon nomer + parol orqali autentifikatsiya.
+// ─── Auth Routes (Google-only) ──────────────────────────────────────────
+// Faqat Google OAuth orqali autentifikatsiya.
 //
 // Yo'llar:
-//   POST /api/auth/register         — yangi ro'yxat (email yoki phone + parol + ism)
-//   POST /api/auth/login            — kirish (email yoki phone + parol)
-//   POST /api/auth/refresh          — refresh token bilan access yangilash
-//   GET  /api/auth/me               — joriy foydalanuvchi
-//   POST /api/auth/change-password  — parol o'zgartirish
-//   POST /api/auth/add-identifier   — mavjud akkountga email yoki phone qo'shish
+//   POST /api/auth/google   — Google token bilan kirish/ro'yxatdan o'tish
+//   POST /api/auth/refresh  — refresh token bilan access yangilash
+//   GET  /api/auth/me       — joriy foydalanuvchi
 
 const express = require('express');
 const router  = express.Router();
-const bcrypt  = require('bcryptjs');
 const {
   generateTokens,
   authMiddleware,
@@ -19,47 +15,6 @@ const {
 const { authLimiter } = require('../middleware/rateLimit');
 const User    = require('../models/User');
 const { logger } = require('../utils/logger');
-
-// ─── Helpers: identifier (email yoki phone) aniqlash va normalize ──────────
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// E.164 telefon formati: + bilan boshlanadi va 8-15 raqamdan iborat
-// Foydalanuvchi kiritishi mumkin: "+998 90 123 45 67", "+998901234567",
-// "998901234567", "901234567" (avtomatik +998 qo'shamiz O'zbek bo'lsa).
-function normalizePhone(raw) {
-  if (!raw) return null;
-  // Faqat raqamlar va + ni qoldiramiz
-  let s = String(raw).replace(/[^\d+]/g, '');
-  if (!s) return null;
-
-  // + bilan boshlanmasa va 998 bilan boshlansa — + qo'shamiz
-  if (!s.startsWith('+')) {
-    if (s.startsWith('998')) s = '+' + s;
-    // 9 ta raqam bo'lsa (oddiy O'zbek mobil nomer) — +998 qo'shamiz
-    else if (s.length === 9) s = '+998' + s;
-    else s = '+' + s;
-  }
-
-  // Validatsiya: Faqat O'zbekiston raqamlari (+998 va 9 ta raqam, to'g'ri operator kodlari)
-  const uzbRegex = /^\+998(33|50|55|77|88|90|91|93|94|95|97|98|99)\d{7}$/;
-  if (!uzbRegex.test(s)) return null;
-  return s;
-}
-
-function isEmail(s) {
-  return EMAIL_RE.test(String(s || '').trim());
-}
-
-// Bitta input qatorini email yoki phone'ga ajratamiz
-function parseIdentifier(raw) {
-  const s = String(raw || '').trim();
-  if (!s) return { type: null, value: null };
-  if (s.includes('@')) {
-    return isEmail(s) ? { type: 'email', value: s.toLowerCase() } : { type: 'email', value: null };
-  }
-  const phone = normalizePhone(s);
-  return { type: 'phone', value: phone };
-}
 
 // ─── User ma'lumotini frontend uchun formatlash ────────────────────────────
 function _serializeUser(user) {
@@ -90,13 +45,10 @@ function _serializeUser(user) {
   return {
     id:            user._id,
     email:         user.email,
-    phone:         user.phone,
     firstName:     user.firstName,
     lastName:      user.lastName,
     displayName:   user.displayName || user.firstName,
     photoUrl:      user.photoUrl,
-    hasEmail:      !!user.email,
-    hasPhone:      !!user.phone,
     plan:          user.plan,
     effectivePlan: effective,
     planExpiresAt: user.planExpiresAt,
@@ -106,9 +58,7 @@ function _serializeUser(user) {
   };
 }
 
-// ─── LENGACY ROUTES REMOVED ────────────────────────────────────────────────
-// register and login with password were removed for Google-only auth.
-
+// ─── Google OAuth ──────────────────────────────────────────────────────────
 const { OAuth2Client } = require('google-auth-library');
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'dummy');
 
@@ -138,7 +88,6 @@ router.post('/google', authLimiter, async (req, res, next) => {
         lastName,
         displayName: `${firstName} ${lastName}`.trim(),
         photoUrl,
-        passwordHash: '', // Parol yo'q
       });
       logger.info(`User registered via Google: ${email}`);
     } else {
@@ -208,51 +157,6 @@ router.get('/me', authMiddleware, async (req, res, next) => {
 
     res.json(_serializeUser(user));
   } catch (err) {
-    next(err);
-  }
-});
-
-// ─── POST /api/auth/change-password ───────────────────────────────────────
-// Legacy password route removed
-
-// ─── POST /api/auth/add-identifier ────────────────────────────────────────
-// Mavjud akkountga email yoki telefon qo'shish (faqat birini yo'qsa)
-// Body: { email } yoki { phone }
-router.post('/add-identifier', authMiddleware, async (req, res, next) => {
-  try {
-    const { email: rawEmail, phone: rawPhone } = req.body || {};
-
-    if (rawEmail) {
-      if (req.user.email) {
-        return res.status(400).json({ error: 'Sizda allaqachon email mavjud' });
-      }
-      if (!isEmail(rawEmail)) return res.status(400).json({ error: 'Email yaroqsiz' });
-      const email = String(rawEmail).toLowerCase().trim();
-      const existing = await User.findOne({ email, _id: { $ne: req.user._id } });
-      if (existing) return res.status(409).json({ error: 'Bu email band' });
-      req.user.email = email;
-      await req.user.save();
-      return res.json({ success: true, user: _serializeUser(req.user) });
-    }
-
-    if (rawPhone) {
-      if (req.user.phone) {
-        return res.status(400).json({ error: 'Sizda allaqachon telefon nomer mavjud' });
-      }
-      const phone = normalizePhone(rawPhone);
-      if (!phone) return res.status(400).json({ error: 'Telefon nomer yaroqsiz' });
-      const existing = await User.findOne({ phone, _id: { $ne: req.user._id } });
-      if (existing) return res.status(409).json({ error: 'Bu telefon nomer band' });
-      req.user.phone = phone;
-      await req.user.save();
-      return res.json({ success: true, user: _serializeUser(req.user) });
-    }
-
-    return res.status(400).json({ error: 'email yoki phone kerak' });
-  } catch (err) {
-    if (err.code === 11000) {
-      return res.status(409).json({ error: 'Bu email yoki telefon band' });
-    }
     next(err);
   }
 });

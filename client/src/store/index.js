@@ -24,37 +24,11 @@ export const useAppStore = create((set, get) => ({
         }
         set({ user: null, loading: false, initialized: true });
     },
-    // ─── Kirish (email yoki telefon + parol) ──────────────────────────────
-    login: async (identifier, password) => {
-        set({ loading: true, error: null });
-        try {
-            const { data } = await authApi.login(identifier, password);
-            setAuth(data.accessToken, data.refreshToken);
-            set({ user: data.user, loading: false, initialized: true });
-        }
-        catch (err) {
-            set({ loading: false });
-            throw err;
-        }
-    },
     // ─── Google orqali kirish/ro'yxatdan o'tish ───────────────────────────
     googleLogin: async (token) => {
         set({ loading: true, error: null });
         try {
             const { data } = await authApi.googleLogin(token);
-            setAuth(data.accessToken, data.refreshToken);
-            set({ user: data.user, loading: false, initialized: true });
-        }
-        catch (err) {
-            set({ loading: false });
-            throw err;
-        }
-    },
-    // ─── Ro'yxatdan o'tish (email yoki telefon + parol + ism) ─────────────
-    register: async (identifier, password, name) => {
-        set({ loading: true, error: null });
-        try {
-            const { data } = await authApi.register(identifier, password, name);
             setAuth(data.accessToken, data.refreshToken);
             set({ user: data.user, loading: false, initialized: true });
         }

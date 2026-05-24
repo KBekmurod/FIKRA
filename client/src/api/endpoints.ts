@@ -13,29 +13,14 @@ interface AuthResponse {
 }
 
 export const authApi = {
-  // Ro'yxatdan o'tish — identifier email yoki telefon bo'lishi mumkin
-  register: (identifier: string, password: string, name: string) =>
-    api.post<AuthResponse>('/api/auth/register', { identifier, password, name }),
-
-  // Kirish — identifier email yoki telefon bo'lishi mumkin
-  login: (identifier: string, password: string) =>
-    api.post<AuthResponse>('/api/auth/login', { identifier, password }),
-
   // Google orqali kirish/ro'yxatdan o'tish
   googleLogin: (token: string) =>
     api.post<AuthResponse>('/api/auth/google', { token }),
 
-  // Parol o'zgartirish
-  changePassword: (oldPassword: string, newPassword: string) =>
-    api.post<{ success: boolean }>('/api/auth/change-password', { oldPassword, newPassword }),
-
-  // Mavjud akkountga email yoki telefon qo'shish
-  addIdentifier: (data: { email?: string; phone?: string }) =>
-    api.post<{ success: boolean; user: User }>('/api/auth/add-identifier', data),
-
   // Joriy user
   me: () => api.get<User>('/api/auth/me'),
 }
+
 
 // ─── Games / Test (eski API, hali ham ishlatiladi) ────────────────────────
 export const testApi = {

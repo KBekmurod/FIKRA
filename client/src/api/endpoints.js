@@ -1,15 +1,7 @@
 import api from './client';
 export const authApi = {
-    // Ro'yxatdan o'tish — identifier email yoki telefon bo'lishi mumkin
-    register: (identifier, password, name) => api.post('/api/auth/register', { identifier, password, name }),
-    // Kirish — identifier email yoki telefon bo'lishi mumkin
-    login: (identifier, password) => api.post('/api/auth/login', { identifier, password }),
     // Google orqali kirish/ro'yxatdan o'tish
     googleLogin: (token) => api.post('/api/auth/google', { token }),
-    // Parol o'zgartirish
-    changePassword: (oldPassword, newPassword) => api.post('/api/auth/change-password', { oldPassword, newPassword }),
-    // Mavjud akkountga email yoki telefon qo'shish
-    addIdentifier: (data) => api.post('/api/auth/add-identifier', data),
     // Joriy user
     me: () => api.get('/api/auth/me'),
 };

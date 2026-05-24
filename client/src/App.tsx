@@ -5,8 +5,6 @@ import { useAppStore } from './store'
 
 // ─── Auth sahifalari — kichik, darrov yuklanadi ─────────────────────────
 import WelcomePage from './pages/auth/WelcomePage'
-import LoginPage from './pages/auth/LoginPage'
-import RegisterPage from './pages/auth/RegisterPage'
 
 // ─── Asosiy sahifa — darrov yuklanadi ────────────────────────────────────
 import HomePage from './pages/HomePage'
@@ -304,8 +302,8 @@ export default function App() {
                 <Routes location={location} key={location.pathname}>
                 {/* Auth marshrutlari (public) */}
                 <Route path="/auth/welcome"  element={<WelcomePage />} />
-                <Route path="/auth/login"    element={<LoginPage />} />
-                <Route path="/auth/register" element={<RegisterPage />} />
+                <Route path="/auth/login"    element={<Navigate to="/auth/welcome" replace />} />
+                <Route path="/auth/register" element={<Navigate to="/auth/welcome" replace />} />
 
                 {/* Himoyalangan marshrutlar */}
                 <Route path="/" element={<HomePage />} />

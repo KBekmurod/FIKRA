@@ -1,7 +1,14 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAppStore } from '../../store'
+import { useToast } from '../../components/Toast'
+import { GoogleLogin } from '@react-oauth/google'
 
 export default function WelcomePage() {
   const navigate = useNavigate()
+  const toast = useToast()
+  const { googleLogin } = useAppStore()
+  const [loading, setLoading] = useState(false)
 
   return (
     <div style={{ minHeight: '100vh', padding: '32px 24px', display: 'flex', flexDirection: 'column' }}>
@@ -55,35 +62,34 @@ export default function WelcomePage() {
 
       <div style={{ flex: 1 }} />
 
-      {/* Auth tugmalari */}
-      <div style={{ marginTop: 28, display: 'grid', gap: 10 }}>
-        <button
-          onClick={() => navigate('/auth/register')}
-          style={{
-            background: 'linear-gradient(135deg, var(--acc), var(--acc-l))',
-            color: 'white',
-            border: 'none',
-            borderRadius: 14,
-            padding: '15px 18px',
-            fontSize: 14,
-            fontWeight: 800,
-            cursor: 'pointer',
-          }}
-        >Ro'yxatdan o'tish</button>
-
-        <button
-          onClick={() => navigate('/auth/login')}
-          style={{
-            background: 'var(--s1)',
-            color: 'var(--txt)',
-            border: '1px solid var(--f)',
-            borderRadius: 14,
-            padding: '15px 18px',
-            fontSize: 14,
-            fontWeight: 800,
-            cursor: 'pointer',
-          }}
-        >Mavjud akkountga kirish</button>
+      {/* Google bilan kirish */}
+      <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 20, color: 'var(--txt-2)', fontSize: 14 }}>
+            ⏳ Kirilmoqda...
+          </div>
+        ) : (
+          <GoogleLogin
+            onSuccess={async (credentialResponse) => {
+              if (credentialResponse.credential) {
+                setLoading(true)
+                try {
+                  await googleLogin(credentialResponse.credential)
+                  navigate('/', { replace: true })
+                } catch (e: any) {
+                  toast.error(e?.response?.data?.error || "Google autentifikatsiyasida xatolik")
+                } finally {
+                  setLoading(false)
+                }
+              }
+            }}
+            onError={() => toast.error('Google bilan ulanishda xatolik')}
+            theme="filled_black"
+            shape="pill"
+            text="continue_with"
+            size="large"
+          />
+        )}
       </div>
 
       <div style={{
@@ -91,7 +97,7 @@ export default function WelcomePage() {
         fontSize: 10, color: 'var(--txt-3)', textAlign: 'center',
         lineHeight: 1.5,
       }}>
-        Ro'yxatdan o'tib siz <strong>Foydalanish shartlari</strong>{' '}
+        Davom etish orqali siz <strong>Foydalanish shartlari</strong>{' '}
         va <strong>Maxfiylik</strong> bilan rozisiz
       </div>
     </div>
