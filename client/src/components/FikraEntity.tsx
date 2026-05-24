@@ -14,7 +14,7 @@ interface Message {
 }
 
 export const FikraEntity: React.FC = () => {
-  const { mode, isVisible, isPrankingLevel, isMatrixMode, isScreenWiped, isThiefActive, prankMessage, setMode, triggerHammerPrank, triggerMatrixHack, triggerScreenWipe } = useEntityStore()
+  const { mode, isVisible, isPrankingLevel, isMatrixMode, isScreenWiped, isThiefActive, isSleepingOnLogo, isPassingBy, prankMessage, setMode, triggerHammerPrank, triggerMatrixHack, triggerScreenWipe, triggerLogoSleep } = useEntityStore()
   const { user } = useAppStore()
   
   const [isOpen, setIsOpen] = useState(false)
@@ -22,37 +22,12 @@ export const FikraEntity: React.FC = () => {
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   
-  const blobRef = useRef<HTMLDivElement>(null)
-  const pupilRef = useRef<HTMLDivElement>(null)
+  const [logoPos, setLogoPos] = useState({ x: 0, y: 0 })
+  
+  const blobRef = useRef<HTMLImageElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
   const location = useLocation()
-
-  // Kuzatuvchi ko'z (Mouse Tracking)
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!blobRef.current || !pupilRef.current) return
-      
-      const rect = blobRef.current.getBoundingClientRect()
-      // Blob ning markazi
-      const centerX = rect.left + rect.width / 2
-      const centerY = rect.top + rect.height / 2
-      
-      // Kursor va markaz orasidagi burchak
-      const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX)
-      
-      // Pupil qanchalik chetga surilishi (maksimal masofa 6px)
-      const distance = Math.min(6, Math.hypot(e.clientX - centerX, e.clientY - centerY) / 20)
-      
-      const pupilX = Math.cos(angle) * distance
-      const pupilY = Math.sin(angle) * distance
-      
-      pupilRef.current.style.transform = `translate(calc(-50% + ${pupilX}px), calc(-50% + ${pupilY}px))`
-    }
-    
-    window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
-  }, [isVisible])
 
   // DND Mode (Chalg'itmaslik qoidasi)
   useEffect(() => {
@@ -65,9 +40,8 @@ export const FikraEntity: React.FC = () => {
   // Tasodifiy Prank Taymer (Faqat Bosh sahifada, va Streak/Level baland bo'lsa)
   useEffect(() => {
     if (location.pathname !== '/') return
-    if (!user || user.plan === 'free') return // Yoki qandaydir baland shart: (user as any).level >= 5
+    if (!user || user.plan === 'free') return
     
-    // Har 30-60 soniyada 10% ehtimollik bilan chiqish (faqat namoyish uchun tezroq qilamiz)
     const interval = setInterval(() => {
       if (Math.random() > 0.8 && mode === 'hidden') {
         const rng = Math.random()
@@ -81,29 +55,35 @@ export const FikraEntity: React.FC = () => {
       }
     }, 45000)
     
-    // Idle timer logic
-    let idleTimeout: ReturnType<typeof setTimeout>
-    const resetIdle = () => {
-      clearTimeout(idleTimeout)
-      idleTimeout = setTimeout(() => {
-        if (mode === 'hidden') {
-          triggerScreenWipe()
-          triggerHaptic('swipe')
+    // Idle timer logic (Optimized with interval polling instead of spamming clear/set timeout)
+    let lastActivity = Date.now()
+    const updateActivity = () => { lastActivity = Date.now() }
+    
+    const idleInterval = setInterval(() => {
+      if (Date.now() - lastActivity > 60000) {
+        if (mode === 'hidden' || mode === 'idle_logo' || mode === 'prank_wipe') {
+          const rng = Math.random()
+          if (rng > 0.5) {
+            triggerLogoSleep()
+          } else {
+            triggerScreenWipe()
+            triggerHaptic('swipe')
+          }
+          lastActivity = Date.now() // Prevent immediate re-trigger
         }
-      }, 60000) // 1 minute idle
-    }
+      }
+    }, 5000)
 
-    window.addEventListener('mousemove', resetIdle)
-    window.addEventListener('keypress', resetIdle)
-    window.addEventListener('touchstart', resetIdle)
-    resetIdle()
+    window.addEventListener('mousemove', updateActivity, { passive: true })
+    window.addEventListener('keypress', updateActivity, { passive: true })
+    window.addEventListener('touchstart', updateActivity, { passive: true })
 
     return () => {
       clearInterval(interval)
-      clearTimeout(idleTimeout)
-      window.removeEventListener('mousemove', resetIdle)
-      window.removeEventListener('keypress', resetIdle)
-      window.removeEventListener('touchstart', resetIdle)
+      clearInterval(idleInterval)
+      window.removeEventListener('mousemove', updateActivity)
+      window.removeEventListener('keypress', updateActivity)
+      window.removeEventListener('touchstart', updateActivity)
     }
   }, [location.pathname, user, mode])
 
@@ -125,6 +105,26 @@ export const FikraEntity: React.FC = () => {
       else appContent.classList.remove('screen-blur')
     }
   }, [isMatrixMode, isScreenWiped])
+
+  // Get Logo Position for Sleeping Prank
+  useEffect(() => {
+    if (isSleepingOnLogo) {
+      const logo = document.querySelector('.header-logo')
+      if (logo) {
+        const rect = logo.getBoundingClientRect()
+        // We calculate distance from bottom right (where Fikr-A usually is)
+        // Fikr-A is typically at bottom: 20px, right: 20px
+        const fikraWidth = 100
+        const fikraHeight = 100
+        const windowWidth = window.innerWidth
+        const windowHeight = window.innerHeight
+        
+        const targetX = rect.left + rect.width / 2 - (windowWidth - 20 - fikraWidth / 2)
+        const targetY = rect.top - (windowHeight - 20 - fikraHeight / 2) - 30 // above logo
+        setLogoPos({ x: targetX, y: targetY })
+      }
+    }
+  }, [isSleepingOnLogo])
 
   const toggleChat = () => {
     triggerHaptic('click')
@@ -324,22 +324,57 @@ export const FikraEntity: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Entityning o'zi (Gologramma/Blob) */}
       <motion.div 
-        className="fikra-blob" 
-        ref={blobRef} 
+        className={`fikra-avatar-container ${isPassingBy ? 'pass-by-fast' : ''}`}
         onClick={!isAnyPrankActive ? toggleChat : undefined} 
-        title="Fikr-A (Mavjudot)"
-        animate={isAnyPrankActive ? {
-          y: -window.innerHeight * 0.7, 
-          scale: 1.5,
-          boxShadow: isMatrixMode ? '0 0 50px #0f0' : '0 0 50px #ff0000'
-        } : { y: 0, scale: 1 }}
+        title="Fikr-A"
+        animate={
+          isSleepingOnLogo ? {
+            x: logoPos.x,
+            y: logoPos.y,
+            rotate: 90, // lie down
+            scale: 0.8
+          } : isThiefActive ? {
+            x: -window.innerWidth / 2 + 50, // fly to the left middle
+            y: -window.innerHeight / 2 + 100,
+            scale: 1.5,
+            rotate: [0, -20, 20, 0]
+          } : isAnyPrankActive ? {
+            y: -window.innerHeight * 0.4, 
+            scale: 1.5,
+          } : { 
+            x: 0,
+            y: isOpen ? [0, -10, 0] : [0, -5, 0],
+            scale: isOpen ? 1.2 : 1,
+            rotate: isPrankingLevel ? [-10, 10, -10, 0] : 0
+          }
+        }
         transition={{ type: 'spring', damping: 20 }}
+        style={{ position: 'relative', cursor: 'pointer' }}
       >
-        <div className="fikra-eye">
-          <div className="fikra-pupil" ref={pupilRef}></div>
-        </div>
+        {/* Avatar rasm */}
+        <img 
+          ref={blobRef}
+          src="/assets/fikra_avatar.png" 
+          alt="Fikr-A" 
+          className="fikra-avatar-img"
+        />
+        {/* Zzz effekti (Sleeping on Logo) */}
+        <AnimatePresence>
+          {isSleepingOnLogo && (
+            <motion.div 
+              initial={{ opacity: 0, y: 0 }}
+              animate={{ opacity: [0, 1, 0], y: -30, x: 20 }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              style={{ position: 'absolute', top: -20, right: -20, fontSize: 24, fontWeight: 'bold', color: 'var(--acc)', zIndex: 100 }}
+            >
+              Zzz...
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        {/* Kristall nur (Glow) */}
+        <div className="fikra-crystal-glow"></div>
 
         {/* Prank vaqtida bolg'a chiqishi */}
         <AnimatePresence>

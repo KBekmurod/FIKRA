@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from './store'
 
 // ─── Auth sahifalari — kichik, darrov yuklanadi ─────────────────────────
@@ -49,19 +50,33 @@ function FullLoader() {
   return (
     <div className="full-loader">
       <div className="full-loader-text">FIKRA<span>.</span></div>
-      <div className="spin" />
+      <div className="crystal-loader">
+        <div className="crystal-face front"></div>
+        <div className="crystal-face back"></div>
+        <div className="crystal-face left"></div>
+        <div className="crystal-face right"></div>
+        <div className="crystal-face top"></div>
+        <div className="crystal-face bottom"></div>
+      </div>
     </div>
   )
 }
 
-// Lazy sahifalar uchun yengil loader
+// Lazy sahifalar uchun 3D loader
 function PageLoader() {
   return (
     <div style={{
       minHeight: 'calc(var(--vh, 1vh) * 100 - 64px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div className="spin" />
+      <div className="crystal-loader small">
+        <div className="crystal-face front"></div>
+        <div className="crystal-face back"></div>
+        <div className="crystal-face left"></div>
+        <div className="crystal-face right"></div>
+        <div className="crystal-face top"></div>
+        <div className="crystal-face bottom"></div>
+      </div>
     </div>
   )
 }
@@ -228,45 +243,56 @@ export default function App() {
         {!isAuthRoute && <BottomNav />}
         <div className="app-content">
           <Suspense fallback={<PageLoader />}>
-            <Routes>
-            {/* Auth marshrutlari (public) */}
-            <Route path="/auth/welcome"  element={<WelcomePage />} />
-            <Route path="/auth/login"    element={<LoginPage />} />
-            <Route path="/auth/register" element={<RegisterPage />} />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 1.05, y: -15 }}
+                transition={{ duration: 0.3, type: 'tween', ease: 'easeInOut' }}
+                style={{ width: '100%', height: '100%', overflowX: 'hidden' }}
+              >
+                <Routes location={location} key={location.pathname}>
+                {/* Auth marshrutlari (public) */}
+                <Route path="/auth/welcome"  element={<WelcomePage />} />
+                <Route path="/auth/login"    element={<LoginPage />} />
+                <Route path="/auth/register" element={<RegisterPage />} />
 
-            {/* Himoyalangan marshrutlar */}
-            <Route path="/" element={<HomePage />} />
+                {/* Himoyalangan marshrutlar */}
+                <Route path="/" element={<HomePage />} />
 
-            <Route path="/ombor"                       element={<OmborPage />} />
-            <Route path="/ombor/:subjectId"            element={<RequireAuth><OmborSubjectPage /></RequireAuth>} />
-            <Route path="/ombor/:subjectId/add-folder" element={<RequireAuth><FolderAddPage /></RequireAuth>} />
-            <Route path="/ombor/folder/:folderId"      element={<RequireAuth><OmborFolderPage /></RequireAuth>} />
-            <Route path="/ombor/folder/:folderId/add"  element={<RequireAuth><MaterialAddPage /></RequireAuth>} />
-            <Route path="/ombor/folder/:folderId/flash" element={<RequireAuth><FlashcardPage /></RequireAuth>} />
-            <Route path="/materials/:id/edit"          element={<RequireAuth><MaterialEditPage /></RequireAuth>} />
+                <Route path="/ombor"                       element={<OmborPage />} />
+                <Route path="/ombor/:subjectId"            element={<RequireAuth><OmborSubjectPage /></RequireAuth>} />
+                <Route path="/ombor/:subjectId/add-folder" element={<RequireAuth><FolderAddPage /></RequireAuth>} />
+                <Route path="/ombor/folder/:folderId"      element={<RequireAuth><OmborFolderPage /></RequireAuth>} />
+                <Route path="/ombor/folder/:folderId/add"  element={<RequireAuth><MaterialAddPage /></RequireAuth>} />
+                <Route path="/ombor/folder/:folderId/flash" element={<RequireAuth><FlashcardPage /></RequireAuth>} />
+                <Route path="/materials/:id/edit"          element={<RequireAuth><MaterialEditPage /></RequireAuth>} />
 
-            <Route path="/testlar"                     element={<TestsPage />} />
-            <Route path="/testlar/fikra"               element={<RequireAuth><FikraTestsPage /></RequireAuth>} />
-            <Route path="/testlar/ai"                  element={<RequireAuth><AiTestsPage /></RequireAuth>} />
-            <Route path="/testlar/ai/papkalar"         element={<RequireAuth><AiPapkalarPage /></RequireAuth>} />
-            <Route path="/testlar/ai/blok"             element={<RequireAuth><AiBlokSetupPage /></RequireAuth>} />
-            <Route path="/testlar/ai/erkin"            element={<RequireAuth><AiFreeSetupPage /></RequireAuth>} />
-            <Route path="/testlar/fikra/blok"          element={<RequireAuth><BlokTestSetupPage /></RequireAuth>} />
-            <Route path="/testlar/fikra/free"          element={<RequireAuth><FreeTestSetupPage /></RequireAuth>} />
-            <Route path="/test-run/:sessionId"         element={<RequireAuth><TestRunPage /></RequireAuth>} />
-            <Route path="/test-result/:sessionId"      element={<RequireAuth><TestResultPage /></RequireAuth>} />
-            <Route path="/test-review/:sessionId"      element={<RequireAuth><TestReviewPage /></RequireAuth>} />
-            <Route path="/test-explain/:sessionId/:subjectId" element={<RequireAuth><TestExplainPage /></RequireAuth>} />
+                <Route path="/testlar"                     element={<TestsPage />} />
+                <Route path="/testlar/fikra"               element={<RequireAuth><FikraTestsPage /></RequireAuth>} />
+                <Route path="/testlar/ai"                  element={<RequireAuth><AiTestsPage /></RequireAuth>} />
+                <Route path="/testlar/ai/papkalar"         element={<RequireAuth><AiPapkalarPage /></RequireAuth>} />
+                <Route path="/testlar/ai/blok"             element={<RequireAuth><AiBlokSetupPage /></RequireAuth>} />
+                <Route path="/testlar/ai/erkin"            element={<RequireAuth><AiFreeSetupPage /></RequireAuth>} />
+                <Route path="/testlar/fikra/blok"          element={<RequireAuth><BlokTestSetupPage /></RequireAuth>} />
+                <Route path="/testlar/fikra/free"          element={<RequireAuth><FreeTestSetupPage /></RequireAuth>} />
+                <Route path="/test-run/:sessionId"         element={<RequireAuth><TestRunPage /></RequireAuth>} />
+                <Route path="/test-result/:sessionId"      element={<RequireAuth><TestResultPage /></RequireAuth>} />
+                <Route path="/test-review/:sessionId"      element={<RequireAuth><TestReviewPage /></RequireAuth>} />
+                <Route path="/test-explain/:sessionId/:subjectId" element={<RequireAuth><TestExplainPage /></RequireAuth>} />
 
-            <Route path="/personal-tests/:id/run"      element={<RequireAuth><PersonalTestRunPage /></RequireAuth>} />
-            <Route path="/personal-tests/:id/result"   element={<RequireAuth><PersonalTestResultPage /></RequireAuth>} />
-            <Route path="/personal-tests/:id/review"   element={<RequireAuth><PersonalTestReviewPage /></RequireAuth>} />
-            <Route path="/personal-tests/:id/explain"  element={<RequireAuth><PersonalTestExplainPage /></RequireAuth>} />
+                <Route path="/personal-tests/:id/run"      element={<RequireAuth><PersonalTestRunPage /></RequireAuth>} />
+                <Route path="/personal-tests/:id/result"   element={<RequireAuth><PersonalTestResultPage /></RequireAuth>} />
+                <Route path="/personal-tests/:id/review"   element={<RequireAuth><PersonalTestReviewPage /></RequireAuth>} />
+                <Route path="/personal-tests/:id/explain"  element={<RequireAuth><PersonalTestExplainPage /></RequireAuth>} />
 
-            <Route path="/tarix"                       element={<HistoryPage />} />
-            <Route path="/ai/*"                        element={<AIPage />} />
-            <Route path="/profil"                      element={<ProfilePage />} />
-            </Routes>
+                <Route path="/tarix"                       element={<HistoryPage />} />
+                <Route path="/ai/*"                        element={<AIPage />} />
+                <Route path="/profil"                      element={<ProfilePage />} />
+                </Routes>
+              </motion.div>
+            </AnimatePresence>
           </Suspense>
         </div>
       </ToastProvider>

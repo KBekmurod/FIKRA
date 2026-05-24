@@ -591,3 +591,55 @@ input, textarea, select {
   }
 }
 
+/* 3D Crystal Loader */
+.crystal-loader {
+  width: 80px;
+  height: 80px;
+  position: relative;
+  transform-style: preserve-3d;
+  animation: crystalSpin 4s linear infinite;
+  margin: 0 auto;
+}
+.crystal-loader.small {
+  width: 40px;
+  height: 40px;
+}
+.crystal-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 212, 170, 0.3);
+  border: 2px solid rgba(0, 255, 200, 0.8);
+  box-shadow: 0 0 20px rgba(0, 212, 170, 0.5) inset;
+}
+.crystal-face.front  { transform: translateZ(40px); }
+.crystal-face.back   { transform: rotateY(180deg) translateZ(40px); }
+.crystal-face.right  { transform: rotateY(90deg) translateZ(40px); }
+.crystal-face.left   { transform: rotateY(-90deg) translateZ(40px); }
+.crystal-face.top    { transform: rotateX(90deg) translateZ(40px); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+.crystal-face.bottom { transform: rotateX(-90deg) translateZ(40px); clip-path: polygon(50% 100%, 0% 0%, 100% 0%); }
+
+.crystal-loader.small .crystal-face.front  { transform: translateZ(20px); }
+.crystal-loader.small .crystal-face.back   { transform: rotateY(180deg) translateZ(20px); }
+.crystal-loader.small .crystal-face.right  { transform: rotateY(90deg) translateZ(20px); }
+.crystal-loader.small .crystal-face.left   { transform: rotateY(-90deg) translateZ(20px); }
+.crystal-loader.small .crystal-face.top    { transform: rotateX(90deg) translateZ(20px); }
+.crystal-loader.small .crystal-face.bottom { transform: rotateX(-90deg) translateZ(20px); }
+
+@keyframes crystalSpin {
+  0% { transform: rotateX(0deg) rotateY(0deg); }
+  100% { transform: rotateX(360deg) rotateY(360deg); }
+}
+
+/* Thief Prank for Button */
+.button-runaway {
+  animation: runaway 4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+  pointer-events: none; /* can't click it while it runs */
+}
+
+@keyframes runaway {
+  0% { transform: translate(0, 0) scale(1); }
+  20% { transform: translate(-30px, -10px) scale(1.1) rotate(-5deg); }
+  50% { transform: translate(-50vw, -30vh) scale(0.5) rotate(-30deg); opacity: 0; }
+  100% { transform: translate(-100vw, -50vh) scale(0) rotate(-60deg); opacity: 0; display: none; }
+}

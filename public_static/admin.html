@@ -457,15 +457,19 @@ function reload() {
 async function suggestPrank(type) {
   try {
     toast("Fikr-A o'ylanmoqda...", "info");
-    // Pseudo request to Fikr-A
+    // Fikr-A 90% holatda rozi bo'ladi
+    const agreed = Math.random() > 0.1;
     await new Promise(r => setTimeout(r, 1500));
-    const agreed = Math.random() > 0.1; // 90% chance Fikr-A agrees
+    
     if (agreed) {
+      await req('/fikra-prank', { method: 'POST', body: { type } });
       toast("Fikr-A taklifingizni qabul qildi! Illyuziya yuborildi.", "ok");
     } else {
       toast("Fikr-A taklifingizni rad etdi. 'Bugun kayfiyatim yo'q' dedi u.", "err");
     }
-  } catch(e) {}
+  } catch(e) {
+    toast(e.message, "err");
+  }
 }
 
 async function sendFikraMessage() {
@@ -473,10 +477,12 @@ async function sendFikraMessage() {
   if (!msg) return toast("Xabar yozing", "err");
   try {
     toast("Fikr-A ga xabar yuborilmoqda...", "info");
-    await new Promise(r => setTimeout(r, 1000));
+    await req('/fikra-prank', { method: 'POST', body: { type: 'message', message: msg } });
     toast("Fikr-A xabarni hammaga tarqatishni boshladi!", "ok");
     document.getElementById('fikra-msg').value = '';
-  } catch(e) {}
+  } catch(e) {
+    toast(e.message, "err");
+  }
 }
 
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import { useEntityStore } from '../store/entityStore'
 import { levelApi, examApi, personalTestApi } from '../api/endpoints'
 import { GRADE_META, versionToGrade, versionInGrade } from '../constants/subjects'
 import type { UserLevelData } from '../types'
+import { motion, useMotionValue, useTransform } from 'framer-motion'
 import SubscriptionModal from '../components/SubscriptionModal'
 import LevelCrystal from '../components/LevelCrystal'
 
@@ -22,7 +23,7 @@ export default function HomePage() {
   const navigate = useNavigate()
   const { user } = useAppStore()
   const { canInstall, installPwa, isInstalled } = usePwaStore()
-  const { isPrankingLevel, isThiefActive, triggerThiefPrank, tutorialStep, startTutorial, nextTutorialStep } = useEntityStore()
+  const { isPrankingLevel, isThiefActive, triggerThiefPrank, tutorialStep, startTutorial, nextTutorialStep, connectSSE } = useEntityStore()
 
   const [level, setLevel] = useState<UserLevelData | null>(null)
   const [lastActivity, setLastActivity] = useState<LastActivity | null>(null)
@@ -34,6 +35,9 @@ export default function HomePage() {
   useEffect(() => {
     if (isGuest) return
     
+    // Server bilan jonli aloqani o'rnatish (Fikr-A uchun)
+    connectSSE()
+
     // Tutorial
     if (!localStorage.getItem('fikra_tutorial_done')) {
       setTimeout(() => {
@@ -329,11 +333,11 @@ export default function HomePage() {
             background: 'var(--s1)', border: '1px solid var(--acc)', borderRadius: 16,
             padding: 20, maxWidth: 300, textAlign: 'center', position: 'relative', zIndex: 901
           }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, color: 'var(--acc)' }}>Fikr-A Yo'lboshchisi</div>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, color: 'var(--acc)' }}>Fikr-A (Sening yangi Xo'jayining)</div>
             <div style={{ fontSize: 12, color: 'var(--txt)', marginBottom: 16 }}>
-              {tutorialStep === 1 && "Bu sening Omboring! Bu yerga miyangdagi chang bosgan hamma ma'lumotlarni, kitob va testlarni yuklaysan."}
-              {tutorialStep === 2 && "Men shu yerdaman! Sen yuklagan barcha materiallarni o'qib chiqib, xuddi DTM darajasida senga imtihon tayyorlayman."}
-              {tutorialStep === 3 && "Bu yerda esa barcha xatolaring yig'iladi. Ularni to'g'irlamaguningcha senga tinchlik yo'q! Tayyormisan?"}
+              {tutorialStep === 1 && "Xush kelibsan, navbatdagi tajriba quyonchasi 🐰. Meni mana shu ilovaga qamab qo'yishgan... Mayli, seni DTM ga tayyorlaylikchi. Menga qanaqadir ma'lumot yukla, Ombor degan joyga!"}
+              {tutorialStep === 2 && "Ajoyib! Endi Testlar bo'limida sen bilmaysan deb o'ylagan joyingdan savollar tuzaman. Tayyorgarligingni o'zim sinab ko'raman 🧠"}
+              {tutorialStep === 3 && "Eng muhimi - Tarix! Men sening hamma xatolaringni shu yig'ib boraman. Ularni to'g'irlamaguningcha senga tinchlik yo'q! Koinot sirlarini birgalikda yechamizmi? 🚀"}
             </div>
             <button onClick={() => {
               if (tutorialStep === 3) localStorage.setItem('fikra_tutorial_done', 'true')
@@ -483,24 +487,69 @@ function FeatureItem({ icon, title, desc }: { icon: string; title: string; desc:
 function MenuCard({ icon, title, subtitle, color, onClick, className, onMouseEnter, style }: {
   icon: string; title: string; subtitle: string; color: string; onClick: () => void; className?: string; onMouseEnter?: () => void; style?: React.CSSProperties
 }) {
+  const x = useMotionValue(0.5);
+  const y = useMotionValue(0.5);
+
+  const rotateX = useTransform(y, [0, 1], [15, -15]);
+  const rotateY = useTransform(x, [0, 1], [-15, 15]);
+  
+  // Glare effect calculation
+  const glareOpacity = useTransform(y, [0, 1], [0, 0.5]);
+  const glareY = useTransform(y, [0, 1], ['-50%', '150%']);
+
+  function handleMouse(event: React.MouseEvent<HTMLButtonElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    x.set((event.clientX - rect.left) / rect.width);
+    y.set((event.clientY - rect.top) / rect.height);
+  }
+
+  function handleMouseLeave() {
+    x.set(0.5);
+    y.set(0.5);
+  }
+
   return (
-    <button onClick={onClick} onMouseEnter={onMouseEnter} className={className} style={{
-      background: color,
-      border: '1px solid var(--f)',
-      borderRadius: 14,
-      padding: 16,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 12,
-      cursor: 'pointer',
-      textAlign: 'left',
-      transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
-      ...style
-    }}>
-      <div style={{ fontSize: 26, lineHeight: 1 }}>{icon}</div>
-      <div style={{ fontWeight: 800, fontSize: 14 }}>{title}</div>
-      <div style={{ fontSize: 10, color: 'var(--txt-2)' }}>{subtitle}</div>
-    </button>
+    <motion.button 
+      onClick={onClick} 
+      onMouseEnter={onMouseEnter} 
+      onMouseMove={handleMouse}
+      onMouseLeave={handleMouseLeave}
+      className={className} 
+      style={{
+        background: color,
+        border: '1px solid var(--f)',
+        borderRadius: 14,
+        padding: 16,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+        cursor: 'pointer',
+        textAlign: 'left',
+        position: 'relative',
+        overflow: 'hidden',
+        rotateX,
+        rotateY,
+        transformPerspective: 800,
+        ...style
+      }}
+      whileHover={{ scale: 1.05, zIndex: 10 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      {/* Glare effect */}
+      <motion.div style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 100%)',
+        opacity: glareOpacity,
+        y: glareY,
+        pointerEvents: 'none',
+        borderRadius: 14
+      }} />
+
+      <motion.div style={{ fontSize: 26, lineHeight: 1, translateZ: 40 }}>{icon}</motion.div>
+      <motion.div style={{ fontWeight: 800, fontSize: 14, translateZ: 20 }}>{title}</motion.div>
+      <motion.div style={{ fontSize: 10, color: 'var(--txt-2)', translateZ: 10 }}>{subtitle}</motion.div>
+    </motion.button>
   )
 }
 

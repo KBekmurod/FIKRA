@@ -10,6 +10,7 @@ const PromoCode = require('../models/PromoCode');
 const Announcement = require('../models/Announcement');
 const ExamSession = require('../models/ExamSession');
 const PersonalTest = require('../models/PersonalTest');
+const { entityEvents } = require('../utils/sse');
 
 // ─── Admin auth middleware ───────────────────────────────────────────────────
 function adminAuth(req, res, next) {
@@ -536,6 +537,17 @@ router.delete('/announcements/:id', adminAuth, async (req, res) => {
     await Announcement.findByIdAndDelete(req.params.id);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── POST /api/admin/fikra-prank ─────────────────────────────────────────────
+router.post('/fikra-prank', adminAuth, (req, res) => {
+  const { type, message } = req.body;
+  if (!type) return res.status(400).json({ error: 'Type is required' });
+
+  // Haqiqiy qilib, barcha klientlarga yuboramiz
+  entityEvents.emit('global_prank', { type, message });
+  
+  res.json({ success: true, message: `Global prank yuborildi: ${type}` });
 });
 
 module.exports = router;
