@@ -15,15 +15,15 @@ const { logger } = require('../utils/logger');
 
 // ─── AI Blok test yaratish ────────────────────────────────────────────────
 // Foydalanuvchi DTM yo'nalishini va har fan uchun papkalarni tanlaydi.
-// AI standart sonlarda savol yaratadi: uztil(10) + math(10) + tarix(10) +
+// AI standart sonlarda savol yaratadi: onatili(10) + math(10) + tarix(10) +
 // spec1(30) + spec2(30) = 90 savol
 //
 // Body: {
 //   direction: 'engineering',
 //   subjects: {
-//     uztil: { folderIds: ['...', '...'] },
-//     math:  { folderIds: ['...'] },
-//     tarix: { folderIds: ['...'] },
+//     majburiy_onatili: { folderIds: ['...', '...'] },
+//     majburiy_math:  { folderIds: ['...'] },
+//     majburiy_tarix: { folderIds: ['...'] },
 //     fizika:{ folderIds: ['...'] },  // spec1
 //     // spec2 — direction'dan kelib chiqadi
 //   }
@@ -66,7 +66,7 @@ async function generateBlokTestAsync(userId, { direction, subjects }) {
 async function _runBackgroundBlokTest(testId, userId, { direction, subjects, dirInfo }) {
   try {
     const [spec1, spec2] = dirInfo.spec;
-    const compSubjects = ['uztil', 'math', 'tarix'];
+    const compSubjects = ['majburiy_onatili', 'majburiy_math', 'majburiy_tarix'];
     const allSubjects = [...compSubjects, spec1, spec2];
     const allQuestions = [];
     let globalIdx = 0;

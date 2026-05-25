@@ -292,7 +292,7 @@ select option{background:var(--s2)}
           <input placeholder="🔍 Savol matni..." id="q-search" oninput="debounce(loadQuestions,500)()" style="flex:1;min-width:160px">
           <select id="q-subject" onchange="loadQuestions()">
             <option value="">Barcha fanlar</option>
-            <option value="uztil">Ona tili</option>
+            <option value="onatili">Ona tili</option>
             <option value="math">Matematika</option>
             <option value="tarix">Tarix</option>
             <option value="bio">Biologiya</option>
@@ -697,12 +697,12 @@ async function rejectOrder(orderId) {
 
 // ─── SAVOLLAR ─────────────────────────────────────────────────────────────────
 const SUBJECT_NAMES = {
-  uztil:'Ona tili', math:'Matematika', tarix:'Tarix', bio:'Biologiya',
+  onatili:'Ona tili', math:'Matematika', tarix:'Tarix', bio:'Biologiya',
   kimyo:'Kimyo', fizika:'Fizika', ingliz:'Ingliz', inform:'Informatika',
   iqtisod:'Iqtisodiyot', rus:'Rus tili', geo:'Geografiya', adab:'Adabiyot',
 };
 const SUBJECT_COLORS = {
-  uztil:'purple', math:'yellow', tarix:'orange', bio:'green',
+  onatili:'purple', math:'yellow', tarix:'orange', bio:'green',
   kimyo:'orange', fizika:'purple', ingliz:'yellow', inform:'green',
   iqtisod:'yellow', rus:'purple', geo:'green', adab:'orange',
 };
@@ -923,7 +923,7 @@ function showAddQuestion(q = {}) {
         </select></div>
       <div class="form-group"><label>Fan</label>
         <select id="qf-sub" style="width:100%">
-          ${['uztil','math','tarix','bio','kimyo','fizika','ingliz','inform','iqtisod','rus','geo','adab'].map(s =>
+          ${['onatili','math','tarix','bio','kimyo','fizika','ingliz','inform','iqtisod','rus','geo','adab'].map(s =>
             `<option value="${s}" ${q.subject===s?'selected':''}>${SUBJECT_NAMES[s]||s}</option>`).join('')}
         </select></div>
       <div class="form-group"><label>Blok</label>

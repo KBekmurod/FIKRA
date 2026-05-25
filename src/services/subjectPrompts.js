@@ -4,13 +4,30 @@
 
 const SUBJECT_PROMPTS = {
   // ─── MAJBURIY FANLAR ───────────────────────────────────────────────────
-  uztil: `Ona tili (o'zbek tili) uchun maxsus:
+  majburiy_onatili: `Ona tili (o'zbek tili) uchun maxsus:
   • Grammatika qoidalari (so'z turkumlari, gap tuzilishi, ohangdoshlik)
   • Imlo va punktuatsiya (qo'shimchalar, bog'lovchilar)
   • Lug'at — sinonim, antonim, omonim
   • Frazeologizmlar va maqollar mavzularidan ham
   • Savollar O'zbekiston Respublikasi DTM standart formatida
   • Variantlarda mantiqiy chalkash javoblar (jiddiy o'xshashlik)`,
+
+  onatili: `Ona tili (o'zbek tili) uchun maxsus:
+  • Grammatika qoidalari (so'z turkumlari, gap tuzilishi, ohangdoshlik)
+  • Imlo va punktuatsiya (qo'shimchalar, bog'lovchilar)
+  • Lug'at — sinonim, antonim, omonim
+  • Frazeologizmlar va maqollar mavzularidan ham
+  • Savollar O'zbekiston Respublikasi DTM standart formatida
+  • Variantlarda mantiqiy chalkash javoblar (jiddiy o'xshashlik)`,
+
+  majburiy_math: `Matematika uchun maxsus:
+  • Algebraik tenglamalar, tengsizliklar, funksiyalar
+  • Geometriya (planimetriya, stereometriya)
+  • Trigonometriya, logaritmalar, ko'rsatkichli ifodalar
+  • Statistika va ehtimollar
+  • FORMULALARNI LaTeX format'da yoz: $x^2 + 2x + 1$, $\\frac{a}{b}$, $\\sqrt{x}$
+  • Hisoblash savollari aniq raqamli javobga ega bo'lsin
+  • Variantlardagi noto'g'ri javoblar — odatda foydalanuvchi qiladigan xatolar`,
 
   math: `Matematika uchun maxsus:
   • Algebraik tenglamalar, tengsizliklar, funksiyalar
@@ -20,6 +37,14 @@ const SUBJECT_PROMPTS = {
   • FORMULALARNI LaTeX format'da yoz: $x^2 + 2x + 1$, $\\frac{a}{b}$, $\\sqrt{x}$
   • Hisoblash savollari aniq raqamli javobga ega bo'lsin
   • Variantlardagi noto'g'ri javoblar — odatda foydalanuvchi qiladigan xatolar`,
+
+  majburiy_tarix: `Tarix uchun maxsus:
+  • Aniq sanalar (yil, qism), tarixiy hodisalar
+  • Tarixiy shaxslar va ularning rollari
+  • Mavzular: davlat birlashmalari, urushlar, madaniyat, iqtisod
+  • Sabab-natija va xulosa savollari
+  • Material kontekstiga to'liq mos kelsin (jahon yoki O'zb. tarix)
+  • Variantlar bir-biriga juda yaqin (faqat sana yoki shaxs farqi)`,
 
   tarix: `Tarix uchun maxsus:
   • Aniq sanalar (yil, qism), tarixiy hodisalar

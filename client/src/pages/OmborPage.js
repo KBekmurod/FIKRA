@@ -23,7 +23,7 @@ export default function OmborPage() {
             .finally(() => setLoading(false));
     }, [user]);
     // Tab bo'yicha ko'rsatadigan fanlar
-    // Majburiy: uztil, math, tarix
+    // Majburiy: onatili, math, tarix
     // Mutaxassislik: hammasi (math/tarix dual, qolganlari fakat speciality)
     const compulsoryList = COMPULSORY_IDS;
     // Mutaxassislikda: math, tarix (dual) + 13 ta faqat-mutaxassislik fani = 15 ta

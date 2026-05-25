@@ -84,7 +84,7 @@ router.post('/generate', authMiddleware, async (req, res, next) => {
 // Xato savollardan mini-test yaratish
 // ─── POST /api/personal-tests/ai-blok
 // AI yo'nalish bo'yicha blok test yaratish (DTM standart)
-// Body: { direction: 'engineering', subjects: { uztil: { folderIds }, math: {...}, ... } }
+// Body: { direction: 'engineering', subjects: { onatili: { folderIds }, math: {...}, ... } }
 router.post('/ai-blok', authMiddleware, async (req, res, next) => {
   try {
     const aiTestService = require('../services/aiTestService');

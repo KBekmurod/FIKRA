@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const testQuestionSchema = new mongoose.Schema({
   subject: {
     type: String,
-    enum: ['uztil', 'math', 'tarix', 'bio', 'kimyo', 'fizika', 'ingliz', 'rus', 'inform', 'iqtisod', 'geografiya', 'huquq', 'nemis'],
+    enum: ['onatili', 'math', 'tarix', 'majburiy_onatili', 'majburiy_math', 'majburiy_tarix', 'bio', 'kimyo', 'fizika', 'ingliz', 'rus', 'inform', 'iqtisod', 'geografiya', 'huquq', 'nemis', 'arab', 'fors', 'turk', 'adab'],
     required: true,
     index: true,
   },

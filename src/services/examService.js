@@ -5,16 +5,16 @@ const mongoose     = require('mongoose');
 
 // ─── DTM 2026 Konfiguratsiya ─────────────────────────────────────────────────
 const COMPULSORY_SUBJECTS = [
-  { id: 'uztil',  name: "Ona tili",          weight: 1.1, count: 10, block: 'majburiy' },
-  { id: 'math',   name: "Matematika",         weight: 1.1, count: 10, block: 'majburiy' },
-  { id: 'tarix',  name: "O'zbekiston tarixi", weight: 1.1, count: 10, block: 'majburiy' },
+  { id: 'majburiy_onatili',  name: "Ona tili",          weight: 1.1, count: 10, block: 'majburiy' },
+  { id: 'majburiy_math',   name: "Matematika",         weight: 1.1, count: 10, block: 'majburiy' },
+  { id: 'majburiy_tarix',  name: "O'zbekiston tarixi", weight: 1.1, count: 10, block: 'majburiy' },
 ];
 
 const SUBJECT_META = {
   // Majburiy fanlar
-  uztil:   { name: "Ona tili",          weight: 1.1, block: 'majburiy',        defaultCount: 10 },
-  math:    { name: "Matematika",         weight: 1.1, block: 'majburiy',        defaultCount: 10 },
-  tarix:   { name: "O'zbekiston tarixi", weight: 1.1, block: 'majburiy',        defaultCount: 10 },
+  majburiy_onatili:   { name: "Ona tili",          weight: 1.1, block: 'majburiy',        defaultCount: 10 },
+  majburiy_math:    { name: "Matematika",         weight: 1.1, block: 'majburiy',        defaultCount: 10 },
+  majburiy_tarix:   { name: "O'zbekiston tarixi", weight: 1.1, block: 'majburiy',        defaultCount: 10 },
 
   // Aniq va tabiiy fanlar
   fizika:  { name: "Fizika",             weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
@@ -164,7 +164,7 @@ async function startDtmSession(userId, direction) {
     userId,
     mode: 'dtm',
     direction: direction.toLowerCase(),
-    selectedSubjects: [spec1Id, spec2Id, 'uztil', 'math', 'tarix'],
+    selectedSubjects: [spec1Id, spec2Id, 'majburiy_onatili', 'majburiy_math', 'majburiy_tarix'],
     questionIds,
     durationSeconds: 10800,
     status: 'in_progress',
@@ -187,7 +187,7 @@ async function startDtmSession(userId, direction) {
 }
 
 function getBlock(subjectId, direction) {
-  if (['uztil', 'math', 'tarix'].includes(subjectId)) return 'majburiy';
+  if (['majburiy_onatili', 'majburiy_math', 'majburiy_tarix'].includes(subjectId)) return 'majburiy';
   const dir = DIRECTION_MAP[direction];
   if (!dir) return 'mutaxassislik_1';
   if (dir.spec[0] === subjectId) return 'mutaxassislik_1';

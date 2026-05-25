@@ -84,7 +84,7 @@ Eski nomlar saqlanadi (backward compat).
 **Yangi:** `src/services/subjectPrompts.js`
 
 18 ta fan uchun maxsus ko'rsatmalar (foydalanuvchiga ko'rinmaydi):
-- **uztil**: grammatika, imlo, lug'at, frazeologizmlar
+- **onatili**: grammatika, imlo, lug'at, frazeologizmlar
 - **math**: LaTeX formulalar, hisoblash, geometriya
 - **tarix**: aniq sanalar, sabab-natija
 - **fizika**: SI birliklari, LaTeX formulalar

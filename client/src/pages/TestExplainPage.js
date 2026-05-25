@@ -109,8 +109,8 @@ export default function TestExplainPage() {
     }
     // ─── OVERVIEW — Fanlar ro'yxati ─────────────────────────────────────────
     if (isOverview) {
-        const majburiy = overview.filter(o => ['uztil', 'math', 'tarix'].includes(o.subjectId));
-        const mutaxassislik = overview.filter(o => !['uztil', 'math', 'tarix'].includes(o.subjectId));
+        const majburiy = overview.filter(o => o.block === 'majburiy');
+        const mutaxassislik = overview.filter(o => o.block !== 'majburiy');
         return (_jsxs(_Fragment, { children: [_jsxs("div", { className: "header", children: [_jsx("button", { onClick: goBack, style: {
                                 background: 'none', border: 'none', color: 'var(--txt-2)',
                                 fontSize: 22, cursor: 'pointer', padding: 0, marginRight: 8,

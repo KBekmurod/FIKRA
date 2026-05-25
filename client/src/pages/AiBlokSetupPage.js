@@ -20,7 +20,7 @@ const DIRECTIONS = [
     { id: 'french_studies', name: 'Fransuz tili va madaniyati', icon: '🇫🇷', spec: ['fransuz', 'adab'] },
     { id: 'arabic_studies', name: 'Arab tili va sharqshunoslik', icon: '🕌', spec: ['arab', 'tarix'] },
 ];
-const COMPULSORY = ['uztil', 'math', 'tarix'];
+const COMPULSORY = ['majburiy_onatili', 'majburiy_math', 'majburiy_tarix'];
 export default function AiBlokSetupPage() {
     const navigate = useNavigate();
     const goBack = useGoBack('/testlar/ai');
@@ -42,9 +42,7 @@ export default function AiBlokSetupPage() {
             try {
                 // Majburiy fanlar uchun context=majburiy, mutaxassislik uchun context=mutaxassislik
                 const context = COMPULSORY.includes(sid) ? 'majburiy' : 'mutaxassislik';
-                // math/tarix dual-context — agar dir.spec'da bo'lsa mutaxassislik
-                const isInSpec = dir.spec.includes(sid);
-                const finalContext = isInSpec ? 'mutaxassislik' : 'majburiy';
+        const finalContext = context;
                 const { data } = await folderApi.bySubject(sid, finalContext);
                 return [sid, data.folders];
             }

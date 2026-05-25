@@ -9,7 +9,7 @@
 //
 // MUHIM: Quyidagi fanlar IKKI kontekstda ham bo'lishi mumkin:
 //   • math   — Matematika (majburiy + mutaxassislik)
-//   • uztil  — Ona tili (majburiy)
+//   • onatili  — Ona tili (majburiy)
 //   • adab   — Ona tili va adabiyoti (mutaxassislik)
 //   • tarix  — O'zbekiston tarixi (majburiy)
 //   • tarix  — Tarix (jahon + O'zb.) (mutaxassislik)
@@ -21,14 +21,13 @@ const PersonalTest   = require('../models/PersonalTest');
 const { SUBJECT_META } = require('./examService');
 const { logger }     = require('../utils/logger');
 
-// ─── Ikkala kontekstda bo'lishi mumkin bo'lgan fanlar ─────────────────────
-// Bularda foydalanuvchi papka yaratganda kontekst tanlashi kerak.
-const DUAL_CONTEXT_SUBJECTS = new Set(['math', 'tarix']);
-// uztil va adab — alohida ID'lar, ammo ham mantiqan o'xshash
-// uztil (majburiy) va adab (mutaxassislik — ona tili va adabiyoti)
+// Ikkala kontekstda bo'lishi mumkin bo'lgan fanlar yo'q endi
+const DUAL_CONTEXT_SUBJECTS = new Set();
+// onatili va adab — alohida ID'lar, ammo ham mantiqan o'xshash
+// onatili (majburiy) va adab (mutaxassislik — ona tili va adabiyoti)
 
 // Faqat majburiyda bo'ladigan fanlar
-const ONLY_COMPULSORY = new Set(['uztil']);
+const ONLY_COMPULSORY = new Set(['majburiy_onatili', 'majburiy_math', 'majburiy_tarix']);
 
 // Mutaxassislikda bo'ladigan fanlar (math/tarix dan tashqari):
 //   fizika, kimyo, bio, geo, adab, huquq,

@@ -38,7 +38,7 @@
 - `math` — Matematika (10/30)
 - `tarix` — Tarix (10/30)
 
-Faqat **majburiy**: `uztil` (Ona tili)
+Faqat **majburiy**: `onatili` (Ona tili)
 Faqat **mutaxassislik**: `adab` (Ona tili va adabiyoti) va boshqalari
 
 Foydalanuvchi math papkasini ikkala kontekstda alohida yaratishi mumkin:

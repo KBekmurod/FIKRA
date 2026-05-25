@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { examApi } from '../api/endpoints';
 import { useToast } from '../components/Toast';
 const COMPULSORY = [
-    { id: 'uztil', name: 'Ona tili', icon: '📖', count: 10, weight: 1.1 },
+    { id: 'onatili', name: 'Ona tili', icon: '📖', count: 10, weight: 1.1 },
     { id: 'math', name: 'Matematika', icon: '🔢', count: 10, weight: 1.1 },
     { id: 'tarix', name: "O'zbekiston tarixi", icon: '🏛', count: 10, weight: 1.1 },
 ];

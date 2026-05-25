@@ -39,7 +39,7 @@ export default function OmborPage() {
   }, [user])
 
   // Tab bo'yicha ko'rsatadigan fanlar
-  // Majburiy: uztil, math, tarix
+  // Majburiy: onatili, math, tarix
   // Mutaxassislik: hammasi (math/tarix dual, qolganlari fakat speciality)
   const compulsoryList = COMPULSORY_IDS
   // Mutaxassislikda: math, tarix (dual) + 13 ta faqat-mutaxassislik fani = 15 ta
@@ -159,13 +159,7 @@ export default function OmborPage() {
               ⭐ MUTAXASSISLIK · har biri 30 ta savol · 2.1–3.1 ball
             </div>
 
-            {/* Math va Tarix mutaxassislik (alohida bo'lim) */}
-            <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--y)', letterSpacing: 0.5, margin: '8px 0 6px' }}>
-              🔁 IKKALA KONTEKSTDA HAM (chuqurroq)
-            </div>
-            <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
-              {(['math', 'tarix'] as SubjectId[]).map(id => renderSubjectCard(id, 'mutaxassislik'))}
-            </div>
+            
 
             {Object.entries(SPEC_BY_CATEGORY).map(([cat, ids]) => (
               <div key={cat} style={{ marginBottom: 14 }}>

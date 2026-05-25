@@ -29,7 +29,7 @@ const folderSchema = new mongoose.Schema({
   //   • 'mutaxassislik' → chuqurroq (30 savol, 2.1/3.1 ball, murakkab)
   //
   // Faqat 3 ta fan ikkala kontekstda bo'lishi mumkin:
-  //   math, uztil/adab, tarix
+  //   math, onatili/adab, tarix
   context: {
     type: String,
     enum: ['majburiy', 'mutaxassislik'],

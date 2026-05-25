@@ -21,7 +21,7 @@ const DIRECTIONS = [
   { id: 'arabic_studies', name: 'Arab tili va sharqshunoslik', icon: '🕌',  spec: ['arab', 'tarix'] as SubjectId[] },
 ]
 
-const COMPULSORY: SubjectId[] = ['uztil', 'math', 'tarix']
+const COMPULSORY: SubjectId[] = ['majburiy_onatili', 'majburiy_math', 'majburiy_tarix']
 
 interface Folder {
   _id: string
@@ -55,9 +55,7 @@ export default function AiBlokSetupPage() {
       try {
         // Majburiy fanlar uchun context=majburiy, mutaxassislik uchun context=mutaxassislik
         const context = COMPULSORY.includes(sid) ? 'majburiy' : 'mutaxassislik'
-        // math/tarix dual-context — agar dir.spec'da bo'lsa mutaxassislik
-        const isInSpec = dir.spec.includes(sid)
-        const finalContext = isInSpec ? 'mutaxassislik' : 'majburiy'
+        const finalContext = context
 
         const { data } = await folderApi.bySubject(sid, finalContext)
         return [sid, data.folders] as const

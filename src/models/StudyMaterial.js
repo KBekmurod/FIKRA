@@ -13,7 +13,7 @@ const studyMaterialSchema = new mongoose.Schema({
     index: true,
   },
 
-  // Fan ID (examService.SUBJECT_META'dagi kalit: uztil, math, tarix, bio, kimyo...)
+  // Fan ID (examService.SUBJECT_META'dagi kalit: onatili, math, tarix, bio, kimyo...)
   subjectId: {
     type: String,
     required: true,
