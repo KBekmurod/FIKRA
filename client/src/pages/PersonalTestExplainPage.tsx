@@ -323,33 +323,36 @@ export default function PersonalTestExplainPage() {
           border: '1px solid rgba(123,104,238,0.3)',
           borderRadius: 14,
         }}>
-        {/* Mini-test yaratish tugmasi */}
-        <div style={{ marginTop: 24 }}>
-          <button
-            onClick={() => setMiniPrompt(true)}
-            disabled={generatingMini || miniAlreadyGenerated}
-            style={{
-              width: '100%',
-              background: miniAlreadyGenerated ? 'var(--s1)' : 'linear-gradient(135deg, var(--y), #fbbf24)',
-              color: miniAlreadyGenerated ? 'var(--txt-3)' : '#0a0a14',
-              border: miniAlreadyGenerated ? '1px solid var(--f)' : 'none',
-              borderRadius: 14,
-              padding: '14px 16px',
-              fontSize: 14,
-              fontWeight: 800,
-              cursor: miniAlreadyGenerated ? 'default' : 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              opacity: (generatingMini || miniAlreadyGenerated) ? 0.6 : 1,
-            }}
-          >
-            {generatingMini ? '⏳ Yaratilmoqda...' : miniAlreadyGenerated ? '✓ Mini-test allaqachon yaratilgan' : '🔄 Xatolardan Mini-test yaratish'}
-          </button>
-          {!miniAlreadyGenerated && (
-            <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 6, textAlign: 'center' }}>
-              Xato javoblar asosida yangi savollar (faol test uchun 1 marta yaratiladi)
-            </div>
-          )}
+          {/* Mini-test yaratish tugmasi */}
+          <div style={{ marginTop: 4 }}>
+            <button
+              onClick={() => setMiniPrompt(true)}
+              disabled={generatingMini || miniAlreadyGenerated}
+              style={{
+                width: '100%',
+                background: miniAlreadyGenerated ? 'var(--s1)' : 'linear-gradient(135deg, var(--y), #fbbf24)',
+                color: miniAlreadyGenerated ? 'var(--txt-3)' : '#0a0a14',
+                border: miniAlreadyGenerated ? '1px solid var(--f)' : 'none',
+                borderRadius: 14,
+                padding: '14px 16px',
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: miniAlreadyGenerated ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                opacity: (generatingMini || miniAlreadyGenerated) ? 0.6 : 1,
+              }}
+            >
+              {generatingMini ? '⏳ Yaratilmoqda...' : miniAlreadyGenerated ? '✓ Mini-test allaqachon yaratilgan' : '🔄 Xatolardan Mini-test yaratish'}
+            </button>
+            {!miniAlreadyGenerated && (
+              <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 6, textAlign: 'center' }}>
+                Xato javoblar asosida yangi savollar (faol test uchun 1 marta yaratiladi)
+              </div>
+            )}
+          </div>
         </div>
+        
+        <div style={{ height: 30 }} />
       </div>
 
       <SubscriptionModal
