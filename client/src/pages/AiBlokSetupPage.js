@@ -60,7 +60,7 @@ var DIRECTIONS = [
     { id: 'law', name: "Huquq · Davlat boshqaruvi", icon: '⚖', spec: ['huquq', 'tarix'] },
     { id: 'german_studies', name: 'Nemis tili va madaniyati', icon: '🇩🇪', spec: ['nemis', 'adab'] },
     { id: 'french_studies', name: 'Fransuz tili va madaniyati', icon: '🇫🇷', spec: ['fransuz', 'adab'] },
-    { id: 'arabic_studies', name: 'Arab tili va sharqshunoslik', icon: '🕌', spec: ['arab', 'tarix'] },
+
 ];
 var COMPULSORY = ['majburiy_onatili', 'majburiy_math', 'majburiy_tarix'];
 export default function AiBlokSetupPage() {

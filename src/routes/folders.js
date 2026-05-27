@@ -126,7 +126,7 @@ router.post('/:id/generate', authMiddleware, async (req, res, next) => {
       subjectName:    result.test.subjectName,
       folderId:       result.folder._id,
       totalQuestions: result.questions.length,
-      durationSeconds: result.questions.length * 60,
+      durationSeconds: result.questions.length * 120,
       questions: result.questions.map(q => ({
         idx:      q.idx,
         question: q.question,
@@ -154,7 +154,7 @@ router.post('/:id/retry', authMiddleware, async (req, res, next) => {
       subjectName:    newAttempt.subjectName,
       folderId:       newAttempt.folderId,
       totalQuestions: newAttempt.totalQuestions,
-      durationSeconds: newAttempt.totalQuestions * 60,
+      durationSeconds: newAttempt.totalQuestions * 120,
       questions: newAttempt.questions.map(q => ({
         idx:      q.idx,
         question: q.question,

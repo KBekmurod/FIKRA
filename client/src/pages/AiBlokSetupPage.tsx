@@ -18,7 +18,7 @@ const DIRECTIONS = [
   { id: 'law',            name: "Huquq · Davlat boshqaruvi",   icon: '⚖',  spec: ['huquq', 'tarix'] as SubjectId[] },
   { id: 'german_studies', name: 'Nemis tili va madaniyati',    icon: '🇩🇪', spec: ['nemis', 'adab'] as SubjectId[] },
   { id: 'french_studies', name: 'Fransuz tili va madaniyati',  icon: '🇫🇷', spec: ['fransuz', 'adab'] as SubjectId[] },
-  { id: 'arabic_studies', name: 'Arab tili va sharqshunoslik', icon: '🕌',  spec: ['arab', 'tarix'] as SubjectId[] },
+
 ]
 
 const COMPULSORY: SubjectId[] = ['majburiy_onatili', 'majburiy_math', 'majburiy_tarix']

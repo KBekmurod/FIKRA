@@ -128,14 +128,6 @@ const SUBJECT_PROMPTS = {
   • Savol va variantlar fransuz tilida
   • Tushuntirish o'zbekcha`,
 
-  arab: `Arab tili uchun maxsus:
-  • Arab tili grammatikasi (sarf va nahv)
-  • Klassik va zamonaviy arab tili
-  • Fonetika va morfologiya
-  • Qur'oniy va adabiy lug'at
-  • Savol va variantlar arab yozuvi va transliteratsiya bilan
-  • Tushuntirish o'zbekcha`,
-
   fors: `Fors tili uchun maxsus:
   • Fors tili grammatikasi va lug'ati
   • Klassik fors-tojik adabiyoti

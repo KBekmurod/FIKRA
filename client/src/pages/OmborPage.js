@@ -31,7 +31,7 @@ export default function OmborPage() {
         'math', 'tarix',
         'fizika', 'kimyo', 'bio', 'geo',
         'adab', 'huquq',
-        'ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk',
+        'ingliz', 'nemis', 'fransuz', 'fors', 'turk',
     ];
     var getSummaryFor = function (subjectId, context) {
         // Dual subjects: key = subjectId__context

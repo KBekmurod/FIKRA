@@ -47,7 +47,7 @@ export default function OmborPage() {
     'math', 'tarix',
     'fizika', 'kimyo', 'bio', 'geo',
     'adab', 'huquq',
-    'ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk',
+    'ingliz', 'nemis', 'fransuz', 'fors', 'turk',
   ]
 
   const getSummaryFor = (subjectId: string, context: Context): SummaryEntry | null => {

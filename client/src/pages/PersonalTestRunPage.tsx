@@ -311,30 +311,32 @@ export default function PersonalTestRunPage() {
               )
             })}
           </div>
-
         </div>
       </div>
 
-      {/* 3. Bottom Navigation */}
-      <div className="test-bottom-nav">
-        <button 
-          className="test-nav-btn prev" 
-          onClick={() => navigateTo(qIdx - 1)} 
-          disabled={qIdx === 0}
-        >← Oldingi</button>
-        
-        {!isLast ? (
+
+      {/* 3. Bottom Navigation (Static flow) */}
+      <div className="test-bottom-nav-container">
+        <div className="test-bottom-nav">
           <button 
-            className="test-nav-btn next" 
-            onClick={() => navigateTo(qIdx + 1)}
-          >Keyingi →</button>
-        ) : (
-          <button 
-            className="test-nav-btn finish" 
-            onClick={() => setFinishPrompt(true)}
-            disabled={finishing}
-          >Yakunlash 🏁</button>
-        )}
+            className="test-nav-btn prev" 
+            onClick={() => navigateTo(qIdx - 1)} 
+            disabled={qIdx === 0}
+          >← Oldingi</button>
+          
+          {!isLast ? (
+            <button 
+              className="test-nav-btn next" 
+              onClick={() => navigateTo(qIdx + 1)}
+            >Keyingi →</button>
+          ) : (
+            <button 
+              className="test-nav-btn finish" 
+              onClick={() => setFinishPrompt(true)}
+              disabled={finishing}
+            >Yakunlash 🏁</button>
+          )}
+        </div>
       </div>
 
       {/* 4. Mini-map (Grid) Overlay */}
@@ -371,8 +373,8 @@ export default function PersonalTestRunPage() {
 
       {/* 5. Modals */}
       {exitTarget && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: 'var(--s1)', border: '1px solid var(--f)', borderRadius: 24, padding: 24, maxWidth: 340, width: '100%', textAlign: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setExitTarget(null)}>
+          <div style={{ background: 'var(--s1)', border: '1px solid var(--f)', borderRadius: 24, padding: 24, maxWidth: 340, width: '100%', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🚪</div>
             <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>Testdan chiqasizmi?</div>
             <p style={{ fontSize: 13, color: 'var(--txt-2)', marginBottom: 24 }}>Jarayon arxivlanadi, xohlagan payt qaytib davom ettirishingiz mumkin.</p>
@@ -385,8 +387,8 @@ export default function PersonalTestRunPage() {
       )}
 
       {finishPrompt && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: 'var(--s1)', border: '1px solid var(--f)', borderRadius: 24, padding: 24, maxWidth: 340, width: '100%', textAlign: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setFinishPrompt(false)}>
+          <div style={{ background: 'var(--s1)', border: '1px solid var(--f)', borderRadius: 24, padding: 24, maxWidth: 340, width: '100%', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🏁</div>
             <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>Testni yakunlaysizmi?</div>
             <p style={{ fontSize: 13, color: 'var(--txt-2)', marginBottom: 24 }}>

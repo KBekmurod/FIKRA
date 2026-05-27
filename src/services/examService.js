@@ -33,7 +33,7 @@ const SUBJECT_META = {
   ingliz:  { name: "Ingliz tili",        weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
   nemis:   { name: "Nemis tili",         weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
   fransuz: { name: "Fransuz tili",       weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
-  arab:    { name: "Arab tili",          weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
+
   fors:    { name: "Fors tili",          weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
   turk:    { name: "Turk tili",          weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
 
@@ -47,7 +47,7 @@ const SUBJECT_META = {
 // Har yo'nalishda 2 ta mutaxassislik fani bo'ladi:
 //   spec[0] — 3.1 ball (asosiy, ko'proq vazn)
 //   spec[1] — 2.1 ball yoki 3.1 ball (qo'shimcha)
-// 6 ta yangi mutaxassislik fani (huquq, nemis, fransuz, arab, fors, turk)
+// 5 ta yangi mutaxassislik fani (huquq, nemis, fransuz, fors, turk)
 // uchun ham yo'nalishlar qo'shildi
 const DIRECTION_MAP = {
   // Frontend ID'lar
@@ -62,7 +62,7 @@ const DIRECTION_MAP = {
   law:            { name: "Huquq · Davlat boshqaruvi",  spec: ['huquq',   'tarix'  ] },
   german_studies: { name: "Nemis tili va madaniyati",   spec: ['nemis',   'adab'   ] },
   french_studies: { name: "Fransuz tili va madaniyati", spec: ['fransuz', 'adab'   ] },
-  arabic_studies: { name: "Arab tili va sharqshunoslik",spec: ['arab',    'tarix'  ] },
+
   persian_studies:{ name: "Fors tili va adabiyoti",     spec: ['fors',    'adab'   ] },
   turkish_studies:{ name: "Turk tili va madaniyati",    spec: ['turk',    'tarix'  ] },
 

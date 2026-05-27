@@ -20,7 +20,7 @@ export var SUBJECTS = {
     ingliz: { id: 'ingliz', name: 'Ingliz tili', icon: '🇬🇧', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
     nemis: { id: 'nemis', name: 'Nemis tili', icon: '🇩🇪', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
     fransuz: { id: 'fransuz', name: 'Fransuz tili', icon: '🇫🇷', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
-    arab: { id: 'arab', name: 'Arab tili', icon: '🇸🇦', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
+
     fors: { id: 'fors', name: 'Fors tili', icon: '🇮🇷', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
     turk: { id: 'turk', name: 'Turk tili', icon: '🇹🇷', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
     // Boshqalar (DTM da bor)
@@ -32,7 +32,7 @@ export var COMPULSORY_IDS = ['majburiy_onatili', 'majburiy_math', 'majburiy_tari
 export var SPEC_IDS = [
     'math', 'fizika', 'kimyo', 'bio', 'geo',
     'tarix', 'onatili', 'adab', 'huquq',
-    'ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk',
+    'ingliz', 'nemis', 'fransuz', 'fors', 'turk',
     'rus', 'inform', 'iqtisod',
 ];
 // Endi hech qanday fan dual-context emas, hammasi o'zining aniq ID siga ega
@@ -50,7 +50,7 @@ export function getStandardCountByContext(context) {
 export var SPEC_BY_CATEGORY = {
     aniq_tabiiy: ['math', 'fizika', 'kimyo', 'bio', 'geo'],
     gumanitar: ['tarix', 'onatili', 'adab', 'huquq'],
-    chet_tili: ['ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk'],
+    chet_tili: ['ingliz', 'nemis', 'fransuz', 'fors', 'turk'],
     boshqa: ['rus', 'inform', 'iqtisod']
 };
 export var SPEC_CATEGORY_NAMES = {

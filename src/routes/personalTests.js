@@ -59,7 +59,7 @@ router.post('/generate', authMiddleware, async (req, res, next) => {
         subjectId: test.subjectId,
         subjectName: test.subjectName,
         totalQuestions: questions.length,
-        durationSeconds: questions.length * 60,
+        durationSeconds: questions.length * 120,
         questions: questions.map(q => ({
           idx:     q.idx,
           question: q.question,
@@ -158,7 +158,7 @@ router.get('/:id/status', authMiddleware, async (req, res, next) => {
       subjectName: test.subjectName,
       testType: test.testType,
       totalQuestions: test.totalQuestions,
-      durationSeconds: test.totalQuestions * 60,
+      durationSeconds: test.totalQuestions * 120,
       questions: test.questions.map(q => ({
         idx:         q.idx,
         question:    q.question,
@@ -254,7 +254,7 @@ router.post('/mini', authMiddleware, async (req, res, next) => {
         folderId,
         sourceTestId: sourceTestId || null,
         totalQuestions: questions.length,
-        durationSeconds: questions.length * 60,
+        durationSeconds: questions.length * 120,
         questions: questions.map(q => ({
           idx:      q.idx,
           question: q.question,

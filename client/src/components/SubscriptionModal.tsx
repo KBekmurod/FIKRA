@@ -107,10 +107,10 @@ export default function SubscriptionModal({ open, onClose }: Props) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11, color: 'var(--txt-2)' }}>
             <div>• <b>20 ta</b> AI tushuntirish</div>
             <div>• <b>30 ta</b> AI xabar</div>
-            <div>• <b>3 ta</b> Hujjat (PDF/Doc)</div>
+            <div>• <b>3 ta</b> Hujjat tahlili (PDF)</div>
             <div>• <b>5 ta</b> Rasm (OCR)</div>
             <div>• <b>5 ta</b> AI test generatsiya</div>
-            <div>• <b>5 ta</b> Material saqlash (har fanga)</div>
+            <div>• <b>5 ta</b> Material saqlash</div>
           </div>
           <div style={{ fontSize: 10, color: 'var(--acc-l)', marginTop: 8, fontWeight: 700 }}>
             Cheklovlardan xalos bo'lish uchun obunani tanlang ↓
@@ -291,10 +291,10 @@ export default function SubscriptionModal({ open, onClose }: Props) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gap: 4, marginBottom: 10 }}>
-                {plan.features.slice(0, 4).map((f, i) => (
-                  <div key={i} style={{ fontSize: 11, color: 'var(--txt)', display: 'flex', gap: 6 }}>
-                    <span style={{ color }}>✓</span>
+              <div style={{ display: 'grid', gap: 6, marginBottom: 16 }}>
+                {plan.features.map((f, i) => (
+                  <div key={i} style={{ fontSize: 12, color: 'var(--txt)', display: 'flex', gap: 8, alignItems: 'flex-start', lineHeight: 1.3 }}>
+                    <span style={{ color, marginTop: 1 }}>✓</span>
                     <span>{f}</span>
                   </div>
                 ))}
@@ -306,7 +306,8 @@ export default function SubscriptionModal({ open, onClose }: Props) {
                 style={{
                   width: '100%',
                   background: `linear-gradient(135deg, ${color}, ${color}dd)`,
-                  color: '#0a0a14',
+                  color: isPro ? '#ffffff' : '#0a0a14',
+                  textShadow: isPro ? '0 1px 3px rgba(0,0,0,0.4)' : 'none',
                   border: 'none',
                   borderRadius: 12,
                   padding: '14px 16px',
@@ -321,7 +322,7 @@ export default function SubscriptionModal({ open, onClose }: Props) {
                   transition: 'all 0.2s',
                 }}
               >
-                {loading ? '⏳ Bajarilmoqda...' : '🤝 P2P orqali olish'}
+                {loading ? '⏳ Bajarilmoqda...' : '🤝 Olish (P2P)'}
               </button>
             </div>
           )

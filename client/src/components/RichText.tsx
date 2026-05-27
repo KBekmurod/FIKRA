@@ -22,6 +22,19 @@ interface Props {
   inline?: boolean  // Bitta inline qatorda (savol matni uchun)
 }
 
+function parseBasicMarkdown(text: string): string {
+  if (!text) return ''
+  return text
+    // Blockquote
+    .replace(/^>\s*(.+)$/gm, '<blockquote>$1</blockquote>')
+    // Bold
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    // Italic
+    .replace(/\*([^*]+)\*/g, '<i>$1</i>')
+    // Newlines
+    .replace(/\n/g, '<br/>')
+}
+
 // Matnni LaTeX tokenlariga ajratish
 type Token =
   | { type: 'text';        value: string }
@@ -87,8 +100,7 @@ export default function RichText({ content, images, className, inline }: Props) 
     <Container ref={containerRef as any} className={`rich-text ${className || ''}`}>
       {tokens.map((tok, i) => {
         if (tok.type === 'text') {
-          // Yangi qatorlarni saqlash
-          return <span key={i}>{tok.value}</span>
+          return <span key={i} dangerouslySetInnerHTML={{ __html: parseBasicMarkdown(tok.value) }} />
         }
         if (tok.type === 'inline_math') {
           return (

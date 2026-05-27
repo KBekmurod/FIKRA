@@ -8,8 +8,7 @@ export type SubjectId =
   | 'math' | 'fizika' | 'kimyo' | 'bio' | 'geo'
   // Gumanitar
   | 'tarix' | 'onatili' | 'adab' | 'huquq'
-  // Chet tillari
-  | 'ingliz' | 'nemis' | 'fransuz' | 'arab' | 'fors' | 'turk'
+  | 'ingliz' | 'nemis' | 'fransuz' | 'fors' | 'turk'
   // Boshqalar
   | 'rus' | 'inform' | 'iqtisod'
 
@@ -45,7 +44,7 @@ export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
   ingliz:  { id: 'ingliz',  name: 'Ingliz tili',  icon: '🇬🇧', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
   nemis:   { id: 'nemis',   name: 'Nemis tili',   icon: '🇩🇪', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
   fransuz: { id: 'fransuz', name: 'Fransuz tili', icon: '🇫🇷', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
-  arab:    { id: 'arab',    name: 'Arab tili',    icon: '🇸🇦', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
+
   fors:    { id: 'fors',    name: 'Fors tili',    icon: '🇮🇷', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
   turk:    { id: 'turk',    name: 'Turk tili',    icon: '🇹🇷', block: 'mutaxassislik', category: 'chet_tili', weight: 2.1 },
 
@@ -59,7 +58,7 @@ export const COMPULSORY_IDS: SubjectId[] = ['majburiy_onatili', 'majburiy_math',
 export const SPEC_IDS: SubjectId[] = [
   'math', 'fizika', 'kimyo', 'bio', 'geo',
   'tarix', 'onatili', 'adab', 'huquq',
-  'ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk',
+  'ingliz', 'nemis', 'fransuz', 'fors', 'turk',
   'rus', 'inform', 'iqtisod',
 ]
 
@@ -83,7 +82,7 @@ export function getStandardCountByContext(context: Context): number {
 export const SPEC_BY_CATEGORY = {
   aniq_tabiiy: ['math', 'fizika', 'kimyo', 'bio', 'geo'] as SubjectId[],
   gumanitar:   ['tarix', 'onatili', 'adab', 'huquq'] as SubjectId[],
-  chet_tili:   ['ingliz', 'nemis', 'fransuz', 'arab', 'fors', 'turk'] as SubjectId[],
+  chet_tili:   ['ingliz', 'nemis', 'fransuz', 'fors', 'turk'] as SubjectId[],
   boshqa:      ['rus', 'inform', 'iqtisod'] as SubjectId[],
 }
 
