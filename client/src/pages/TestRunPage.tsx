@@ -39,6 +39,7 @@ export default function TestRunPage() {
   const [showGrid, setShowGrid] = useState(false)
   const [finishPrompt, setFinishPrompt] = useState(false)
   const [pendingAnswers, setPendingAnswers] = useState<Array<{ qIdx: number; selected: number }>>([])
+  const [loading, setLoading] = useState(!state?.questions?.length)
   const finishedRef = useRef(false)
 
   // Qayta tiklash (Resume) mantiq: Agar state yo'qolsa

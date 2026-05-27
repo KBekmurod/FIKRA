@@ -18,6 +18,7 @@ interface WrongQuestion {
   topic?: string
   aiExplanation?: string
   loadingAi?: boolean
+  images?: string[]
 }
 
 export default function PersonalTestExplainPage() {
@@ -356,9 +357,8 @@ export default function PersonalTestExplainPage() {
       </div>
 
       <SubscriptionModal
-        isOpen={subOpen}
+        open={subOpen}
         onClose={() => setSubOpen(false)}
-        message="AI orqali xatolar tahlili va mini-test yaratish PRO funksiya hisoblanadi. Batafsil tushuntirish va kuchli tahlil uchun obuna bo'ling."
       />
 
       {/* Mini-test Tasdiqlash Modali */}

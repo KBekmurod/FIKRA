@@ -20,6 +20,7 @@ interface RunState {
   totalQuestions: number
   durationSeconds: number
   questions: Question[]
+  answers?: any[]
   folderId?: string
 }
 
@@ -64,10 +65,10 @@ export default function PersonalTestRunPage() {
     if (questions.length > 0 || !id) return
     const restoreSession = async () => {
       try {
-        const { data } = await personalTestApi.status(id)
-        if (data.status === 'ready') {
-          setQuestions(data.questions)
-          setTimeLeft(data.durationSeconds)
+        const { data } = await personalTestApi.review(id)
+        if (data.test) {
+          setQuestions(data.test.questions)
+          setTimeLeft(data.test.durationSeconds || 1800)
         }
         setLoading(false)
       } catch (err) {
