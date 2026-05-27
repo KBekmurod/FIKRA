@@ -33,15 +33,28 @@ export default function PersonalTestRunPage() {
   const [questions, setQuestions] = useState<Question[]>(state?.questions || [])
   const [qIdx, setQIdx] = useState(0)
   const [selected, setSelected] = useState<Record<number, number>>(() => {
+    // Resume...
+    if (state?.answers) {
+      const init: Record<number, number> = {}
+      state.answers.forEach((a: any) => {
+        if (a.selectedOption !== undefined && a.selectedOption !== null) {
+          init[a.questionIdx] = a.selectedOption
+        }
+      })
+      return init
+    }
     // localStorage'dan tiklash (internet uzilishi himoyasi)
     try {
       const cached = localStorage.getItem(`fikra_test_answers_${id}`)
       return cached ? JSON.parse(cached) : {}
     } catch { return {} }
   })
-  const [timeLeft, setTimeLeft] = useState(state?.durationSeconds || 600)
+
+  const [timeLeft, setTimeLeft] = useState(state?.durationSeconds || 1800)
   const [finishing, setFinishing] = useState(false)
   const [exitTarget, setExitTarget] = useState<string | null>(null)
+  const [showGrid, setShowGrid] = useState(false)
+  const [finishPrompt, setFinishPrompt] = useState(false)
   const [pendingAnswers, setPendingAnswers] = useState<Array<{ qIdx: number; selected: number }>>([])
   const [loading, setLoading] = useState(!state?.questions?.length)
   const finishedRef = useRef(false)
@@ -263,9 +276,16 @@ export default function PersonalTestRunPage() {
             color: timeLeft < 60 ? 'var(--r)' : 'var(--acc-l)',
           }}>⏱ {fmt(timeLeft)}</div>
         </div>
-        <div style={{ fontSize: 12, color: 'var(--txt-2)', fontWeight: 700, minWidth: 50, textAlign: 'right' }}>
-          {qIdx + 1}/{total}
-        </div>
+        <button 
+          onClick={() => setShowGrid(true)}
+          style={{ 
+            fontSize: 12, color: 'var(--txt-2)', fontWeight: 700, 
+            minWidth: 50, textAlign: 'right', background: 'none', 
+            border: 'none', cursor: 'pointer', padding: 0 
+          }}
+        >
+          {qIdx + 1}/{total} ☰
+        </button>
       </div>
 
       {/* Progress */}
@@ -350,11 +370,11 @@ export default function PersonalTestRunPage() {
             >Keyingi →</button>
           ) : (
             <button
-              onClick={() => handleFinish(false)}
+              onClick={() => setFinishPrompt(true)}
               disabled={finishing}
               className="btn btn-success"
               style={{ flex: 2 }}
-            >{finishing ? '⏳ Yakunlanmoqda...' : '🏁 Testni yakunlash'}</button>
+            >🏁 Testni yakunlash</button>
           )}
         </div>
       </div>
@@ -396,6 +416,103 @@ export default function PersonalTestRunPage() {
                   cursor: 'pointer',
                 }}
               >Chiqish</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Savollar tarmog'i (Grid) */}
+      {showGrid && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex', flexDirection: 'column',
+          zIndex: 999,
+        }}>
+          <div style={{
+            background: 'var(--bg)',
+            marginTop: 'auto',
+            borderTopLeftRadius: 24, borderTopRightRadius: 24,
+            padding: '24px 20px',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: 16, fontWeight: 800 }}>Barcha savollar</div>
+              <button onClick={() => setShowGrid(false)} style={{ background: 'none', border: 'none', color: 'var(--txt-2)', fontSize: 24 }}>×</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+              {questions.map((_, i) => {
+                const isAns = selected[i] !== undefined
+                const isCur = i === qIdx
+                return (
+                  <button
+                    key={i}
+                    onClick={() => { setQIdx(i); setShowGrid(false) }}
+                    style={{
+                      aspectRatio: '1',
+                      borderRadius: 10,
+                      border: `1.5px solid ${isCur ? 'var(--acc-l)' : isAns ? 'var(--g)' : 'var(--f)'}`,
+                      background: isCur ? 'rgba(123,104,238,0.15)' : isAns ? 'rgba(0,212,170,0.1)' : 'var(--s1)',
+                      color: isCur ? 'var(--acc-l)' : isAns ? 'var(--g)' : 'var(--txt)',
+                      fontWeight: 700, fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >{i + 1}</button>
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: 16, marginTop: 16, fontSize: 11, color: 'var(--txt-3)', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 12, height: 12, borderRadius: 3, background: 'rgba(0,212,170,0.1)', border: '1px solid var(--g)' }} /> Yechilgan
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--s1)', border: '1px solid var(--f)' }} /> Yechilmagan
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Finish Confirmation Modal */}
+      {finishPrompt && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 999, padding: 20,
+        }}>
+          <div style={{
+            background: 'var(--bg)',
+            border: '1.5px solid var(--f)',
+            borderRadius: 20,
+            padding: 24,
+            width: '100%',
+            maxWidth: 340,
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🏁</div>
+            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Testni yakunlaysizmi?</div>
+            <div style={{ fontSize: 14, color: 'var(--txt-2)', marginBottom: 20, lineHeight: 1.5 }}>
+              {total - answered > 0 
+                ? <span style={{ color: 'var(--y)' }}>Sizda hali <strong>{total - answered} ta yechilmagan</strong> savol qoldi. Shunga qaramay yakunlamoqchimisiz?</span>
+                : "Barcha savollarga javob berdingiz. Natijani ko'ramizmi?"}
+            </div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <button
+                onClick={() => handleFinish(false)}
+                disabled={finishing}
+                className="btn btn-success btn-block"
+              >
+                {finishing ? '⏳ Yakunlanmoqda...' : 'Ha, yakunlash'}
+              </button>
+              <button
+                onClick={() => setFinishPrompt(false)}
+                disabled={finishing}
+                className="btn btn-ghost btn-block"
+              >
+                Orqaga qaytish
+              </button>
             </div>
           </div>
         </div>

@@ -288,6 +288,16 @@ function FikraHistoryList({ items, onClick }: { items: FikraSession[]; onClick: 
             <button key={s._id} onClick={() => onClick(s)} style={cardStyle()}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    display: 'inline-block',
+                    fontSize: 9.5, fontWeight: 800,
+                    padding: '2px 8px', borderRadius: 100,
+                    background: s.testMode === 'blok' ? 'rgba(167,139,250,0.15)' : 'rgba(0,212,170,0.15)',
+                    color: s.testMode === 'blok' ? 'var(--acc-l)' : 'var(--g)',
+                    marginBottom: 4, letterSpacing: 0.3,
+                  }}>
+                    {s.testMode === 'blok' ? '📦 Maxsus blok' : '🎯 Erkin tanlov'}
+                  </div>
                   <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--txt)', marginBottom: 4 }}>
                     {metaText}
                   </div>

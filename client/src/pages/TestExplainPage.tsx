@@ -22,8 +22,10 @@ export default function TestExplainPage() {
   const location = useLocation()
 
   const [overview, setOverview] = useState<WrongBySubject[]>([])
+  const [subjectNames, setSubjectNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [miniGenerating, setMiniGenerating] = useState(false)
+  const [miniPrompt, setMiniPrompt] = useState(false)
 
   // Bitta fan tushuntirilayotgan bo'lsa
   const [wrongs, setWrongs] = useState<any[]>([])
@@ -129,6 +131,7 @@ export default function TestExplainPage() {
 
   const generateMiniTest = async () => {
     if (!sessionId) return
+    setMiniPrompt(false)
     setMiniGenerating(true)
     try {
       const { data }: any = await examApi.cabinetMiniTest(undefined, 30, sessionId)
@@ -198,7 +201,7 @@ export default function TestExplainPage() {
           {/* Mini-test tugmasi */}
           <div style={{ marginTop: 24, marginBottom: 20 }}>
             <button
-              onClick={generateMiniTest}
+              onClick={() => setMiniPrompt(true)}
               disabled={miniGenerating}
               style={{
                 width: '100%',
@@ -223,6 +226,46 @@ export default function TestExplainPage() {
             </div>
           </div>
         </div>
+
+        {/* Mini-test Tasdiqlash Modali */}
+        {miniPrompt && (
+          <div style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 999, padding: 20,
+          }}>
+            <div style={{
+              background: 'var(--bg)',
+              border: '1.5px solid var(--f)',
+              borderRadius: 20,
+              padding: 24,
+              width: '100%',
+              maxWidth: 340,
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🔄</div>
+              <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Mini-test yaratish</div>
+              <div style={{ fontSize: 14, color: 'var(--txt-2)', marginBottom: 20, lineHeight: 1.5 }}>
+                Har bir dtm/erkin test sessiyasi uchun faqat <strong>1 marta</strong> xatolar bo'yicha mini-test yaratish mumkin. Hozir yaratishni xohlaysizmi?
+              </div>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <button
+                  onClick={generateMiniTest}
+                  className="btn btn-primary btn-block"
+                >
+                  Ha, yaratish
+                </button>
+                <button
+                  onClick={() => setMiniPrompt(false)}
+                  className="btn btn-ghost btn-block"
+                >
+                  Bekor qilish
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     )
   }

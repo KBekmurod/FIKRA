@@ -34,6 +34,7 @@ export default function PersonalTestExplainPage() {
   const [wrongs, setWrongs] = useState<WrongQuestion[]>([])
   const [test, setTest] = useState<any>(null)
   const [generatingMini, setGeneratingMini] = useState(false)
+  const [miniPrompt, setMiniPrompt] = useState(false)
   const [folderInfo, setFolderInfo] = useState<any>(null)
 
   useEffect(() => {
@@ -98,6 +99,7 @@ export default function PersonalTestExplainPage() {
   // - ai_blok/ai_free test: test.miniTestId
   const startMiniTest = async () => {
     if (!id || !test) return
+    setMiniPrompt(false)
     setGeneratingMini(true)
     try {
       // Mavjud mini-test bormi? (universal check)
@@ -321,41 +323,80 @@ export default function PersonalTestExplainPage() {
           border: '1px solid rgba(123,104,238,0.3)',
           borderRadius: 14,
         }}>
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-            🎯 Mini-test orqali mustahkamlash
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--txt-2)', marginBottom: 10, lineHeight: 1.5 }}>
-            AI sizning xatolaringizdan o'xshash savollar yaratadi va siz ishlaysiz.
-            {miniAlreadyGenerated && <> <strong style={{ color: 'var(--y)' }}>Allaqachon yaratilgan</strong> — qayta yaratib bo'lmaydi.</>}
-          </div>
+        {/* Mini-test yaratish tugmasi */}
+        <div style={{ marginTop: 24 }}>
           <button
-            onClick={startMiniTest}
+            onClick={() => setMiniPrompt(true)}
             disabled={generatingMini || miniAlreadyGenerated}
             style={{
               width: '100%',
-              background: miniAlreadyGenerated ? 'var(--s2)' : 'linear-gradient(135deg, var(--acc), var(--acc-l))',
-              color: miniAlreadyGenerated ? 'var(--txt-3)' : 'white',
-              border: 'none',
-              borderRadius: 10,
-              padding: '12px 16px',
-              fontSize: 13,
+              background: miniAlreadyGenerated ? 'var(--s1)' : 'linear-gradient(135deg, var(--y), #fbbf24)',
+              color: miniAlreadyGenerated ? 'var(--txt-3)' : '#0a0a14',
+              border: miniAlreadyGenerated ? '1px solid var(--f)' : 'none',
+              borderRadius: 14,
+              padding: '14px 16px',
+              fontSize: 14,
               fontWeight: 800,
-              cursor: (generatingMini || miniAlreadyGenerated) ? 'default' : 'pointer',
-              opacity: generatingMini ? 0.6 : 1,
+              cursor: miniAlreadyGenerated ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              opacity: (generatingMini || miniAlreadyGenerated) ? 0.6 : 1,
             }}
           >
-            {generatingMini
-              ? '⏳ Yaratilmoqda...'
-              : miniAlreadyGenerated
-                ? '✓ Allaqachon yaratilgan'
-                : '🚀 Mini-test boshlash'}
+            {generatingMini ? '⏳ Yaratilmoqda...' : miniAlreadyGenerated ? '✓ Mini-test allaqachon yaratilgan' : '🔄 Xatolardan Mini-test yaratish'}
           </button>
+          {!miniAlreadyGenerated && (
+            <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 6, textAlign: 'center' }}>
+              Xato javoblar asosida yangi savollar (faol test uchun 1 marta yaratiladi)
+            </div>
+          )}
         </div>
-
-        <div style={{ height: 30 }} />
       </div>
-      
-      <SubscriptionModal open={subOpen} onClose={() => setSubOpen(false)} />
+
+      <SubscriptionModal
+        isOpen={subOpen}
+        onClose={() => setSubOpen(false)}
+        message="AI orqali xatolar tahlili va mini-test yaratish PRO funksiya hisoblanadi. Batafsil tushuntirish va kuchli tahlil uchun obuna bo'ling."
+      />
+
+      {/* Mini-test Tasdiqlash Modali */}
+      {miniPrompt && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 999, padding: 20,
+        }}>
+          <div style={{
+            background: 'var(--bg)',
+            border: '1.5px solid var(--f)',
+            borderRadius: 20,
+            padding: 24,
+            width: '100%',
+            maxWidth: 340,
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔄</div>
+            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Mini-test yaratish</div>
+            <div style={{ fontSize: 14, color: 'var(--txt-2)', marginBottom: 20, lineHeight: 1.5 }}>
+              Har bir fan uchun faqat <strong>1 marta</strong> xatolar bo'yicha mini-test yaratish mumkin. Hozir yaratishni xohlaysizmi?
+            </div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <button
+                onClick={startMiniTest}
+                className="btn btn-primary btn-block"
+              >
+                Ha, yaratish
+              </button>
+              <button
+                onClick={() => setMiniPrompt(false)}
+                className="btn btn-ghost btn-block"
+              >
+                Bekor qilish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

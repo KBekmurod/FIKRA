@@ -20,6 +20,7 @@ export default function TestReviewPage() {
   const [answers, setAnswers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [subjectFilter, setSubjectFilter] = useState<string | 'all'>('all')
+  const [onlyWrongs, setOnlyWrongs] = useState(false)
   const [page, setPage] = useState(1)
 
   useEffect(() => {
@@ -42,9 +43,11 @@ export default function TestReviewPage() {
   }
 
   const breakdown = data.subjectBreakdown || []
-  const filtered = subjectFilter === 'all'
-    ? answers
-    : answers.filter((a: any) => a.subject === subjectFilter || a.subjectId === subjectFilter)
+  const filtered = answers.filter((a: any) => {
+    if (onlyWrongs && a.isCorrect) return false
+    if (subjectFilter !== 'all' && a.subject !== subjectFilter && a.subjectId !== subjectFilter) return false
+    return true
+  })
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -128,6 +131,17 @@ export default function TestReviewPage() {
                 cursor: 'pointer',
               }}
             >Hammasi</button>
+            <button
+              onClick={() => { setOnlyWrongs(!onlyWrongs); setPage(1) }}
+              style={{
+                background: onlyWrongs ? 'var(--r)' : 'var(--s1)',
+                border: '1px solid var(--f)',
+                color: onlyWrongs ? 'white' : 'var(--txt-2)',
+                fontSize: 11, fontWeight: 700,
+                padding: '6px 12px', borderRadius: 100,
+                cursor: 'pointer',
+              }}
+            >Faqat xatolar</button>
             {breakdown.map((b: any) => (
               <button
                 key={b.subjectId}
