@@ -128,7 +128,7 @@ export default function PersonalTestReviewPage() {
                 </div>
 
                 <div style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 10 }}>
-                  <RichText content={q.question} />
+                  <RichText content={q.question} images={(q as any).images} />
                 </div>
 
                 <div style={{ display: 'grid', gap: 5 }}>
@@ -149,7 +149,7 @@ export default function PersonalTestReviewPage() {
                         display: 'flex', gap: 8,
                       }}>
                         <span style={{ fontWeight: 800, minWidth: 16 }}>{['A','B','C','D'][i]}</span>
-                        <span style={{ flex: 1 }}><RichText content={opt} inline /></span>
+                        <span style={{ flex: 1 }}><RichText content={opt.replace(/^[A-D][).]\s*/i, '')} inline /></span>
                         {isC && <span style={{ fontSize: 11 }}>✓</span>}
                         {isU && !isC && <span style={{ fontSize: 11 }}>← siz</span>}
                       </div>

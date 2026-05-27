@@ -51,7 +51,14 @@ export default function OmborFolderPage() {
     setLoading(true)
     api.get(`/api/folders/${folderId}`)
       .then(({ data }) => setData(data))
-      .catch(() => toast.error("Yuklab bo'lmadi"))
+      .catch((e: any) => {
+        if (e.response?.status === 404) {
+          toast.error("Ushbu papka o'chirilgan yoki topilmadi")
+          navigate('/tarix')
+        } else {
+          toast.error("Yuklab bo'lmadi")
+        }
+      })
       .finally(() => setLoading(false))
   }
 

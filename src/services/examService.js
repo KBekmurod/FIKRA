@@ -17,12 +17,15 @@ const SUBJECT_META = {
   majburiy_tarix:   { name: "O'zbekiston tarixi", weight: 1.1, block: 'majburiy',        defaultCount: 10 },
 
   // Aniq va tabiiy fanlar
+  math:    { name: "Matematika",         weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
   fizika:  { name: "Fizika",             weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
   kimyo:   { name: "Kimyo",              weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
   bio:     { name: "Biologiya",          weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
   geo:     { name: "Geografiya",         weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
 
   // Gumanitar fanlar
+  tarix:   { name: "Tarix",              weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
+  onatili: { name: "Ona tili",           weight: 3.1, block: 'mutaxassislik_1', defaultCount: 30 },
   adab:    { name: "Ona tili va adabiyoti", weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
   huquq:   { name: "Davlat va huquq",    weight: 2.1, block: 'mutaxassislik_2', defaultCount: 30 },
 
@@ -181,6 +184,7 @@ async function startDtmSession(userId, direction) {
     options:    q.options,
     difficulty: q.difficulty,
     topic:      q.topic,
+    images:     q.images || [],
   }));
 
   return { session, questions: safeQuestions, directionName: dirInfo.name };
@@ -255,7 +259,7 @@ async function startSubjectSession(userId, subjects, advanced = {}) {
     return {
       _id: q._id, subject: q.subject, subjectName: meta.name || q.subject,
       block: 'subject', question: q.question, options: q.options,
-      difficulty: q.difficulty, topic: q.topic,
+      difficulty: q.difficulty, topic: q.topic, images: q.images || [],
     };
   });
 
@@ -301,6 +305,7 @@ async function submitAnswer(sessionId, userId, questionId, selectedOption) {
       explanation:     testQ.explanation || '',
       topic:           testQ.topic || '',
       difficulty:      testQ.difficulty || 'medium',
+      questionImages:  testQ.images || [],
       // Foydalanuvchi javobi
       subjectId: testQ.subject,
       selectedOption,
@@ -647,6 +652,7 @@ async function startCabinetMiniTest(userId, options = {}) {
     options:    a.questionOptions,
     difficulty: a.difficulty || 'medium',
     topic:      a.topic || '',
+    images:     a.questionImages || [],
     // CABINET MAYDONI — bu savol ilgari xato qilingan
     _wasWrong:  true,
     _previousSelection: a.selectedOption,

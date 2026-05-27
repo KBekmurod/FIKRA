@@ -32,6 +32,7 @@ const testQuestionSchema = new mongoose.Schema({
   explanation: { type: String, default: '' }, // AI hint uchun
   year: { type: Number, default: null }, // DTM yili (agar mavjud)
   topic: { type: String, default: '' }, // Mavzu (masalan, 'Tenglamalar', 'Qadimgi dunyo')
+  images: { type: [String], default: [] }, // Savol rasmlari
 }, {
   timestamps: true,
 });

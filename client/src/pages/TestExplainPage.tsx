@@ -26,6 +26,8 @@ export default function TestExplainPage() {
   const [miniGenerating, setMiniGenerating] = useState(false)
 
   // Bitta fan tushuntirilayotgan bo'lsa
+  const [wrongs, setWrongs] = useState<any[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
   const [currentAnswer, setCurrentAnswer] = useState<any>(null)
   const [explanation, setExplanation] = useState<any>(null)
   const [loadingExplain, setLoadingExplain] = useState(false)
@@ -60,14 +62,15 @@ export default function TestExplainPage() {
         .catch(() => toast.error("Yuklanmadi"))
         .finally(() => setLoading(false))
     } else {
-      // Aniq fan uchun tushuntirish — sessiyadagi xato javoblardan birinchisini ochish
+      // Aniq fan uchun tushuntirish
       examApi.review(sessionId)
         .then(({ data }: any) => {
-          const wrongs = (data.answers || [])
+          const w = (data.answers || [])
             .filter((a: any) => !a.isCorrect && (a.subject === subjectId || a.subjectId === subjectId))
-          if (wrongs.length > 0) {
-            setCurrentAnswer(wrongs[0])
-            triggerExplain(wrongs[0]._id)
+          if (w.length > 0) {
+            setWrongs(w)
+            setCurrentAnswer(w[0])
+            triggerExplain(w[0]._id)
           }
         })
         .catch(() => toast.error("Yuklanmadi"))
@@ -89,6 +92,38 @@ export default function TestExplainPage() {
       }
     } finally {
       setLoadingExplain(false)
+    }
+  }
+
+  const handleNext = () => {
+    if (currentIndex < wrongs.length - 1) {
+      const nextIdx = currentIndex + 1
+      setCurrentIndex(nextIdx)
+      setCurrentAnswer(wrongs[nextIdx])
+      setExplanation(null)
+      setExplainUsed(false)
+      triggerExplain(wrongs[nextIdx]._id)
+    }
+  }
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      const prevIdx = currentIndex - 1
+      setCurrentIndex(prevIdx)
+      setCurrentAnswer(wrongs[prevIdx])
+      setExplanation(null)
+      setExplainUsed(false)
+      triggerExplain(wrongs[prevIdx]._id)
+    }
+  }
+
+  const goToQuestion = (idx: number) => {
+    if (idx !== currentIndex) {
+      setCurrentIndex(idx)
+      setCurrentAnswer(wrongs[idx])
+      setExplanation(null)
+      setExplainUsed(false)
+      triggerExplain(wrongs[idx]._id)
     }
   }
 
@@ -227,7 +262,7 @@ export default function TestExplainPage() {
                 SAVOL {currentAnswer.topic ? `· ${currentAnswer.topic}` : ''}
               </div>
               <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-                <RichText content={currentAnswer.questionText || currentAnswer.question} />
+                <RichText content={currentAnswer.questionText || currentAnswer.question} images={currentAnswer.images} />
               </div>
             </div>
 
@@ -250,7 +285,7 @@ export default function TestExplainPage() {
                       <span style={{ fontWeight: 800, color: 'var(--txt-3)', flexShrink: 0 }}>
                         {['A','B','C','D'][i]}
                       </span>
-                      <span style={{ flex: 1 }}><RichText content={opt} inline /></span>
+                      <span style={{ flex: 1 }}><RichText content={opt.replace(/^[A-D][).]\s*/i, '')} inline /></span>
                       {label && (
                         <span style={{
                           fontSize: 9, fontWeight: 800,
@@ -326,6 +361,47 @@ export default function TestExplainPage() {
                   bgColor="rgba(167, 139, 250, 0.08)"
                   content={extractSection(explanation.explanation, 'xulosa') || "Bu savol orqali o'rgangan asosiy g'oyani eslab qoling — kelajakdagi testlarda yordam beradi."}
                 />
+              </div>
+            )}
+
+            {/* Question Nav */}
+            {wrongs.length > 1 && (
+              <div style={{ marginTop: 24 }}>
+                <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 10, marginBottom: 10 }}>
+                  {wrongs.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => goToQuestion(i)}
+                      style={{
+                        minWidth: 32, height: 32,
+                        borderRadius: 8, border: 'none',
+                        background: i === currentIndex ? 'var(--acc)' : 'var(--s1)',
+                        color: i === currentIndex ? '#fff' : 'var(--txt-2)',
+                        fontWeight: 700, cursor: 'pointer', flexShrink: 0
+                      }}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={handlePrev}
+                    disabled={currentIndex === 0}
+                    className="btn btn-ghost"
+                    style={{ flex: 1, opacity: currentIndex === 0 ? 0.4 : 1 }}
+                  >
+                    ← Oldingi
+                  </button>
+                  <button
+                    onClick={handleNext}
+                    disabled={currentIndex === wrongs.length - 1}
+                    className="btn btn-primary"
+                    style={{ flex: 1, opacity: currentIndex === wrongs.length - 1 ? 0.4 : 1 }}
+                  >
+                    Keyingi →
+                  </button>
+                </div>
               </div>
             )}
           </>

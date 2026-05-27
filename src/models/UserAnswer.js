@@ -31,6 +31,7 @@ const userAnswerSchema = new mongoose.Schema({
   // Endi admin o'chirsa ham, foydalanuvchi savolni va javobini ko'ra oladi.
   questionText:    { type: String, default: '' },         // Savol matni
   questionOptions: { type: [String], default: [] },       // Variantlar [A, B, C, D]
+  questionImages:  { type: [String], default: [] },       // Savol rasmlari
   correctAnswer:   { type: Number, default: -1, min: -1, max: 3 }, // To'g'ri javob indeksi
   explanation:     { type: String, default: '' },         // Tushuntirish
   topic:           { type: String, default: '' },         // Mavzu

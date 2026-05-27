@@ -248,7 +248,7 @@ export default function PersonalTestExplainPage() {
                 SAVOL #{w.qIdx + 1}{w.topic ? ` · ${w.topic}` : ''}
               </div>
               <div style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 10 }}>
-                <RichText content={w.question} />
+                <RichText content={w.question} images={w.images} />
               </div>
 
               <div style={{ display: 'grid', gap: 5, marginBottom: 10 }}>
@@ -267,7 +267,7 @@ export default function PersonalTestExplainPage() {
                       fontSize: 12, display: 'flex', gap: 8,
                     }}>
                       <span style={{ fontWeight: 800, minWidth: 16 }}>{['A','B','C','D'][i]}</span>
-                      <span style={{ flex: 1 }}><RichText content={opt} inline /></span>
+                      <span style={{ flex: 1 }}><RichText content={opt.replace(/^[A-D][).]\s*/i, '')} inline /></span>
                       {isC && <span style={{ fontSize: 11 }}>✓ to'g'ri</span>}
                       {isU && !isC && <span style={{ fontSize: 11 }}>← siz</span>}
                     </div>

@@ -1,4 +1,3 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useRef } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
@@ -7,12 +6,12 @@ import 'katex/dist/contrib/mhchem.js';
 function tokenize(text) {
     if (!text)
         return [];
-    const tokens = [];
+    var tokens = [];
     // Avval $$...$$ (block) keyin $...$ (inline) ni topamiz
     // Regex: $$...$$ yoki $...$  (escape qilingan \$ ni e'tiborga olmaymiz)
-    const re = /(\$\$([\s\S]+?)\$\$)|(\$([^\$\n]+?)\$)/g;
-    let lastIndex = 0;
-    let match;
+    var re = /(\$\$([\s\S]+?)\$\$)|(\$([^\$\n]+?)\$)/g;
+    var lastIndex = 0;
+    var match;
     while ((match = re.exec(text)) !== null) {
         if (match.index > lastIndex) {
             tokens.push({ type: 'text', value: text.slice(lastIndex, match.index) });
@@ -30,43 +29,51 @@ function tokenize(text) {
     }
     return tokens;
 }
-export default function RichText({ content, images, className, inline }) {
-    const containerRef = useRef(null);
-    useEffect(() => {
+export default function RichText(_a) {
+    var content = _a.content, images = _a.images, className = _a.className, inline = _a.inline;
+    var containerRef = useRef(null);
+    useEffect(function () {
         if (!containerRef.current)
             return;
-        const mathElements = containerRef.current.querySelectorAll('[data-math]');
-        mathElements.forEach(el => {
-            const tex = el.getAttribute('data-math') || '';
-            const isBlock = el.getAttribute('data-block') === '1';
+        var mathElements = containerRef.current.querySelectorAll('[data-math]');
+        mathElements.forEach(function (el) {
+            var tex = el.getAttribute('data-math') || '';
+            var isBlock = el.getAttribute('data-block') === '1';
             try {
                 katex.render(tex, el, {
                     throwOnError: false,
                     displayMode: isBlock,
                     output: 'html',
                     trust: true,
-                    strict: false,
+                    strict: false
                 });
             }
             catch (e) {
                 // Xato bo'lsa, oddiy matn sifatida ko'rsatish
-                el.textContent = `$${tex}$`;
+                el.textContent = "$" + tex + "$";
             }
         });
     }, [content]);
-    const tokens = tokenize(content || '');
-    const Container = inline ? 'span' : 'div';
-    return (_jsxs(Container, { ref: containerRef, className: `rich-text ${className || ''}`, children: [tokens.map((tok, i) => {
-                if (tok.type === 'text') {
-                    // Yangi qatorlarni saqlash
-                    return _jsx("span", { children: tok.value }, i);
-                }
-                if (tok.type === 'inline_math') {
-                    return (_jsx("span", { "data-math": tok.value, "data-block": "0", className: "math-inline" }, i));
-                }
-                if (tok.type === 'block_math') {
-                    return (_jsx("div", { "data-math": tok.value, "data-block": "1", className: "math-block" }, i));
-                }
-                return null;
-            }), images && images.length > 0 && (_jsx("div", { className: "rich-text-images", children: images.map((src, i) => (_jsx("img", { src: src, alt: `rasm-${i + 1}`, className: "rich-text-img", loading: "lazy" }, i))) }))] }));
+    var tokens = tokenize(content || '');
+    var Container = inline ? 'span' : 'div';
+    return (<Container ref={containerRef} className={"rich-text " + (className || '')}>
+      {tokens.map(function (tok, i) {
+        if (tok.type === 'text') {
+            // Yangi qatorlarni saqlash
+            return <span key={i}>{tok.value}</span>;
+        }
+        if (tok.type === 'inline_math') {
+            return (<span key={i} data-math={tok.value} data-block="0" className="math-inline"/>);
+        }
+        if (tok.type === 'block_math') {
+            return (<div key={i} data-math={tok.value} data-block="1" className="math-block"/>);
+        }
+        return null;
+    })}
+
+      
+      {images && images.length > 0 && (<div className="rich-text-images">
+          {images.map(function (src, i) { return (<img key={i} src={src} alt={"rasm-" + (i + 1)} className="rich-text-img" loading="lazy"/>); })}
+        </div>)}
+    </Container>);
 }

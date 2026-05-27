@@ -38,31 +38,66 @@ import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store';
 import { useToast } from '../../components/Toast';
 import { GoogleLogin } from '@react-oauth/google';
-export default function RegisterPage() {
+export default function WelcomePage() {
     var _this = this;
     var navigate = useNavigate();
     var toast = useToast();
     var googleLogin = useAppStore().googleLogin;
     var _a = useState(false), loading = _a[0], setLoading = _a[1];
-    return (<div style={{ minHeight: '100vh', padding: '24px 24px', display: 'flex', flexDirection: 'column' }}>
-      <button onClick={function () { return navigate('/auth/welcome'); }} style={{
-        background: 'none', border: 'none', color: 'var(--txt-2)',
-        fontSize: 22, cursor: 'pointer', padding: 0, marginBottom: 12,
-        alignSelf: 'flex-start'
-    }}>←</button>
-
-      <h1 style={{
+    return (<div style={{ minHeight: '100vh', padding: '32px 24px', display: 'flex', flexDirection: 'column' }}>
+      
+      <div style={{ textAlign: 'center', marginTop: 28 }}>
+        <h1 style={{
         fontFamily: "'Syne', sans-serif",
-        fontSize: 32, fontWeight: 800, margin: 0
-    }}>Ro'yxatdan o'tish</h1>
-      <p style={{ fontSize: 13, color: 'var(--txt-2)', marginTop: 6 }}>
-        Platformaga ulanish uchun Google akkauntingizni tanlang. Parol va SMS kutilmaydi!
-      </p>
+        fontSize: 56,
+        fontWeight: 800,
+        margin: 0,
+        background: 'linear-gradient(135deg, #fff, var(--acc-l))',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        lineHeight: 1
+    }}>FIKRA<span style={{ color: 'var(--acc)' }}>.</span></h1>
 
-      <div style={{ marginTop: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-        {loading && <div style={{ color: 'var(--txt-2)', fontSize: 14 }}>⏳ Yaratilmoqda...</div>}
-        
-        <GoogleLogin onSuccess={function (credentialResponse) { return __awaiter(_this, void 0, void 0, function () {
+        <div style={{
+        display: 'inline-block',
+        padding: '5px 14px',
+        background: 'rgba(123,104,238,0.15)',
+        border: '1px solid rgba(123,104,238,0.3)',
+        borderRadius: 100,
+        fontSize: 11,
+        fontWeight: 700,
+        color: 'var(--acc-l)',
+        marginTop: 14,
+        letterSpacing: 0.5
+    }}>DTM TAYYORLIK PLATFORMASI</div>
+
+        <p style={{
+        fontSize: 14,
+        color: 'var(--txt-2)',
+        marginTop: 16,
+        lineHeight: 1.55,
+        maxWidth: 320,
+        margin: '16px auto 0'
+    }}>
+          AI yordamida shaxsiy testlar yarating va DTM'ga
+          <strong style={{ color: 'var(--txt)' }}> ishonchli tayyorgarlik </strong>
+          ko'ring
+        </p>
+      </div>
+
+      
+      <div style={{ marginTop: 28, display: 'grid', gap: 8 }}>
+        <FeatureItem icon="🏛" text="Konspekt, PDF, rasm — har biridan AI test"/>
+        <FeatureItem icon="🎓" text="DTM standart bloklarini ishlash"/>
+        <FeatureItem icon="🎯" text="Xatolaringizni AI tushuntiradi"/>
+        <FeatureItem icon="📊" text="Delta → Beta → Alfa darajalar"/>
+      </div>
+
+      
+      <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+        {loading ? (<div style={{ textAlign: 'center', padding: 20, color: 'var(--txt-2)', fontSize: 14 }}>
+            ⏳ Kirilmoqda...
+          </div>) : (<GoogleLogin onSuccess={function (credentialResponse) { return __awaiter(_this, void 0, void 0, function () {
         var e_1;
         return __generator(this, function (_a) {
             switch (_a.label) {
@@ -75,12 +110,11 @@ export default function RegisterPage() {
                     return [4 /*yield*/, googleLogin(credentialResponse.credential)];
                 case 2:
                     _a.sent();
-                    toast.success("Muvaffaqiyatli kirildi!");
                     navigate('/', { replace: true });
                     return [3 /*break*/, 5];
                 case 3:
                     e_1 = _a.sent();
-                    toast.error(e_1 ? .response ? .data ? .error || "Google bilan ulanishda xato" :  :  : );
+                    toast.error(e_1 ? .response ? .data ? .error || "Google autentifikatsiyasida xatolik" :  :  : );
                     return [3 /*break*/, 5];
                 case 4:
                     setLoading(false);
@@ -88,17 +122,31 @@ export default function RegisterPage() {
                 case 5: return [2 /*return*/];
             }
         });
-    }); }} onError={function () { return toast.error('Google bilan ulanishda xatolik'); }} theme="filled_black" shape="pill" text="continue_with"/>
+    }); }} onError={function () { return toast.error('Google bilan ulanishda xatolik'); }} theme="filled_black" shape="pill" text="continue_with" size="large"/>)}
       </div>
 
-      <div style={{ flex: 1 }}/>
-
-      <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--txt-2)', marginTop: 16 }}>
-        Akkountingiz bormi?{' '}
-        <button onClick={function () { return navigate('/auth/login'); }} style={{
-        background: 'none', border: 'none', color: 'var(--acc-l)',
-        fontWeight: 700, cursor: 'pointer', padding: 0, fontSize: 12
-    }}>Kirish</button>
+      <div style={{
+        marginTop: 14, marginBottom: 8,
+        fontSize: 10, color: 'var(--txt-3)', textAlign: 'center',
+        lineHeight: 1.5
+    }}>
+        Davom etish orqali siz <strong>Foydalanish shartlari</strong>{' '}
+        va <strong>Maxfiylik</strong> bilan rozisiz
       </div>
+    </div>);
+}
+function FeatureItem(_a) {
+    var icon = _a.icon, text = _a.text;
+    return (<div style={{
+        background: 'var(--s1)',
+        border: '1px solid var(--f)',
+        borderRadius: 12,
+        padding: '10px 14px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12
+    }}>
+      <span style={{ fontSize: 20 }}>{icon}</span>
+      <span style={{ fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.4 }}>{text}</span>
     </div>);
 }

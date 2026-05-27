@@ -30,7 +30,7 @@ export default function PersonalTestRunPage() {
   const toast = useToast()
   const state = location.state as RunState | null
 
-  const [questions] = useState<Question[]>(state?.questions || [])
+  const [questions, setQuestions] = useState<Question[]>(state?.questions || [])
   const [qIdx, setQIdx] = useState(0)
   const [selected, setSelected] = useState<Record<number, number>>(() => {
     // localStorage'dan tiklash (internet uzilishi himoyasi)
@@ -43,7 +43,26 @@ export default function PersonalTestRunPage() {
   const [finishing, setFinishing] = useState(false)
   const [exitTarget, setExitTarget] = useState<string | null>(null)
   const [pendingAnswers, setPendingAnswers] = useState<Array<{ qIdx: number; selected: number }>>([])
+  const [loading, setLoading] = useState(!state?.questions?.length)
   const finishedRef = useRef(false)
+
+  // Qayta tiklash (Resume) mantiq: Agar state yo'qolsa
+  useEffect(() => {
+    if (questions.length > 0 || !id) return
+    const restoreSession = async () => {
+      try {
+        const { data } = await personalTestApi.status(id)
+        if (data.status === 'ready') {
+          setQuestions(data.questions)
+          setTimeLeft(data.durationSeconds)
+        }
+        setLoading(false)
+      } catch (err) {
+        setLoading(false)
+      }
+    }
+    restoreSession()
+  }, [id, questions.length])
 
   // Javoblarni localStorage'ga saqlash
   useEffect(() => {
@@ -102,6 +121,17 @@ export default function PersonalTestRunPage() {
     return () => window.removeEventListener('fikra:nav-attempt', onNavAttempt)
   }, [])
 
+  // Brauzer "Orqaga" tugmasi / Swipe-back ni to'xtatish
+  useEffect(() => {
+    window.history.pushState(null, '', window.location.href)
+    const onPopState = (e: PopStateEvent) => {
+      window.history.pushState(null, '', window.location.href)
+      setExitTarget('/tarix')
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
   // Timer
   useEffect(() => {
     if (finishedRef.current) return
@@ -113,6 +143,15 @@ export default function PersonalTestRunPage() {
     }, 1000)
     return () => clearInterval(t)
   }, [])
+
+  if (loading) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: 'var(--txt-3)' }}>
+        <div style={{ fontSize: 24, marginBottom: 12 }}>⏳</div>
+        Test holati tiklanmoqda...
+      </div>
+    )
+  }
 
   if (!id || !questions.length) {
     return (
@@ -257,7 +296,7 @@ export default function PersonalTestRunPage() {
           lineHeight: 1.6,
           fontWeight: 500,
         }}>
-          <RichText content={q.question} />
+          <RichText content={q.question} images={(q as any).images} />
         </div>
 
         <div style={{ display: 'grid', gap: 8 }}>
@@ -290,7 +329,7 @@ export default function PersonalTestRunPage() {
                   flexShrink: 0,
                   minWidth: 18,
                 }}>{['A', 'B', 'C', 'D'][i]}</span>
-                <span style={{ flex: 1 }}><RichText content={opt} inline /></span>
+                <span style={{ flex: 1 }}><RichText content={opt.replace(/^[A-D][).]\s*/i, '')} inline /></span>
               </button>
             )
           })}

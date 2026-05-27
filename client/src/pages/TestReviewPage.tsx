@@ -223,7 +223,7 @@ function AnswerCard({ answer, index }: { answer: any; index: number }) {
       {open && (
         <div style={{ padding: '0 14px 12px' }}>
           <div style={{ fontSize: 12, color: 'var(--txt)', marginBottom: 8, lineHeight: 1.5 }}>
-            <RichText content={answer.questionText || answer.question} />
+            <RichText content={answer.questionText || answer.question} images={answer.images} />
           </div>
           {(answer.questionOptions || answer.options || []).map((opt: string, i: number) => {
             let color = 'var(--txt-3)', icon = ''
@@ -232,7 +232,7 @@ function AnswerCard({ answer, index }: { answer: any; index: number }) {
             else if (i === answer.selectedOption && !correct) { color = 'var(--r)'; icon = '✗ ' }
             return (
               <div key={i} style={{ fontSize: 11, color, marginBottom: 4, lineHeight: 1.5 }}>
-                {icon}<span style={{ fontWeight: 700 }}>{['A','B','C','D'][i]})</span> <RichText content={opt} inline />
+                {icon}<span style={{ fontWeight: 700 }}>{['A','B','C','D'][i]})</span> <RichText content={opt.replace(/^[A-D][).]\s*/i, '')} inline />
               </div>
             )
           })}

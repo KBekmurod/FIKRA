@@ -156,6 +156,35 @@ router.get('/sessions/:id/review', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ─── GET /api/exams/sessions/:id/resume ────────────────────────────────────
+// Sahifani yangilaganda yoki WebView crash bo'lganda test holatini tiklash uchun
+router.get('/sessions/:id/resume', authMiddleware, async (req, res, next) => {
+  try {
+    const { session, answers } = await getSessionReview(req.params.id, req.user._id);
+    if (session.status !== 'in_progress') {
+      return res.status(400).json({ error: 'Sessiya faol emas' });
+    }
+    
+    // Qolgan vaqtni hisoblash
+    const elapsedSeconds = Math.floor((Date.now() - new Date(session.startTime).getTime()) / 1000);
+    const durationSeconds = Math.max(0, session.durationSeconds - elapsedSeconds);
+
+    res.json({
+      mode: session.mode,
+      durationSeconds,
+      subjectBreakdown: session.subjectBreakdown,
+      questions: answers.map(a => ({
+        _id: a.questionId,
+        subject: a.subjectId,
+        subjectName: SUBJECT_META[a.subjectId]?.name || a.subjectId,
+        question: a.questionText || '',
+        options: a.questionOptions || [],
+        selectedOption: a.selectedOption !== undefined ? a.selectedOption : null
+      }))
+    });
+  } catch (err) { next(err); }
+});
+
 // ─── GET /api/exams/history ────────────────────────────────────────────────
 router.get('/history', authMiddleware, async (req, res, next) => {
   try {

@@ -45,6 +45,8 @@ export const examApi = {
     api.post(`/api/exams/sessions/${sessionId}/finish`),
   abandon: (sessionId: string) =>
     api.post(`/api/exams/sessions/${sessionId}/abandon`),
+  resume: (sessionId: string) =>
+    api.get(`/api/exams/sessions/${sessionId}/resume`),
   review: (sessionId: string) =>
     api.get(`/api/exams/sessions/${sessionId}/review`),
   history: (mode?: string, page = 1) =>
