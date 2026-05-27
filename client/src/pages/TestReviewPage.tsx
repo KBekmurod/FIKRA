@@ -10,8 +10,8 @@ const PAGE_SIZE = 10
 
 export default function TestReviewPage() {
   const navigate = useNavigate()
-  const goBack = useGoBack('/tarix')
   const { sessionId } = useParams<{ sessionId: string }>()
+  const goBack = useGoBack(`/test-result/${sessionId}`)
   const location = useLocation()
   const toast = useToast()
   const initial = location.state as any

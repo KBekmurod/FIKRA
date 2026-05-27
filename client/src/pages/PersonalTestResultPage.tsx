@@ -348,33 +348,31 @@ export default function PersonalTestResultPage() {
           <div style={{ fontSize: 18, color: 'var(--txt-3)' }}>→</div>
         </button>
 
-        {/* EC2) Xatolar bilan rivojlanish (mini test uchun yo'q) */}
-        {!isMini && (
-          <button
-            onClick={() => navigate(`/personal-tests/${id}/explain`)}
-            disabled={!hasErrors}
-            style={{
-              ...cardBtn(hasErrors),
-              background: hasErrors ? 'linear-gradient(135deg, rgba(123,104,238,0.12), rgba(167,139,250,0.05))' : 'var(--s2)',
-              border: `1.5px solid ${hasErrors ? 'rgba(123,104,238,0.3)' : 'var(--f)'}`,
-              opacity: hasErrors ? 1 : 0.5,
-              cursor: hasErrors ? 'pointer' : 'default',
-            }}
-          >
-            <div style={{ fontSize: 32 }}>🎯</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>
-                {hasErrors ? "Xatolar bilan rivojlanish" : "Xatosiz a'lo natija!"}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
-                {hasErrors
-                  ? `${wrongCount} ta xato · AI tushuntirish + mini-test`
-                  : 'Barcha javoblar to\'g\'ri'}
-              </div>
+        {/* EC2) Xatolar bilan rivojlanish */}
+        <button
+          onClick={() => navigate(`/personal-tests/${id}/explain`)}
+          disabled={!hasErrors}
+          style={{
+            ...cardBtn(hasErrors),
+            background: hasErrors ? 'linear-gradient(135deg, rgba(123,104,238,0.12), rgba(167,139,250,0.05))' : 'var(--s2)',
+            border: `1.5px solid ${hasErrors ? 'rgba(123,104,238,0.3)' : 'var(--f)'}`,
+            opacity: hasErrors ? 1 : 0.5,
+            cursor: hasErrors ? 'pointer' : 'default',
+          }}
+        >
+          <div style={{ fontSize: 32 }}>🎯</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>
+              {hasErrors ? "Xatolar bilan rivojlanish" : "Xatosiz a'lo natija!"}
             </div>
-            <div style={{ fontSize: 18, color: hasErrors ? 'var(--acc-l)' : 'var(--txt-3)' }}>→</div>
-          </button>
-        )}
+            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
+              {hasErrors
+                ? `${wrongCount} ta xato · AI tushuntirish` + (!isMini ? ' + mini-test' : '')
+                : 'Barcha javoblar to\'g\'ri'}
+            </div>
+          </div>
+          <div style={{ fontSize: 18, color: hasErrors ? 'var(--acc-l)' : 'var(--txt-3)' }}>→</div>
+        </button>
 
         {/* EC3) Tarixga saqlandi */}
         <button onClick={() => navigate('/tarix')} style={cardBtn(false)}>

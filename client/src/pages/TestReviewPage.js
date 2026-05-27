@@ -16,8 +16,8 @@ import '../components/RichText.css';
 var PAGE_SIZE = 10;
 export default function TestReviewPage() {
     var navigate = useNavigate();
-    var goBack = useGoBack('/tarix');
     var sessionId = useParams().sessionId;
+    var goBack = useGoBack("/test-result/" + sessionId);
     var location = useLocation();
     var toast = useToast();
     var initial = location.state;
@@ -25,7 +25,8 @@ export default function TestReviewPage() {
     var _b = useState([]), answers = _b[0], setAnswers = _b[1];
     var _c = useState(true), loading = _c[0], setLoading = _c[1];
     var _d = useState('all'), subjectFilter = _d[0], setSubjectFilter = _d[1];
-    var _e = useState(1), page = _e[0], setPage = _e[1];
+    var _e = useState(false), onlyWrongs = _e[0], setOnlyWrongs = _e[1];
+    var _f = useState(1), page = _f[0], setPage = _f[1];
     useEffect(function () {
         if (!sessionId)
             return;
@@ -42,9 +43,13 @@ export default function TestReviewPage() {
       </div>);
     }
     var breakdown = data.subjectBreakdown || [];
-    var filtered = subjectFilter === 'all'
-        ? answers
-        : answers.filter(function (a) { return a.subject === subjectFilter || a.subjectId === subjectFilter; });
+    var filtered = answers.filter(function (a) {
+        if (onlyWrongs && a.isCorrect)
+            return false;
+        if (subjectFilter !== 'all' && a.subject !== subjectFilter && a.subjectId !== subjectFilter)
+            return false;
+        return true;
+    });
     var totalPages = Math.ceil(filtered.length / PAGE_SIZE);
     var pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
     return (<>
@@ -119,6 +124,14 @@ export default function TestReviewPage() {
         padding: '6px 12px', borderRadius: 100,
         cursor: 'pointer'
     }}>Hammasi</button>
+            <button onClick={function () { setOnlyWrongs(!onlyWrongs); setPage(1); }} style={{
+        background: onlyWrongs ? 'var(--r)' : 'var(--s1)',
+        border: '1px solid var(--f)',
+        color: onlyWrongs ? 'white' : 'var(--txt-2)',
+        fontSize: 11, fontWeight: 700,
+        padding: '6px 12px', borderRadius: 100,
+        cursor: 'pointer'
+    }}>Faqat xatolar</button>
             {breakdown.map(function (b) { return (<button key={b.subjectId} onClick={function () { setSubjectFilter(b.subjectId); setPage(1); }} style={{
         background: subjectFilter === b.subjectId ? 'var(--acc)' : 'var(--s1)',
         border: '1px solid var(--f)',
@@ -200,7 +213,7 @@ function AnswerCard(_a) {
             icon = '✗ ';
         }
         return (<div key={i} style={{ fontSize: 11, color: color, marginBottom: 4, lineHeight: 1.5 }}>
-                {icon}<span style={{ fontWeight: 700 }}>{['A', 'B', 'C', 'D'][i]})</span> <RichText content={opt} inline/>
+                {icon}<span style={{ fontWeight: 700 }}>{['A', 'B', 'C', 'D'][i]})</span> <RichText content={opt.replace(/^[A-D][).]\s*/i, '')} inline/>
               </div>);
     })}
         </div>)}

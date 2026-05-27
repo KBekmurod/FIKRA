@@ -68,7 +68,15 @@ export default function OmborFolderPage() {
             .then(function (_a) {
             var data = _a.data;
             return setData(data);
-        })["catch"](function () { return toast.error("Yuklab bo'lmadi"); })["finally"](function () { return setLoading(false); });
+        })["catch"](function (e) {
+            if (e.response ? .status === 404 : ) {
+                toast.error("Ushbu papka o'chirilgan yoki topilmadi");
+                navigate('/tarix');
+            }
+            else {
+                toast.error("Yuklab bo'lmadi");
+            }
+        })["finally"](function () { return setLoading(false); });
     };
     useEffect(function () { load(); }, [folderId]);
     // Sahifa ochilgan zahoti, agar yangi (fresh) va test yo'q bo'lsa — yetarlilikni tekshiramiz

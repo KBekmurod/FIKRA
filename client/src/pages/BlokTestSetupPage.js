@@ -260,7 +260,9 @@ export default function BlokTestSetupPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {SPEC_SUBJECTS.map(function (s) {
         var active = customSubjects.includes(s.id);
+        var activeIndex = customSubjects.indexOf(s.id);
         return (<button key={s.id} onClick={function () { return toggleCustom(s.id); }} style={{
+            position: 'relative',
             background: active ? 'rgba(123,104,238,0.15)' : 'var(--s1)',
             border: "1.5px solid " + (active ? 'var(--acc-l)' : 'var(--f)'),
             borderRadius: 12,
@@ -272,6 +274,16 @@ export default function BlokTestSetupPage() {
             cursor: 'pointer',
             color: 'var(--txt)'
         }}>
+                    {active && (<div style={{
+            position: 'absolute', top: -8, right: -6,
+            background: activeIndex === 0 ? 'var(--acc-l)' : 'var(--y)',
+            color: activeIndex === 0 ? '#fff' : '#000',
+            fontSize: 10, fontWeight: 800,
+            padding: '2px 6px', borderRadius: 100,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+        }}>
+                        {activeIndex === 0 ? '3.1 ball' : '2.1 ball'}
+                      </div>)}
                     <div style={{ fontSize: 22 }}>{s.icon}</div>
                     <div style={{ fontSize: 11, fontWeight: 700 }}>{s.name}</div>
                   </button>);
@@ -290,12 +302,24 @@ export default function BlokTestSetupPage() {
         color: 'var(--txt-2)'
     }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-            <span>1-mutaxassislik (30 savol)</span>
-            <span style={{ fontWeight: 700 }}>3.1 × 30 = 93 ball</span>
+            <span>
+              {mode === 'custom' && customSubjects.length > 0
+        ? "1-mutaxassislik (" + (SPEC_SUBJECTS.find(function (x) { return x.id === customSubjects[0]; }) ? .name : ) + ")"
+        : mode === 'block' && selectedBlock
+            ? "1-mutaxassislik (" + (DIRECTION_BLOCKS.find(function (x) { return x.id === selectedBlock; }) ? .subjects[0].name : ) + ")"
+            : '1-mutaxassislik (30 savol)'}
+            </span>
+            <span style={{ fontWeight: 700, color: 'var(--acc-l)' }}>3.1 × 30 = 93 ball</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span>2-mutaxassislik (30 savol)</span>
-            <span style={{ fontWeight: 700 }}>2.1 × 30 = 63 ball</span>
+            <span>
+              {mode === 'custom' && customSubjects.length > 1
+        ? "2-mutaxassislik (" + (SPEC_SUBJECTS.find(function (x) { return x.id === customSubjects[1]; }) ? .name : ) + ")"
+        : mode === 'block' && selectedBlock
+            ? "2-mutaxassislik (" + (DIRECTION_BLOCKS.find(function (x) { return x.id === selectedBlock; }) ? .subjects[1].name : ) + ")"
+            : '2-mutaxassislik (30 savol)'}
+            </span>
+            <span style={{ fontWeight: 700, color: 'var(--y)' }}>2.1 × 30 = 63 ball</span>
           </div>
           <div style={{
         display: 'flex',

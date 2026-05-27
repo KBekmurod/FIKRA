@@ -340,6 +340,23 @@ router.post('/cabinet/mini-test', authMiddleware, async (req, res, next) => {
       limit: limit ? Math.min(parseInt(limit), 30) : 10,
       fromSessionId: fromSessionId || null,
     });
+
+    // Ulanishni saqlash
+    if (fromSessionId) {
+      const ExamSession = require('../models/ExamSession');
+      const src = await ExamSession.findOne({ _id: fromSessionId, userId: req.user._id });
+      if (src) {
+        src.miniTestId = result.session._id;
+        await src.save();
+      }
+      
+      const child = await ExamSession.findOne({ _id: result.session._id });
+      if (child) {
+        child.sourceTestId = src._id;
+        child.isMini = true;
+        await child.save();
+      }
+    }
     res.json({
       sessionId: result.session._id,
       mode: 'subject',

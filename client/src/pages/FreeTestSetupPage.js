@@ -46,9 +46,9 @@ import { useNavigate } from 'react-router-dom';
 import { examApi } from '../api/endpoints';
 import { useToast } from '../components/Toast';
 var COMPULSORY = [
-    { id: 'onatili', name: 'Ona tili', icon: '📖', count: 10, weight: 1.1 },
-    { id: 'math', name: 'Matematika', icon: '🔢', count: 10, weight: 1.1 },
-    { id: 'tarix', name: "O'zbekiston tarixi", icon: '🏛', count: 10, weight: 1.1 },
+    { id: 'majburiy_onatili', name: 'Ona tili', icon: '📖', count: 10, weight: 1.1 },
+    { id: 'majburiy_math', name: 'Matematika', icon: '🔢', count: 10, weight: 1.1 },
+    { id: 'majburiy_tarix', name: "O'zbekiston tarixi", icon: '🏛', count: 10, weight: 1.1 },
 ];
 var SPECIALTIES = [
     { id: 'math', name: 'Matematika', icon: '🔢', count: 30, weight: 3.1 },

@@ -66,7 +66,8 @@ export default function PersonalTestExplainPage() {
     var _c = useState([]), wrongs = _c[0], setWrongs = _c[1];
     var _d = useState(null), test = _d[0], setTest = _d[1];
     var _e = useState(false), generatingMini = _e[0], setGeneratingMini = _e[1];
-    var _f = useState(null), folderInfo = _f[0], setFolderInfo = _f[1];
+    var _f = useState(false), miniPrompt = _f[0], setMiniPrompt = _f[1];
+    var _g = useState(null), folderInfo = _g[0], setFolderInfo = _g[1];
     useEffect(function () {
         if (!id)
             return;
@@ -151,6 +152,7 @@ export default function PersonalTestExplainPage() {
                 case 0:
                     if (!id || !test)
                         return [2 /*return*/];
+                    setMiniPrompt(false);
                     setGeneratingMini(true);
                     _a.label = 1;
                 case 1:
@@ -277,8 +279,7 @@ export default function PersonalTestExplainPage() {
         lineHeight: 1.5
     }}>
           📋 Quyida <strong>{wrongs.length} ta xato</strong> javob.
-          AI har biri uchun tushuntirish berishi mumkin, so'ngra
-          <strong> mini-test </strong> ishlasangiz xatolaringizni mustahkamlaysiz.
+          AI har biri uchun tushuntirish berishi mumkin{test ? .testType !== 'mini' && ", so'ngra mini-test ishlasangiz xatolaringizni mustahkamlaysiz" : }.
         </div>
 
         {isFree && (<div style={{
@@ -335,7 +336,7 @@ export default function PersonalTestExplainPage() {
             fontSize: 12, display: 'flex', gap: 8
         }}>
                       <span style={{ fontWeight: 800, minWidth: 16 }}>{['A', 'B', 'C', 'D'][i]}</span>
-                      <span style={{ flex: 1 }}><RichText content={opt.replace(/^[A-D][).\\s]*/i, '')} inline/></span>
+                      <span style={{ flex: 1 }}><RichText content={opt.replace(/^[A-D][).]\s*/i, '')} inline/></span>
                       {isC && <span style={{ fontSize: 11 }}>✓ to'g'ri</span>}
                       {isU && !isC && <span style={{ fontSize: 11 }}>← siz</span>}
                     </div>);
@@ -372,43 +373,71 @@ export default function PersonalTestExplainPage() {
         </div>
 
         
-        <div style={{
+        {test ? .testType !== 'mini' && (<div style={{
         marginTop: 18,
         padding: 14,
         background: 'linear-gradient(135deg, rgba(123,104,238,0.12), rgba(0,212,170,0.05))',
         border: '1px solid rgba(123,104,238,0.3)',
         borderRadius: 14
     }}>
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-            🎯 Mini-test orqali mustahkamlash
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--txt-2)', marginBottom: 10, lineHeight: 1.5 }}>
-            AI sizning xatolaringizdan o'xshash savollar yaratadi va siz ishlaysiz.
-            {miniAlreadyGenerated && <> <strong style={{ color: 'var(--y)' }}>Allaqachon yaratilgan</strong> — qayta yaratib bo'lmaydi.</>}
-          </div>
-          <button onClick={startMiniTest} disabled={generatingMini || miniAlreadyGenerated} style={{
+            
+            <div style={{ marginTop: 4 }}>
+              <button onClick={function () { return setMiniPrompt(true); }} disabled={generatingMini || miniAlreadyGenerated} style={{
         width: '100%',
-        background: miniAlreadyGenerated ? 'var(--s2)' : 'linear-gradient(135deg, var(--acc), var(--acc-l))',
-        color: miniAlreadyGenerated ? 'var(--txt-3)' : 'white',
-        border: 'none',
-        borderRadius: 10,
-        padding: '12px 16px',
-        fontSize: 13,
+        background: miniAlreadyGenerated ? 'var(--s1)' : 'linear-gradient(135deg, var(--y), #fbbf24)',
+        color: miniAlreadyGenerated ? 'var(--txt-3)' : '#0a0a14',
+        border: miniAlreadyGenerated ? '1px solid var(--f)' : 'none',
+        borderRadius: 14,
+        padding: '14px 16px',
+        fontSize: 14,
         fontWeight: 800,
-        cursor: (generatingMini || miniAlreadyGenerated) ? 'default' : 'pointer',
-        opacity: generatingMini ? 0.6 : 1
+        cursor: miniAlreadyGenerated ? 'default' : 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        opacity: (generatingMini || miniAlreadyGenerated) ? 0.6 : 1
     }}>
-            {generatingMini
-        ? '⏳ Yaratilmoqda...'
-        : miniAlreadyGenerated
-            ? '✓ Allaqachon yaratilgan'
-            : '🚀 Mini-test boshlash'}
-          </button>
-        </div>
-
+                {generatingMini ? '⏳ Yaratilmoqda...' : miniAlreadyGenerated ? '✓ Mini-test allaqachon yaratilgan' : '🔄 Xatolardan Mini-test yaratish'}
+              </button>
+              {!miniAlreadyGenerated && (<div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 6, textAlign: 'center' }}>
+                  Xato javoblar asosida yangi savollar (faol test uchun 1 marta yaratiladi)
+                </div>)}
+            </div>
+          </div>) : }
+        
         <div style={{ height: 30 }}/>
       </div>
-      
+
       <SubscriptionModal open={subOpen} onClose={function () { return setSubOpen(false); }}/>
+
+      
+      {miniPrompt && (<div style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.8)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 999, padding: 20
+    }}>
+          <div style={{
+        background: 'var(--bg)',
+        border: '1.5px solid var(--f)',
+        borderRadius: 20,
+        padding: 24,
+        width: '100%',
+        maxWidth: 340,
+        textAlign: 'center'
+    }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔄</div>
+            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Mini-test yaratish</div>
+            <div style={{ fontSize: 14, color: 'var(--txt-2)', marginBottom: 20, lineHeight: 1.5 }}>
+              Har bir fan uchun faqat <strong>1 marta</strong> xatolar bo'yicha mini-test yaratish mumkin. Hozir yaratishni xohlaysizmi?
+            </div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <button onClick={startMiniTest} className="btn btn-primary btn-block">
+                Ha, yaratish
+              </button>
+              <button onClick={function () { return setMiniPrompt(false); }} className="btn btn-ghost btn-block">
+                Bekor qilish
+              </button>
+            </div>
+          </div>
+        </div>)}
     </>);
 }

@@ -516,23 +516,30 @@ async function generateMiniTest(userId, { subjectId, wrongAnswers, count = 10 })
     `${i + 1}. Savol: "${a.question}"\n   To'g'ri javob: ${a.options[a.correctAnswer] || ''}\n   Mavzu: ${a.topic || ''}`
   ).join('\n\n');
 
-  const prompt = `Sen DTM imtihoniga tayyorlovchi AI o'qituvchisan.
+  const prompt = `Sen DTM imtihoniga tayyorlovchi eng kuchli AI o'qituvchisan.
 
 Foydalanuvchi quyidagi ${subjectName} fanidan savollarni NOTO'G'RI javob bergan:
 
 ${wrongContext}
 
-Bu mavzular bo'yicha ${safeCount} ta YANGI, SHUNGA O'XSHASH lekin boshqa test savol yarat.
-Maqsad: foydalanuvchi shu mavzularni mustahkamlashi.
+VAZIFA:
+Bu xatolar bo'yicha jami ${safeCount} ta YANGI, MUTLAQO BOSHQA test savollarini tuzing. 
+Maqsad: foydalanuvchi shu qoidalarni/mavzularni to'liq tushunib olganini sinash.
+
+QAT'IY QOIDALAR (BUZILMASIN):
+1. Yuborilgan noto'g'ri savollarni ASLO ko'chirmang!
+2. Faqat variantlar ketma-ketligini almashtirib yoki 1-2 ta so'zni o'zgartirib qaytarib BEMANG! Bu qat'iyan man etiladi.
+3. Shu mavzudagi/qoidadagi umuman BOSHQA misollar, BOSHQA raqamlar, BOSHQA matnlar va BOSHQA shartlar o'ylab toping.
+4. Savollar qiyinlik darajasi DTM standartiga mos, o'ylantiradigan va mantiqiy bo'lsin.
 
 FAQAT quyidagi JSON formatda javob ber:
 {
   "questions": [
     {
-      "question": "Savol matni...",
+      "question": "Yepyangi savol matni...",
       "options": ["A varianti", "B varianti", "C varianti", "D varianti"],
       "answer": 0,
-      "explanation": "Tushuntirish (1-2 jumla)",
+      "explanation": "Nima uchun aynan bu javob to'g'riligi va qaysi qoidaga asoslangani haqida tushuntirish (1-2 jumla)",
       "topic": "Mavzu nomi"
     }
   ]

@@ -38,6 +38,8 @@ interface FikraSession {
   totalCorrect?: number
   totalQuestions?: number
   status?: string
+  isMini?: boolean
+  sourceTestId?: string
 }
 
 interface AiTest {
@@ -93,9 +95,9 @@ export default function HistoryPage() {
         blockSubject: s.direction,
         freeSubjects: s.selectedSubjects,
         totalCorrect: s.subjectBreakdown?.reduce((sum: number, sb: any) =>
-          sum + (sb.correctCount || 0), 0) || 0,
+          sum + (sb.correct || sb.correctCount || 0), 0) || 0,
         totalQuestions: s.subjectBreakdown?.reduce((sum: number, sb: any) =>
-          sum + (sb.totalCount || 0), 0) || 0,
+          sum + (sb.questionCount || sb.totalCount || 0), 0) || 0,
         status: s.status || 'completed',
       }))
 
@@ -198,7 +200,12 @@ export default function HistoryPage() {
         {loading ? (
           <div className="skel-card" />
         ) : topTab === 'fikra' ? (
-          <FikraHistoryList items={fikraByMode} onClick={s => navigate(`/test-review/${s._id}`)} />
+          <FikraHistoryList 
+            primaryItems={fikraByMode.filter(s => !s.isMini)}
+            miniItems={fikraByMode.filter(s => s.isMini)}
+            allTests={fikraByMode}
+            onClick={s => navigate(`/test-result/${s._id}`)} 
+          />
         ) : (
           <AiHistoryList
             primaryItems={primaryAi}
@@ -249,8 +256,10 @@ function ModeChip({ active, onClick, icon, label, count }: {
 }
 
 // ─── FIKRA testlar ro'yxati ───────────────────────────────────────────────
-function FikraHistoryList({ items, onClick }: { items: FikraSession[]; onClick: (s: FikraSession) => void }) {
-  if (items.length === 0) {
+function FikraHistoryList({ primaryItems, miniItems, allTests, onClick }: {
+  primaryItems: FikraSession[]; miniItems: FikraSession[]; allTests: FikraSession[]; onClick: (s: FikraSession) => void
+}) {
+  if (primaryItems.length === 0 && miniItems.length === 0) {
     return (
       <div style={{ padding: 30, textAlign: 'center' }}>
         <div style={{ fontSize: 40 }}>📭</div>
@@ -260,63 +269,121 @@ function FikraHistoryList({ items, onClick }: { items: FikraSession[]; onClick: 
       </div>
     )
   }
+
   return (
     <>
-      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 8 }}>
-        📋 DASTLABKI ISHLANGAN TESTLAR ({items.length})
-      </div>
-      <div style={{ display: 'grid', gap: 8 }}>
-        {items.map(s => {
-          const pct = s.totalQuestions > 0 ? Math.round((s.totalCorrect / s.totalQuestions) * 100) : 0
-          let metaText = ''
-          if (s.testMode === 'blok' && s.blockSubject) {
-            const subj = (SUBJECTS as any)[s.blockSubject]
-            const dir = DIRECTION_NAMES[s.blockSubject]
-            if (dir) {
-              metaText = `Yo'nalish: ${dir.icon} ${dir.name}`
-            } else if (subj) {
-              metaText = `Yo'nalish: ${subj.icon} ${subj.name}`
-            } else {
-              metaText = s.blockSubject
-            }
-          } else if (s.freeSubjects?.length) {
-            metaText = 'Fanlar: ' + s.freeSubjects.map(sid => {
-              const x = (SUBJECTS as any)[sid]; return x ? x.icon : sid
-            }).join(' ')
-          }
-          return (
-            <button key={s._id} onClick={() => onClick(s)} style={cardStyle()}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    display: 'inline-block',
-                    fontSize: 9.5, fontWeight: 800,
-                    padding: '2px 8px', borderRadius: 100,
-                    background: s.testMode === 'blok' ? 'rgba(167,139,250,0.15)' : 'rgba(0,212,170,0.15)',
-                    color: s.testMode === 'blok' ? 'var(--acc-l)' : 'var(--g)',
-                    marginBottom: 4, letterSpacing: 0.3,
-                  }}>
-                    {s.testMode === 'blok' ? '📦 Maxsus blok' : '🎯 Erkin tanlov'}
-                  </div>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--txt)', marginBottom: 4 }}>
-                    {metaText}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>
-                    {new Date(s.endTime).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                    {' · '}{s.totalCorrect}/{s.totalQuestions}
-                  </div>
-                </div>
-                <div style={{
-                  fontWeight: 800, fontSize: 16,
-                  color: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
-                  whiteSpace: 'nowrap',
-                }}>{pct}%</div>
-              </div>
-            </button>
-          )
-        })}
-      </div>
+      {/* Dastlabki testlar */}
+      {primaryItems.length > 0 && (
+        <>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 8 }}>
+            📋 DASTLABKI ISHLANGAN TESTLAR ({primaryItems.length})
+          </div>
+          <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+            {primaryItems.map(s => {
+              const relatedMini = allTests.find(x => x.isMini && x.sourceTestId === s._id)
+              return (
+                <FikraTestCard key={s._id} session={s} relatedMini={relatedMini} onClick={() => onClick(s)} />
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Mini testlar */}
+      {miniItems.length > 0 && (
+        <>
+          <div style={{
+            fontSize: 10, fontWeight: 700, color: 'var(--y)',
+            letterSpacing: 0.5, marginBottom: 8,
+            marginTop: primaryItems.length > 0 ? 14 : 0,
+          }}>
+            🎯 XATOLAR USTIDA ISHLANGAN MINI-TESTLAR ({miniItems.length})
+          </div>
+          <div style={{
+            padding: 10, marginBottom: 8,
+            background: 'rgba(255,204,68,0.05)',
+            border: '1px dashed rgba(255,204,68,0.2)',
+            borderRadius: 10,
+            fontSize: 10.5, color: 'var(--txt-3)', lineHeight: 1.4,
+          }}>
+            💡 Mini-test — dastlabki testdagi xatolaringizdan AI tomonidan
+            yaratilgan o'rganish testi
+          </div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {miniItems.map(s => (
+              <FikraTestCard key={s._id} session={s} onClick={() => onClick(s)} isMini />
+            ))}
+          </div>
+        </>
+      )}
     </>
+  )
+}
+
+function FikraTestCard({ session: s, relatedMini, onClick, isMini }: {
+  session: FikraSession; relatedMini?: FikraSession; onClick: () => void; isMini?: boolean
+}) {
+  const pct = s.totalQuestions > 0 ? Math.round((s.totalCorrect / s.totalQuestions) * 100) : 0
+  let metaText = ''
+  if (s.testMode === 'blok' && s.blockSubject) {
+    const subj = (SUBJECTS as any)[s.blockSubject]
+    const dir = DIRECTION_NAMES[s.blockSubject]
+    if (dir) {
+      metaText = `Yo'nalish: ${dir.icon} ${dir.name}`
+    } else if (subj) {
+      metaText = `Yo'nalish: ${subj.icon} ${subj.name}`
+    } else {
+      metaText = s.blockSubject
+    }
+  } else if (s.freeSubjects?.length) {
+    metaText = 'Fanlar: ' + s.freeSubjects.map(sid => {
+      const x = (SUBJECTS as any)[sid]; return x ? `${x.icon} ${x.name}` : sid
+    }).join(', ')
+  }
+
+  return (
+    <button onClick={onClick} style={cardStyle()}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            display: 'inline-block',
+            fontSize: 9.5, fontWeight: 800,
+            padding: '2px 8px', borderRadius: 100,
+            background: isMini ? 'rgba(255,204,68,0.15)' :
+                        s.testMode === 'blok' ? 'rgba(167,139,250,0.15)' : 'rgba(0,212,170,0.15)',
+            color: isMini ? 'var(--y)' :
+                   s.testMode === 'blok' ? 'var(--acc-l)' : 'var(--g)',
+            marginBottom: 4, letterSpacing: 0.3,
+          }}>
+            {isMini ? '🎯 MINI' : s.testMode === 'blok' ? '📦 Maxsus blok' : '🎯 Erkin tanlov'}
+          </div>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--txt)', marginBottom: 4 }}>
+            {metaText || (isMini ? 'Xatolar ustida ishlash' : 'FIKRA Testi')}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>
+            {new Date(s.endTime).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+            {' · '}{s.totalCorrect}/{s.totalQuestions}
+          </div>
+          {relatedMini && (
+            <div style={{
+              marginTop: 6, padding: '4px 8px',
+              background: 'rgba(255,204,68,0.08)',
+              border: '1px solid rgba(255,204,68,0.2)',
+              borderRadius: 6,
+              fontSize: 10, color: 'var(--y)',
+              display: 'inline-block',
+            }}>
+              ✓ Mini-test ham bor ({relatedMini.totalCorrect}/{relatedMini.totalQuestions})
+            </div>
+          )}
+        </div>
+        <div style={{
+          fontWeight: 800, fontSize: 16,
+          color: pct >= 70 ? 'var(--g)' : pct >= 50 ? 'var(--y)' : 'var(--r)',
+          whiteSpace: 'nowrap',
+        }}>{pct}%</div>
+      </div>
+    </button>
   )
 }
 

@@ -314,20 +314,20 @@ export default function PersonalTestResultPage() {
         </button>
 
         
-        {!isMini && (<button onClick={function () { return navigate("/personal-tests/" + id + "/explain"); }} disabled={!hasErrors} style={__assign({}, cardBtn(hasErrors), { background: hasErrors ? 'linear-gradient(135deg, rgba(123,104,238,0.12), rgba(167,139,250,0.05))' : 'var(--s2)', border: "1.5px solid " + (hasErrors ? 'rgba(123,104,238,0.3)' : 'var(--f)'), opacity: hasErrors ? 1 : 0.5, cursor: hasErrors ? 'pointer' : 'default' })}>
-            <div style={{ fontSize: 32 }}>🎯</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>
-                {hasErrors ? "Xatolar bilan rivojlanish" : "Xatosiz a'lo natija!"}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
-                {hasErrors
-        ? wrongCount + " ta xato \u00B7 AI tushuntirish + mini-test"
-        : 'Barcha javoblar to\'g\'ri'}
-              </div>
+        <button onClick={function () { return navigate("/personal-tests/" + id + "/explain"); }} disabled={!hasErrors} style={__assign({}, cardBtn(hasErrors), { background: hasErrors ? 'linear-gradient(135deg, rgba(123,104,238,0.12), rgba(167,139,250,0.05))' : 'var(--s2)', border: "1.5px solid " + (hasErrors ? 'rgba(123,104,238,0.3)' : 'var(--f)'), opacity: hasErrors ? 1 : 0.5, cursor: hasErrors ? 'pointer' : 'default' })}>
+          <div style={{ fontSize: 32 }}>🎯</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>
+              {hasErrors ? "Xatolar bilan rivojlanish" : "Xatosiz a'lo natija!"}
             </div>
-            <div style={{ fontSize: 18, color: hasErrors ? 'var(--acc-l)' : 'var(--txt-3)' }}>→</div>
-          </button>)}
+            <div style={{ fontSize: 11, color: 'var(--txt-2)', marginTop: 2 }}>
+              {hasErrors
+        ? wrongCount + " ta xato \u00B7 AI tushuntirish" + (!isMini ? ' + mini-test' : '')
+        : 'Barcha javoblar to\'g\'ri'}
+            </div>
+          </div>
+          <div style={{ fontSize: 18, color: hasErrors ? 'var(--acc-l)' : 'var(--txt-3)' }}>→</div>
+        </button>
 
         
         <button onClick={function () { return navigate('/tarix'); }} style={cardBtn(false)}>

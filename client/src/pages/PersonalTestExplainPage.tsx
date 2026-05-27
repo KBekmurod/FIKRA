@@ -216,8 +216,7 @@ export default function PersonalTestExplainPage() {
           lineHeight: 1.5,
         }}>
           📋 Quyida <strong>{wrongs.length} ta xato</strong> javob.
-          AI har biri uchun tushuntirish berishi mumkin, so'ngra
-          <strong> mini-test </strong> ishlasangiz xatolaringizni mustahkamlaysiz.
+          AI har biri uchun tushuntirish berishi mumkin{test?.testType !== 'mini' && ", so'ngra mini-test ishlasangiz xatolaringizni mustahkamlaysiz"}.
         </div>
 
         {isFree && (
@@ -316,42 +315,44 @@ export default function PersonalTestExplainPage() {
           ))}
         </div>
 
-        {/* Mini-test tugmasi */}
-        <div style={{
-          marginTop: 18,
-          padding: 14,
-          background: 'linear-gradient(135deg, rgba(123,104,238,0.12), rgba(0,212,170,0.05))',
-          border: '1px solid rgba(123,104,238,0.3)',
-          borderRadius: 14,
-        }}>
-          {/* Mini-test yaratish tugmasi */}
-          <div style={{ marginTop: 4 }}>
-            <button
-              onClick={() => setMiniPrompt(true)}
-              disabled={generatingMini || miniAlreadyGenerated}
-              style={{
-                width: '100%',
-                background: miniAlreadyGenerated ? 'var(--s1)' : 'linear-gradient(135deg, var(--y), #fbbf24)',
-                color: miniAlreadyGenerated ? 'var(--txt-3)' : '#0a0a14',
-                border: miniAlreadyGenerated ? '1px solid var(--f)' : 'none',
-                borderRadius: 14,
-                padding: '14px 16px',
-                fontSize: 14,
-                fontWeight: 800,
-                cursor: miniAlreadyGenerated ? 'default' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                opacity: (generatingMini || miniAlreadyGenerated) ? 0.6 : 1,
-              }}
-            >
-              {generatingMini ? '⏳ Yaratilmoqda...' : miniAlreadyGenerated ? '✓ Mini-test allaqachon yaratilgan' : '🔄 Xatolardan Mini-test yaratish'}
-            </button>
-            {!miniAlreadyGenerated && (
-              <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 6, textAlign: 'center' }}>
-                Xato javoblar asosida yangi savollar (faol test uchun 1 marta yaratiladi)
-              </div>
-            )}
+        {/* Mini-test tugmasi (Faqat Asosiy testlar uchun) */}
+        {test?.testType !== 'mini' && (
+          <div style={{
+            marginTop: 18,
+            padding: 14,
+            background: 'linear-gradient(135deg, rgba(123,104,238,0.12), rgba(0,212,170,0.05))',
+            border: '1px solid rgba(123,104,238,0.3)',
+            borderRadius: 14,
+          }}>
+            {/* Mini-test yaratish tugmasi */}
+            <div style={{ marginTop: 4 }}>
+              <button
+                onClick={() => setMiniPrompt(true)}
+                disabled={generatingMini || miniAlreadyGenerated}
+                style={{
+                  width: '100%',
+                  background: miniAlreadyGenerated ? 'var(--s1)' : 'linear-gradient(135deg, var(--y), #fbbf24)',
+                  color: miniAlreadyGenerated ? 'var(--txt-3)' : '#0a0a14',
+                  border: miniAlreadyGenerated ? '1px solid var(--f)' : 'none',
+                  borderRadius: 14,
+                  padding: '14px 16px',
+                  fontSize: 14,
+                  fontWeight: 800,
+                  cursor: miniAlreadyGenerated ? 'default' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  opacity: (generatingMini || miniAlreadyGenerated) ? 0.6 : 1,
+                }}
+              >
+                {generatingMini ? '⏳ Yaratilmoqda...' : miniAlreadyGenerated ? '✓ Mini-test allaqachon yaratilgan' : '🔄 Xatolardan Mini-test yaratish'}
+              </button>
+              {!miniAlreadyGenerated && (
+                <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 6, textAlign: 'center' }}>
+                  Xato javoblar asosida yangi savollar (faol test uchun 1 marta yaratiladi)
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
         
         <div style={{ height: 30 }} />
       </div>

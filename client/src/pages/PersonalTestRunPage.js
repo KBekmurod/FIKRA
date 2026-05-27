@@ -47,7 +47,7 @@ import { personalTestApi } from '../api/endpoints';
 import { useToast } from '../components/Toast';
 import RichText from '../components/RichText';
 import { triggerHaptic } from '../utils/haptics';
-import '../components/RichText.css';
+import './TestRun.css'; // Import premium styles
 export default function PersonalTestRunPage() {
     var _this = this;
     var navigate = useNavigate();
@@ -55,10 +55,18 @@ export default function PersonalTestRunPage() {
     var location = useLocation();
     var toast = useToast();
     var state = location.state;
-    var questions = useState(state ? .questions || [] : )[0];
-    var _a = useState(0), qIdx = _a[0], setQIdx = _a[1];
-    var _b = useState(function () {
-        // localStorage'dan tiklash (internet uzilishi himoyasi)
+    var _a = useState(state ? .questions || [] : ), questions = _a[0], setQuestions = _a[1];
+    var _b = useState(0), qIdx = _b[0], setQIdx = _b[1];
+    var _c = useState(function () {
+        if (state ? .answers : ) {
+            var init_1 = {};
+            state.answers.forEach(function (a) {
+                if (a.selectedOption !== undefined && a.selectedOption !== null) {
+                    init_1[a.questionIdx] = a.selectedOption;
+                }
+            });
+            return init_1;
+        }
         try {
             var cached = localStorage.getItem("fikra_test_answers_" + id);
             return cached ? JSON.parse(cached) : {};
@@ -66,13 +74,47 @@ export default function PersonalTestRunPage() {
         catch (_a) {
             return {};
         }
-    }), selected = _b[0], setSelected = _b[1];
-    var _c = useState(state ? .durationSeconds || 600 : ), timeLeft = _c[0], setTimeLeft = _c[1];
-    var _d = useState(false), finishing = _d[0], setFinishing = _d[1];
-    var _e = useState(null), exitTarget = _e[0], setExitTarget = _e[1];
-    var _f = useState([]), pendingAnswers = _f[0], setPendingAnswers = _f[1];
+    }), selected = _c[0], setSelected = _c[1];
+    var _d = useState(state ? .durationSeconds || 1800 : ), timeLeft = _d[0], setTimeLeft = _d[1];
+    var _e = useState(false), finishing = _e[0], setFinishing = _e[1];
+    var _f = useState(null), exitTarget = _f[0], setExitTarget = _f[1];
+    var _g = useState(false), showGrid = _g[0], setShowGrid = _g[1];
+    var _h = useState(false), finishPrompt = _h[0], setFinishPrompt = _h[1];
+    var _j = useState([]), pendingAnswers = _j[0], setPendingAnswers = _j[1];
+    var _k = useState(!state ? .questions ? .length :  : ), loading = _k[0], setLoading = _k[1];
+    // Animation key state to trigger CSS re-flow when qIdx changes
+    var _l = useState(0), animKey = _l[0], setAnimKey = _l[1];
     var finishedRef = useRef(false);
-    // Javoblarni localStorage'ga saqlash
+    // Session Restore
+    useEffect(function () {
+        if (questions.length > 0 || !id)
+            return;
+        var restoreSession = function () { return __awaiter(_this, void 0, void 0, function () {
+            var data, err_1;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 2, , 3]);
+                        return [4 /*yield*/, personalTestApi.review(id)];
+                    case 1:
+                        data = (_a.sent()).data;
+                        if (data.test) {
+                            setQuestions(data.test.questions);
+                            setTimeLeft(data.test.durationSeconds || 1800);
+                        }
+                        setLoading(false);
+                        return [3 /*break*/, 3];
+                    case 2:
+                        err_1 = _a.sent();
+                        setLoading(false);
+                        return [3 /*break*/, 3];
+                    case 3: return [2 /*return*/];
+                }
+            });
+        }); };
+        restoreSession();
+    }, [id, questions.length]);
+    // Save to localStorage
     useEffect(function () {
         if (!id || Object.keys(selected).length === 0)
             return;
@@ -81,7 +123,7 @@ export default function PersonalTestRunPage() {
         }
         catch (_a) { }
     }, [id, selected]);
-    // Pending javoblarni qayta yuborish (online qaytganda)
+    // Retry pending
     useEffect(function () {
         var retryPending = function () { return __awaiter(_this, void 0, void 0, function () {
             var toRetry, _loop_1, _i, toRetry_1, ans;
@@ -104,7 +146,6 @@ export default function PersonalTestRunPage() {
                                         return [3 /*break*/, 3];
                                     case 2:
                                         _a = _b.sent();
-                                        // Hali ham yo'q — keyinroq yana
                                         setPendingAnswers(function (p) { return p.concat([ans]); });
                                         return [3 /*break*/, 3];
                                     case 3: return [2 /*return*/];
@@ -131,7 +172,7 @@ export default function PersonalTestRunPage() {
         window.addEventListener('online', onOnline);
         return function () { return window.removeEventListener('online', onOnline); };
     }, [id, pendingAnswers]);
-    // sendBeacon abandon
+    // Abandon on unload
     useEffect(function () {
         if (!id)
             return;
@@ -154,7 +195,7 @@ export default function PersonalTestRunPage() {
             window.removeEventListener('pagehide', onUnload);
         };
     }, [id]);
-    // Nav modal
+    // Navigation locks
     useEffect(function () {
         var onNavAttempt = function (e) {
             e.preventDefault();
@@ -162,6 +203,15 @@ export default function PersonalTestRunPage() {
         };
         window.addEventListener('fikra:nav-attempt', onNavAttempt);
         return function () { return window.removeEventListener('fikra:nav-attempt', onNavAttempt); };
+    }, []);
+    useEffect(function () {
+        window.history.pushState(null, '', window.location.href);
+        var onPopState = function (e) {
+            window.history.pushState(null, '', window.location.href);
+            setExitTarget('/tarix');
+        };
+        window.addEventListener('popstate', onPopState);
+        return function () { return window.removeEventListener('popstate', onPopState); };
     }, []);
     // Timer
     useEffect(function () {
@@ -179,18 +229,6 @@ export default function PersonalTestRunPage() {
         }, 1000);
         return function () { return clearInterval(t); };
     }, []);
-    if (!id || !questions.length) {
-        return (<div style={{ padding: 40, textAlign: 'center' }}>
-        <div style={{ fontSize: 28 }}>⚠️</div>
-        <p style={{ marginTop: 12 }}>Test ma'lumotlari topilmadi</p>
-        <button className="btn btn-primary" onClick={function () { return navigate('/ombor'); }} style={{ marginTop: 16 }}>
-          Omborga qaytish
-        </button>
-      </div>);
-    }
-    var q = questions[qIdx];
-    var total = questions.length;
-    var isLast = qIdx === total - 1;
     var fmt = function (s) {
         var m = Math.floor(s / 60);
         var ss = s % 60;
@@ -217,7 +255,6 @@ export default function PersonalTestRunPage() {
                     return [3 /*break*/, 4];
                 case 3:
                     _a = _b.sent();
-                    // Internet uzilgan — keyinroq qayta urinish uchun saqlaymiz
                     setPendingAnswers(function (p) { return p.concat([{ qIdx: qIdx, selected: i }]); });
                     return [3 /*break*/, 4];
                 case 4: return [2 /*return*/];
@@ -265,12 +302,9 @@ export default function PersonalTestRunPage() {
                         _b.label = 7;
                     case 7:
                         _b.trys.push([7, 9, , 10]);
-                        return [4 /*yield*/, personalTestApi.finish(id, finalAnswers)
-                            // Cache tozalash
-                        ];
+                        return [4 /*yield*/, personalTestApi.finish(id, finalAnswers)];
                     case 8:
                         data = (_b.sent()).data;
-                        // Cache tozalash
                         try {
                             localStorage.removeItem("fikra_test_answers_" + id);
                         }
@@ -313,140 +347,154 @@ export default function PersonalTestRunPage() {
             }
         });
     }); };
+    var navigateTo = function (index) {
+        if (index >= 0 && index < questions.length && index !== qIdx) {
+            setQIdx(index);
+            setAnimKey(function (k) { return k + 1; });
+            triggerHaptic('light');
+            setShowGrid(false);
+        }
+    };
+    if (loading) {
+        return (<div className="test-run-layout" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 12, animation: 'pulse 1s infinite' }}>⏳</div>
+        <div style={{ fontWeight: 600, color: 'var(--txt-2)' }}>Test holati tiklanmoqda...</div>
+      </div>);
+    }
+    if (!id || !questions.length) {
+        return (<div className="test-run-layout" style={{ justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+        <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
+        <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 24 }}>Test ma'lumotlari topilmadi</div>
+        <button className="btn btn-primary" onClick={function () { return navigate('/ombor'); }}>Omborga qaytish</button>
+      </div>);
+    }
+    var q = questions[qIdx];
+    var total = questions.length;
+    var isLast = qIdx === total - 1;
     var answered = Object.keys(selected).length;
-    return (<>
+    var progressPercent = (answered / total) * 100;
+    return (<div className="test-run-layout">
       
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 50,
-        background: 'rgba(10,10,20,0.95)',
-        backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid var(--f)',
-        padding: '10px 16px',
-        display: 'flex', alignItems: 'center', gap: 10
-    }}>
+      <div className="test-top-bar">
         <button onClick={function () { return setExitTarget('/ombor'); }} style={{
-        background: 'none', border: 'none', color: 'var(--r)',
-        fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: 0
-    }}>Chiqish</button>
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{
-        display: 'inline-block',
-        background: timeLeft < 60 ? 'rgba(255,95,126,0.15)' : 'rgba(123,104,238,0.12)',
-        border: "1px solid " + (timeLeft < 60 ? 'var(--r)' : 'rgba(123,104,238,0.3)'),
-        borderRadius: 100,
-        padding: '4px 14px',
-        fontFamily: 'monospace',
-        fontWeight: 700,
-        fontSize: 14,
-        color: timeLeft < 60 ? 'var(--r)' : 'var(--acc-l)'
-    }}>⏱ {fmt(timeLeft)}</div>
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--txt-2)', fontWeight: 700, minWidth: 50, textAlign: 'right' }}>
-          {qIdx + 1}/{total}
-        </div>
-      </div>
-
-      
-      <div style={{ padding: '8px 16px 4px' }}>
-        <div style={{ height: 3, background: 'var(--s2)', borderRadius: 100 }}>
-          <div style={{
-        height: '100%',
-        width: (answered / total) * 100 + "%",
-        background: 'var(--acc)',
-        borderRadius: 100,
-        transition: 'width 0.3s'
-    }}/>
-        </div>
-      </div>
-
-      
-      <div style={{ padding: '8px 16px 100px' }}>
-        <div style={{ fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, letterSpacing: 0.5, marginBottom: 6 }}>
-          {state ? .subjectName : } {q.topic ? "\u00B7 " + q.topic : ''}
-        </div>
+        background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)',
+        fontSize: 14, fontWeight: 700, cursor: 'pointer', padding: 0
+    }}>⨉ Chiqish</button>
+        
         <div style={{
-        background: 'var(--s1)',
-        border: '1px solid var(--f)',
-        borderRadius: 14,
-        padding: 16,
-        marginBottom: 12,
-        fontSize: 14,
-        lineHeight: 1.6,
-        fontWeight: 500
+        background: timeLeft < 60 ? 'rgba(255,95,126,0.15)' : 'rgba(255,255,255,0.05)',
+        border: "1px solid " + (timeLeft < 60 ? 'var(--r)' : 'rgba(255,255,255,0.1)'),
+        borderRadius: 100, padding: '6px 16px', fontFamily: 'monospace', fontWeight: 800,
+        fontSize: 15, color: timeLeft < 60 ? 'var(--r)' : '#fff',
+        boxShadow: timeLeft < 60 ? '0 0 10px rgba(255,95,126,0.3)' : 'none'
     }}>
-          <RichText content={q.question} images={q.images}/>
+          {fmt(timeLeft)}
         </div>
 
-        <div style={{ display: 'grid', gap: 8 }}>
-          {q.options.map(function (opt, i) {
+        <button onClick={function () { return setShowGrid(true); }} style={{
+        background: 'none', border: 'none', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', padding: 0
+    }}>
+          {qIdx + 1}/{total} ☰
+        </button>
+      </div>
+      
+      <div className="test-progress-container">
+        <div className="test-progress-bar" style={{ width: progressPercent + "%" }}/>
+      </div>
+
+      
+      <div className="test-slide-container">
+        <div key={animKey} className="test-slide-enter">
+          
+          <div className="test-topic-label">
+            {state ? .subjectName : } {q.topic ? "\u00B7 " + q.topic : ''}
+          </div>
+
+          <div className="test-question-card">
+            <RichText content={q.question} images={q.images}/>
+          </div>
+
+          <div className="test-options-grid">
+            {q.options.map(function (opt, i) {
         var isSel = selected[qIdx] === i;
-        return (<button key={i} onClick={function () { return pickAnswer(i); }} disabled={selected[qIdx] !== undefined} style={{
-            background: isSel ? 'rgba(123,104,238,0.15)' : 'var(--s1)',
-            border: "1.5px solid " + (isSel ? 'var(--acc-l)' : 'var(--f)'),
-            borderRadius: 12,
-            padding: '14px 16px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 12,
-            cursor: selected[qIdx] !== undefined ? 'default' : 'pointer',
-            color: 'var(--txt)',
-            textAlign: 'left',
-            fontSize: 13,
-            lineHeight: 1.5,
-            width: '100%'
-        }}>
-                <span style={{
-            fontWeight: 800,
-            color: isSel ? 'var(--acc-l)' : 'var(--txt-3)',
-            flexShrink: 0,
-            minWidth: 18
-        }}>{['A', 'B', 'C', 'D'][i]}</span>
-                <span style={{ flex: 1 }}><RichText content={opt.replace(/^[A-D][).\\s]*/i, '')} inline/></span>
-              </button>);
+        return (<button key={i} onClick={function () { return pickAnswer(i); }} disabled={selected[qIdx] !== undefined} className={"test-option-btn " + (isSel ? 'selected' : '')}>
+                  <div className="test-radio">
+                    <div className="test-radio-inner"/>
+                  </div>
+                  <div style={{ flex: 1, paddingTop: 1 }}>
+                    <RichText content={opt.replace(/^[A-D][).]\s*/i, '')} inline/>
+                  </div>
+                </button>);
     })}
-        </div>
+          </div>
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <button onClick={function () { return setQIdx(qIdx - 1); }} disabled={qIdx === 0} className="btn btn-ghost" style={{ flex: 1, opacity: qIdx === 0 ? 0.4 : 1 }}>← Oldingi</button>
-          {!isLast ? (<button onClick={function () { return setQIdx(qIdx + 1); }} className="btn btn-primary" style={{ flex: 2 }}>Keyingi →</button>) : (<button onClick={function () { return handleFinish(false); }} disabled={finishing} className="btn btn-success" style={{ flex: 2 }}>{finishing ? '⏳ Yakunlanmoqda...' : '🏁 Testni yakunlash'}</button>)}
         </div>
       </div>
 
       
-      {exitTarget && (<div style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.7)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 20
-    }}>
-          <div style={{
-        background: 'var(--s1)',
-        border: '1px solid var(--f)',
-        borderRadius: 18, padding: 22,
-        maxWidth: 360, width: '100%'
-    }}>
-            <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 8 }}>⚠️</div>
-            <div style={{ fontWeight: 800, fontSize: 16, textAlign: 'center', marginBottom: 8 }}>
-              Testdan chiqasizmi?
+      <div className="test-bottom-nav">
+        <button className="test-nav-btn prev" onClick={function () { return navigateTo(qIdx - 1); }} disabled={qIdx === 0}>← Oldingi</button>
+        
+        {!isLast ? (<button className="test-nav-btn next" onClick={function () { return navigateTo(qIdx + 1); }}>Keyingi →</button>) : (<button className="test-nav-btn finish" onClick={function () { return setFinishPrompt(true); }} disabled={finishing}>Yakunlash 🏁</button>)}
+      </div>
+
+      
+      {showGrid && (<div className="test-grid-overlay" onClick={function () { return setShowGrid(false); }}>
+          <div className="test-grid-sheet" onClick={function (e) { return e.stopPropagation(); }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontWeight: 800, fontSize: 18 }}>Savollar xaritasi</div>
+              <button onClick={function () { return setShowGrid(false); }} style={{
+        background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 50,
+        width: 30, height: 30, color: '#fff', fontWeight: 800, cursor: 'pointer'
+    }}>⨉</button>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--txt-2)', textAlign: 'center', lineHeight: 1.5, marginBottom: 16 }}>
-              Test to'liq yakunlanmagan. Chiqsangiz natija <strong>saqlanmaydi</strong>.
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={function () { return setExitTarget(null); }} className="btn btn-ghost btn-block">
-                Davom etish
-              </button>
-              <button onClick={confirmExit} style={{
-        flex: 1,
-        background: 'rgba(255,95,126,0.15)',
-        border: '1.5px solid var(--r)',
-        color: 'var(--r)',
-        fontWeight: 700, fontSize: 13,
-        padding: '11px 14px', borderRadius: 10,
-        cursor: 'pointer'
-    }}>Chiqish</button>
+            
+            <div className="test-grid-scroll">
+              <div className="test-grid-bubbles">
+                {questions.map(function (_, i) {
+        var isAns = selected[i] !== undefined;
+        var isCur = i === qIdx;
+        var cls = 'test-bubble';
+        if (isCur)
+            cls += ' current';
+        else if (isAns)
+            cls += ' answered';
+        return (<div key={i} className={cls} onClick={function () { return navigateTo(i); }}>
+                      {i + 1}
+                    </div>);
+    })}
+              </div>
             </div>
           </div>
         </div>)}
-    </>);
+
+      
+      {exitTarget && (<div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'var(--s1)', border: '1px solid var(--f)', borderRadius: 24, padding: 24, maxWidth: 340, width: '100%', textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🚪</div>
+            <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>Testdan chiqasizmi?</div>
+            <p style={{ fontSize: 13, color: 'var(--txt-2)', marginBottom: 24 }}>Jarayon arxivlanadi, xohlagan payt qaytib davom ettirishingiz mumkin.</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-ghost" onClick={function () { return setExitTarget(null); }} style={{ flex: 1 }}>Qolish</button>
+              <button className="btn btn-danger" onClick={confirmExit} style={{ flex: 1 }}>Chiqish</button>
+            </div>
+          </div>
+        </div>)}
+
+      {finishPrompt && (<div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'var(--s1)', border: '1px solid var(--f)', borderRadius: 24, padding: 24, maxWidth: 340, width: '100%', textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🏁</div>
+            <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>Testni yakunlaysizmi?</div>
+            <p style={{ fontSize: 13, color: 'var(--txt-2)', marginBottom: 24 }}>
+              {answered < total ? "Hali " + (total - answered) + " ta savolga javob bermadingiz." : 'Barcha savollarga javob berdingiz!'}
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-ghost" onClick={function () { return setFinishPrompt(false); }} style={{ flex: 1 }}>Orqaga</button>
+              <button className="btn btn-success" onClick={function () { return handleFinish(false); }} disabled={finishing} style={{ flex: 1 }}>
+                {finishing ? '...' : 'Yakunlash'}
+              </button>
+            </div>
+          </div>
+        </div>)}
+    </div>);
 }

@@ -59,8 +59,11 @@ const examSessionSchema = new mongoose.Schema({
   // Har fan uchun 1 marta — keyin "qayta tushuntirish" tugmasi yopiladi.
   explainedSubjects: { type: [String], default: [] },
 
-  // Mini-test allaqachon yaratilganmi (bu sessiya uchun 1 marta)
+  // Mini-test ulanishi
   miniTestGenerated: { type: Boolean, default: false },
+  miniTestId: { type: mongoose.Schema.Types.ObjectId, ref: 'ExamSession', default: null },
+  sourceTestId: { type: mongoose.Schema.Types.ObjectId, ref: 'ExamSession', default: null },
+  isMini: { type: Boolean, default: false },
 
 }, { timestamps: true });
 

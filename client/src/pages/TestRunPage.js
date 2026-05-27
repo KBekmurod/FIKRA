@@ -47,7 +47,8 @@ import { examApi } from '../api/endpoints';
 import { useToast } from '../components/Toast';
 import { triggerHaptic } from '../utils/haptics';
 import RichText from '../components/RichText';
-import '../components/RichText.css';
+import { SUBJECTS } from '../constants/subjects';
+import './TestRun.css'; // Import premium styles
 export default function TestRunPage() {
     var _this = this;
     var navigate = useNavigate();
@@ -55,27 +56,61 @@ export default function TestRunPage() {
     var location = useLocation();
     var toast = useToast();
     var state = location.state;
-    var questions = useState(state ? .questions || [] : )[0];
-    var _a = useState(0), qIdx = _a[0], setQIdx = _a[1];
-    var _b = useState({}), selected = _b[0], setSelected = _b[1];
-    var _c = useState(state ? .durationSeconds || 10800 : ), timeLeft = _c[0], setTimeLeft = _c[1];
-    var _d = useState(false), finishing = _d[0], setFinishing = _d[1];
-    var _e = useState(null), exitTarget = _e[0], setExitTarget = _e[1];
+    var _a = useState(state ? .questions || [] : ), questions = _a[0], setQuestions = _a[1];
+    var _b = useState(0), qIdx = _b[0], setQIdx = _b[1];
+    var _c = useState({}), selected = _c[0], setSelected = _c[1];
+    var _d = useState(state ? .durationSeconds || 10800 : ), timeLeft = _d[0], setTimeLeft = _d[1];
+    var _e = useState(false), finishing = _e[0], setFinishing = _e[1];
+    var _f = useState(null), exitTarget = _f[0], setExitTarget = _f[1];
+    var _g = useState(false), showGrid = _g[0], setShowGrid = _g[1];
+    var _h = useState(false), finishPrompt = _h[0], setFinishPrompt = _h[1];
+    var _j = useState(!state ? .questions ? .length :  : ), loading = _j[0], setLoading = _j[1];
+    var _k = useState(0), animKey = _k[0], setAnimKey = _k[1];
     var finishedRef = useRef(false);
-    // Sessiya holatini yo'qotmaslik uchun beforeunload + abandon
+    // Resume session
+    useEffect(function () {
+        if (questions.length > 0 || !sessionId)
+            return;
+        var restoreSession = function () { return __awaiter(_this, void 0, void 0, function () {
+            var data, restoredSelected_1, err_1;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 2, , 3]);
+                        return [4 /*yield*/, examApi.resume(sessionId)];
+                    case 1:
+                        data = (_a.sent()).data;
+                        setQuestions(data.questions);
+                        setTimeLeft(data.durationSeconds);
+                        restoredSelected_1 = {};
+                        data.questions.forEach(function (q, i) {
+                            if (q.selectedOption !== null && q.selectedOption !== undefined) {
+                                restoredSelected_1[i] = q.selectedOption;
+                            }
+                        });
+                        setSelected(restoredSelected_1);
+                        setLoading(false);
+                        return [3 /*break*/, 3];
+                    case 2:
+                        err_1 = _a.sent();
+                        setLoading(false);
+                        return [3 /*break*/, 3];
+                    case 3: return [2 /*return*/];
+                }
+            });
+        }); };
+        restoreSession();
+    }, [sessionId, questions.length]);
+    // Beacon abandon
     useEffect(function () {
         if (!sessionId)
             return;
         var onUnload = function () {
-            // Yopilishda abandon (best effort, navigator.sendBeacon)
             if (finishedRef.current)
                 return;
             try {
-                var auth = JSON.parse(localStorage.getItem('fikra_auth') || '{}');
                 var data = new Blob([JSON.stringify({})], { type: 'application/json' });
                 var url = "/api/exams/sessions/" + sessionId + "/abandon";
-                // Token Authorization Header beacon'da ishlamaydi, lekin server hech bo'lmasa
-                // sessiyani tozalashga harakat qiladi. Aniq abandon /home dan keyin ham yuboriladi.
                 navigator.sendBeacon ? .(url, data)
                     :
                 ;
@@ -89,7 +124,6 @@ export default function TestRunPage() {
             window.removeEventListener('pagehide', onUnload);
         };
     }, [sessionId]);
-    // Nav tugma bossa — modal
     useEffect(function () {
         var onNavAttempt = function (e) {
             e.preventDefault();
@@ -97,6 +131,15 @@ export default function TestRunPage() {
         };
         window.addEventListener('fikra:nav-attempt', onNavAttempt);
         return function () { return window.removeEventListener('fikra:nav-attempt', onNavAttempt); };
+    }, []);
+    useEffect(function () {
+        window.history.pushState(null, '', window.location.href);
+        var onPopState = function (e) {
+            window.history.pushState(null, '', window.location.href);
+            setExitTarget('/testlar');
+        };
+        window.addEventListener('popstate', onPopState);
+        return function () { return window.removeEventListener('popstate', onPopState); };
     }, []);
     // Timer
     useEffect(function () {
@@ -114,19 +157,6 @@ export default function TestRunPage() {
         }, 1000);
         return function () { return clearInterval(id); };
     }, []);
-    // Agar questions kelmagan bo'lsa
-    if (!sessionId || !questions.length) {
-        return (<div style={{ padding: 40, textAlign: 'center' }}>
-        <div style={{ fontSize: 28 }}>⚠️</div>
-        <p style={{ marginTop: 12 }}>Test ma'lumotlari topilmadi</p>
-        <button className="btn btn-primary" onClick={function () { return navigate('/testlar'); }} style={{ marginTop: 16 }}>
-          Testlarga qaytish
-        </button>
-      </div>);
-    }
-    var q = questions[qIdx];
-    var total = questions.length;
-    var isLast = qIdx === total - 1;
     var fmt = function (s) {
         var h = Math.floor(s / 3600);
         var m = Math.floor((s % 3600) / 60);
@@ -150,7 +180,7 @@ export default function TestRunPage() {
                     _b.label = 1;
                 case 1:
                     _b.trys.push([1, 3, , 4]);
-                    return [4 /*yield*/, examApi.answer(sessionId, q._id, i)];
+                    return [4 /*yield*/, examApi.answer(sessionId, questions[qIdx]._id, i)];
                 case 2:
                     _b.sent();
                     return [3 /*break*/, 4];
@@ -161,14 +191,6 @@ export default function TestRunPage() {
             }
         });
     }); };
-    var next = function () {
-        if (qIdx < total - 1)
-            setQIdx(qIdx + 1);
-    };
-    var prev = function () {
-        if (qIdx > 0)
-            setQIdx(qIdx - 1);
-    };
     var handleFinish = useCallback(function (auto) {
         if (auto === void 0) { auto = false; }
         return __awaiter(_this, void 0, void 0, function () {
@@ -186,7 +208,7 @@ export default function TestRunPage() {
                         return [4 /*yield*/, examApi.finish(sessionId)];
                     case 2:
                         data = (_a.sent()).data;
-                        navigate("/test-result/" + sessionId, { state: data });
+                        navigate("/test-result/" + sessionId, { state: data, replace: true });
                         return [3 /*break*/, 4];
                     case 3:
                         e_1 = _a.sent();
@@ -200,7 +222,6 @@ export default function TestRunPage() {
             });
         });
     }, [sessionId, finishing, navigate, toast]);
-    // Modal — chiqish tasdig'i
     var confirmExit = function () { return __awaiter(_this, void 0, void 0, function () {
         var _a, target;
         return __generator(this, function (_b) {
@@ -225,158 +246,154 @@ export default function TestRunPage() {
             }
         });
     }); };
-    var cancelExit = function () { return setExitTarget(null); };
+    var navigateTo = function (index) {
+        if (index >= 0 && index < questions.length && index !== qIdx) {
+            setQIdx(index);
+            setAnimKey(function (k) { return k + 1; });
+            triggerHaptic('light');
+            setShowGrid(false);
+        }
+    };
+    if (loading) {
+        return (<div className="test-run-layout" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 12, animation: 'pulse 1s infinite' }}>⏳</div>
+        <div style={{ fontWeight: 600, color: 'var(--txt-2)' }}>Test holati tiklanmoqda...</div>
+      </div>);
+    }
+    if (!sessionId || !questions.length) {
+        return (<div className="test-run-layout" style={{ justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+        <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
+        <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 24 }}>Test ma'lumotlari topilmadi</div>
+        <button className="btn btn-primary" onClick={function () { return navigate('/testlar'); }}>Testlarga qaytish</button>
+      </div>);
+    }
+    var q = questions[qIdx];
+    var total = questions.length;
+    var isLast = qIdx === total - 1;
     var answered = Object.keys(selected).length;
-    return (<>
+    var progressPercent = (answered / total) * 100;
+    return (<div className="test-run-layout">
       
-      <div style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        background: 'rgba(10,10,20,0.95)',
-        backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid var(--f)',
-        padding: '10px 16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10
-    }}>
+      <div className="test-top-bar">
         <button onClick={function () { return setExitTarget('/testlar'); }} style={{
-        background: 'none', border: 'none', color: 'var(--r)',
-        fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: 0
-    }}>Chiqish</button>
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{
-        display: 'inline-block',
-        background: timeLeft < 300 ? 'rgba(255,95,126,0.15)' : 'rgba(123,104,238,0.12)',
-        border: "1px solid " + (timeLeft < 300 ? 'var(--r)' : 'rgba(123,104,238,0.3)'),
-        borderRadius: 100,
-        padding: '4px 14px',
-        fontFamily: 'monospace',
-        fontWeight: 700,
-        fontSize: 14,
-        color: timeLeft < 300 ? 'var(--r)' : 'var(--acc-l)'
-    }}>
-            ⏱ {fmt(timeLeft)}
-          </div>
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--txt-2)', fontWeight: 700, minWidth: 50, textAlign: 'right' }}>
-          {qIdx + 1}/{total}
-        </div>
-      </div>
-
-      
-      <div style={{ padding: '8px 16px 4px' }}>
-        <div style={{ height: 3, background: 'var(--s2)', borderRadius: 100 }}>
-          <div style={{
-        height: '100%',
-        width: (answered / total) * 100 + "%",
-        background: 'var(--acc)',
-        borderRadius: 100,
-        transition: 'width 0.3s'
-    }}/>
-        </div>
-        <div style={{ fontSize: 10, color: 'var(--txt-3)', marginTop: 4, textAlign: 'right' }}>
-          {answered}/{total} javob berildi
-        </div>
-      </div>
-
-
-
-      
-      <div style={{ padding: '8px 16px 100px' }}>
-        <div style={{ fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, letterSpacing: 0.5, marginBottom: 6 }}>
-          {q.subjectName || q.subject}
-        </div>
+        background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)',
+        fontSize: 14, fontWeight: 700, cursor: 'pointer', padding: 0
+    }}>⨉ Chiqish</button>
+        
         <div style={{
-        background: 'var(--s1)',
-        border: '1px solid var(--f)',
-        borderRadius: 14,
-        padding: 16,
-        marginBottom: 12,
-        fontSize: 14,
-        lineHeight: 1.6,
-        fontWeight: 500
+        background: timeLeft < 300 ? 'rgba(255,95,126,0.15)' : 'rgba(255,255,255,0.05)',
+        border: "1px solid " + (timeLeft < 300 ? 'var(--r)' : 'rgba(255,255,255,0.1)'),
+        borderRadius: 100, padding: '6px 16px', fontFamily: 'monospace', fontWeight: 800,
+        fontSize: 15, color: timeLeft < 300 ? 'var(--r)' : '#fff',
+        boxShadow: timeLeft < 300 ? '0 0 10px rgba(255,95,126,0.3)' : 'none'
     }}>
-          <RichText content={q.question} images={q.images}/>
+          {fmt(timeLeft)}
         </div>
 
-        
-        <div style={{ display: 'grid', gap: 8 }}>
-          {q.options.map(function (opt, i) {
+        <button onClick={function () { return setShowGrid(true); }} style={{
+        background: 'none', border: 'none', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', padding: 0
+    }}>
+          {qIdx + 1}/{total} ☰
+        </button>
+      </div>
+      
+      <div className="test-progress-container">
+        <div className="test-progress-bar" style={{ width: progressPercent + "%" }}/>
+      </div>
+
+      
+      <div className="test-slide-container">
+        <div key={animKey} className="test-slide-enter">
+          
+          <div className="test-topic-label">
+            {q.subjectName || SUBJECTS[q.subject] ? .name || q.subject : }
+          </div>
+
+          <div className="test-question-card">
+            <RichText content={q.question} images={q.images}/>
+          </div>
+
+          <div className="test-options-grid">
+            {q.options.map(function (opt, i) {
         var isSel = selected[qIdx] === i;
-        return (<button key={i} onClick={function () { return pickAnswer(i); }} disabled={selected[qIdx] !== undefined} style={{
-            background: isSel ? 'rgba(123,104,238,0.15)' : 'var(--s1)',
-            border: "1.5px solid " + (isSel ? 'var(--acc-l)' : 'var(--f)'),
-            borderRadius: 12,
-            padding: '14px 16px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 12,
-            cursor: selected[qIdx] !== undefined ? 'default' : 'pointer',
-            color: 'var(--txt)',
-            textAlign: 'left',
-            fontSize: 13,
-            lineHeight: 1.5,
-            width: '100%'
-        }}>
-                <span style={{
-            fontWeight: 800,
-            color: isSel ? 'var(--acc-l)' : 'var(--txt-3)',
-            flexShrink: 0,
-            minWidth: 18
-        }}>
-                  {['A', 'B', 'C', 'D'][i]}
-                </span>
-                <span style={{ flex: 1 }}><RichText content={opt.replace(/^[A-D][).\\s]*/i, '')} inline/></span>
-              </button>);
+        return (<button key={i} onClick={function () { return pickAnswer(i); }} disabled={selected[qIdx] !== undefined} className={"test-option-btn " + (isSel ? 'selected' : '')}>
+                  <div className="test-radio">
+                    <div className="test-radio-inner"/>
+                  </div>
+                  <div style={{ flex: 1, paddingTop: 1 }}>
+                    <RichText content={opt.replace(/^[A-D][).]\s*/i, '')} inline/>
+                  </div>
+                </button>);
     })}
-        </div>
+          </div>
 
-        
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <button onClick={prev} disabled={qIdx === 0} className="btn btn-ghost" style={{ flex: 1, opacity: qIdx === 0 ? 0.4 : 1 }}>← Oldingi</button>
-          {!isLast ? (<button onClick={next} className="btn btn-primary" style={{ flex: 2 }}>Keyingi →</button>) : (<button onClick={function () { return handleFinish(false); }} disabled={finishing} className="btn btn-success" style={{ flex: 2 }}>{finishing ? '⏳ Yakunlanmoqda...' : '🏁 Testni yakunlash'}</button>)}
         </div>
       </div>
 
       
-      {exitTarget && (<div style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.7)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 20
-    }}>
-          <div style={{
-        background: 'var(--s1)',
-        border: '1px solid var(--f)',
-        borderRadius: 18,
-        padding: 22,
-        maxWidth: 360,
-        width: '100%'
-    }}>
-            <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 8 }}>⚠️</div>
-            <div style={{ fontWeight: 800, fontSize: 16, textAlign: 'center', marginBottom: 8 }}>
-              Testdan chiqasizmi?
+      <div className="test-bottom-nav">
+        <button className="test-nav-btn prev" onClick={function () { return navigateTo(qIdx - 1); }} disabled={qIdx === 0}>← Oldingi</button>
+        
+        {!isLast ? (<button className="test-nav-btn next" onClick={function () { return navigateTo(qIdx + 1); }}>Keyingi →</button>) : (<button className="test-nav-btn finish" onClick={function () { return setFinishPrompt(true); }} disabled={finishing}>Yakunlash 🏁</button>)}
+      </div>
+
+      
+      {showGrid && (<div className="test-grid-overlay" onClick={function () { return setShowGrid(false); }}>
+          <div className="test-grid-sheet" onClick={function (e) { return e.stopPropagation(); }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontWeight: 800, fontSize: 18 }}>Savollar xaritasi</div>
+              <button onClick={function () { return setShowGrid(false); }} style={{
+        background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 50,
+        width: 30, height: 30, color: '#fff', fontWeight: 800, cursor: 'pointer'
+    }}>⨉</button>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--txt-2)', textAlign: 'center', lineHeight: 1.5, marginBottom: 16 }}>
-              Test to'liq yakunlanmagan. Chiqsangiz natija <strong>saqlanmaydi</strong> va keyingi safar boshidan boshlanadi.
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={cancelExit} className="btn btn-ghost btn-block">Davom etish</button>
-              <button onClick={confirmExit} style={{
-        flex: 1,
-        background: 'rgba(255,95,126,0.15)',
-        border: '1.5px solid var(--r)',
-        color: 'var(--r)',
-        fontWeight: 700,
-        fontSize: 13,
-        padding: '11px 14px',
-        borderRadius: 10,
-        cursor: 'pointer'
-    }}>Chiqish</button>
+            
+            <div className="test-grid-scroll">
+              <div className="test-grid-bubbles">
+                {questions.map(function (_, i) {
+        var isAns = selected[i] !== undefined;
+        var isCur = i === qIdx;
+        var cls = 'test-bubble';
+        if (isCur)
+            cls += ' current';
+        else if (isAns)
+            cls += ' answered';
+        return (<div key={i} className={cls} onClick={function () { return navigateTo(i); }}>
+                      {i + 1}
+                    </div>);
+    })}
+              </div>
             </div>
           </div>
         </div>)}
-    </>);
+
+      
+      {exitTarget && (<div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'var(--s1)', border: '1px solid var(--f)', borderRadius: 24, padding: 24, maxWidth: 340, width: '100%', textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🚪</div>
+            <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>Testdan chiqasizmi?</div>
+            <p style={{ fontSize: 13, color: 'var(--txt-2)', marginBottom: 24 }}>Jarayon arxivlanadi, keyinroq qaytib davom ettirishingiz mumkin.</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-ghost" onClick={function () { return setExitTarget(null); }} style={{ flex: 1 }}>Qolish</button>
+              <button className="btn btn-danger" onClick={confirmExit} style={{ flex: 1 }}>Chiqish</button>
+            </div>
+          </div>
+        </div>)}
+
+      {finishPrompt && (<div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'var(--s1)', border: '1px solid var(--f)', borderRadius: 24, padding: 24, maxWidth: 340, width: '100%', textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🏁</div>
+            <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>Testni yakunlaysizmi?</div>
+            <p style={{ fontSize: 13, color: 'var(--txt-2)', marginBottom: 24 }}>
+              {answered < total ? "Hali " + (total - answered) + " ta savolga javob bermadingiz." : 'Barcha savollarga javob berdingiz!'}
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-ghost" onClick={function () { return setFinishPrompt(false); }} style={{ flex: 1 }}>Orqaga</button>
+              <button className="btn btn-success" onClick={function () { return handleFinish(false); }} disabled={finishing} style={{ flex: 1 }}>
+                {finishing ? '...' : 'Yakunlash'}
+              </button>
+            </div>
+          </div>
+        </div>)}
+    </div>);
 }

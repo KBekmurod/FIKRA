@@ -81,6 +81,9 @@ export var examApi = {
     abandon: function (sessionId) {
         return api.post("/api/exams/sessions/" + sessionId + "/abandon");
     },
+    resume: function (sessionId) {
+        return api.get("/api/exams/sessions/" + sessionId + "/resume");
+    },
     review: function (sessionId) {
         return api.get("/api/exams/sessions/" + sessionId + "/review");
     },

@@ -1,162 +1,138 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { examApi } from '../api/endpoints'
+import api from '../api/client'
 import { useToast } from '../components/Toast'
 import { useGoBack } from '../hooks/useGoBack'
+import SubscriptionModal from '../components/SubscriptionModal'
+import { useAppStore } from '../store'
 import RichText from '../components/RichText'
 import '../components/RichText.css'
 
-interface WrongBySubject {
-  subjectId: string
-  subjectName: string
-  block: string
-  count: number
-  answers: any[]
+interface WrongQuestion {
+  _id: string
+  qIdx: number
+  question: string
+  options: string[]
+  selected: number
+  correct: number
+  topic?: string
+  aiExplanation?: string
+  loadingAi?: boolean
+  images?: string[]
 }
 
 export default function TestExplainPage() {
   const navigate = useNavigate()
-  const { sessionId, subjectId } = useParams<{ sessionId: string; subjectId: string }>()
-  const goBack = useGoBack(sessionId ? `/test-result/${sessionId}` : '/tarix')
+  const { sessionId } = useParams<{ sessionId: string }>()
+  const goBack = useGoBack(`/test-result/${sessionId}`)
   const toast = useToast()
-  const location = useLocation()
 
-  const [overview, setOverview] = useState<WrongBySubject[]>([])
-  const [subjectNames, setSubjectNames] = useState<Record<string, string>>({})
+  const { user } = useAppStore()
+  const [subOpen, setSubOpen] = useState(false)
+  const isFree = !user?.effectivePlan || user.effectivePlan === 'free'
+
   const [loading, setLoading] = useState(true)
-  const [miniGenerating, setMiniGenerating] = useState(false)
+  const [wrongs, setWrongs] = useState<WrongQuestion[]>([])
+  const [test, setTest] = useState<any>(null)
+  const [generatingMini, setGeneratingMini] = useState(false)
   const [miniPrompt, setMiniPrompt] = useState(false)
-
-  // Bitta fan tushuntirilayotgan bo'lsa
-  const [wrongs, setWrongs] = useState<any[]>([])
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [currentAnswer, setCurrentAnswer] = useState<any>(null)
-  const [explanation, setExplanation] = useState<any>(null)
-  const [loadingExplain, setLoadingExplain] = useState(false)
-  const [explainUsed, setExplainUsed] = useState(false)
-
-  const isOverview = subjectId === '_overview'
 
   useEffect(() => {
     if (!sessionId) return
-    if (isOverview) {
-      // Sessiya javoblarini olib, xato bo'lganlarini fan bo'yicha guruhlash
-      examApi.review(sessionId)
-        .then(({ data }: any) => {
-          const wrongs = (data.answers || []).filter((a: any) => !a.isCorrect && a.selectedOption !== null)
-          const grouped: Record<string, WrongBySubject> = {}
-          for (const a of wrongs) {
-            const sid = a.subject || a.subjectId
-            if (!grouped[sid]) {
-              grouped[sid] = {
-                subjectId: sid,
-                subjectName: a.subjectName || sid,
-                block: a.block || 'mutaxassislik',
-                count: 0,
-                answers: [],
-              }
-            }
-            grouped[sid].count++
-            grouped[sid].answers.push(a)
+    examApi.review(sessionId)
+      .then(({ data }: any) => {
+        const s = data.session || data
+        setTest(s)
+        
+        const ws: WrongQuestion[] = []
+        let idx = 0
+        for (const ans of (data.answers || [])) {
+          if (!ans.isCorrect && ans.selectedOption !== null && ans.selectedOption !== undefined) {
+            ws.push({
+              _id: ans._id,
+              qIdx: idx,
+              question: ans.questionText || ans.question,
+              options: ans.questionOptions || ans.options,
+              selected: ans.selectedOption,
+              correct: ans.correctAnswer,
+              topic: ans.topic,
+              aiExplanation: ans.explanation,
+            })
           }
-          setOverview(Object.values(grouped))
-        })
-        .catch(() => toast.error("Yuklanmadi"))
-        .finally(() => setLoading(false))
-    } else {
-      // Aniq fan uchun tushuntirish
-      examApi.review(sessionId)
-        .then(({ data }: any) => {
-          const w = (data.answers || [])
-            .filter((a: any) => !a.isCorrect && (a.subject === subjectId || a.subjectId === subjectId))
-          if (w.length > 0) {
-            setWrongs(w)
-            setCurrentAnswer(w[0])
-            triggerExplain(w[0]._id)
-          }
-        })
-        .catch(() => toast.error("Yuklanmadi"))
-        .finally(() => setLoading(false))
-    }
-  }, [sessionId, subjectId])
+          idx++
+        }
+        setWrongs(ws)
+      })
+      .catch(() => toast.error("Yuklab bo'lmadi"))
+      .finally(() => setLoading(false))
+  }, [sessionId])
 
-  const triggerExplain = async (answerId: string) => {
-    setLoadingExplain(true)
+  // AI batafsil tushuntirish
+  const requestAiExplain = async (answerId: string) => {
+    setWrongs(prev => prev.map(w => w._id === answerId ? { ...w, loadingAi: true } : w))
     try {
       const { data } = await examApi.cabinetExplain(answerId)
-      setExplanation(data)
+      setWrongs(prev => prev.map(w =>
+        w._id === answerId
+          ? { ...w, aiExplanation: data.explanation, loadingAi: false }
+          : w
+      ))
     } catch (e: any) {
-      if (e?.response?.data?.code === 'EXPLAIN_ALREADY_USED') {
-        setExplainUsed(true)
-        toast.info('Bu fan uchun AI tushuntirish allaqachon olingan')
-      } else {
-        toast.error("AI tushuntirish olishda xatolik")
-      }
-    } finally {
-      setLoadingExplain(false)
+      toast.error(e?.response?.data?.error || "AI tushuntirish xato")
+      setWrongs(prev => prev.map(w => w._id === answerId ? { ...w, loadingAi: false } : w))
     }
   }
 
-  const handleNext = () => {
-    if (currentIndex < wrongs.length - 1) {
-      const nextIdx = currentIndex + 1
-      setCurrentIndex(nextIdx)
-      setCurrentAnswer(wrongs[nextIdx])
-      setExplanation(null)
-      setExplainUsed(false)
-      triggerExplain(wrongs[nextIdx]._id)
-    }
-  }
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      const prevIdx = currentIndex - 1
-      setCurrentIndex(prevIdx)
-      setCurrentAnswer(wrongs[prevIdx])
-      setExplanation(null)
-      setExplainUsed(false)
-      triggerExplain(wrongs[prevIdx]._id)
-    }
-  }
-
-  const goToQuestion = (idx: number) => {
-    if (idx !== currentIndex) {
-      setCurrentIndex(idx)
-      setCurrentAnswer(wrongs[idx])
-      setExplanation(null)
-      setExplainUsed(false)
-      triggerExplain(wrongs[idx]._id)
-    }
-  }
-
-  const generateMiniTest = async () => {
-    if (!sessionId) return
+  // Mini-test yaratish
+  const startMiniTest = async () => {
+    if (!sessionId || !test) return
     setMiniPrompt(false)
-    setMiniGenerating(true)
+    setGeneratingMini(true)
     try {
+      if (test.miniTestGenerated || test.miniTestId) {
+        toast.info("Mini-test allaqachon yaratilgan")
+        navigate(`/test-result/${test.miniTestId || sessionId}`)
+        return
+      }
+
       const { data }: any = await examApi.cabinetMiniTest(undefined, 30, sessionId)
-      // Mini-test sessiyasiga o'tish
-      navigate(`/test-run/${data.sessionId}`, { state: { ...data, isMini: true } })
+      
+      const newSessionId = typeof data.sessionId === 'object'
+        ? (data.sessionId as any)?._id || String(data.sessionId)
+        : data.sessionId
+
+      navigate(`/test-run/${newSessionId}`, {
+        state: { ...data, isMini: true }
+      })
     } catch (e: any) {
-      if (e?.response?.data?.code === 'MINI_TEST_ALREADY_USED') {
-        toast.info('Mini-test allaqachon yaratilgan')
+      const errData = e?.response?.data
+      const status = e?.response?.status
+
+      if (status === 429 && errData?.code === 'MINI_TEST_ALREADY_USED') {
+        toast.info("Mini-test allaqachon yaratilgan")
+        // Ideal holda test.miniTestId bo'lsa o'tish
+        if (test.miniTestId) {
+          navigate(`/test-result/${test.miniTestId}`, { replace: true })
+        }
+        return
+      }
+
+      if (e?.code === 'ECONNABORTED' || e?.message?.includes('timeout')) {
+        toast.error("AI hozir sekin javob bermoqda. Iltimos 30 soniyadan keyin tarixdan tekshiring.")
       } else {
-        toast.error(e?.response?.data?.error || "Mini-test yaratishda xatolik")
+        toast.error(errData?.error || "Mini-test yaratishda xato")
       }
     } finally {
-      setMiniGenerating(false)
+      setGeneratingMini(false)
     }
   }
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center' }}><div className="spin" /></div>
+    return <div style={{ padding: 40, textAlign: 'center' }}><div className="spin" style={{ margin: '0 auto' }} /></div>
   }
 
-  // ─── OVERVIEW — Fanlar ro'yxati ─────────────────────────────────────────
-  if (isOverview) {
-    const majburiy = overview.filter(o => o.block === 'majburiy')
-    const mutaxassislik = overview.filter(o => o.block !== 'majburiy')
-
+  if (wrongs.length === 0) {
     return (
       <>
         <div className="header">
@@ -164,113 +140,20 @@ export default function TestExplainPage() {
             background: 'none', border: 'none', color: 'var(--txt-2)',
             fontSize: 22, cursor: 'pointer', padding: 0, marginRight: 8,
           }}>←</button>
-          <div className="header-logo" style={{ fontSize: 16 }}>🎯 Xatolar tahlili</div>
+          <div className="header-logo" style={{ fontSize: 15 }}>🎯 Xatolar bilan rivojlanish</div>
         </div>
-
-        <div style={{ padding: '8px 20px 0' }}>
-          <p style={{ fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.5 }}>
-            Tushuntirishni ko'rmoqchi bo'lgan fanni bosing. AI batafsil tahlil qiladi (har fan uchun <strong>1 marta</strong>).
+        <div style={{ padding: 40, textAlign: 'center' }}>
+          <div style={{ fontSize: 48 }}>🎉</div>
+          <p style={{ marginTop: 12, fontSize: 14, color: 'var(--txt-2)' }}>
+            A'lo! Sizda xato javob yo'q.
           </p>
-
-          {majburiy.length > 0 && (
-            <>
-              <div style={{ fontWeight: 800, fontSize: 11, color: 'var(--g)', letterSpacing: 0.5, margin: '14px 0 8px' }}>
-                📌 MAJBURIY FANLARDAGI XATOLAR
-              </div>
-              <div style={{ display: 'grid', gap: 8 }}>
-                {majburiy.map(s => (
-                  <SubjectCard key={s.subjectId} subj={s} onClick={() => navigate(`/test-explain/${sessionId}/${s.subjectId}`)} />
-                ))}
-              </div>
-            </>
-          )}
-
-          {mutaxassislik.length > 0 && (
-            <>
-              <div style={{ fontWeight: 800, fontSize: 11, color: 'var(--acc-l)', letterSpacing: 0.5, margin: '18px 0 8px' }}>
-                ⭐ MUTAXASSISLIK FANLARIDAGI XATOLAR
-              </div>
-              <div style={{ display: 'grid', gap: 8 }}>
-                {mutaxassislik.map(s => (
-                  <SubjectCard key={s.subjectId} subj={s} onClick={() => navigate(`/test-explain/${sessionId}/${s.subjectId}`)} />
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Mini-test tugmasi */}
-          <div style={{ marginTop: 24, marginBottom: 20 }}>
-            <button
-              onClick={() => setMiniPrompt(true)}
-              disabled={miniGenerating}
-              style={{
-                width: '100%',
-                background: 'linear-gradient(135deg, var(--y), #fbbf24)',
-                color: '#0a0a14',
-                border: 'none',
-                borderRadius: 14,
-                padding: '14px 16px',
-                fontSize: 14,
-                fontWeight: 800,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-              }}
-            >
-              {miniGenerating ? '⏳ Mini-test yaratilmoqda...' : '🔄 Mini-test yaratish (xatolardan)'}
-            </button>
-            <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 6, textAlign: 'center' }}>
-              Majburiy fan: 5 ta, mutaxassislik: 15 ta · <strong>1 marta</strong>
-            </div>
-          </div>
         </div>
-
-        {/* Mini-test Tasdiqlash Modali */}
-        {miniPrompt && (
-          <div style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.8)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 999, padding: 20,
-          }}>
-            <div style={{
-              background: 'var(--bg)',
-              border: '1.5px solid var(--f)',
-              borderRadius: 20,
-              padding: 24,
-              width: '100%',
-              maxWidth: 340,
-              textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🔄</div>
-              <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Mini-test yaratish</div>
-              <div style={{ fontSize: 14, color: 'var(--txt-2)', marginBottom: 20, lineHeight: 1.5 }}>
-                Har bir dtm/erkin test sessiyasi uchun faqat <strong>1 marta</strong> xatolar bo'yicha mini-test yaratish mumkin. Hozir yaratishni xohlaysizmi?
-              </div>
-              <div style={{ display: 'grid', gap: 10 }}>
-                <button
-                  onClick={generateMiniTest}
-                  className="btn btn-primary btn-block"
-                >
-                  Ha, yaratish
-                </button>
-                <button
-                  onClick={() => setMiniPrompt(false)}
-                  className="btn btn-ghost btn-block"
-                >
-                  Bekor qilish
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </>
     )
   }
 
-  // ─── BITTA FAN UCHUN TUSHUNTIRISH ─────────────────────────────────────
+  const miniAlreadyGenerated = !!test?.miniTestGenerated || !!test?.miniTestId
+
   return (
     <>
       <div className="header">
@@ -278,249 +161,206 @@ export default function TestExplainPage() {
           background: 'none', border: 'none', color: 'var(--txt-2)',
           fontSize: 22, cursor: 'pointer', padding: 0, marginRight: 8,
         }}>←</button>
-        <div className="header-logo" style={{ fontSize: 16 }}>
-          🎯 {currentAnswer?.subjectName || 'Tushuntirish'}
-        </div>
+        <div className="header-logo" style={{ fontSize: 15 }}>🎯 Xatolar bilan rivojlanish</div>
       </div>
 
-      <div style={{ padding: '8px 20px 24px' }}>
-        {!currentAnswer && (
-          <div style={{ textAlign: 'center', padding: 40 }}>
-            <div style={{ fontSize: 40 }}>✓</div>
-            <p>Bu fanda xato yo'q</p>
+      <div style={{ padding: '6px 20px 0' }}>
+        <div style={{
+          padding: 12,
+          background: 'rgba(255,95,126,0.08)',
+          border: '1px solid rgba(255,95,126,0.25)',
+          borderRadius: 10,
+          fontSize: 11.5,
+          color: 'var(--txt-2)',
+          marginBottom: 14,
+          lineHeight: 1.5,
+        }}>
+          📋 Quyida <strong>{wrongs.length} ta xato</strong> javob.
+          AI har biri uchun tushuntirish berishi mumkin{test?.isMini !== true && ", so'ngra mini-test ishlasangiz xatolaringizni mustahkamlaysiz"}.
+        </div>
+
+        {isFree && (
+          <div style={{
+            background: 'linear-gradient(90deg, rgba(255,160,0,0.1), rgba(255,100,0,0.1))',
+            border: '1px solid rgba(255,160,0,0.3)',
+            borderRadius: 10, padding: 12, marginBottom: 14,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+          }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt)' }}>Tushuntirishlarni cheksiz ko'ring 🚀</div>
+              <div style={{ fontSize: 10.5, color: 'var(--txt-2)' }}>Pro obunaga o'ting va limitlarsiz tahlil qiling</div>
+            </div>
+            <button onClick={() => setSubOpen(true)} style={{
+              background: 'var(--y)', color: '#000', border: 'none',
+              padding: '6px 10px', borderRadius: 100, fontSize: 10, fontWeight: 800, cursor: 'pointer'
+            }}>Sotib olish</button>
           </div>
         )}
 
-        {currentAnswer && (
-          <>
-            {/* Savol */}
-            <div style={{
+        {/* Xato savollar ro'yxati */}
+        <div style={{ display: 'grid', gap: 12 }}>
+          {wrongs.map((w, idx) => (
+            <div key={w._id} style={{
               background: 'var(--s1)',
-              border: '1px solid var(--f)',
+              border: '1px solid rgba(255,95,126,0.25)',
               borderRadius: 12,
               padding: 14,
-              marginBottom: 10,
             }}>
-              <div style={{ fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, letterSpacing: 0.5, marginBottom: 6 }}>
-                SAVOL {currentAnswer.topic ? `· ${currentAnswer.topic}` : ''}
+              <div style={{ fontSize: 10, color: 'var(--txt-3)', fontWeight: 700, marginBottom: 6 }}>
+                SAVOL #{idx + 1}{w.topic ? ` · ${w.topic}` : ''}
               </div>
-              <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-                <RichText content={currentAnswer.questionText || currentAnswer.question} images={currentAnswer.images} />
+              <div style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 10 }}>
+                <RichText content={w.question} images={w.images} />
               </div>
-            </div>
 
-            {/* Variantlar - xato va to'g'ri */}
-            <div style={{ display: 'grid', gap: 6, marginBottom: 14 }}>
-              {(currentAnswer.questionOptions || currentAnswer.options || []).map((opt: string, i: number) => {
-                const correctIdx = currentAnswer.correctAnswer ?? currentAnswer.correctIndex
-                const isCorrect = i === correctIdx
-                const isUser = i === currentAnswer.selectedOption
-                let bg = 'var(--s2)', border = 'var(--f)', label = ''
-                if (isCorrect) { bg = 'rgba(0,212,170,0.12)'; border = 'var(--g)'; label = "✓ TO'G'RI" }
-                else if (isUser) { bg = 'rgba(255,95,126,0.1)'; border = 'var(--r)'; label = '✗ Siz tanladingiz' }
-                return (
-                  <div key={i} style={{
-                    padding: '10px 12px', background: bg,
-                    border: `1.5px solid ${border}`,
-                    borderRadius: 10, fontSize: 12, lineHeight: 1.5,
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                      <span style={{ fontWeight: 800, color: 'var(--txt-3)', flexShrink: 0 }}>
-                        {['A','B','C','D'][i]}
-                      </span>
+              <div style={{ display: 'grid', gap: 5, marginBottom: 10 }}>
+                {w.options.map((opt, i) => {
+                  const isC = i === w.correct
+                  const isU = i === w.selected
+                  let bg = 'var(--s2)'
+                  let border = '1px solid var(--f)'
+                  let color = 'var(--txt-2)'
+                  if (isC) { bg = 'rgba(0,212,170,0.12)'; border = '1px solid rgba(0,212,170,0.35)'; color = 'var(--g)' }
+                  else if (isU) { bg = 'rgba(255,95,126,0.12)'; border = '1px solid rgba(255,95,126,0.35)'; color = 'var(--r)' }
+                  return (
+                    <div key={i} style={{
+                      background: bg, border, color,
+                      borderRadius: 8, padding: '7px 10px',
+                      fontSize: 12, display: 'flex', gap: 8,
+                    }}>
+                      <span style={{ fontWeight: 800, minWidth: 16 }}>{['A','B','C','D'][i]}</span>
                       <span style={{ flex: 1 }}><RichText content={opt.replace(/^[A-D][).]\s*/i, '')} inline /></span>
-                      {label && (
-                        <span style={{
-                          fontSize: 9, fontWeight: 800,
-                          color: isCorrect ? 'var(--g)' : 'var(--r)',
-                          whiteSpace: 'nowrap',
-                        }}>{label}</span>
-                      )}
+                      {isC && <span style={{ fontSize: 11 }}>✓ to'g'ri</span>}
+                      {isU && !isC && <span style={{ fontSize: 11 }}>← siz</span>}
                     </div>
+                  )
+                })}
+              </div>
+
+              {w.aiExplanation ? (
+                <div style={{
+                  background: 'rgba(123,104,238,0.08)',
+                  border: '1px solid rgba(123,104,238,0.2)',
+                  borderRadius: 8,
+                  padding: 10,
+                  fontSize: 11.5,
+                  color: 'var(--txt-2)',
+                  lineHeight: 1.55,
+                }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--acc-l)', marginBottom: 4, letterSpacing: 0.5 }}>
+                    🤖 AI TUSHUNTIRISHI
                   </div>
-                )
-              })}
+                  <RichText content={w.aiExplanation} inline />
+                </div>
+              ) : (
+                <button
+                  onClick={() => requestAiExplain(w._id)}
+                  disabled={w.loadingAi}
+                  style={{
+                    background: 'rgba(123,104,238,0.08)',
+                    border: '1px solid rgba(123,104,238,0.2)',
+                    color: 'var(--acc-l)',
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    width: '100%',
+                  }}
+                >
+                  {w.loadingAi ? '⏳ AI yozmoqda...' : '🤖 AI batafsil tushuntirsin'}
+                </button>
+              )}
             </div>
+          ))}
+        </div>
 
-            {/* AI tushuntirish — Loading */}
-            {loadingExplain && (
-              <div style={{
-                background: 'var(--s1)',
-                border: '1px solid var(--f)',
-                borderRadius: 12,
-                padding: 20,
-                textAlign: 'center',
-              }}>
-                <div className="spin" style={{ margin: '0 auto 10px' }} />
-                <div style={{ fontSize: 12, color: 'var(--txt-3)' }}>
-                  AI tahlil qilmoqda...
+        {/* Mini-test tugmasi (Faqat Asosiy testlar uchun) */}
+        {test?.isMini !== true && (
+          <div style={{
+            marginTop: 18,
+            padding: 14,
+            background: 'linear-gradient(135deg, rgba(123,104,238,0.12), rgba(0,212,170,0.05))',
+            border: '1px solid rgba(123,104,238,0.3)',
+            borderRadius: 14,
+          }}>
+            {/* Mini-test yaratish tugmasi */}
+            <div style={{ marginTop: 4 }}>
+              <button
+                onClick={() => setMiniPrompt(true)}
+                disabled={generatingMini || miniAlreadyGenerated}
+                style={{
+                  width: '100%',
+                  background: miniAlreadyGenerated ? 'var(--s1)' : 'linear-gradient(135deg, var(--y), #fbbf24)',
+                  color: miniAlreadyGenerated ? 'var(--txt-3)' : '#0a0a14',
+                  border: miniAlreadyGenerated ? '1px solid var(--f)' : 'none',
+                  borderRadius: 14,
+                  padding: '14px 16px',
+                  fontSize: 14,
+                  fontWeight: 800,
+                  cursor: miniAlreadyGenerated ? 'default' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  opacity: (generatingMini || miniAlreadyGenerated) ? 0.6 : 1,
+                }}
+              >
+                {generatingMini ? '⏳ Yaratilmoqda...' : miniAlreadyGenerated ? '✓ Mini-test allaqachon yaratilgan' : '🔄 Xatolardan Mini-test yaratish'}
+              </button>
+              {!miniAlreadyGenerated && (
+                <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 6, textAlign: 'center' }}>
+                  Xato javoblar asosida yangi savollar (faol test uchun 1 marta yaratiladi)
                 </div>
-              </div>
-            )}
-
-            {/* Allaqachon ishlatilgan */}
-            {explainUsed && !explanation && (
-              <div style={{
-                background: 'rgba(255,204,68,0.08)',
-                border: '1px solid rgba(255,204,68,0.25)',
-                borderRadius: 12,
-                padding: 14,
-                fontSize: 12,
-                color: 'var(--txt-2)',
-              }}>
-                ⚠️ Bu test va fan uchun AI tushuntirish allaqachon olingan.
-                Boshqa test ishlab keyingisidan foydalanishingiz mumkin.
-              </div>
-            )}
-
-            {/* AI tushuntirish — 4 ta kontekstli karta */}
-            {explanation && (
-              <div style={{ display: 'grid', gap: 10 }}>
-                <ContextCard
-                  icon="📍"
-                  title="MAVZU"
-                  color="#3b82f6"
-                  bgColor="rgba(59, 130, 246, 0.08)"
-                  content={currentAnswer.topic || explanation.subjectName}
-                />
-                <ContextCard
-                  icon="🧠"
-                  title="NEGA TO'G'RI?"
-                  color="#10b981"
-                  bgColor="rgba(16, 185, 129, 0.08)"
-                  content={extractSection(explanation.explanation, 'nega') || explanation.explanation}
-                />
-                <ContextCard
-                  icon="⚠️"
-                  title="CHALG'ITUVCHI USULLAR"
-                  color="#f59e0b"
-                  bgColor="rgba(245, 158, 11, 0.08)"
-                  content={extractSection(explanation.explanation, 'chalg') || "Bu turdagi savollarda noto'g'ri javoblar haqqoniy ko'rinadi. Mavzuni chuqurroq o'rganib, asosiy formulalarga e'tibor bering."}
-                />
-                <ContextCard
-                  icon="💡"
-                  title="XULOSA"
-                  color="#a78bfa"
-                  bgColor="rgba(167, 139, 250, 0.08)"
-                  content={extractSection(explanation.explanation, 'xulosa') || "Bu savol orqali o'rgangan asosiy g'oyani eslab qoling — kelajakdagi testlarda yordam beradi."}
-                />
-              </div>
-            )}
-
-            {/* Question Nav */}
-            {wrongs.length > 1 && (
-              <div style={{ marginTop: 24 }}>
-                <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 10, marginBottom: 10 }}>
-                  {wrongs.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => goToQuestion(i)}
-                      style={{
-                        minWidth: 32, height: 32,
-                        borderRadius: 8, border: 'none',
-                        background: i === currentIndex ? 'var(--acc)' : 'var(--s1)',
-                        color: i === currentIndex ? '#fff' : 'var(--txt-2)',
-                        fontWeight: 700, cursor: 'pointer', flexShrink: 0
-                      }}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    onClick={handlePrev}
-                    disabled={currentIndex === 0}
-                    className="btn btn-ghost"
-                    style={{ flex: 1, opacity: currentIndex === 0 ? 0.4 : 1 }}
-                  >
-                    ← Oldingi
-                  </button>
-                  <button
-                    onClick={handleNext}
-                    disabled={currentIndex === wrongs.length - 1}
-                    className="btn btn-primary"
-                    style={{ flex: 1, opacity: currentIndex === wrongs.length - 1 ? 0.4 : 1 }}
-                  >
-                    Keyingi →
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
+              )}
+            </div>
+          </div>
         )}
+        
+        <div style={{ height: 30 }} />
       </div>
+
+      <SubscriptionModal
+        open={subOpen}
+        onClose={() => setSubOpen(false)}
+      />
+
+      {/* Mini-test Tasdiqlash Modali */}
+      {miniPrompt && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 999, padding: 20,
+        }}>
+          <div style={{
+            background: 'var(--bg)',
+            border: '1.5px solid var(--f)',
+            borderRadius: 20,
+            padding: 24,
+            width: '100%',
+            maxWidth: 340,
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔄</div>
+            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Mini-test yaratish</div>
+            <div style={{ fontSize: 14, color: 'var(--txt-2)', marginBottom: 20, lineHeight: 1.5 }}>
+              Siz ushbu Fikra testidan <strong>faqat 1 marta</strong> xatolar bo'yicha mini-test yarata olasiz. Hozir yaratishni xohlaysizmi?
+            </div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <button
+                onClick={startMiniTest}
+                className="btn btn-primary btn-block"
+              >
+                Ha, yaratish
+              </button>
+              <button
+                onClick={() => setMiniPrompt(false)}
+                className="btn btn-ghost btn-block"
+              >
+                Bekor qilish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
-}
-
-// ─── Subject Card (overview uchun) ──────────────────────────────────────
-function SubjectCard({ subj, onClick }: { subj: WrongBySubject; onClick: () => void }) {
-  return (
-    <button onClick={onClick} style={{
-      background: 'var(--s1)',
-      border: '1px solid var(--f)',
-      borderRadius: 12,
-      padding: '14px 16px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      cursor: 'pointer',
-      color: 'var(--txt)',
-      textAlign: 'left',
-    }}>
-      <div style={{
-        background: 'rgba(255,95,126,0.12)',
-        border: '1px solid rgba(255,95,126,0.25)',
-        borderRadius: 100,
-        padding: '4px 10px',
-        fontSize: 11,
-        fontWeight: 800,
-        color: 'var(--r)',
-      }}>
-        {subj.count}
-      </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 700, fontSize: 13 }}>{subj.subjectName}</div>
-        <div style={{ fontSize: 10, color: 'var(--txt-3)', marginTop: 2 }}>
-          {subj.count} ta xato · AI tushuntirish uchun bosing
-        </div>
-      </div>
-      <div style={{ fontSize: 18, color: 'var(--acc-l)' }}>→</div>
-    </button>
-  )
-}
-
-// ─── Kontekstli karta (rangli) ──────────────────────────────────────────
-function ContextCard({ icon, title, color, bgColor, content }: {
-  icon: string; title: string; color: string; bgColor: string; content: string
-}) {
-  return (
-    <div style={{
-      background: bgColor,
-      border: `1px solid ${color}40`,
-      borderRadius: 12,
-      padding: 14,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 16 }}>{icon}</span>
-        <span style={{ fontSize: 11, fontWeight: 800, color, letterSpacing: 0.5 }}>
-          {title}
-        </span>
-      </div>
-      <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--txt)' }}>
-        <RichText content={content || ''} />
-      </div>
-    </div>
-  )
-}
-
-// AI matnidan bo'lim ajratish (oddiy heuristic)
-function extractSection(text: string, keyword: string): string | null {
-  if (!text) return null
-  const lines = text.split('\n')
-  const idx = lines.findIndex(l => l.toLowerCase().includes(keyword))
-  if (idx === -1) return null
-  // Keyingi 1-3 qatorni olish
-  return lines.slice(idx, idx + 3).join('\n').trim() || null
 }
