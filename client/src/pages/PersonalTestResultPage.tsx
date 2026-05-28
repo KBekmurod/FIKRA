@@ -40,6 +40,7 @@ export default function PersonalTestResultPage() {
   const [folderTitle, setFolderTitle] = useState('')
   const [wrongCount, setWrongCount] = useState(0)
   const [miniGenerated, setMiniGenerated] = useState(false)
+  const [folderActive, setFolderActive] = useState(true)
   const [miniTestData, setMiniTestData] = useState<any>(null)
   const [breakdown, setBreakdown] = useState<SubjectBreakdown[]>([])
   const [test, setTest] = useState<any>(null)
@@ -84,6 +85,7 @@ export default function PersonalTestResultPage() {
           api.get(`/api/folders/${folderIdSafe}`).then(({ data: f }) => {
             setFolderTitle(f.folder?.title || '')
             setMiniGenerated(f.folder?.miniTestGenerated || false)
+            setFolderActive(true)
             // Mini-test ma'lumotini olish (agar mavjud va asosiy test bo'lsa)
             const miniIdSafe = safeId(f.folder?.miniTestId)
             if (miniIdSafe && t.testType !== 'mini') {
@@ -95,7 +97,9 @@ export default function PersonalTestResultPage() {
                 })
                 .catch(() => {})
             }
-          }).catch(() => {})
+          }).catch((err) => {
+            if (err?.response?.status === 404) setFolderActive(false)
+          })
         }
 
         // Test'ning o'zida miniTestId bo'lsa (ai_blok/ai_free uchun)
@@ -391,10 +395,10 @@ export default function PersonalTestResultPage() {
 
       <div style={{ padding: '24px 20px' }}>
         <button
-          onClick={() => navigate(state.folderId ? `/ombor/folder/${state.folderId}` : '/testlar')}
+          onClick={() => navigate(state.folderId && folderActive ? `/ombor/folder/${state.folderId}` : '/testlar')}
           className="btn btn-ghost btn-block"
         >
-          {state.folderId ? '🏛 Papkaga qaytish' : "Testlar sahifasiga qaytish"}
+          {state.folderId && folderActive ? '🏛 Papkaga qaytish' : "Testlar sahifasiga qaytish"}
         </button>
       </div>
     </>

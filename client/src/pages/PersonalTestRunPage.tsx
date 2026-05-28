@@ -159,13 +159,15 @@ export default function PersonalTestRunPage() {
   }, [])
 
   const fmt = (s: number) => {
-    const m = Math.floor(s / 60)
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
     const ss = s % 60
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
     return `${m}:${String(ss).padStart(2, '0')}`
   }
 
   const pickAnswer = async (i: number) => {
-    if (selected[qIdx] !== undefined) return
+    if (finishing) return
     triggerHaptic('click')
     setSelected(prev => ({ ...prev, [qIdx]: i }))
     try {
@@ -298,7 +300,7 @@ export default function PersonalTestRunPage() {
                 <button
                   key={i}
                   onClick={() => pickAnswer(i)}
-                  disabled={selected[qIdx] !== undefined}
+                  disabled={finishing}
                   className={`test-option-btn ${isSel ? 'selected' : ''}`}
                 >
                   <div className="test-radio">

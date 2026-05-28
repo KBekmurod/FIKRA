@@ -130,6 +130,7 @@ export interface AiState {
 
   // Doc
   docPrompt: string
+  docDesignPrompt: string
   docFormat: 'DOCX' | 'PDF' | 'PPTX'
   docMaxPages: number
   docRemoveWatermark: boolean
@@ -147,6 +148,7 @@ export const useAiStore = create<AiState>((set) => ({
   setChatState: (state) => set(state),
 
   docPrompt: '',
+  docDesignPrompt: '',
   docFormat: 'DOCX',
   docMaxPages: 2,
   docRemoveWatermark: false,

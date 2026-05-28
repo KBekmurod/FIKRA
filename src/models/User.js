@@ -13,6 +13,17 @@ const aiUsageSchema = new mongoose.Schema({
   testsGen:    { type: Number, default: 0 },
 }, { _id: false });
 
+// ─── AI ishlatish umrbod tracker (Moliyaviy tahlil uchun) ─────────────────
+const lifetimeAiUsageSchema = new mongoose.Schema({
+  hints:       { type: Number, default: 0 },
+  chats:       { type: Number, default: 0 },
+  docs:        { type: Number, default: 0 },
+  images:      { type: Number, default: 0 },
+  ocrUploads:  { type: Number, default: 0 },
+  fileUploads: { type: Number, default: 0 },
+  testsGen:    { type: Number, default: 0 },
+}, { _id: false });
+
 const userSchema = new mongoose.Schema({
   // ─── Identifikatsiya (Faqat Google email) ──────────────────────────────
   email: {
@@ -42,8 +53,9 @@ const userSchema = new mongoose.Schema({
   planLastPurchaseAt: { type: Date,   default: null },
   planChargeIds:      { type: [String], default: [] },
 
-  // ─── AI kunlik ishlatish ─────────────────────────────────────────────────
+  // ─── AI kunlik va umrbod ishlatish ───────────────────────────────────────
   aiUsage: { type: aiUsageSchema, default: () => ({}) },
+  lifetimeAiUsage: { type: lifetimeAiUsageSchema, default: () => ({}) },
 
   // ─── Gamifikatsiya (Streak) ─────────────────────────────────────────────
   currentStreak:  { type: Number, default: 0 },

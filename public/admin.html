@@ -129,6 +129,7 @@ select option{background:var(--s2)}
     <button class="sb-item" onclick="goto('orders')"><span class="icon">📦</span> P2P Buyurtmalar</button>
 
     <div class="sb-section">Kontent</div>
+    <button class="sb-item" onclick="goto('importer')"><span class="icon">🤖</span> AI Test Importer</button>
     <button class="sb-item" onclick="goto('questions')"><span class="icon">📝</span> Savollar <span id="sb-q-count" style="font-size:10px;color:var(--m);margin-left:auto"></span></button>
 
     <div class="sb-section">Tizim</div>
@@ -372,6 +373,44 @@ select option{background:var(--s2)}
       </div>
     </div>
 
+    <!-- AI TEST IMPORTER -->
+    <div class="page" id="page-importer">
+      <div class="stat-grid" style="grid-template-columns: 1fr;">
+        <div class="stat-card">
+          <div style="font-family:'Syne';font-size:16px;margin-bottom:8px">1. Test Matnini Kiriting (Word yoki PDF dan nusxa)</div>
+          <textarea id="ai-raw-text" rows="8" placeholder="Masalan: 1. Matematika savoli... A) ... B) ..." style="width:100%;margin-bottom:12px;background:var(--s2);color:var(--txt);border:1px solid var(--f);padding:10px;border-radius:var(--br2)"></textarea>
+          <button class="btn btn-acc" onclick="processAiTests()" id="btn-process-ai">AI Orqali Tahlil Qilish</button>
+        </div>
+      </div>
+      
+      <div id="ai-results-container" style="display:none;margin-top:20px">
+        <div style="font-family:'Syne';font-size:16px;margin-bottom:12px;color:var(--acc)">2. Natijalarni Tekshirish va Saqlash</div>
+        <div class="filters" style="background:var(--s1);border-radius:var(--br);margin-bottom:16px">
+          <select id="ai-subject">
+            <option value="math">Matematika</option>
+            <option value="fizika">Fizika</option>
+            <option value="kimyo">Kimyo</option>
+            <option value="bio">Biologiya</option>
+            <option value="tarix">Tarix</option>
+            <option value="ingliz">Ingliz tili</option>
+            <option value="ona_tili">Ona tili</option>
+          </select>
+          <select id="ai-block">
+            <option value="mutaxassislik">Mutaxassislik</option>
+            <option value="majburiy">Majburiy</option>
+          </select>
+          <input type="text" id="ai-topic" value="DTM Namunaviy" placeholder="Mavzu (ixtiyoriy)">
+          <select id="ai-difficulty">
+            <option value="medium">O'rtacha (Medium)</option>
+            <option value="easy">Oson (Easy)</option>
+            <option value="hard">Qiyin (Hard)</option>
+          </select>
+          <button class="btn btn-g" onclick="saveAiTests()">Barchasini Bazaga Saqlash</button>
+        </div>
+        <div id="ai-test-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -439,7 +478,7 @@ function goto(page) {
 
   const titles = { stats:'Dashboard', revenue:'Daromad kalkulyatori',
     users:'Foydalanuvchilar', subscriptions:'Obunalar',
-    orders:'P2P Buyurtmalar', questions:'DTM Savollar', logs:'Server Terminal', fikra:'Fikr-A (God Mode)' };
+    orders:'P2P Buyurtmalar', questions:'DTM Savollar', logs:'Server Terminal', fikra:'Fikr-A (God Mode)', importer:'AI Test Importer' };
   document.getElementById('page-title').textContent = titles[page] || page;
   reload();
 }
@@ -1130,6 +1169,88 @@ function debounce(fn, delay) {
     clearTimeout(_timers[key]);
     _timers[key] = setTimeout(() => fn(), delay);
   };
+}
+
+// AI Test Importer Logic
+let parsedAiTests = [];
+async function processAiTests() {
+  const rawText = document.getElementById('ai-raw-text').value;
+  if(!rawText.trim()) return showToast('Iltimos matn kiriting', true);
+  
+  const btn = document.getElementById('btn-process-ai');
+  btn.innerText = 'AI tahlil qilmoqda (Kuting)...';
+  btn.disabled = true;
+  
+  try {
+    const res = await req('/import-ai-tests', { method: 'POST', body: { rawText } });
+    if(res.tests && res.tests.length > 0) {
+      parsedAiTests = res.tests;
+      renderAiTests();
+      showToast(res.tests.length + ' ta savol topildi!');
+    } else {
+      showToast('Savollar topilmadi', true);
+    }
+  } catch(e) {
+    showToast('Xato: ' + e.message, true);
+  } finally {
+    btn.innerText = 'AI Orqali Tahlil Qilish';
+    btn.disabled = false;
+  }
+}
+
+function renderAiTests() {
+  document.getElementById('ai-results-container').style.display = 'block';
+  const container = document.getElementById('ai-test-cards');
+  container.innerHTML = '';
+  parsedAiTests.forEach((t, i) => {
+    let optsHtml = t.options.map((o, idx) => {
+      const isCorrect = t.correctAnswerIndex === idx;
+      return `<div style="font-size:12px;margin-bottom:4px;color:${isCorrect ? 'var(--g)' : 'var(--txt)'}">
+        ${isCorrect ? '✅' : '⬜'} ${o}
+      </div>`;
+    }).join('');
+    
+    container.innerHTML += `
+      <div class="stat-card" style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between">
+          <span class="badge badge-purple">Savol ${i+1}</span>
+          <select style="padding:2px 4px;font-size:10px" onchange="parsedAiTests[${i}].correctAnswerIndex = parseInt(this.value)">
+            <option value="0" ${t.correctAnswerIndex===0?'selected':''}>To'g'ri javob: A</option>
+            <option value="1" ${t.correctAnswerIndex===1?'selected':''}>To'g'ri javob: B</option>
+            <option value="2" ${t.correctAnswerIndex===2?'selected':''}>To'g'ri javob: C</option>
+            <option value="3" ${t.correctAnswerIndex===3?'selected':''}>To'g'ri javob: D</option>
+          </select>
+        </div>
+        <textarea style="width:100%;height:80px;font-size:11px" onchange="parsedAiTests[${i}].questionText = this.value">${t.questionText}</textarea>
+        <div>${optsHtml}</div>
+        <input type="text" placeholder="Rasm fayl nomi (masalan: chizma.png)" style="font-size:11px" onchange="parsedAiTests[${i}].images = this.value ? [this.value] : []">
+      </div>
+    `;
+  });
+}
+
+async function saveAiTests() {
+  const subject = document.getElementById('ai-subject').value;
+  const block = document.getElementById('ai-block').value;
+  const topic = document.getElementById('ai-topic').value;
+  const difficulty = document.getElementById('ai-difficulty').value;
+  
+  if(!confirm(parsedAiTests.length + " ta savolni bazaga saqlaymizmi?")) return;
+  
+  try {
+    const res = await req('/save-ai-tests', { 
+      method: 'POST', 
+      body: { tests: parsedAiTests, subject, block, topic, difficulty } 
+    });
+    showToast('Muvaffaqiyatli saqlandi! Jami: ' + res.count);
+    document.getElementById('ai-results-container').style.display = 'none';
+    document.getElementById('ai-raw-text').value = '';
+    parsedAiTests = [];
+    // refresh questions list in background
+    loadQuestions();
+  } catch(e) {
+    showToast('Saqlashda xato: ' + e.message, true);
+  }
 }
 </script>
 </body>

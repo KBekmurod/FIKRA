@@ -75,13 +75,18 @@ export default function HistoryPage() {
   const [fikra, setFikra] = useState<FikraSession[]>([])
   const [ai, setAi] = useState<AiTest[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMoreFikra, setHasMoreFikra] = useState(true)
+  const [hasMoreAi, setHasMoreAi] = useState(true)
 
-  const loadAll = async () => {
-    setLoading(true)
+  const loadAll = async (p = 1) => {
+    if (p === 1) setLoading(true)
+    else setLoadingMore(true)
     try {
       const [f, a] = await Promise.all([
-        examApi.history(undefined, 1).catch(() => ({ data: { items: [] } })),
-        personalTestApi.history(undefined, undefined, 1).catch(() => ({ data: { tests: [] } })),
+        examApi.history(undefined, p).catch(() => ({ data: { items: [] } })),
+        personalTestApi.history(undefined, undefined, p).catch(() => ({ data: { tests: [] } })),
       ])
 
       // QUSUR TUZATILDI: backend 'items' qaytaradi, eski versiya 'sessions' yoki 'history'
@@ -101,13 +106,36 @@ export default function HistoryPage() {
         status: s.status || 'completed',
       }))
 
-      setFikra(normalized)
-      setAi(((a as any).data?.tests || []) as AiTest[])
+      const rawAi = ((a as any).data?.tests || []) as AiTest[]
+
+      setHasMoreFikra(rawFikra.length >= 20)
+      setHasMoreAi(rawAi.length >= 20)
+
+      if (p === 1) {
+        setFikra(normalized)
+        setAi(rawAi)
+      } else {
+        setFikra(prev => {
+          const existingIds = new Set(prev.map(x => x._id))
+          return [...prev, ...normalized.filter((x: any) => !existingIds.has(x._id))]
+        })
+        setAi(prev => {
+          const existingIds = new Set(prev.map(x => x._id))
+          return [...prev, ...rawAi.filter((x: any) => !existingIds.has(x._id))]
+        })
+      }
     } catch {
       toast.error("Tarix yuklanmadi")
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
+  }
+
+  const handleLoadMore = () => {
+    const next = page + 1
+    setPage(next)
+    loadAll(next)
   }
 
   useEffect(() => {
@@ -213,6 +241,17 @@ export default function HistoryPage() {
             allTests={ai}
             onClick={t => navigate(`/personal-tests/${t._id}/result`)}
           />
+        )}
+
+        {topTab === 'fikra' && hasMoreFikra && !loading && (
+          <button onClick={handleLoadMore} disabled={loadingMore} className="btn btn-ghost btn-block" style={{marginTop: 10}}>
+             {loadingMore ? 'Yuklanmoqda...' : 'Yana yuklash'}
+          </button>
+        )}
+        {topTab === 'ai' && hasMoreAi && !loading && (
+          <button onClick={handleLoadMore} disabled={loadingMore} className="btn btn-ghost btn-block" style={{marginTop: 10}}>
+             {loadingMore ? 'Yuklanmoqda...' : 'Yana yuklash'}
+          </button>
         )}
 
           <div style={{ height: 30 }} />

@@ -87,11 +87,56 @@ function assertObjectId(val, label) {
 }
 
 async function fetchRandom(subjectId, count) {
-  const q = await TestQuestion.aggregate([
-    { $match: { subject: subjectId } },
-    { $sample: { size: count } },
-  ]);
-  return q;
+  // Barcha savollarning ID va mavzularini olamiz (xotirani tejash uchun faqat _id va topic)
+  const allQ = await TestQuestion.find({ subject: subjectId }).select('_id topic').lean();
+  
+  if (allQ.length <= count) {
+    // Agar savollar soni so'ralgandan kam yoki teng bo'lsa, hammasini aralashtirib beramiz
+    const q = await TestQuestion.aggregate([
+      { $match: { subject: subjectId } },
+      { $sample: { size: count } }
+    ]);
+    return q;
+  }
+
+  // Mavzular bo'yicha guruhlaymiz
+  const byTopic = {};
+  for (let q of allQ) {
+    const t = q.topic || 'General';
+    if (!byTopic[t]) byTopic[t] = [];
+    byTopic[t].push(q._id);
+  }
+
+  // Har bir mavzu ichidagi savollarni aralashtiramiz
+  for (let t in byTopic) {
+    byTopic[t].sort(() => Math.random() - 0.5);
+  }
+
+  const selectedIds = [];
+  let topicKeys = Object.keys(byTopic);
+  
+  // Round-robin usulida har bir mavzudan bittadan savol olamiz
+  while(selectedIds.length < count && topicKeys.length > 0) {
+    // Har aylanada mavzular ketma-ketligini aralashtiramiz, doim bir xil mavzudan boshlanmasligi uchun
+    topicKeys.sort(() => Math.random() - 0.5);
+    
+    for (let i = topicKeys.length - 1; i >= 0; i--) {
+      const t = topicKeys[i];
+      if (byTopic[t].length > 0) {
+        selectedIds.push(byTopic[t].pop());
+        if (selectedIds.length === count) break;
+      } else {
+        // Bu mavzuda savol qolmadi
+        topicKeys.splice(i, 1);
+      }
+    }
+  }
+
+  // Tanlangan ID lar bo'yicha to'liq savollarni bazadan olamiz
+  const finalQuestions = await TestQuestion.find({ _id: { $in: selectedIds } }).lean();
+  
+  // Yakuniy natijani ham aralashtirib yuboramiz
+  return finalQuestions.sort(() => Math.random() - 0.5);
 }
 
 // ─── 1. DTM sessiyasi boshlash ─────────────────────────────────────────────

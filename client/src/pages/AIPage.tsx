@@ -313,7 +313,7 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
                       }
                     }}
                   >
-                    {m.content}
+                    {m.content?.replace(/<br\s*\/?>/gi, ' ')}
                   </ReactMarkdown>
                 ) : (sending && i === messages.length - 1 ? <span className="spin" style={{display:'inline-block', width:12, height:12, borderWidth:2}}/> : '')}
               </div>
@@ -371,7 +371,7 @@ function ChatTab({ onSubOpen }: { onSubOpen: () => void }) {
 
 // ─── DOC TAB ──────────────────────────────────────────────────────────
 function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
-  const { docPrompt: prompt, docFormat: format, docMaxPages: maxPages, docRemoveWatermark: removeWatermark, docLoading: loading, docStatusMsg: statusMsg, docResult: result, setDocState } = useAiStore()
+  const { docPrompt: prompt, docDesignPrompt: designPrompt, docFormat: format, docMaxPages: maxPages, docRemoveWatermark: removeWatermark, docLoading: loading, docStatusMsg: statusMsg, docResult: result, setDocState } = useAiStore()
   const { user, refreshUser, setAuthModalOpen } = useAppStore()
 
   const { toast } = useToast()
@@ -395,7 +395,7 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${auth.access || ''}`,
         },
-        body: JSON.stringify({ prompt: p, format, maxPages, removeWatermark })
+        body: JSON.stringify({ prompt: p, designPrompt, format, maxPages, removeWatermark })
       })
 
       if (!res.ok) {
@@ -520,8 +520,18 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
           type="number" 
           className="input" 
           min={1} max={30} 
-          value={maxPages} 
-          onChange={e => setDocState({ docMaxPages: Math.max(1, Math.min(30, parseInt(e.target.value) || 1)) })} 
+          value={maxPages === 0 ? '' : maxPages} 
+          onChange={e => {
+            const val = e.target.value;
+            if (val === '') {
+              setDocState({ docMaxPages: 0 });
+            } else {
+              setDocState({ docMaxPages: Math.min(30, parseInt(val) || 1) });
+            }
+          }} 
+          onBlur={() => {
+            if (maxPages < 1) setDocState({ docMaxPages: 1 });
+          }}
         />
         <div style={{ fontSize: 11, color: 'var(--txt-3)', marginTop: 6 }}>
           💡 Har {maxPages > 1 ? `2 sahifa (taxminan) uchun 1 ta limit ketadi. (Jami: ${targetChunks} ta limit)` : '1 ta limit ketadi.'}
@@ -535,6 +545,16 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
         value={prompt}
         onChange={e => setDocState({ docPrompt: e.target.value })}
         rows={4}
+        style={{ marginBottom: 16 }}
+      />
+
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--txt-2)' }}>4. Qo'shimcha yo'riqnoma va dizayn (Ixtiyoriy)</div>
+      <textarea
+        className="textarea"
+        placeholder="Masalan: 'Faqat rasmiy tilda yozing', 'Jadvallar ko'proq bo'lsin', yoki 'Asosiy urg'uni texnologiyaga qarating'..."
+        value={designPrompt || ''}
+        onChange={e => setDocState({ docDesignPrompt: e.target.value })}
+        rows={2}
         style={{ marginBottom: 16 }}
       />
 
@@ -562,7 +582,7 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
         </button>
       ) : (
         <button
-          disabled={loading || !prompt.trim()}
+          disabled={loading || !prompt.trim() || maxPages < 1}
           onClick={generate}
           className="btn btn-primary btn-block btn-lg"
           style={{ position: 'relative' }}
@@ -593,6 +613,27 @@ function DocTab({ onSubOpen }: { onSubOpen: () => void }) {
           <div style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: 16, lineHeight: 1.6 }}>
             {result.preview.slice(0, 200)}...
           </div>
+          
+          {result.auditReport && (
+            <div style={{ marginBottom: 16, padding: 12, background: 'var(--bg)', borderRadius: 'var(--br2)', border: '1px solid var(--f)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--acc)' }}>Sifat Auditi (QA Report)</div>
+              <div style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ color: 'var(--txt-3)' }}>Tuzilma bahosi:</span>
+                <span style={{ fontWeight: 600 }}>{result.auditReport.structureScore}</span>
+              </div>
+              <div style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ color: 'var(--txt-3)' }}>O'qilish darajasi:</span>
+                <span style={{ fontWeight: 600 }}>{result.auditReport.readability}</span>
+              </div>
+              <div style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ color: 'var(--txt-3)' }}>So'zlar hajmi:</span>
+                <span style={{ fontWeight: 600 }}>~{result.auditReport.wordCount} ta so'z</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--txt-2)', borderTop: '1px dashed var(--f)', paddingTop: 8, fontStyle: 'italic' }}>
+                "{result.auditReport.comment}"
+              </div>
+            </div>
+          )}
           <button onClick={download} className="btn btn-success btn-block btn-lg">
             ⬇ Yuklab olish
           </button>

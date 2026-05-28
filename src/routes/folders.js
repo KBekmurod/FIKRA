@@ -112,14 +112,21 @@ router.post('/:id/check-sufficiency', authMiddleware, async (req, res, next) => 
 // Papka uchun test yaratish (qat'iy standart son bilan)
 // Body: { opt: 'standard' | 'ai_fill' }
 router.post('/:id/generate', authMiddleware, async (req, res, next) => {
+  const interval = setInterval(() => { res.write(': keep-alive\n\n'); }, 5000);
   try {
     const { opt = 'standard' } = req.body;
+    
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
     const result = await testGen.generateForFolder(req.user._id, {
       folderId: req.params.id,
       opt,
     });
 
-    res.json({
+    clearInterval(interval);
+    res.write(`data: ${JSON.stringify({
       success:        true,
       testId:         result.test._id,
       subjectId:      result.test.subjectId,
@@ -134,10 +141,13 @@ router.post('/:id/generate', authMiddleware, async (req, res, next) => {
         topic:    q.topic,
       })),
       wasAiAdjusted: result.wasAiAdjusted,
-    });
+    })}\n\n`);
+    res.end();
   } catch (err) {
+    clearInterval(interval);
     logger.error('Folder generate error:', err.message);
-    _handleError(err, res, next);
+    res.write(`data: ${JSON.stringify({ error: err.message || 'Xatolik yuz berdi' })}\n\n`);
+    res.end();
   }
 });
 

@@ -70,7 +70,7 @@ router.post('/chat',
         session = new ChatHistory({ userId: req.user._id, title, messages: [] });
       }
 
-      const systemPrompt = "Sen o'ta professional, bilimdon va yordamchi AIsan. Javoblaringni aniq, qisqa va strukturali shaklda (Markdown, Jadvallar, Listlar) yoz. Dasturlash kodlari bo'lsa `code` formatida ber. O'zbek tilida javob ber.";
+      const systemPrompt = "Sen o'ta professional, bilimdon va yordamchi AIsan. Javoblaringni aniq, qisqa va strukturali shaklda (Markdown, Jadvallar, Listlar) yoz. Dasturlash kodlari bo'lsa `code` formatida ber. O'zbek tilida javob ber. MUHIM QOIDA: Hech qachon HTML teglardan (masalan, <br>, <b>, <i>) foydalanma. Matnni ajratish uchun faqat Markdown qoidalaridan foydalan.";
       
       let dbMessages = session.messages.slice(-15).map(m => ({ role: m.role, content: m.content }));
       
@@ -142,10 +142,10 @@ router.post('/document/stream',
   aiLimiter,
   async (req, res, next) => {
     try {
-      const { prompt, format = 'DOCX', maxPages = 1, removeWatermark = false } = req.body;
+      const { prompt, designPrompt, format = 'DOCX', maxPages = 1, removeWatermark = false } = req.body;
       if (!prompt) return res.status(400).json({ error: 'Prompt kerak' });
       
-      const targetChunks = Math.max(1, Math.min(Math.ceil(maxPages / 2), 8)); 
+      const targetChunks = Math.max(1, Math.min(Math.ceil(maxPages / 2), 15)); 
       
       const isFree = !req.user.plan || req.user.plan === 'free';
       const shouldRemoveWatermark = removeWatermark && !isFree;
@@ -164,7 +164,7 @@ router.post('/document/stream',
         await incrementAiUsage(req.user._id, 'docs');
       }
 
-      await ai.generateLongDocumentStream(prompt, format, maxPages, { removeWatermark: shouldRemoveWatermark }, res, async (fullContent) => {
+      await ai.generateLongDocumentStream(prompt, format, maxPages, { removeWatermark: shouldRemoveWatermark, designPrompt }, res, async (fullContent, auditReport) => {
         try {
           const titleMatch = fullContent.match(/^#\s+(.+)$/m);
           const title = titleMatch ? titleMatch[1].trim() : (prompt.slice(0, 60) || 'Hujjat');
@@ -190,6 +190,7 @@ router.post('/document/stream',
             sizeKb: Math.round(file.buffer.length / 1024),
             title,
             preview: fullContent.slice(0, 300),
+            auditReport
           })}\n\n`);
           res.write('data: [DONE]\n\n');
           res.end();

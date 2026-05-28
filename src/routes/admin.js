@@ -33,7 +33,7 @@ router.get('/stats', adminAuth, async (req, res) => {
       totalUsers, newToday, newWeek, newMonth,
       activeBasic, activePro, activeVip,
       pendingOrders, confirmedOrders,
-      totalGames, aiRequests,
+      aiRequestsStats,
     ] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ createdAt: { $gte: today } }),
@@ -44,10 +44,22 @@ router.get('/stats', adminAuth, async (req, res) => {
       User.countDocuments({ plan: 'vip',   planExpiresAt: { $gt: new Date() } }),
       PendingOrder.countDocuments({ status: 'pending' }),
       PendingOrder.countDocuments({ status: 'confirmed' }),
-      // v2: totalGamesPlayed/totalAiRequests olib tashlangan
-      Promise.resolve([{ total: 0 }]),
-      Promise.resolve([{ total: 0 }]),
+      User.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalChats: { $sum: '$lifetimeAiUsage.chats' },
+            totalDocs: { $sum: '$lifetimeAiUsage.docs' },
+            totalHints: { $sum: '$lifetimeAiUsage.hints' },
+            totalImages: { $sum: '$lifetimeAiUsage.images' },
+            totalTests: { $sum: '$lifetimeAiUsage.testsGen' }
+          }
+        }
+      ])
     ]);
+
+    const totalAiActions = aiRequestsStats[0] ? 
+      (aiRequestsStats[0].totalChats + aiRequestsStats[0].totalDocs + aiRequestsStats[0].totalHints + aiRequestsStats[0].totalImages + aiRequestsStats[0].totalTests) : 0;
 
     res.json({
       users: { total: totalUsers, today: newToday, week: newWeek, month: newMonth },
@@ -56,7 +68,7 @@ router.get('/stats', adminAuth, async (req, res) => {
         total: activeBasic + activePro + activeVip,
       },
       orders: { pending: pendingOrders, confirmed: confirmedOrders },
-      activity: { totalGames: totalGames[0]?.total || 0, aiRequests: aiRequests[0]?.total || 0 },
+      activity: { aiRequests: totalAiActions },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -403,21 +415,39 @@ router.get('/revenue', adminAuth, async (req, res) => {
     const { deepseekCostPer1k = 0.27, geminiCostPer1k = 0.1 } = req.query;
 
     const [
-      confirmedOrders, activeUsers,
+      confirmedOrders, activeUsers, aiRequestsStats
     ] = await Promise.all([
       PendingOrder.find({ status: 'confirmed' }),
       User.find({ plan: { $ne: 'free' }, planExpiresAt: { $gt: new Date() } }).select('plan planId'),
+      User.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalChats: { $sum: '$lifetimeAiUsage.chats' },
+            totalDocs: { $sum: '$lifetimeAiUsage.docs' },
+            totalHints: { $sum: '$lifetimeAiUsage.hints' },
+            totalImages: { $sum: '$lifetimeAiUsage.images' },
+            totalTests: { $sum: '$lifetimeAiUsage.testsGen' }
+          }
+        }
+      ])
     ]);
 
     // P2P daromad (UZS) — barcha tasdiqlangan buyurtmalar
     const p2pRevenue = confirmedOrders.reduce((sum, o) => sum + (o.priceUZS || 0), 0);
 
-    // Jami AI so'rovlar (taxminiy xarajat)
-    const totalReqs = 0; // v2: totalAiRequests olib tashlangan
-    // Taxminan har 1000 so'rovda: 60% DeepSeek, 40% Gemini
-    const dsTokensCost = (totalReqs * 0.6 / 1000) * parseFloat(deepseekCostPer1k);
-    const gmTokensCost = (totalReqs * 0.4 / 1000) * parseFloat(geminiCostPer1k);
-    const totalApiCostUSD = dsTokensCost + gmTokensCost;
+    // Jami AI so'rovlar (Haqiqiy xarajat lifetimeAiUsage asosida)
+    const stats = aiRequestsStats[0] || { totalChats: 0, totalDocs: 0, totalHints: 0, totalImages: 0, totalTests: 0 };
+    const totalReqs = stats.totalChats + stats.totalDocs + stats.totalHints + stats.totalImages + stats.totalTests;
+    
+    // Taxminiy hisob: 
+    // - Docs/TestsGen ko'proq token yeydi (x5)
+    // - Qolganlari standart 1x.
+    const weightedTokens = (stats.totalDocs * 5) + (stats.totalTests * 5) + stats.totalChats + stats.totalHints + (stats.totalImages * 2);
+    
+    // Faraz qilamiz: Har 1000 weighted so'rov $0.15 atrofida tushadi
+    const averageCostPer1k = 0.15;
+    const totalApiCostUSD = (weightedTokens / 1000) * averageCostPer1k;
     const totalApiCostUZS = totalApiCostUSD * 12700;
 
     // Plan taqsimoti
@@ -443,162 +473,6 @@ router.get('/revenue', adminAuth, async (req, res) => {
       note: 'API xarajat taxminiy. Aniq hisob uchun DeepSeek/Gemini dashboard\'ini tekshiring.',
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── POST /api/admin/questions/seed — Seed savollarni yuklash ───────────────
-router.post('/questions/seed', adminAuth, async (req, res) => {
-  try {
-    const { seedQuestions } = require('../utils/seedQuestions');
-    await seedQuestions();
-    const total = await TestQuestion.countDocuments();
-    const stats = await TestQuestion.aggregate([
-      { $group: { _id: '$subject', count: { $sum: 1 } } },
-      { $sort: { _id: 1 } },
-    ]);
-    logger.info(`Admin: seed qilindi, jami ${total} ta savol`);
-    res.json({ success: true, total, stats });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── GET /api/admin/logs — Server Terminal Logs ─────────────────────────────
-router.get('/logs', adminAuth, (req, res) => {
-  res.json({ success: true, logs: memoryLogs });
-});
-
-// ─── MATERIALS (Xotira va fayllar) ──────────────────────────────────────────
-router.get('/materials', adminAuth, async (req, res) => {
-  try {
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const [materials, total] = await Promise.all([
-      StudyMaterial.find().sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)).populate('userId', 'firstName email phone'),
-      StudyMaterial.countDocuments()
-    ]);
-    
-    // Calculate total size (approximate based on text size + sourceMeta.fileSizeKb)
-    const stats = await StudyMaterial.aggregate([
-      { $group: { _id: null, totalSizeKb: { $sum: '$sourceMeta.fileSizeKb' }, totalDocs: { $sum: 1 } } }
-    ]);
-    
-    res.json({ materials, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)), stats: stats[0] || { totalSizeKb: 0, totalDocs: 0 } });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-router.delete('/materials/:id', adminAuth, async (req, res) => {
-  try {
-    await StudyMaterial.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── PROMOCODES ─────────────────────────────────────────────────────────────
-router.get('/promocodes', adminAuth, async (req, res) => {
-  try {
-    const codes = await PromoCode.find().sort({ createdAt: -1 });
-    res.json({ promocodes: codes });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-router.post('/promocodes', adminAuth, async (req, res) => {
-  try {
-    const { code, discountPercent, maxUses, expiresAt } = req.body;
-    const pc = await PromoCode.create({ code, discountPercent, maxUses, expiresAt });
-    res.json({ success: true, promocode: pc });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-router.delete('/promocodes/:id', adminAuth, async (req, res) => {
-  try {
-    await PromoCode.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── ANNOUNCEMENTS ──────────────────────────────────────────────────────────
-router.get('/announcements', adminAuth, async (req, res) => {
-  try {
-    const anns = await Announcement.find().sort({ createdAt: -1 });
-    res.json({ announcements: anns });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-router.post('/announcements', adminAuth, async (req, res) => {
-  try {
-    const { title, message, type } = req.body;
-    // Faqat bitta aktiv bo'lishi uchun qolganlarini o'chiramiz
-    await Announcement.updateMany({}, { isActive: false });
-    const ann = await Announcement.create({ title, message, type, isActive: true });
-    res.json({ success: true, announcement: ann });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-router.delete('/announcements/:id', adminAuth, async (req, res) => {
-  try {
-    await Announcement.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── POST /api/admin/fikra-prank ─────────────────────────────────────────────
-router.post('/fikra-prank', adminAuth, (req, res) => {
-  const { type, message } = req.body;
-  if (!type) return res.status(400).json({ error: 'Type is required' });
-
-  // Haqiqiy qilib, barcha klientlarga yuboramiz
-  entityEvents.emit('global_prank', { type, message });
-  
-  res.json({ success: true, message: `Global prank yuborildi: ${type}` });
-});
-
-// "?"?"? AI Test Importer "?"?"?
-const { parseTestsForAdmin } = require('../services/aiService');
-
-router.post('/import-ai-tests', adminAuth, async (req, res) => {
-  try {
-    const { rawText } = req.body;
-    if (!rawText) return res.status(400).json({ error: 'Text kiritilmadi' });
-    
-    const parsedTests = await parseTestsForAdmin(rawText);
-    res.json({ tests: parsedTests });
-  } catch (error) {
-    logger.error('Import AI tests error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post('/save-ai-tests', adminAuth, async (req, res) => {
-  try {
-    const { tests, subject, block, difficulty, topic } = req.body;
-    if (!tests || !Array.isArray(tests)) {
-      return res.status(400).json({ error: 'Testlar topilmadi' });
-    }
-
-    let insertedCount = 0;
-    for (const item of tests) {
-      let qText = item.questionText;
-      if (item.images && item.images.length > 0) {
-        const imageMarkdowns = item.images.map(img => `\n![Chizma](/assets/pdf_images/${img})\n`).join('');
-        qText += imageMarkdowns;
-      }
-
-      const q = new TestQuestion({
-        subject: subject || 'math',
-        block: block || 'mutaxassislik',
-        question: qText,
-        options: item.options,
-        answer: item.correctAnswerIndex || 0,
-        difficulty: difficulty || 'medium',
-        topic: topic || 'DTM Namunaviy'
-      });
-      await q.save();
-      insertedCount++;
-    }
-
-    res.json({ message: 'Saqlandi', count: insertedCount });
-  } catch (error) {
-    logger.error('Save AI tests error:', error);
-    res.status(500).json({ error: error.message });
-  }
 });
 
 module.exports = router;

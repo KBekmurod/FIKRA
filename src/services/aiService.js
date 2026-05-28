@@ -25,7 +25,7 @@ async function streamChat(messages, res, onComplete) {
     model: 'deepseek-chat',
     messages,
     stream: true,
-    max_tokens: 1500,
+    max_tokens: 4000,
     temperature: 0.7,
   });
   res.setHeader('Content-Type', 'text/event-stream');
@@ -47,6 +47,18 @@ async function streamChat(messages, res, onComplete) {
   }
 }
 
+// ─── Yordamchi: Tarmoq xatolari uchun Retry mexanizmi ───────────────────────
+async function withRetry(fn, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Promise(res => setTimeout(res, 2000 * (i + 1)));
+    }
+  }
+}
+
 // ─── Hujjat yaratish (Chunking / Stream) ──────────────────────────────────
 async function generateLongDocumentStream(prompt, format, maxPages, options, res, onComplete) {
   res.setHeader('Content-Type', 'text/event-stream');
@@ -54,15 +66,17 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
   res.setHeader('Connection', 'keep-alive');
 
   let fullContent = '';
-  // maxPages ni 1 dan 15 gacha cheklaymiz (1 chunk ~ 2 sahifa)
-  const targetChunks = Math.max(1, Math.min(Math.ceil(maxPages / 2), 8)); 
+  // maxPages ni 1 dan 30 gacha cheklaymiz (1 chunk ~ 2 sahifa)
+  const targetChunks = Math.max(1, Math.min(Math.ceil(maxPages / 2), 15)); 
   
   try {
     res.write(`data: ${JSON.stringify({ status: 'reja', message: 'Hujjat rejasi tuzilmoqda...' })}\n\n`);
     
+    const outlineInstructions = options.designPrompt ? ` Foydalanuvchining qo'shimcha dizayn/uslub talabi: "${options.designPrompt}". Iltimos shuni hisobga olgan holda rejani tuz.` : '';
+    
     const outlineRes = await deepseek().chat.completions.create({
       model: 'deepseek-chat',
-      messages: [{ role: 'user', content: `Sen professional yozuvchisan. Mavzu: "${prompt}". Shu mavzuda ${targetChunks} qismdan iborat juda batafsil hujjat rejasini tuz. Faqat rejani raqamlab yoz.` }],
+      messages: [{ role: 'user', content: `Sen professional yozuvchisan. Mavzu: "${prompt}". Shu mavzuda ${targetChunks} qismdan iborat juda batafsil hujjat rejasini tuz. Faqat rejani raqamlab yoz.${outlineInstructions}` }],
       max_tokens: 1000,
     });
     const outline = outlineRes.choices[0].message.content;
@@ -80,15 +94,25 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
     for (let i = 1; i <= targetChunks; i += batchSize) {
       const batch = [];
       for (let j = i; j < i + batchSize && j <= targetChunks; j++) {
-        const chunkPrompt = `Mavzu: "${prompt}". Hujjat rejasi: \n${outline}\n\nShu rejadagi ${j}-qismni batafsil, mantiqiy va professional tarzda yoz. Markdown formatida sarlavhalar (#, ##), qalin yozuvlar (**matn**) va ro'yxatlardan (- matn) keng foydalan. Hujjat turi: ${format}. Faqat shu ${j}-qismni yoz.`;
+        let formatRules = `Hujjat turi: ${format}.`;
+        if (format.toUpperCase() === 'PPTX') {
+          formatRules = `DIQQAT: Hujjat PPTX (Prezentatsiya) uchun yaratilmoqda! Shuning uchun:
+- Matnlarni juda uzun yozma, ularni qisqa va lo'nda ro'yxatlarga (bullet points) bo'lib tashla.
+- Har bir bo'lim (Sarlavha) bitta slayd vazifasini bajaradi, shuning uchun sarlavhalarni ko'paytir (kamida 5-6 ta).
+- Jadvallar va statistikalardan faol foydalan.`;
+        }
+
+        const extraInstructions = options.designPrompt ? `\n- Foydalanuvchining alohida talabi/uslubi: "${options.designPrompt}". (Matnni va jadvallarni shunga moslab yoz!)` : '';
+
+        const chunkPrompt = `Mavzu: "${prompt}". Hujjat rejasi: \n${outline}\n\nShu rejadagi ${j}-qismni batafsil, mantiqiy va professional tarzda yoz.\n- Markdown formatida sarlavhalar (#, ##), qalin yozuvlar (**matn**), ro'yxatlar (- matn) va JADVALLARdan (| ustun | ustun |) judayam keng foydalan.\n- Muhim faktlar, maslahatlar yoki eslatmalarni ajratib ko'rsatish uchun Iqtibos (Blockquote: > matn) dan albatta foydalan (bu hujjatda maxsus vizual blok bo'lib chiqadi).\n- Agar bu 1-qism bo'lsa munosib "Kirish" yoz, agar eng oxirgi qism bo'lsa aniq "Xulosa va Tavsiyalar" yoz.\n${formatRules}${extraInstructions}\nQAT'IY QOIDA: Yozishdan oldin fikrlaringni tizimlashtir (Self-Correction), grammatik va mantiqiy xatolarni to'g'irla va faqat eng toza, mukammal xatosiz matnni chiqargin. Hech qachon matnni, gapni yoki jadvalni yarim yo'lda uzib qo'yma. Hajmi kamida 800-1000 so'zdan iborat bo'lsin. Faqat shu ${j}-qismni yoz.`;
         
         batch.push(
-          deepseek().chat.completions.create({
+          withRetry(() => deepseek().chat.completions.create({
             model: 'deepseek-chat',
             messages: [{ role: 'user', content: chunkPrompt }],
-            max_tokens: 3000,
+            max_tokens: 8000,
             temperature: 0.7,
-          }).then(r => r.choices[0].message.content)
+          }).then(r => r.choices[0].message.content))
         );
       }
       
@@ -102,9 +126,33 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
     clearInterval(pingInterval);
     fullContent = `# ${prompt}\n\n` + chunkResults.join('\n\n');
 
-    res.write(`data: ${JSON.stringify({ status: 'tayyorlash', message: 'Hujjat faylga o\'girilmoqda...' })}\n\n`);
+    res.write(`data: ${JSON.stringify({ status: 'audit', message: 'Sifat auditi va yakuniy tahlil o\'tkazilmoqda...' })}\n\n`);
+    
+    // Final Audit Report
+    let auditReport = null;
+    try {
+      const auditPrompt = `Quyida yaratilgan hujjat matnining qisqartirilgan shakli berilgan:\n\n${fullContent.substring(0, 30000)}...\n\nUshbu hujjatga SIFAT AUDITI qiling. Natijani FAQAT JSON formatida qaytaring, boshqa hech qanday izoh yozmang:
+{
+  "wordCount": 1500, // taxminiy umumiy so'zlar soni
+  "readability": "Oson / O'rta / Akademik",
+  "structureScore": "100/100",
+  "comment": "Hujjatning sifati va ishonchliligi haqida 1-2 gaplik qisqa xulosa."
+}`;
+      const auditRes = await deepseek().chat.completions.create({
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: auditPrompt }],
+        max_tokens: 500,
+        response_format: { type: 'json_object' }
+      });
+      auditReport = JSON.parse(auditRes.choices[0].message.content);
+    } catch(e) {
+      // Audit fail shouldn't crash the document
+      logger.error('Audit failed:', e.message);
+    }
+
+    res.write(`data: ${JSON.stringify({ status: 'tayyorlash', message: 'Hujjat faylga o\'girilmoqda...', auditReport })}\n\n`);
     if (onComplete) {
-      await onComplete(fullContent);
+      await onComplete(fullContent, auditReport);
     }
   } catch (err) {
     logger.error('generateLongDocumentStream error:', err.message);

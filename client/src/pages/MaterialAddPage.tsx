@@ -83,39 +83,54 @@ export default function MaterialAddPage() {
     }
   }
 
-  const submitOcr = async (file: File) => {
+  const submitOcrFiles = async (files: File[]) => {
     setSaving(true)
+    let combinedText = content ? content + '\n\n' : ''
+    let successCount = 0
     try {
-      const fd = new FormData()
-      fd.append('image', file)
-      const { data: drft } = await api.post('/api/materials/ocr/extract', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-      // Foydalanuvchi tahrirlash imkoniyatiga ega bo'lsin — kontent state'ga qo'yamiz
-      setContent(drft.text)
+      for (const file of files) {
+        const fd = new FormData()
+        fd.append('image', file)
+        try {
+          const { data: drft } = await api.post('/api/materials/ocr/extract', fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          })
+          combinedText += `--- ${file.name} ---\n${drft.text}\n\n`
+          successCount++
+        } catch (err) {
+          toast.error(`${file.name} o'qilmadi.`)
+        }
+      }
+      setContent(combinedText.trim())
       setTab('text')
-      toast.success('Matn ajratildi. Tekshiring va sarlavha bering!')
-    } catch (e: any) {
-      toast.error(e.response?.data?.error || 'OCR xatolik')
+      if (successCount > 0) toast.success(`${successCount} ta rasm o'qildi. Tekshiring va sarlavha bering!`)
     } finally {
       setSaving(false)
     }
   }
 
-  const submitFile = async (file: File) => {
+  const submitFiles = async (files: File[]) => {
     setSaving(true)
+    let combinedText = content ? content + '\n\n' : ''
+    let successCount = 0
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const { data: drft } = await api.post('/api/materials/file/parse', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 60000,
-      })
-      setContent(drft.text)
+      for (const file of files) {
+        const fd = new FormData()
+        fd.append('file', file)
+        try {
+          const { data: drft } = await api.post('/api/materials/file/parse', fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000,
+          })
+          combinedText += `--- ${file.name} ---\n${drft.text}\n\n`
+          successCount++
+        } catch (err) {
+          toast.error(`${file.name} o'qilmadi.`)
+        }
+      }
+      setContent(combinedText.trim())
       setTab('text')
-      toast.success(`Fayl tahlil qilindi! ${drft.charCount} belgi. Tekshiring va sarlavha bering.`)
-    } catch (e: any) {
-      toast.error(e.response?.data?.error || 'Fayl xatolik')
+      if (successCount > 0) toast.success(`${successCount} ta fayl tahlil qilindi! Tekshiring va sarlavha bering.`)
     } finally {
       setSaving(false)
     }
@@ -246,8 +261,9 @@ export default function MaterialAddPage() {
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   style={{ display: 'none' }}
-                  onChange={e => { const f = e.target.files?.[0]; if (f) submitOcr(f) }}
+                  onChange={e => { const files = Array.from(e.target.files || []); if (files.length) submitOcrFiles(files) }}
                   disabled={saving}
                 />
               </label>
@@ -281,8 +297,9 @@ export default function MaterialAddPage() {
                 <input
                   type="file"
                   accept=".pdf,.docx,.pptx"
+                  multiple
                   style={{ display: 'none' }}
-                  onChange={e => { const f = e.target.files?.[0]; if (f) submitFile(f) }}
+                  onChange={e => { const files = Array.from(e.target.files || []); if (files.length) submitFiles(files) }}
                   disabled={saving}
                 />
               </label>

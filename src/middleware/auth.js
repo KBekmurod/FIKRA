@@ -124,6 +124,12 @@ async function incrementAiUsage(userId, kind) {
             },
           ],
         },
+        lifetimeAiUsage: {
+          $mergeObjects: [
+            '$lifetimeAiUsage',
+            { [kind]: { $add: [{ $ifNull: [`$lifetimeAiUsage.${kind}`, 0] }, 1] } },
+          ],
+        }
       },
     }],
     { new: true }

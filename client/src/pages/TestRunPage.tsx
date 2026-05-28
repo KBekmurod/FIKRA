@@ -130,7 +130,7 @@ export default function TestRunPage() {
   }
 
   const pickAnswer = async (i: number) => {
-    if (selected[qIdx] !== undefined) return
+    if (finishing) return
     triggerHaptic('click')
     setSelected(prev => ({ ...prev, [qIdx]: i }))
     try {
@@ -243,7 +243,7 @@ export default function TestRunPage() {
                 <button
                   key={i}
                   onClick={() => pickAnswer(i)}
-                  disabled={selected[qIdx] !== undefined}
+                  disabled={finishing}
                   className={`test-option-btn ${isSel ? 'selected' : ''}`}
                 >
                   <div className="test-radio">

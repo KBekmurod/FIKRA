@@ -95,25 +95,25 @@ export default function SubscriptionModal({ open, onClose }: Props) {
       {/* Free Plan Limits (Og'riq nuqtasini ko'rsatish) */}
       {isFree && (
         <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid var(--f)',
-          borderRadius: 12,
-          padding: 12,
-          marginBottom: 16,
+          background: 'linear-gradient(145deg, rgba(255,80,80,0.05), rgba(255,80,80,0.01))',
+          border: '1px solid rgba(255,80,80,0.2)',
+          borderRadius: 14,
+          padding: 16,
+          marginBottom: 20,
         }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--txt)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>🆓</span> Bepul tarifingiz cheklovlari (kunlik):
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#ff6b6b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>⚠️</span> Bepul tarif cheklovlari
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11, color: 'var(--txt-2)' }}>
-            <div>• <b>20 ta</b> AI tushuntirish</div>
-            <div>• <b>30 ta</b> AI xabar</div>
-            <div>• <b>3 ta</b> Hujjat tahlili (PDF)</div>
-            <div>• <b>5 ta</b> Rasm (OCR)</div>
-            <div>• <b>5 ta</b> AI test generatsiya</div>
-            <div>• <b>5 ta</b> Material saqlash</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, color: 'var(--txt-2)' }}>
+            <div style={{ background: 'var(--s2)', padding: '6px 10px', borderRadius: 6 }}>• <b style={{color:'var(--txt)'}}>20 ta</b> AI tushuntirish</div>
+            <div style={{ background: 'var(--s2)', padding: '6px 10px', borderRadius: 6 }}>• <b style={{color:'var(--txt)'}}>30 ta</b> AI xabar / kun</div>
+            <div style={{ background: 'var(--s2)', padding: '6px 10px', borderRadius: 6 }}>• <b style={{color:'var(--txt)'}}>3 ta</b> PDF / Hujjat</div>
+            <div style={{ background: 'var(--s2)', padding: '6px 10px', borderRadius: 6 }}>• <b style={{color:'var(--txt)'}}>5 ta</b> Rasm (OCR)</div>
+            <div style={{ background: 'var(--s2)', padding: '6px 10px', borderRadius: 6 }}>• <b style={{color:'var(--txt)'}}>5 ta</b> Test generatsiya</div>
+            <div style={{ background: 'var(--s2)', padding: '6px 10px', borderRadius: 6 }}>• Reklamalar mavjud</div>
           </div>
-          <div style={{ fontSize: 10, color: 'var(--acc-l)', marginTop: 8, fontWeight: 700 }}>
-            Cheklovlardan xalos bo'lish uchun obunani tanlang ↓
+          <div style={{ fontSize: 12, color: 'var(--acc)', marginTop: 12, fontWeight: 700, textAlign: 'center' }}>
+            Cheksiz imkoniyatlarga ega bo'lish uchun obunani tanlang! 👇
           </div>
         </div>
       )}
@@ -291,13 +291,37 @@ export default function SubscriptionModal({ open, onClose }: Props) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gap: 6, marginBottom: 16 }}>
-                {plan.features.map((f, i) => (
-                  <div key={i} style={{ fontSize: 12, color: 'var(--txt)', display: 'flex', gap: 8, alignItems: 'flex-start', lineHeight: 1.3 }}>
-                    <span style={{ color, marginTop: 1 }}>✓</span>
-                    <span>{f}</span>
-                  </div>
-                ))}
+              <div style={{ display: 'grid', gap: 8, marginBottom: 20 }}>
+                {plan.features.map((f, i) => {
+                  const isUnlimited = f.toLowerCase().includes('cheksiz');
+                  return (
+                    <div key={i} style={{ 
+                      fontSize: 13, 
+                      color: isUnlimited ? 'var(--txt)' : 'var(--txt-2)', 
+                      display: 'flex', 
+                      gap: 10, 
+                      alignItems: 'center', 
+                      background: 'rgba(255,255,255,0.02)',
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      border: '1px solid rgba(255,255,255,0.03)'
+                    }}>
+                      <div style={{ 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                        background: `${color}22`, color: color, fontSize: 10, fontWeight: 900
+                      }}>✓</div>
+                      <div style={{ flex: 1 }}>
+                        {f.split(/(Cheksiz|\d+|\/kun)/i).map((part, idx) => {
+                          if (/cheksiz/i.test(part)) return <span key={idx} style={{ color: color, fontWeight: 800, textShadow: `0 0 8px ${color}66` }}>{part}</span>;
+                          if (/\d+/.test(part)) return <strong key={idx} style={{ color: 'var(--txt)' }}>{part}</strong>;
+                          if (/\/kun/i.test(part)) return <span key={idx} style={{ fontSize: 10, background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>kunlik</span>;
+                          return part;
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
 
               <button
@@ -305,24 +329,28 @@ export default function SubscriptionModal({ open, onClose }: Props) {
                 disabled={loading}
                 style={{
                   width: '100%',
-                  background: `linear-gradient(135deg, ${color}, ${color}dd)`,
-                  color: isPro ? '#ffffff' : '#0a0a14',
-                  textShadow: isPro ? '0 1px 3px rgba(0,0,0,0.4)' : 'none',
-                  border: 'none',
+                  background: isPro ? `linear-gradient(135deg, ${color}, #a78bfa)` : `linear-gradient(135deg, var(--s3), var(--s2))`,
+                  color: isPro ? '#0a0a14' : 'var(--txt)',
+                  border: isPro ? 'none' : `1px solid ${color}55`,
                   borderRadius: 12,
-                  padding: '14px 16px',
-                  fontSize: 14,
+                  padding: '16px',
+                  fontSize: 15,
                   fontWeight: 900,
                   textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                  boxShadow: `0 4px 14px ${color}66`,
+                  letterSpacing: 1,
+                  boxShadow: isPro ? `0 8px 24px ${color}55` : 'none',
                   cursor: loading ? 'wait' : 'pointer',
                   opacity: loading ? 0.7 : 1,
-                  transform: 'translateY(-1px)',
-                  transition: 'all 0.2s',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8
                 }}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'}
+                onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0) scale(1)'}
               >
-                {loading ? '⏳ Bajarilmoqda...' : '🤝 Olish (P2P)'}
+                {loading ? '⏳ KUTING...' : isPro ? '🚀 PRO GA O\'TISH (P2P)' : '💎 SOTIB OLISH (P2P)'}
               </button>
             </div>
           )

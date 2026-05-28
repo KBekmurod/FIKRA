@@ -130,17 +130,31 @@ FAQAT quyidagi JSON formatda javob ber:
 
 // ─── AI javobini parse qilish ─────────────────────────────────────────────────
 function _parseAiResponse(text) {
-  // Markdown code block'larni olib tashlaymiz
   let clean = text.trim();
-  clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+  
+  // 1. Agar AI markdown (```json ... ```) ichiga solgan bo'lsa
+  const mdMatch = clean.match(/```(?:json)?([\s\S]*?)```/i);
+  if (mdMatch) {
+    clean = mdMatch[1].trim();
+  } else {
+    // 2. Agar shunchaki matn bilan qo'shib yozgan bo'lsa, faqat JSON qismini kesib olamiz
+    const firstBrace = clean.indexOf('{');
+    const lastBrace = clean.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      clean = clean.substring(firstBrace, lastBrace + 1);
+    }
+  }
 
   try {
     const parsed = JSON.parse(clean);
-    if (!parsed.questions || !Array.isArray(parsed.questions)) {
+    
+    // Agar AI { "flashcards": [...] } shaklida qaytargan bo'lsa (lekin biz test savollar kutmoqdamiz)
+    const questionsArray = parsed.questions || parsed; // ba'zan to'g'ridan to'g'ri massiv qaytaradi
+    if (!Array.isArray(questionsArray)) {
       throw new Error('questions massivi topilmadi');
     }
 
-    const validated = parsed.questions
+    const validated = questionsArray
       .filter(q => q.question && Array.isArray(q.options) && q.options.length === 4 && typeof q.answer === 'number')
       .map((q, idx) => ({
         idx,
