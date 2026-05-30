@@ -149,7 +149,7 @@ export default function OmborPage() {
             <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--g)', letterSpacing: 0.5, marginBottom: 8 }}>
               📌 MAJBURIY 3 FAN · har birida 10 ta savol · 1.1 ball
             </div>
-            <div style={{ display: 'grid', gap: 8 }}>
+            <div className="ombor-grid">
               {compulsoryList.map(id => renderSubjectCard(id, 'majburiy'))}
             </div>
           </>
@@ -166,7 +166,7 @@ export default function OmborPage() {
                 <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 6 }}>
                   {SPEC_CATEGORY_NAMES[cat]?.toUpperCase()}
                 </div>
-                <div style={{ display: 'grid', gap: 8 }}>
+                <div className="ombor-grid">
                   {ids.map(id => renderSubjectCard(id, 'mutaxassislik'))}
                 </div>
               </div>

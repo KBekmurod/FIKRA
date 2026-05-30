@@ -1,0 +1,702 @@
+[
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Talab qonuniga ko'ra, tovar narxi oshganda unga bo'lgan talab hajmi qanday o'zgaradi?",
+    "options": [
+      "Kamayadi",
+      "Oshadi",
+      "O'zgarmaydi",
+      "Dastlab oshadi, keyin kamayadi"
+    ],
+    "answer": 0,
+    "explanation": "Talab qonuni narx va talab hajmi o'rtasidagi teskari proportsional bog'liqlikni ifodalaydi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Taklif qonuniga asosan, tovar narxi pasayganda taklif hajmi qanday o'zgaradi?",
+    "options": [
+      "Oshadi",
+      "Kamayadi",
+      "O'zgarmaydi",
+      "Noaniq bo'ladi"
+    ],
+    "answer": 1,
+    "explanation": "Taklif qonuni narx va taklif hajmi o'rtasidagi to'g'ri proportsional bog'liqlikni ifodalaydi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "O'zaro o'rinbosar tovarlar (substitutlar)dan birining narxi oshsa, ikkinchisiga bo'lgan talab qanday o'zgaradi?",
+    "options": [
+      "Kamayadi",
+      "O'zgarmaydi",
+      "Oshadi",
+      "Talab to'xtaydi"
+    ],
+    "answer": 2,
+    "explanation": "Substitut tovarlardan birining narxi qimmatlashganda iste'molchilar uning arzonroq o'rinbosariga o'tishadi, natijada ikkinchi tovar talabi oshadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "O'zaro to'ldiruvchi tovarlar (komplementlar)dan birining narxi oshganda, ikkinchisining talabi qanday o'zgaradi?",
+    "options": [
+      "Oshadi",
+      "Kamayadi",
+      "O'zgarmaydi",
+      "Faqat narxiga bog'liq"
+    ],
+    "answer": 1,
+    "explanation": "Masalan, benzin narxi oshsa, avtomobillarga bo'lgan talab kamayadi, chunki ular birga iste'mol qilinadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Giffen tovarining o'ziga xos xususiyati nimada?",
+    "options": [
+      "Narx oshganda talab hajmi ham oshadi",
+      "Narx tushganda talab hajmi oshadi",
+      "Narx o'zgarsa ham talab o'zgarmaydi",
+      "Faqat yuqori daromadli qatlam xarid qiladi"
+    ],
+    "answer": 0,
+    "explanation": "Giffen tovarlari past sifatli kundalik iste'mol mollari bo'lib, ular uchun talab qonuni ishlamaydi va narx oshganda talab ham oshadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Talabning narxga ko'ra elastiklik koeffitsienti 1 dan katta bo'lsa, talab qanday bo'ladi?",
+    "options": [
+      "Noelastik",
+      "Birlik elastiklikka ega",
+      "Elastik",
+      "Mutlaq elastik"
+    ],
+    "answer": 2,
+    "explanation": "Elastiklik 1 dan katta bo'lsa, demak, narxning ozgina o'zgarishi talab hajmining sezilarli darajada o'zgarishiga olib keladi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Daromad samarasi qoidasiga ko'ra, iste'molchining daromadi oshganda qaysi turdagi tovarlarga talab kamayadi?",
+    "options": [
+      "Normal tovarlarga",
+      "Past sifatli tovarlarga",
+      "Hashamatli tovarlarga",
+      "Giffen tovarlariga"
+    ],
+    "answer": 1,
+    "explanation": "Daromad oshganda iste'molchi past sifatli mahsulotlardan voz kechib, sifatliroq tovarlarni xarid qilishga o'tadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Iste'molchi foydaliligining maksimal darajasiga qachon erishiladi?",
+    "options": [
+      "Chegaraviy foydalilik maksimal bo'lganda",
+      "Umumiy foydalilik nolga teng bo'lganda",
+      "Chegaraviy foydalilik nolga teng bo'lganda",
+      "O'rtacha foydalilik eng yuqori bo'lganda"
+    ],
+    "answer": 2,
+    "explanation": "Chegaraviy foydalilik nolga tushganda umumiy foydalilik o'zining eng yuqori (maksimal) nuqtasiga chiqadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Ishlab chiqarish imkoniyatlari egri chizig'i nimani anglatadi?",
+    "options": [
+      "Resurslar cheklanmaganligini",
+      "Ikki xil ne'mat ishlab chiqarishning maksimal imkoniyatlarini",
+      "Iste'molchilarning xohish-istaklarini",
+      "Bozordagi muvozanat narxni"
+    ],
+    "answer": 1,
+    "explanation": "Ishlab chiqarish imkoniyatlari egri chizig'i berilgan texnologiya va resurslar doirasida ikkita mahsulot ishlab chiqarishning muqobil variantlarini ko'rsatadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Muqobil (alternativ) xarajat deb nimaga aytiladi?",
+    "options": [
+      "Ishlab chiqarishga ketgan barcha xarajatlarga",
+      "Tanlov natijasida voz kechilgan eng yaxshi imkoniyat qiymatiga",
+      "Soliq va yig'imlarga",
+      "Foydalanilmagan resurslarga"
+    ],
+    "answer": 1,
+    "explanation": "Muqobil xarajat – bu muayyan qaror qabul qilish oqibatida qurbon qilingan eng yaxshi alternativ variantning qiymati."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Monopoliya bozori uchun qaysi xususiyat xos?",
+    "options": [
+      "Ko'plab mayda sotuvchilarning mavjudligi",
+      "Tarmoqqa kirish erkinligi",
+      "Bozorda faqat bitta sotuvchining bo'lishi",
+      "Bir xil mahsulotlar raqobati"
+    ],
+    "answer": 2,
+    "explanation": "Monopoliya yunoncha so'z bo'lib, 'yolg'iz sotaman' degan ma'noni anglatadi, ya'ni butun tarmoqda bitta yirik ishlab chiqaruvchi hukmron bo'ladi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Oligopoliya sharoitida bozor qanday tuzilmaga ega bo'ladi?",
+    "options": [
+      "Bitta xaridor mavjud bo'ladi",
+      "Faqat ikkita sotuvchi bo'ladi",
+      "Bir nechta yirik sotuvchilar faoliyat ko'rsatadi",
+      "Hech qanday raqobat bo'lmaydi"
+    ],
+    "answer": 2,
+    "explanation": "Oligopoliya – bu bozorda unchalik ko'p bo'lmagan, bir nechta yirik korxonalarning hukmronlik qilish holati."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Mukammal raqobat bozorida tovarlar o'zaro qanday bo'ladi?",
+    "options": [
+      "Turli xil va ajralib turuvchi",
+      "Aynan bir xil (gomogen)",
+      "O'zaro o'rinbosar emas",
+      "Faqat bitta korxona tomonidan ishlab chiqarilgan"
+    ],
+    "answer": 1,
+    "explanation": "Mukammal raqobat bozorining asosiy shartlaridan biri – barcha sotuvchilar standartlashgan, bir xil mahsulot sotishidir."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "O'zgarmas xarajatlar qatoriga nimalar kiradi?",
+    "options": [
+      "Xomashyo va materiallar",
+      "Ishchilarning ish haqi",
+      "Ijara haqi va amortizatsiya ajratmalari",
+      "Elektr energiyasi to'lovlari"
+    ],
+    "answer": 2,
+    "explanation": "O'zgarmas xarajatlar (FC) ishlab chiqarish hajmiga bog'liq bo'lmagan xarajatlardir, masalan, bino ijarasi yoki uskunalar amortizatsiyasi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "O'zgaruvchan xarajatlar nimaga bog'liq holda o'zgaradi?",
+    "options": [
+      "Ishlab chiqarish hajmiga",
+      "Bozordagi raqobatchilar soniga",
+      "Soliq stavkalariga",
+      "Ijara shartnomasiga"
+    ],
+    "answer": 0,
+    "explanation": "O'zgaruvchan xarajatlar (VC) ishlab chiqarilayotgan mahsulot miqdori ortishi yoki kamayishiga qarab o'zgarib boradigan xarajatlardir."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Korxonaning foydasini maksimallashtirish sharti (qoidasi) qanday ifodalanadi?",
+    "options": [
+      "TR = TC",
+      "MR = MC",
+      "AR = AC",
+      "P = ATC"
+    ],
+    "answer": 1,
+    "explanation": "Foydani maksimallashtirish uchun chegaraviy daromad (MR) chegaraviy xarajatga (MC) teng bo'lishi kerak."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Mikroiqtisodiyot",
+    "question": "Mehnat unumdorligi ko'rsatkichi qanday topiladi?",
+    "options": [
+      "Xarajatlarni foydaga bo'lish orqali",
+      "Ishlab chiqarilgan mahsulot hajmini sarflangan ish vaqtiga bo'lish orqali",
+      "Ish haqini mahsulot hajmiga bo'lish orqali",
+      "Sotuv hajmini narxga ko'paytirish orqali"
+    ],
+    "answer": 1,
+    "explanation": "Mehnat unumdorligi muayyan vaqt oralig'ida bitta ishchi tomonidan yaratilgan mahsulot miqdorini bildiradi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Yalpi Ichki Mahsulot (YAIM) deganda nima tushuniladi?",
+    "options": [
+      "Faqat davlat korxonalari ishlab chiqargan tovarlar",
+      "Mamlakat fuqarolari tomonidan xorijda yaratilgan mahsulotlar",
+      "Bir yil davomida mamlakat hududida ishlab chiqarilgan barcha yakuniy tovar va xizmatlar bozor qiymati",
+      "Mamlakatning jami milliy boyligi"
+    ],
+    "answer": 2,
+    "explanation": "YAIM ma'lum bir davrda (odatda bir yil) mamlakat chegaralari ichida ishlab chiqarilgan barcha yakuniy tovarlar va xizmatlarning jami qiymatidir."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Nominal YAIM va Real YAIM o'rtasidagi asosiy farq nimada?",
+    "options": [
+      "Soliqlar hisobga olinishida",
+      "Inflyatsiya (narxlar o'zgarishi) hisobga olinishida",
+      "Ishlab chiqarish hajmining farqida",
+      "Tashqi savdo qoldig'ida"
+    ],
+    "answer": 1,
+    "explanation": "Nominal YAIM joriy narxlarda hisoblanadi, Real YAIM esa o'zgarmas (bazaviy) narxlarda hisoblanib, inflyatsiya ta'siridan tozalanadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Inflyatsiya darajasini o'lchashda eng ko'p ishlatiladigan ko'rsatkich qaysi?",
+    "options": [
+      "Iste'mol narxlari indeksi (INI)",
+      "Ishsizlik darajasi",
+      "Valyuta kursi",
+      "Markaziy bankning qayta moliyalash stavkasi"
+    ],
+    "answer": 0,
+    "explanation": "Inflyatsiya odatda doimiy iste'mol savatidagi tovar va xizmatlar narxlarining o'zgarishini ko'rsatuvchi INI (CPI) orqali o'lchanadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Friktsion ishsizlik qaysi holatda yuzaga keladi?",
+    "options": [
+      "Iqtisodiy inqiroz davrida",
+      "Texnologiyalar o'zgarishi natijasida mutaxassislikka ehtiyoj yo'qolganda",
+      "Xodimlar o'z xohishi bilan ish joyini o'zgartirayotganda yoki yangi ish qidirayotganda",
+      "Faqat qishloq xo'jaligida mavsumiy ishlarda"
+    ],
+    "answer": 2,
+    "explanation": "Friktsion ishsizlik bu shaxsning bir ishdan bo'shab, ikkinchi mos ishni topgunicha bo'lgan vaqt oralig'idagi tabiiy ishsizlik holatidir."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Tarkibiy (strukturaviy) ishsizlikning sababi nima?",
+    "options": [
+      "Ishlab chiqarishdagi pasayish va inqirozlar",
+      "Texnologik o'zgarishlar tufayli ishchi kuchi malakasi va talabning mos kelmasligi",
+      "Ishchilarning vaqtinchalik ish qidirishi",
+      "Faqat iqlim sharoitining o'zgarishi"
+    ],
+    "answer": 1,
+    "explanation": "Yangi texnologiyalar joriy etilganda ayrim kasblarga talab yo'qolib, yangilariga ehtiyoj tug'iladi, bu esa tarkibiy ishsizlikni yuzaga keltiradi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Siklik ishsizlik iqtisodiyotning qaysi faza (bosqich)larida keskin oshadi?",
+    "options": [
+      "Yuksalish",
+      "Inqiroz va pasayish",
+      "Barqarorlik",
+      "Faqat yoz faslida"
+    ],
+    "answer": 1,
+    "explanation": "Siklik ishsizlik makroiqtisodiy faollikning pasayishi, ya'ni iqtisodiy inqiroz va retsessiya davrida yalpi talabning yetishmasligi tufayli ortadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Fillips egri chizig'i qaysi iqtisodiy ko'rsatkichlar o'rtasidagi bog'liqlikni aks ettiradi?",
+    "options": [
+      "Inflyatsiya va ishsizlik",
+      "Yalpi talab va yalpi taklif",
+      "Foiz stavkasi va investitsiyalar",
+      "Daromad va iste'mol"
+    ],
+    "answer": 0,
+    "explanation": "A. U. Fillips o'z tadqiqotlarida inflyatsiya va ishsizlik darajasi o'rtasida qisqa muddatli teskari bog'liqlik borligini ko'rsatgan."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Davlat byudjeti taqchilligi (defitsiti) deganda nima tushuniladi?",
+    "options": [
+      "Eksportning importdan ortiq bo'lishi",
+      "Davlat xarajatlarining uning daromadlaridan ortib ketishi",
+      "Aholi daromadlarining pasayishi",
+      "Soliq tushumlarining ko'payishi"
+    ],
+    "answer": 1,
+    "explanation": "Byudjet taqchilligi davlatning rejalashtirgan xarajatlari uni qoplashga mo'ljallangan daromad manbalaridan ko'p bo'lgan holatdir."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "'Siqib chiqarish samarasi' (Crowding out) qachon yuz beradi?",
+    "options": [
+      "Xorijiy tovarlar mahalliy tovarlarni siqib chiqarganda",
+      "Davlat qarzining oshishi tufayli foiz stavkalari ko'tarilib, xususiy investitsiyalar kamayganda",
+      "Texnologiyalar inson mehnatini almashtirganda",
+      "Kichik biznes yirik korporatsiyalar tomonidan yutilganda"
+    ],
+    "answer": 1,
+    "explanation": "Davlat byudjet taqchilligini qoplash uchun qarz olganda bozorda pulga talab oshadi, foiz stavkasi ko'tariladi va xususiy sarmoyalar qisqaradi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "M0 pul agregati o'z ichiga nimalarni qamrab oladi?",
+    "options": [
+      "Barcha bank depozitlarini",
+      "Davlat obligatsiyalarini",
+      "Muomaladagi naqd pullarni",
+      "Chet el valyutasidagi hisob-raqaamlar qoldig'ini"
+    ],
+    "answer": 2,
+    "explanation": "M0 – eng likvid pul agregati bo'lib, bank tizimidan tashqaridagi barcha naqd pullarni o'z ichiga oladi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Majburiy zaxira normasi oshirilsa, banklarning kredit berish qobiliyati qanday o'zgaradi?",
+    "options": [
+      "Ortadi",
+      "O'zgarmaydi",
+      "Kamayadi",
+      "Dastlab ortib, keyin kamayadi"
+    ],
+    "answer": 2,
+    "explanation": "Majburiy zaxira me'yori oshganda, banklar Markaziy bankda ko'proq pul saqlashga majbur bo'ladi va ularning kredit berish uchun bo'sh mablag'lari qisqaradi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Investitsiya multiplikatori nimani ifodalaydi?",
+    "options": [
+      "Eksport hajmining doimiy o'sishini",
+      "Investitsiyalarning o'zgarishi milliy daromad hajmini qanchalik karrali o'zgartirishini",
+      "Soliqlarning iqtisodiyotga ta'sirini",
+      "Narxlar darajasining o'zgarish sur'atini"
+    ],
+    "answer": 1,
+    "explanation": "Multiplikator effekti shuni ko'rsatadiki, iqtisodiyotga kiritilgan qo'shimcha investitsiya milliy daromadni o'zidan bir necha bor ko'p miqdorda oshiradi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Davlat tomonidan soliqlar keskin oshirilsa, yalpi talab (AD) qanday o'zgaradi?",
+    "options": [
+      "Oshadi",
+      "O'zgarmaydi",
+      "Kamayadi",
+      "Avvaliga oshadi"
+    ],
+    "answer": 2,
+    "explanation": "Soliqlar oshganda iste'molchilar va korxonalar tasarrufidagi daromad kamayadi, natijada ularning xarajatlari va yalpi talab qisqaradi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Stagflyatsiya nima?",
+    "options": [
+      "Iqtisodiy o'sish bilan birga narxlarning pasayishi",
+      "Iqtisodiy o'sishsiz (stagnatsiya) hamda yuqori ishsizlik sharoitida inflyatsiyaning jadallashuvi",
+      "Ishsizlikning mutlaq nolga teng bo'lishi",
+      "Eksport va import o'rtasidagi barqarorlik"
+    ],
+    "answer": 1,
+    "explanation": "Stagflyatsiya so'zi stagnatsiya (pasayish/to'xtash) va inflyatsiya so'zlari yig'indisidan iborat bo'lib, ikkalasining bir vaqtda yuz berishini bildiradi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Makroiqtisodiy muvozanat qaysi model orqali eng yaxshi ifodalanadi?",
+    "options": [
+      "IS-LM modeli",
+      "AD-AS modeli",
+      "Kobb-Duglas funksiyasi",
+      "Giffen tovari modeli"
+    ],
+    "answer": 1,
+    "explanation": "Yalpi talab (AD) va yalpi taklif (AS) modeli orqali butun iqtisodiyot miqyosidagi narx darajasi va milliy ishlab chiqarish hajmi muvozanati ko'rsatiladi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Ochiq iqtisodiyot nima?",
+    "options": [
+      "Faqat ichki bozor uchun ishlaydigan iqtisodiyot",
+      "Davlat aralashuvisiz erkin iqtisodiyot",
+      "Xalqaro savdo va xorijiy investitsiyalarda faol ishtirok etuvchi iqtisodiyot",
+      "Bojxona to'lovlari bo'lmagan iqtisodiyot"
+    ],
+    "answer": 2,
+    "explanation": "Ochiq iqtisodiyot tashqi dunyo bilan tovar, xizmat va kapital ayirboshlash munosabatlarini keng ko'lamda olib boruvchi milliy iqtisodiyotdir."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Makroiqtisodiyot",
+    "question": "Makroiqtisodiyotda davlatning rag'batlantiruvchi fiskal siyosati qanday chora-tadbirlarni o'z ichiga oladi?",
+    "options": [
+      "Soliqlarni oshirish va davlat xarajatlarini kamaytirish",
+      "Soliqlarni kamaytirish va davlat xarajatlarini oshirish",
+      "Pul massasini kamaytirish",
+      "Eksport bojlarini oshirish"
+    ],
+    "answer": 1,
+    "explanation": "Iqtisodiy o'sishni rag'batlantirish uchun davlat soliqlarni qisqartiradi va byudjet xarajatlarini oshiradi, natijada yalpi talab ortadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Moliya tizimining iqtisodiyotdagi eng asosiy funksiyasi nima?",
+    "options": [
+      "Ish o'rinlari yaratish",
+      "Pul mablag'larini yig'ish, qayta taqsimlash va ulardan samarali foydalanishni ta'minlash",
+      "Faqat banklarni nazorat qilish",
+      "Davlat byudjetini yuritish"
+    ],
+    "answer": 1,
+    "explanation": "Moliya bo'sh turgan pul mablag'larini akkumulyatsiya qilib, ularni sarmoyaga muhtoj sohalarga maqsadli taqsimlash vazifasini bajaradi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Davlat byudjeti daromadlarining asosiy (eng katta) manbai nima?",
+    "options": [
+      "Xususiylashtirishdan tushgan mablag'lar",
+      "Soliq tushumlari",
+      "Xalqaro tashkilotlar qarzari",
+      "Davlat mulkini ijaraga berish"
+    ],
+    "answer": 1,
+    "explanation": "Deyarli barcha zamonaviy davlatlarda byudjet daromadlarining mutlaq katta qismi yuridik va jismoniy shaxslardan olinadigan soliqlar hisobidan shakllanadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "To'g'ri soliqlar turkumiga qaysi biri kiradi?",
+    "options": [
+      "Qo'shilgan qiymat solig'i (QQS)",
+      "Aksiz solig'i",
+      "Daromad va foyda solig'i",
+      "Bojxona boji"
+    ],
+    "answer": 2,
+    "explanation": "To'g'ri soliqlar to'g'ridan-to'g'ri daromad yoki mulk qiymatidan undiriladi (masalan, foyda, mulk, daromad soliqlari)."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Egri (bilvosita) soliqlarning o'ziga xosligi nimada?",
+    "options": [
+      "Faqat boy qatlamdan olinadi",
+      "Tovar va xizmatlar narxiga ustama sifatida qo'shilib, pirovard iste'molchi tomonidan to'lanadi",
+      "To'g'ridan-to'g'ri korxona foydasidan ushlab qolinadi",
+      "Xalqaro tijoratda qo'llanilmaydi"
+    ],
+    "answer": 1,
+    "explanation": "Egri soliqlarning yuki (masalan, QQS, aksiz) sotib olinayotgan mahsulot narxi orqali yakuniy xaridor zimmasiga tushadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Pulning asosiy funksiyalaridan biri qaysi?",
+    "options": [
+      "Ishlab chiqarish vositasi",
+      "Iste'mol vositasi",
+      "Qiymat o'lchovi va muomala vositasi",
+      "Resurslarni taqsimlovchi vosita"
+    ],
+    "answer": 2,
+    "explanation": "Pul qiymat o'lchovi, muomala, to'lov va jamg'arma vositasi hamda jahon puli kabi xalqaro e'tirof etilgan funksiyalarga ega."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "O'zbekiston Respublikasi Markaziy bankining asosiy maqsadi qilib nima belgilangan?",
+    "options": [
+      "Tijorat banklaridan foyda olish",
+      "Iqtisodiy o'sishni maksimallashtirish",
+      "Narxlar barqarorligini ta'minlash",
+      "Eksportni rag'batlantirish"
+    ],
+    "answer": 2,
+    "explanation": "Qonunchilikka muvofiq, Markaziy bankning bosh maqsadi inflyatsiya darajasini maqsadli ko'rsatkichlarda ushlab turish va narxlar barqarorligini ta'minlashdir."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Qimmatli qog'ozlar birinchi marta muomalaga chiqariladigan bozor qanday ataladi?",
+    "options": [
+      "Ikkilamchi bozor",
+      "Birlamchi bozor",
+      "Uchinchi bozor",
+      "Xalqaro bozor"
+    ],
+    "answer": 1,
+    "explanation": "Emitentlar tomonidan qimmatli qog'ozlarni ilk bor investorlarga sotish jarayoni birlamchi bozor deb yuritiladi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Aksiya qanday xususiyatga ega qimmatli qog'oz hisoblanadi?",
+    "options": [
+      "Korxonaga faqat ma'lum muddatga qarz berilganini tasdiqlaydi",
+      "Egasi (aksiyador)ga korxona mulkiga hamkorlik va foydadan ulush (dividend) olish huquqini beradi",
+      "Faqat davlat tomonidan chiqariladi",
+      "Xatarlarsiz daromad kafolatlanadi"
+    ],
+    "answer": 1,
+    "explanation": "Aksiya mulkiy qimmatli qog'oz bo'lib, uning egasi kompaniyaning teng huquqli egalaridan biri va dividendlarga da'vogar sanaladi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Obligatsiya va aksiya o'rtasidagi asosiy farq nimada?",
+    "options": [
+      "Aksiya qarz qog'ozi, obligatsiya mulk qog'ozi",
+      "Obligatsiya davlatga, aksiya xususiylarga tegishli",
+      "Obligatsiya qat'iy belgilangan daromadli qarz qog'ozi, aksiya mulk qog'ozi",
+      "Hech qanday farq yo'q"
+    ],
+    "answer": 2,
+    "explanation": "Obligatsiya sotib olgan shaxs kreditor (qarz beruvchi) hisoblanadi va belgilangan muddatda asosiy qarz va foizni qaytarib oladi, aksiya esa mulk huquqini bildiradi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Dividend bu...",
+    "options": [
+      "Bank depozitlariga to'lanadigan foiz",
+      "Aksiyadorlik jamiyati sof foydasining aksiyadorlar o'rtasida taqsimlanadigan qismi",
+      "Davlat byudjeti xarajatlarining bir turi",
+      "Kredit uchun to'lov"
+    ],
+    "answer": 1,
+    "explanation": "Kompaniya ish faoliyati yakunlari bo'yicha sof foydaga erishsa, uning bir qismini aksiyadorlarga ularning aksiyalari soniga qarab dividend sifatida to'laydi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Subvensiya tushunchasi nimani anglatadi?",
+    "options": [
+      "Eksport qilinuvchi mahsulotlar solig'i",
+      "Bir byudjetdan boshqa byudjetga aniq maqsadlar uchun va qaytarmaslik sharti bilan beriladigan mablag'",
+      "Tijorat bankining krediti",
+      "Jismoniy shaxslarga beriladigan nafaqa"
+    ],
+    "answer": 1,
+    "explanation": "Subvensiya (dotatsiya kabi) davlat moliyaviy yordami turkumiga kiradi, lekin u qat'iy ravishda belgilangan maqsad (masalan qandaydir inshoot qurilishi) uchun ajratiladi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Profitsit tushunchasi byudjetga nisbatan qanday holatni anglatadi?",
+    "options": [
+      "Xarajatlarning daromadlardan ortib ketishi",
+      "Daromadlarning xarajatlardan ortib qolishi",
+      "Daromad va xarajatlarning teng bo'lishi",
+      "Byudjet umuman ishlamayotganligini"
+    ],
+    "answer": 1,
+    "explanation": "Agar davlat (yoki korxona) olgan tushumlar sarflangan xarajatlardan ko'p bo'lsa, bu ijobiy qoldiq profitsit deb ataladi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Markaziy bankning qayta moliyalash stavkasi (asosiy stavka) qanday ma'noni anglatadi?",
+    "options": [
+      "Soliq to'lovchilarning davlat oldidagi foiz qarzi",
+      "Tijorat banklarining Markaziy bankdan olgan qisqa muddatli kreditlari bo'yicha to'laydigan foiz normasi",
+      "Aholi omonatlari bo'yicha to'lanadigan kafolatlangan ustama",
+      "Chet el valyutasi aylanmasi foizi"
+    ],
+    "answer": 1,
+    "explanation": "Asosiy stavka MBning moliya bozoridagi likvidlikni boshqaruvchi asosiy pul-kredit siyosati vositasidir."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Soliq yukini hisoblashda odatda qanday usul qo'llaniladi?",
+    "options": [
+      "Barcha to'langan soliqlarning YAIMga nisbatini topish",
+      "Foyda miqdorini tushumga bo'lish",
+      "Soliq stavkalarini bir-biriga qo'shish",
+      "Inflyatsiyani hisobdan chiqarish"
+    ],
+    "answer": 0,
+    "explanation": "Mamlakatdagi umumiy soliq yuki davlat byudjetiga tushgan barcha soliq tushumlarining Yalpi Ichki Mahsulotdagi ulushi (foizda) bilan o'lchanadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Pul-kredit siyosati (Monetar siyosat)ni qaysi organ amalga oshiradi?",
+    "options": [
+      "Moliya vazirligi",
+      "Markaziy bank",
+      "Soliq qo'mitasi",
+      "Adliya vazirligi"
+    ],
+    "answer": 1,
+    "explanation": "Iqtisodiyotdagi pul massasini, foiz stavkalarini nazorat qilish va inflyatsiyani jilovlash bo'yicha vakolatli davlat organi Markaziy bank hisoblanadi."
+  },
+  {
+    "subject": "iqtisod",
+    "block": "mutaxassislik",
+    "topic": "Moliya",
+    "question": "Davlat g'aznachiligi (Kaznacheystvo) qanday vazifani bajaradi?",
+    "options": [
+      "Tijorat banklari faoliyatini tekshiradi",
+      "Davlat byudjeti mablag'larining kassa ijrosini va maqsadli ishlatilishini nazorat qiladi",
+      "Bojxona bojlarini yig'adi",
+      "Davlat korxonalarini xususiylashtiradi"
+    ],
+    "answer": 1,
+    "explanation": "G'aznachilik Moliya vazirligi huzuridagi byudjet mablag'larining harakatini yagona hisob-raqam orqali markazlashgan tarzda boshqaruvchi va nazorat qiluvchi organdir."
+  }
+]

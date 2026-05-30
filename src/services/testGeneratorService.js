@@ -73,15 +73,15 @@ Material:
 ${safeMaterial}
 """${adjustNote}
 
-QOIDALAR:
-1. AYNAN ${count} ta savol — kam ham emas, ko'p ham emas
-2. Har bir savol material mavzusiga to'g'ridan-to'g'ri yoki bilvosita bog'liq bo'lsin
-3. Agar oldin shu mavzuda test tuzgan bo'lsang, SAVOLLARNI TAKRORLAMA. Yangi rakursdan, yangi tushunchalarni tekshiradigan mutlaqo yangi test tuz.
-4. 4 ta variant (A, B, C, D) — bittasi to'g'ri, uchtasi mantiqli noto'g'ri
-4. DTM uslubida — aniq, qisqa, bir ma'noli savollar
-5. O'zbek tilida yoz (chet tili fanlari bundan mustasno — yuqorida ko'rsatilgan)
-6. Mavzuni "topic" sifatida ko'rsat
-7. Yuqoridagi fan maxsus ko'rsatmalariga RIOYA QIL
+QOIDALAR VA PREMIUM ESTETIKA:
+1. AYNAN ${count} ta savol tuzing — kam ham emas, ko'p ham emas.
+2. SAVOL SIFATI (Premium daraja): Savollar shunchaki faktni so'ramasin (qachon, kim, qayerda). Savollar abituriyentning mantiqiy fikrlashini, qoidalarni amaliyotga qo'llay olishini, tahlil qila olishini sinaydigan, o'ylantiradigan va ilmiy uslubda bo'lishi shart.
+3. ESTETIK IFODALASH: Savollarni HECH QACHON "Matnda...", "Ushbu matnga ko'ra...", "Yuqoridagi" kabi so'zlar bilan boshlamang. Savol mustaqil, ravon va ilmiy xulosalangan bo'lishi kerak. Gaplar sintaktik jihatdan mukammal va jozibador qurilsin.
+4. MANTIQIY CHALG'ITUVCHILAR (Distractors): Noto'g'ri variantlar (A, B, C, D) shunchaki tasodifiy so'zlar emas, balki eng ko'p chalg'itadigan, ilmiy jihatdan mantiqiy ko'rinadigan "tuzoq" variantlar bo'lishi shart. Qolgan 3 ta noto'g'ri variant to'g'ri variant bilan bir xil uzunlik va uslubda yozilsin.
+5. DTM STANDARTI: Bitta savolda ikkita to'g'ri javob bo'lmasligi, javoblar aniq va bir ma'noli bo'lishi qat'iy talab qilinadi.
+6. TAKRORLANMASLIK: Agar oldin shu mavzuda test tuzgan bo'lsangiz, uni umuman takrorlamang. Har safar o'zgacha yondashuv va yangi rakursdan savol oling.
+7. TUSHUNTIRISH (Explanation): To'g'ri javob nega to'g'riligi va eng asosiysi noto'g'ri javoblar nega xato ekanligi haqida 2-3 jumlali o'ta sifatli ilmiy tushuntirish yozing.
+8. Yuqoridagi fan maxsus ko'rsatmalariga QAT'IY RIOYA QILING.
 
 FAQAT quyidagi JSON formatda javob ber:
 {
@@ -332,6 +332,7 @@ async function generateForFolder(userId, { folderId, opt = 'standard' }) {
     subjectName,
     materialIds: materials.map(m => m._id),
     folderId: folder._id,
+    folderTitle: folder.title,
     questions,
     totalQuestions: questions.length,
     testType: 'material',
@@ -544,7 +545,8 @@ QAT'IY QOIDALAR (BUZILMASIN):
 1. Yuborilgan noto'g'ri savollarni ASLO ko'chirmang!
 2. Faqat variantlar ketma-ketligini almashtirib yoki 1-2 ta so'zni o'zgartirib qaytarib BEMANG! Bu qat'iyan man etiladi.
 3. Shu mavzudagi/qoidadagi umuman BOSHQA misollar, BOSHQA raqamlar, BOSHQA matnlar va BOSHQA shartlar o'ylab toping.
-4. Savollar qiyinlik darajasi DTM standartiga mos, o'ylantiradigan va mantiqiy bo'lsin.
+4. ESTETIKA: Savollar mustaqil va to'g'ridan-to'g'ri bo'lsin. Hech qachon "Matnda", "Berilgan savolda" kabi iboralarni ishlatmang. Gaplar sintaktik mukammal, o'ylantiradigan va mantiqiy bo'lsin.
+5. MANTIQIY CHALG'ITUVCHILAR (Distractors): Noto'g'ri variantlar eng ko'p chalg'itadigan, o'quvchini ikkilantiradigan mantiqiy "tuzoq" variantlar bo'lsin va to'g'ri javob bilan bir xil uslubda yozilsin.
 
 FAQAT quyidagi JSON formatda javob ber:
 {
@@ -729,6 +731,13 @@ async function getTestHistory(userId, { subjectId, testType, page = 1 } = {}) {
         miniTestId: t.folderId.miniTestId,
       };
       out.folderId = t.folderId._id;
+    } else if (t.folderTitle) {
+      // Agar papka butunlay o'chirilgan yoki topilmagan bo'lsa, 'muhrlangan' nomidan foydalanamiz
+      out.folderInfo = {
+        title: `${t.folderTitle} (O'chirilgan)`,
+        context: 'majburiy', // default
+        isDeleted: true
+      };
     }
     return out;
   });

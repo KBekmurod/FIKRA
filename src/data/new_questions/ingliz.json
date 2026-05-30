@@ -1,0 +1,452 @@
+[
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos so'zni qo'ying: He ... a book when I saw him.",
+        "options": ["read", "is reading", "was reading", "has read"],
+        "answer": 2,
+        "explanation": "O'tgan zamonda davom etayotgan ish-harakatni ifodalash uchun Past Continuous (was reading) ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos so'zni qo'ying: By the time we arrived, the train ... .",
+        "options": ["left", "has left", "was leaving", "had left"],
+        "answer": 3,
+        "explanation": "O'tgan zamondagi biror ish-harakatdan oldin sodir bo'lgan harakat Past Perfect (had left) orqali ifodalanadi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos so'zni qo'ying: I ... my keys. I can't open the door.",
+        "options": ["lost", "have lost", "was losing", "had lost"],
+        "answer": 1,
+        "explanation": "Natijasi hozirgi zamonga ta'sir qilayotgan harakat Present Perfect (have lost) bilan ifodalanadi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos so'zni qo'ying: They ... in London since 2010.",
+        "options": ["are living", "live", "have been living", "lived"],
+        "answer": 2,
+        "explanation": "'Since' vaqt ko'rsatkichi bo'lganligi sababli, harakat o'tmishda boshlanib hozirgacha davom etayotganini bildiradi (Present Perfect Continuous)."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos so'zni qo'ying: Water ... at 100 degrees Celsius.",
+        "options": ["boils", "is boiling", "boiled", "will boil"],
+        "answer": 0,
+        "explanation": "Tabiat qonunlari va doimiy haqiqatlar Present Simple (boils) bilan ifodalanadi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos so'zni qo'ying: Next year, we ... a new project.",
+        "options": ["start", "will start", "started", "have started"],
+        "answer": 1,
+        "explanation": "'Next year' kelasi zamonni bildiruvchi so'z, shuning uchun Future Simple (will start) ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos so'zni qo'ying: I ... him yesterday afternoon.",
+        "options": ["see", "saw", "have seen", "had seen"],
+        "answer": 1,
+        "explanation": "'Yesterday' aniq o'tgan zamonni bildiradi, shuning uchun Past Simple (saw) ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos so'zni qo'ying: While I was cooking, my brother ... television.",
+        "options": ["watched", "was watching", "is watching", "had watched"],
+        "answer": 1,
+        "explanation": "O'tgan zamonda parallel ravishda davom etayotgan ikkita harakat Past Continuous orqali ifodalanadi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos so'zni qo'ying: Look at the dark clouds! It ... .",
+        "options": ["will rain", "is raining", "is going to rain", "rains"],
+        "answer": 2,
+        "explanation": "Dalilga asoslangan kelajakdagi voqea 'to be going to' (is going to rain) orqali yasaladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos so'zni qo'ying: I usually ... coffee, but today I ... tea.",
+        "options": ["drink / am drinking", "am drinking / drink", "drink / drink", "drank / drink"],
+        "answer": 0,
+        "explanation": "Odatdagi harakat Present Simple, bugungi vaqtinchalik holat esa Present Continuous bilan beriladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos artiklni qo'ying: ... Earth goes around ... Sun.",
+        "options": ["The / the", "A / the", "An / a", "- / -"],
+        "answer": 0,
+        "explanation": "Dunyoda yagona bo'lgan otlar oldidan 'the' aniq artikli ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos artiklni qo'ying: My brother is ... doctor.",
+        "options": ["the", "a", "an", "-"],
+        "answer": 1,
+        "explanation": "Kasb-hunar nomlari oldidan odatda noto'g'ri artikl 'a' yoki 'an' ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos artiklni qo'ying: ... Alps are situated in Central Europe.",
+        "options": ["The", "A", "An", "-"],
+        "answer": 0,
+        "explanation": "Tog' tizmalari nomlari oldidan 'the' artikli qo'yiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos artiklni qo'ying: I bought ... umbrella because it was raining.",
+        "options": ["a", "the", "an", "-"],
+        "answer": 2,
+        "explanation": "Unli tovush bilan boshlanadigan birlikdagi sanaladigan otlar oldidan 'an' ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos artiklni qo'ying: He plays ... piano very well.",
+        "options": ["a", "an", "the", "-"],
+        "answer": 2,
+        "explanation": "Musiqa asboblari nomlari 'play' fe'lidan keyin kelganda 'the' artikli bilan ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos predlogni qo'ying: She is interested ... learning languages.",
+        "options": ["on", "in", "at", "with"],
+        "answer": 1,
+        "explanation": "'Interested' so'zidan keyin doim 'in' predlogi ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos predlogni qo'ying: The meeting starts ... 9 o'clock.",
+        "options": ["at", "on", "in", "by"],
+        "answer": 0,
+        "explanation": "Aniq soatlar oldidan 'at' predlogi ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos predlogni qo'ying: He was born ... 1995.",
+        "options": ["on", "at", "in", "for"],
+        "answer": 2,
+        "explanation": "Yillar oldidan 'in' predlogi ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos predlogni qo'ying: I am looking forward ... seeing you.",
+        "options": ["at", "to", "for", "with"],
+        "answer": 1,
+        "explanation": "'Look forward' iborasidan keyin 'to' predlogi keladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos predlogni qo'ying: We arrived ... the airport early.",
+        "options": ["in", "at", "on", "to"],
+        "answer": 1,
+        "explanation": "Aeroport kabi kichik joy nomlariga nisbatan 'arrive at' ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Vocabulary",
+        "question": "Bosh harflar bilan yozilgan so'zning sinonimini toping: He is very WEALTHY.",
+        "options": ["poor", "rich", "clever", "kind"],
+        "answer": 1,
+        "explanation": "'Wealthy' so'zining ma'nosi 'boy', shuning uchun uning sinonimi 'rich'."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Vocabulary",
+        "question": "Bosh harflar bilan yozilgan so'zning antonimini toping: The test was relatively EASY.",
+        "options": ["simple", "hard", "quick", "clear"],
+        "answer": 1,
+        "explanation": "'Easy' so'zining antonimi 'hard' (qiyin)."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Vocabulary",
+        "question": "Mos so'zni tanlang: She ... a lot of money to charity every year.",
+        "options": ["gives up", "gives away", "gives back", "gives in"],
+        "answer": 1,
+        "explanation": "'Give away' frazali fe'li xayriya qilmoq ma'nosini bildiradi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Vocabulary",
+        "question": "Mos so'zni tanlang: It is hard to ... up children nowadays.",
+        "options": ["take", "make", "bring", "put"],
+        "answer": 2,
+        "explanation": "'Bring up' frazali fe'li tarbiyalamoq degan ma'noni beradi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Vocabulary",
+        "question": "Mos so'zni tanlang: A person who writes books is a ... .",
+        "options": ["teacher", "doctor", "author", "plumber"],
+        "answer": 2,
+        "explanation": "Kitob yozuvchi kishi 'author' (muallif) deb ataladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Vocabulary",
+        "question": "Mos so'zni tanlang: Could you ... me a favor and open the door?",
+        "options": ["make", "do", "have", "take"],
+        "answer": 1,
+        "explanation": "'Do a favor' iborasi yaxshilik qilmoq degan ma'noni anglatadi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Vocabulary",
+        "question": "Mos so'zni tanlang: The plane will ... off in ten minutes.",
+        "options": ["take", "get", "put", "set"],
+        "answer": 0,
+        "explanation": "'Take off' frazali fe'li samolyotning parvoz qilishini bildiradi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Vocabulary",
+        "question": "Bosh harflar bilan yozilgan so'zning sinonimini toping: It was a FANTASTIC performance.",
+        "options": ["boring", "awful", "terrible", "wonderful"],
+        "answer": 3,
+        "explanation": "'Fantastic' sinonimi 'wonderful' hisoblanadi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Vocabulary",
+        "question": "Bosh harflar bilan yozilgan so'zning antonimini toping: The water in the river is very DEEP.",
+        "options": ["shallow", "high", "low", "wide"],
+        "answer": 0,
+        "explanation": "'Deep' so'zining antonimi 'shallow' (sayoz) bo'ladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Vocabulary",
+        "question": "Mos so'zni tanlang: He always ... mistakes in dictation.",
+        "options": ["does", "makes", "takes", "has"],
+        "answer": 1,
+        "explanation": "'Make a mistake' barqaror ibora bo'lib, xato qilmoq ma'nosida."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Mos so'zni tanlang: If it rains tomorrow, we ... at home.",
+        "options": ["stay", "would stay", "will stay", "stayed"],
+        "answer": 2,
+        "explanation": "1-turdagi shart ergash gap. Asosiy qismida Future Simple (will stay) ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Mos so'zni tanlang: If I ... a millionaire, I would buy an island.",
+        "options": ["am", "were", "had been", "will be"],
+        "answer": 1,
+        "explanation": "2-turdagi shart ergash gap. Barcha shaxslar uchun 'were' ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Mos so'zni tanlang: If she had studied harder, she ... the exam.",
+        "options": ["would pass", "will pass", "would have passed", "passed"],
+        "answer": 2,
+        "explanation": "3-turdagi shart ergash gap. Asosiy qismida 'would have + V3' qo'llaniladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Mos so'zni tanlang: We won't go to the park ... the weather is nice.",
+        "options": ["if", "unless", "when", "because"],
+        "answer": 1,
+        "explanation": "'Unless' so'zi 'if ... not' ma'nosini bildiradi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Mos so'zni tanlang: If you heat water to 100 degrees, it ... .",
+        "options": ["boiled", "boils", "would boil", "is boiling"],
+        "answer": 1,
+        "explanation": "0-turdagi shart ergash gap. Ikkala qismda ham Present Simple ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Mos keluvchi javobni tanlang: The letter ... yesterday.",
+        "options": ["is written", "was written", "has written", "writes"],
+        "answer": 1,
+        "explanation": "Majhul nisbatda (Passive Voice) Past Simple (was written) ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Mos keluvchi javobni tanlang: Many houses ... in our city every year.",
+        "options": ["are built", "built", "were built", "have built"],
+        "answer": 0,
+        "explanation": "Majhul nisbatda Present Simple 'are built' shakli tanlanadi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Mos keluvchi javobni tanlang: The room ... right now.",
+        "options": ["is cleaned", "is being cleaned", "was cleaned", "has cleaned"],
+        "answer": 1,
+        "explanation": "Majhul nisbatda hozirgi davom zamon 'is being cleaned' ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Mos keluvchi javobni tanlang: The book ... by Mark Twain in 1876.",
+        "options": ["wrote", "is written", "was written", "had written"],
+        "answer": 2,
+        "explanation": "O'tgan asrda, aniq vaqtda sodir bo'lgan (1876) va majhul nisbatda (was written)."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Mos keluvchi javobni tanlang: All the tickets ... before we arrived.",
+        "options": ["were sold", "had been sold", "are sold", "have been sold"],
+        "answer": 1,
+        "explanation": "O'tgan zamondagi voqeadan oldin yakunlangan harakat Past Perfect Passive orqali ifodalanadi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "O'zlashtirma gapning to'g'ri shaklini toping: He said, \"I am reading a book\".",
+        "options": ["He said that he is reading a book.", "He said that he was reading a book.", "He said that I was reading a book.", "He says that he was reading a book."],
+        "answer": 1,
+        "explanation": "Zamon bir pog'ona orqaga siljiydi (Present Continuous -> Past Continuous)."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "O'zlashtirma gapning to'g'ri shaklini toping: She asked, \"Where do you live?\"",
+        "options": ["She asked where do I live.", "She asked where did I live.", "She asked where I lived.", "She asked where I live."],
+        "answer": 2,
+        "explanation": "Maxsus so'roqli gaplarda yordamchi fe'l tushib qoladi va zamon moslashadi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "O'zlashtirma gapning to'g'ri shaklini toping: \"Don't open the window\", she said to him.",
+        "options": ["She told him to not open the window.", "She told him don't open the window.", "She told him not to open the window.", "She said him not to open the window."],
+        "answer": 2,
+        "explanation": "Inkor shakldagi buyruq o'zlashtirma gapda 'not to' orqali ifodalanadi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "O'zlashtirma gapning to'g'ri shaklini toping: \"I will call you tomorrow,\" he said.",
+        "options": ["He said he will call me tomorrow.", "He said he would call me tomorrow.", "He said he would call me the next day.", "He said he will call me the next day."],
+        "answer": 2,
+        "explanation": "'Will' 'would' ga, 'tomorrow' esa 'the next day' ga o'zgaradi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "O'zlashtirma gapning to'g'ri shaklini toping: The teacher asked, \"Have you finished?\"",
+        "options": ["The teacher asked if I had finished.", "The teacher asked if I have finished.", "The teacher asked whether had I finished.", "The teacher asked that I had finished."],
+        "answer": 0,
+        "explanation": "Umumiy so'roqli gaplar 'if' bilan bog'lanadi va zamon Past Perfect ga o'tadi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Mos olmoshni tanlang: I don't have ... money with me.",
+        "options": ["some", "any", "no", "nothing"],
+        "answer": 1,
+        "explanation": "Inkor gaplarda 'any' olmoshi ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Mos olmoshni tanlang: She cut ... while she was chopping vegetables.",
+        "options": ["herself", "himself", "itself", "myself"],
+        "answer": 0,
+        "explanation": "Ega 'She' bo'lgani uchun o'zlik olmoshi 'herself' ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos modal fe'lni qo'ying: You ... wear a uniform at school. It is a rule.",
+        "options": ["can", "may", "must", "might"],
+        "answer": 2,
+        "explanation": "Qat'iy qoida va majburiyatlarni ifodalash uchun 'must' ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Grammar",
+        "question": "Nuqtalar o'rniga mos modal fe'lni qo'ying: It is very cloudy. It ... rain later.",
+        "options": ["must", "can't", "might", "should"],
+        "answer": 2,
+        "explanation": "Kelajakdagi ehtimollikni ifodalash uchun 'might' ishlatiladi."
+    },
+    {
+        "subject": "ingliz",
+        "block": "mutaxassislik",
+        "topic": "Reading Comprehension",
+        "question": "Read the short text and answer: \"Tom usually gets up at 7 o'clock, but yesterday he got up at 8 because it was Sunday.\" Why did Tom get up later yesterday?",
+        "options": ["He was tired", "It was a weekday", "It was Sunday", "His alarm didn't ring"],
+        "answer": 2,
+        "explanation": "Matnda 'because it was Sunday' deb aniq berilgan."
+    }
+]

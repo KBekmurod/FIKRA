@@ -166,8 +166,10 @@ router.post('/document/stream',
 
       await ai.generateLongDocumentStream(prompt, format, maxPages, { removeWatermark: shouldRemoveWatermark, designPrompt }, res, async (fullContent, auditReport) => {
         try {
-          const titleMatch = fullContent.match(/^#\s+(.+)$/m);
-          const title = titleMatch ? titleMatch[1].trim() : (prompt.slice(0, 60) || 'Hujjat');
+          // Hujjat nomini to'g'ridan to'g'ri foydalanuvchi kiritgan mavzudan olamiz, 
+          // chunki AI ichidagi # H1 sarlavha "Kirish" kabi umumiy bo'lishi mumkin.
+          let title = prompt.trim();
+          if (title.length > 60) title = title.slice(0, 60) + '...';
     
           const documentService = require('../services/documentService');
           const file = await documentService.generateFile(format, title, fullContent, { removeWatermark: shouldRemoveWatermark });

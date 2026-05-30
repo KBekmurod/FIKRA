@@ -317,7 +317,7 @@ function FikraHistoryList({ primaryItems, miniItems, allTests, onClick }: {
           <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 8 }}>
             📋 DASTLABKI ISHLANGAN TESTLAR ({primaryItems.length})
           </div>
-          <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+          <div className="tests-list" style={{ marginBottom: 14 }}>
             {primaryItems.map(s => {
               const relatedMini = allTests.find(x => x.isMini && x.sourceTestId === s._id)
               return (
@@ -348,7 +348,7 @@ function FikraHistoryList({ primaryItems, miniItems, allTests, onClick }: {
             💡 Mini-test — dastlabki testdagi xatolaringizdan AI tomonidan
             yaratilgan o'rganish testi
           </div>
-          <div style={{ display: 'grid', gap: 8 }}>
+          <div className="tests-list">
             {miniItems.map(s => (
               <FikraTestCard key={s._id} session={s} onClick={() => onClick(s)} isMini />
             ))}
@@ -365,14 +365,21 @@ function FikraTestCard({ session: s, relatedMini, onClick, isMini }: {
   const pct = s.totalQuestions > 0 ? Math.round((s.totalCorrect / s.totalQuestions) * 100) : 0
   let metaText = ''
   if (s.testMode === 'blok' && s.blockSubject) {
-    const subj = (SUBJECTS as any)[s.blockSubject]
-    const dir = DIRECTION_NAMES[s.blockSubject]
-    if (dir) {
-      metaText = `Yo'nalish: ${dir.icon} ${dir.name}`
-    } else if (subj) {
-      metaText = `Yo'nalish: ${subj.icon} ${subj.name}`
+    if (s.blockSubject.startsWith('custom_')) {
+      const parts = s.blockSubject.slice(7).split('_')
+      metaText = 'Erkin tanlov: ' + parts.map(sid => {
+        const x = (SUBJECTS as any)[sid]; return x ? `${x.icon} ${x.name}` : sid
+      }).join(' + ')
     } else {
-      metaText = s.blockSubject
+      const subj = (SUBJECTS as any)[s.blockSubject]
+      const dir = DIRECTION_NAMES[s.blockSubject]
+      if (dir) {
+        metaText = `Yo'nalish: ${dir.icon} ${dir.name}`
+      } else if (subj) {
+        metaText = `Yo'nalish: ${subj.icon} ${subj.name}`
+      } else {
+        metaText = s.blockSubject
+      }
     }
   } else if (s.freeSubjects?.length) {
     metaText = 'Fanlar: ' + s.freeSubjects.map(sid => {
@@ -449,7 +456,7 @@ function AiHistoryList({ primaryItems, miniItems, allTests, onClick }: {
           <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, marginBottom: 8 }}>
             📋 DASTLABKI ISHLANGAN TESTLAR ({primaryItems.length})
           </div>
-          <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+          <div className="tests-list" style={{ marginBottom: 14 }}>
             {primaryItems.map(t => {
               const relatedMini = allTests.find(x => x.testType === 'mini' && x.sourceTestId === t._id)
               return (
@@ -480,7 +487,7 @@ function AiHistoryList({ primaryItems, miniItems, allTests, onClick }: {
             💡 Mini-test — dastlabki testdagi xatolaringizdan AI tomonidan
             yaratilgan o'rganish testi
           </div>
-          <div style={{ display: 'grid', gap: 8 }}>
+          <div className="tests-list">
             {miniItems.map(t => (
               <AiTestCard key={t._id} test={t} onClick={() => onClick(t)} isMini />
             ))}

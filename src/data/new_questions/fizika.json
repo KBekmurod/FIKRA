@@ -1,0 +1,702 @@
+[
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Qaysi kattalik vektor kattalik hisoblanadi?",
+    "options": [
+      "Massa",
+      "Vaqt",
+      "Tezlik",
+      "Uzunlik"
+    ],
+    "answer": 2,
+    "explanation": "Tezlik ham miqdorga, ham yo'nalishga ega bo'lganligi uchun vektor kattalikdir."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Nyutonning birinchi qonuni qanday ataladi?",
+    "options": [
+      "Inersiya qonuni",
+      "Ta'sir va aks ta'sir qonuni",
+      "Dinamika qonuni",
+      "Butuntun olam tortishish qonuni"
+    ],
+    "answer": 0,
+    "explanation": "Nyutonning birinchi qonuni inersiya qonuni deb nomlanadi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Jismning impulsini topish formulasi qaysi?",
+    "options": [
+      "p = m/v",
+      "p = m*v",
+      "p = m*a",
+      "p = v/m"
+    ],
+    "answer": 1,
+    "explanation": "Impuls jism massasi va tezligi ko'paytmasiga teng: p = m*v."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Kinetik energiya qanday hisoblanadi?",
+    "options": [
+      "E = mgh",
+      "E = kx^2 / 2",
+      "E = mv^2 / 2",
+      "E = mc^2"
+    ],
+    "answer": 2,
+    "explanation": "Harakatlanayotgan jismning kinetik energiyasi massasi va tezligi kvadrati ko'paytmasining yarmiga teng."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Yerdagi jismning potensial energiyasi formulasi qanday?",
+    "options": [
+      "E = mgh",
+      "E = mv",
+      "E = ma",
+      "E = Fs"
+    ],
+    "answer": 0,
+    "explanation": "Yer sirtidan h balandlikka ko'tarilgan jismning potensial energiyasi mgh formula bilan topiladi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Jism erkin tushayotganda uning tezlanishi qanday nomlanadi va taqriban nimaga teng?",
+    "options": [
+      "Markazga intilma tezlanish, 9.8 m/s^2",
+      "Erkin tushish tezlanishi, 9.8 m/s^2",
+      "Burchak tezlanish, 10 m/s^2",
+      "Tangensial tezlanish, 9.8 m/s^2"
+    ],
+    "answer": 1,
+    "explanation": "Erkin tushayotgan jism yerning tortish kuchi ta'sirida erkin tushish tezlanishi bilan harakatlanadi (g ≈ 9.8 m/s^2)."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Markazga intilma tezlanishni qaysi ifoda to'g'ri ko'rsatadi?",
+    "options": [
+      "a = v^2/R",
+      "a = v/R",
+      "a = R/v^2",
+      "a = v*R"
+    ],
+    "answer": 0,
+    "explanation": "Aylanma harakatda markazga intilma tezlanish a = v^2 / R orqali ifodalanadi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Mexanik ishning Xalqaro birliklar tizimida (SI) o'lchov birligi nima?",
+    "options": [
+      "Vatt",
+      "Nyuton",
+      "Joul",
+      "Paskal"
+    ],
+    "answer": 2,
+    "explanation": "Mexanik ish Joul (J) da o'lchanadi. 1 J = 1 N * 1 m."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Vaznsizlik holati qachon yuzaga keladi?",
+    "options": [
+      "Jism suv ostida qolganda",
+      "Jism tekis harakatlanganda",
+      "Erkin tushish jarayonida",
+      "Jism tinch turganda"
+    ],
+    "answer": 2,
+    "explanation": "Erkin tushayotgan jism tayanch yoki osilmaga ta'sir etmaydi va vaznsizlik holatida bo'ladi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Arximed kuchining formulasi qanday?",
+    "options": [
+      "F = m * g",
+      "F = rho * g * V",
+      "F = p * S",
+      "F = k * x"
+    ],
+    "answer": 1,
+    "explanation": "Suyuqlik yoki gazga botirilgan jismga ko'taruvchi Arximed kuchi ta'sir etadi: F = rho * g * V."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Elastik deformatsiyada kuchlanish bilan nisbiy uzayish o'rtasidagi bog'liqlik qaysi qonun?",
+    "options": [
+      "Paskal qonuni",
+      "Arximed qonuni",
+      "Guk qonuni",
+      "Boyl-Mariott qonuni"
+    ],
+    "answer": 2,
+    "explanation": "Guk qonuniga ko'ra, elastik deformatsiyada kuchlanish va deformatsiya to'g'ri proporsional."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Aylana bo'ylab tekis harakatlanayotgan jismning burchak tezligi qanday ifodalanadi?",
+    "options": [
+      "omega = v / R",
+      "omega = v * R",
+      "omega = R / v",
+      "omega = v^2 / R"
+    ],
+    "answer": 0,
+    "explanation": "Burchak tezligi chiziqli tezlikning aylana radiusiga nisbatiga teng (omega = v / R)."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Impulsning saqlanish qonuni qanday sharoitda bajariladi?",
+    "options": [
+      "Tashqi kuchlar ta'sir etganda",
+      "Yopiq tizimda",
+      "Issiqlik tarqalganda",
+      "Doimiy tezlanish bilan harakatlanganda"
+    ],
+    "answer": 1,
+    "explanation": "Impulsning saqlanish qonuni yopiq, tashqi ta'sirlardan holi tizimlar uchun o'rinlidir."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Sirpanish ishqalanish kuchining ifodasi qanday?",
+    "options": [
+      "F = m*a",
+      "F = k*x",
+      "F = mu * N",
+      "F = G * m1*m2/R^2"
+    ],
+    "answer": 2,
+    "explanation": "Sirpanish ishqalanish kuchi reaksiya kuchi va ishqalanish koeffitsiyentiga proporsional: F = mu * N."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Mexanika",
+    "question": "Burchak tezlanish o'lchov birligi nima?",
+    "options": [
+      "rad/s^2",
+      "rad/s",
+      "m/s^2",
+      "m/s"
+    ],
+    "answer": 0,
+    "explanation": "Burchak tezlanish (epsilon) bir soniyadagi burchak tezligi o'zgarishini ko'rsatadi, birligi rad/s^2."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Elektr zaryadining xalqaro o'lchov birligi nima?",
+    "options": [
+      "Amper",
+      "Volt",
+      "Kulon",
+      "Om"
+    ],
+    "answer": 2,
+    "explanation": "Elektr zaryadi Kulon (Kl) da o'lchanadi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Tok kuchi qanday ifodalanadi?",
+    "options": [
+      "I = U*R",
+      "I = q/t",
+      "I = P*U",
+      "I = E/R"
+    ],
+    "answer": 1,
+    "explanation": "Tok kuchi vaqt birligi ichida o'tgan zaryad miqdoriga teng: I = q/t."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Zanjirning bir qismi uchun Om qonuni qaysi?",
+    "options": [
+      "I = U/R",
+      "I = R/U",
+      "U = I/R",
+      "R = I*U"
+    ],
+    "answer": 0,
+    "explanation": "Om qonuniga ko'ra tok kuchi kuchlanishga to'g'ri, qarshilikka teskari proporsional."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Elektr maydon kuchlanganligining formulasi?",
+    "options": [
+      "E = F/q",
+      "E = U*d",
+      "E = q/F",
+      "E = W/q"
+    ],
+    "answer": 0,
+    "explanation": "Elektr maydon kuchlanganligi sinov zaryadiga ta'sir qiluvchi kuchning zaryadga nisbatiga teng."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Yassi kondensator sig'imi qanday topiladi?",
+    "options": [
+      "C = q/U",
+      "C = epsilon_0 * epsilon * S / d",
+      "C = W / U^2",
+      "C = R*I"
+    ],
+    "answer": 1,
+    "explanation": "Kondensator sig'imi qoplamalar yuzasi, oraliq masofa va dielektrik muhitga bog'liq: C = epsilon_0 * epsilon * S / d."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "O'zgarmas tokning quvvati qanday hisoblanadi?",
+    "options": [
+      "P = I*U",
+      "P = U/I",
+      "P = A/t",
+      "P = R*I"
+    ],
+    "answer": 0,
+    "explanation": "Elektr tokining quvvati tok kuchi va kuchlanish ko'paytmasiga teng."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Magnit maydon induksiyasi qaysi birlikda o'lchanadi?",
+    "options": [
+      "Veber",
+      "Genri",
+      "Tesla",
+      "Farada"
+    ],
+    "answer": 2,
+    "explanation": "Magnit maydon induksiyasi SI tizimida Tesla (T) hisoblanadi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Magnit maydonda harakatlanayotgan zaryadga ta'sir etuvchi kuch qanday ataladi?",
+    "options": [
+      "Amper kuchi",
+      "Kulon kuchi",
+      "Arximed kuchi",
+      "Lorens kuchi"
+    ],
+    "answer": 3,
+    "explanation": "Lorens kuchi magnit maydon tomonidan harakatlanayotgan elektr zaryadiga ta'sir etuvchi kuchdir."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Amper kuchi qanday hisoblanadi?",
+    "options": [
+      "F = q*v*B*sin(alfa)",
+      "F = I*B*l*sin(alfa)",
+      "F = m*a",
+      "F = k*q1*q2/r^2"
+    ],
+    "answer": 1,
+    "explanation": "Amper kuchi o'tkazgichdagi tok kuchi, magnit maydon induksiyasi va o'tkazgich uzunligiga bog'liq."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Elektromagnit induksiya hodisasini kim kashf etgan?",
+    "options": [
+      "Maykl Faradey",
+      "Nikola Tesla",
+      "Jeyms Maksvell",
+      "Genrix Gerts"
+    ],
+    "answer": 0,
+    "explanation": "Elektromagnit induksiya hodisasi 1831-yilda Maykl Faradey tomonidan ochilgan."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Joul-Lents qonunining matematik ifodasi?",
+    "options": [
+      "Q = I^2 * R * t",
+      "Q = U^2 / R",
+      "Q = I * U",
+      "Q = c * m * deltaT"
+    ],
+    "answer": 0,
+    "explanation": "O'tkazgichdan tok o'tganda ajralib chiquvchi issiqlik miqdori Q = I^2 * R * t ga teng."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Qarshiliklar ketma-ket ulanganda qaysi kattalik umumiy zanjir va har bir qism uchun bir xil bo'ladi?",
+    "options": [
+      "Kuchlanish",
+      "Tok kuchi",
+      "Qarshilik",
+      "Elektr sig'imi"
+    ],
+    "answer": 1,
+    "explanation": "Ketma-ket ulanishda zanjirning barcha qismlaridan bir xil miqdorda tok o'tadi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Lents qoidasi qanday maqsadlar uchun xizmat qiladi?",
+    "options": [
+      "Magnit maydon induksiyasini hisoblash",
+      "Induksion tok yo'nalishini topish",
+      "Lorens kuchini o'lchash",
+      "Elektr maydon kuchlanganligini topish"
+    ],
+    "answer": 1,
+    "explanation": "Lents qoidasi orqali yopiq konturda yuzaga keladigan induksion tok yo'nalishi aniqlanadi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Elektrodinamika",
+    "question": "Transformatorlarning asosiy vazifasi nima?",
+    "options": [
+      "Tok kuchini doimiy ushlab turish",
+      "O'zgaruvchan kuchlanishni o'zgartirish",
+      "O'zgarmas tokni o'zgaruvchanga aylantirish",
+      "Mexanik energiyani elektr energiyasiga aylantirish"
+    ],
+    "answer": 1,
+    "explanation": "Transformator o'zgaruvchan tok kuchlanishini oshirib yoki kamaytirib berish uchun ishlatiladi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Optika",
+    "question": "Yorug'likning vakuumdagi tezligi qanchaga teng?",
+    "options": [
+      "3 * 10^5 km/s",
+      "3 * 10^8 km/s",
+      "3 * 10^6 m/s",
+      "3 * 10^4 m/s"
+    ],
+    "answer": 0,
+    "explanation": "Yorug'lik vakuumda taqriban 3 * 10^5 km/s (yoki 3 * 10^8 m/s) tezlikda tarqaladi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Optika",
+    "question": "Yorug'lik qaytish qonuniga ko'ra quyidagilardan qaysi biri to'g'ri?",
+    "options": [
+      "Tushish burchagi sinish burchagidan doim katta",
+      "Tushish burchagi qaytish burchagiga teng",
+      "Qaytish burchagi tushish burchagidan yarmiga kam",
+      "Nurlar qaytishda tezligini yo'qotadi"
+    ],
+    "answer": 1,
+    "explanation": "Yorug'lik nurining sirtdan qaytish burchagi doimo uning tushish burchagiga teng bo'ladi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Optika",
+    "question": "Yupqa linza formulasini ko'rsating.",
+    "options": [
+      "D = 1/F = 1/d + 1/f",
+      "D = F*d*f",
+      "1/D = d + f",
+      "F = d - f"
+    ],
+    "answer": 0,
+    "explanation": "Linza formulasi 1/F = 1/d + 1/f dir, bunda F - fokus masofasi, d - buyumgacha masofa, f - tasvirgacha masofa."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Optika",
+    "question": "Muhitning absolyut sinish ko'rsatkichi nima?",
+    "options": [
+      "n = c/v",
+      "n = v/c",
+      "n = sin(alfa)*sin(beta)",
+      "n = F/d"
+    ],
+    "answer": 0,
+    "explanation": "Absolyut sinish ko'rsatkichi yorug'likning vakuumdagi va shu muhitdagi tezliklari nisbati bilan belgilanadi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Optika",
+    "question": "Optik kuch o'lchov birligi nima?",
+    "options": [
+      "Kandela",
+      "Dioptriya",
+      "Lyuks",
+      "Radian"
+    ],
+    "answer": 1,
+    "explanation": "Linzaning optik kuchi Dioptriya bilan o'lchanadi (1 dptr = 1 m^-1)."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Optika",
+    "question": "Dispersiya qanday hodisa?",
+    "options": [
+      "To'siqlarni aylanib o'tish",
+      "Oq yorug'likning ranglarga ajralishi",
+      "Yorug'lik to'lqinlarining so'nishi",
+      "To'lqinlarning kuchayishi"
+    ],
+    "answer": 1,
+    "explanation": "Muhitning sinish ko'rsatkichi nurning chastotasiga bog'liqligi sababli yorug'lik rangli spektrga ajraladi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Optika",
+    "question": "Interferensiya yuzaga kelishi uchun to'lqinlar qanday bo'lishi kerak?",
+    "options": [
+      "Turli xil chastotali",
+      "Kogerent",
+      "Yuqori chastotali",
+      "Issiqlik nurlari"
+    ],
+    "answer": 1,
+    "explanation": "Faqat kogerent, ya'ni bir xil chastotali va fazalar farqi doimiy to'lqinlargina chidamli interferensiya manzarasi hosil qiladi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Optika",
+    "question": "Yorug'likning to'g'ri chiziqli tarqalishdan chetga chiqishi qanday nomlanadi?",
+    "options": [
+      "Difraksiya",
+      "To'liq ichki qaytish",
+      "Dispersiya",
+      "Polarizatsiya"
+    ],
+    "answer": 0,
+    "explanation": "To'lqinlarning o'lchami to'lqin uzunligi tartibidagi to'siqlarni aylanib o'tish hodisasi difraksiya deyiladi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Optika",
+    "question": "Yorug'likning to'liq ichki qaytishi qanday shartda yuz beradi?",
+    "options": [
+      "Optik zichligi kamroq muhitdan zichrog'iga o'tganda",
+      "Optik zichligi kattaroq muhitdan kamrog'iga o'tganda",
+      "Bir xil zichlikdagi muhitlarda",
+      "Sinish ko'rsatkichi noldan kichik bo'lganda"
+    ],
+    "answer": 1,
+    "explanation": "Optik zich muhitdan siyrakroq muhitga o'tayotgan nur chegaraviy burchakdan katta burchak ostida tushsa to'liq ichki qaytadi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Optika",
+    "question": "Inson ko'zining to'r pardasida qanday tasvir hosil bo'ladi?",
+    "options": [
+      "Mavhum, to'g'ri, kichraygan",
+      "Haqiqiy, teskari, kichraygan",
+      "Haqiqiy, to'g'ri, kattalashgan",
+      "Mavhum, teskari, o'zgarmas"
+    ],
+    "answer": 1,
+    "explanation": "Ko'zning optik sistemasi orqali to'r pardada tasvir haqiqiy, teskari va kichraygan ko'rinishda tushadi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Kvant fizikasi",
+    "question": "Fotonning energiyasini qanday topish mumkin?",
+    "options": [
+      "E = h * nu",
+      "E = m * c^2",
+      "E = p^2 / 2m",
+      "E = k * x^2 / 2"
+    ],
+    "answer": 0,
+    "explanation": "Plank gipotezasiga binoan foton energiyasi elektromagnit tebranishlar chastotasiga mutanosibdir (E = h * nu)."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Kvant fizikasi",
+    "question": "Fotoeffekt deb ataluvchi hodisa nimadan iborat?",
+    "options": [
+      "Nurning yutilishi",
+      "Yorug'lik nuri ta'sirida moddadan elektronlarning ajralib chiqishi",
+      "Elektronlar qo'shilib yorug'lik tarqatishi",
+      "Magnit maydonida elektronlar tezlashishi"
+    ],
+    "answer": 1,
+    "explanation": "Fotoeffekt bu – yorug'lik ta'sirida moddadan zaryadli zarralar (elektronlar) uzib olinishi hodisasi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Kvant fizikasi",
+    "question": "Fotoeffekt hodisasi uchun Eynshteyn tenglamasini ko'rsating.",
+    "options": [
+      "h * nu = A_chiqish + m * v^2 / 2",
+      "h * nu = m * c^2",
+      "E = p * c",
+      "F = k * q / r^2"
+    ],
+    "answer": 0,
+    "explanation": "Eynshteyn fotoeffekt tenglamasi yutilgan yorug'lik energiyasi elektronni chiqarish ishiga va kinetik energiyasiga sarflanishini ko'rsatadi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Kvant fizikasi",
+    "question": "Atomning sayyoraviy modelini fanga kim kiritgan?",
+    "options": [
+      "J. Tomson",
+      "E. Rezerford",
+      "N. Bor",
+      "A. Bekkerel"
+    ],
+    "answer": 1,
+    "explanation": "1911-yilda Rezerford atomning markazida yadro joylashgan va atrofida elektronlar sayyora kabi aylanuvchi modelni taklif qilgan."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Kvant fizikasi",
+    "question": "Tabiiy radioaktivlik hodisasini kim kashf etgan?",
+    "options": [
+      "A. Eynshteyn",
+      "M. Kyuri",
+      "A. Bekkerel",
+      "V. Rentgen"
+    ],
+    "answer": 2,
+    "explanation": "Tabiiy radioaktivlik 1896 yilda Antuan Anri Bekkerel tomonidan uran tuzlarini o'rganishda aniqlangan."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Kvant fizikasi",
+    "question": "Yarim yemirilish davri nima degani?",
+    "options": [
+      "Yadrolar massasi nolgacha kamayishi vaqti",
+      "Dastlabki yadrolarning teng yarmi radioaktiv yemirilishi uchun o'tadigan vaqt",
+      "Radioaktiv zarrachalarning tarqalish tezligi",
+      "Atom o'z-o'zidan yangilanishi"
+    ],
+    "answer": 1,
+    "explanation": "Yarim yemirilish davri radioaktiv moddaning jami yadrolaridan aynan yarmi yemirilishi uchun kerak bo'lgan vaqt qismini bildiradi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Kvant fizikasi",
+    "question": "Alfa zarra o'zidan nimani namoyon qiladi?",
+    "options": [
+      "GeliY atomining yadrosini",
+      "Tormozlanuvchi elektronlarni",
+      "O'ta tez harakatlanuvchi neytronlarni",
+      "Vodorod molekulasini"
+    ],
+    "answer": 0,
+    "explanation": "Alfa zarracha ikkita proton va ikkita neytrondan tashkil topgan geliy atomining yadrosidir."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Kvant fizikasi",
+    "question": "Borning birinchi postulatida qanday qoida yoritilgan?",
+    "options": [
+      "Atom faqat issiqlik o'tkazadi",
+      "Elektron doimo elektromagnit to'lqin tarqatadi",
+      "Atom qat'iy ma'lum orbitalarda harakatlanganda energiya nurlatmaydi",
+      "Yadro o'z og'irligini o'zgartiradi"
+    ],
+    "answer": 2,
+    "explanation": "Bor postulatiga asosan, elektron maxsus ruxsat etilgan statsionar holatlarda (orbitalarda) aylanganda energiya tarqatmaydi."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Kvant fizikasi",
+    "question": "Yadro kuchlari qanday o'ziga xoslikka ega?",
+    "options": [
+      "Uzoq masofalarda seziluvchi elektr kuch",
+      "Qisqa masofaga ta'sir etuvchi o'ta kuchli tortishish kuchi",
+      "Zaryadga bog'liq kuchlar",
+      "Faqat protonlar orasidagi kuch"
+    ],
+    "answer": 1,
+    "explanation": "Yadroviy kuchlar o'ta qisqa radiusga ega (taxminan yadro o'lchamida) va qattiq tortishish hisoblanadi (nuklonlar orasida)."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Kvant fizikasi",
+    "question": "Izotoplar deb nimaga aytiladi?",
+    "options": [
+      "Neytronlar soni bir xil, protonlari turlicha elementlar",
+      "Protonlar (zaryad) soni bir xil, ammo neytronlari soni turli xil elementlar",
+      "Tarkibida elektron bo'lmagan ionlar",
+      "Faqat laboratoriyada olingan elementlar"
+    ],
+    "answer": 1,
+    "explanation": "Izotoplar bu bir xil kimyoviy xossaga ega bo'lgan, ammo atom massasi (neytronlar soni) bilan farq qiluvchi atomlardir."
+  },
+  {
+    "subject": "fizika",
+    "block": "mutaxassislik",
+    "topic": "Kvant fizikasi",
+    "question": "Yorug'likning elementar zarrasi, ya'ni kvanti qanday nomlanadi?",
+    "options": [
+      "Neytron",
+      "Foton",
+      "Proton",
+      "Pozitron"
+    ],
+    "answer": 1,
+    "explanation": "Yorug'lik kvanti yoki elektromagnit maydon zarrasi foton deb ataladi."
+  }
+]

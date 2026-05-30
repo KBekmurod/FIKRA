@@ -1,0 +1,516 @@
+import json
+import os
+
+questions = [
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "Qaysi o'simlikning oziq moddalari asosan ildizmevasida to'planadi va iste'mol qilinadi?",
+        "options": ["Sabzi", "Kartoshka", "Piyoz", "Pomidor"],
+        "answer": 0,
+        "explanation": "Sabzi ikki yillik o'simlik bo'lib, birinchi yili uning ildizmevasida oziq moddalar to'planadi. Kartoshka tugunak, piyoz esa piyozbosh orqali oziq to'playdi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "Qaysi o'simlik spora orqali ko'payadi?",
+        "options": ["Qirqquloq", "Olma", "Bug'doy", "O'rik"],
+        "answer": 0,
+        "explanation": "Qirqquloqlar (paporotniklar) yuksak sporali o'simliklar hisoblanib, ular urug' emas, balki spora orqali ko'payadi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "O'simlik hujayrasiga qattiqlik va mustahkamlik beruvchi qismi qaysi?",
+        "options": ["Hujayra devori", "Yadro", "Sitoplazma", "Vakuola"],
+        "answer": 0,
+        "explanation": "O'simlik hujayrasining devori (qobig'i) asosan kletchatkadan (sellyuloza) iborat bo'lib, unga doimiy shakl va mustahkamlik beradi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "Fotosintez jarayoni o'simlikning asosan qaysi organida kechadi?",
+        "options": ["Barg", "Ildiz", "Poya", "Gul"],
+        "answer": 0,
+        "explanation": "Barg hujayralarida xloroplastlar bo'lib, quyosh nuri yordamida karbonat angidrid va suvdan organik modda sintez qilish (fotosintez) asosan shu yerda yuz beradi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "Gulli o'simliklarning urug'chisi qanday qismlardan iborat?",
+        "options": ["Tumshuqcha, ustuncha va tuguncha", "Changdon va chang ipi", "Kosachabarglar va tojbarglar", "Tuguncha va gultojibarglar"],
+        "answer": 0,
+        "explanation": "Urug'chi gulning urg'ochi a'zosi bo'lib, changni qabul qiluvchi tumshuqcha, uni tugunchaga tutashtiruvchi ustuncha va urug'kurtak saqlovchi tugunchadan iborat."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "Oddiy barg deb qanday bargga aytiladi?",
+        "options": ["Bir bandda faqat bitta yaproq bo'lsa", "Bir bandda bir nechta yaproq bo'lsa", "Barglari poyani to'liq o'rab olsa", "Faqat bitta tomirga ega bo'lsa"],
+        "answer": 0,
+        "explanation": "Barg bandida faqatgina bitta yaproq joylashgan bo'lsa (masalan, olma, o'rik, tut barglari) u oddiy barg deyiladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "Qaysi o'simlik piyozboshi yordamida vegetativ ko'payadi?",
+        "options": ["Lola", "Qulupnay", "Kartoshka", "Gilos"],
+        "answer": 0,
+        "explanation": "Lola va boshqa piyozli o'simliklar (masalan, boychechak) o'zgartirilgan yerosti novdasi – piyozbosh orqali ko'payadi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "Dala qirqbo'g'imining bahorgi novdasi qanday vazifani bajaradi?",
+        "options": ["Spora hosil qilish", "Fotosintez jarayoni", "Ildizpoyani oziqlantirish", "Suv zaxirasini saqlash"],
+        "answer": 0,
+        "explanation": "Qirqbo'g'imning bahorgi qizg'ish novdasining uchida spora saqlovchi boshoqcha hosil bo'lib, uning vazifasi ko'payish uchun spora yetishtirishdir."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "Zangamburug' tabiatda qanday hayot kechiradi?",
+        "options": ["O'simliklarda parazitlik qiladi", "Erkin yashaydi", "Azotni o'zlashtiradi", "Fotosintez orqali oziqlanadi"],
+        "answer": 0,
+        "explanation": "Zangamburug' asosan g'allagullilarga (bug'doy, arpa) hujum qilib, zang kasalligini keltirib chiqaruvchi xavfli parazit zamburug'dir."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "Suvo'tlar nima sababdan tuban o'simliklar guruhiga kiritiladi?",
+        "options": ["Tanasi to'qima va organlarga ixtisoslashmaganligi uchun", "Suvda yashagani uchun", "Urug'i yo'qligi uchun", "Yashil rangga ega bo'lmagani uchun"],
+        "answer": 0,
+        "explanation": "Tuban o'simliklar (suvo'tlar)ning tanasi haqiqiy ildiz, poya va barg kabi organlarga hamda maxsus to'qimalarga ajralmagan qatlamdan (tallomdan) iborat."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "Karamdoshlar (Xochgullilar) oilasining gul formulasi qanday?",
+        "options": ["K4T4Ch4+2U1", "K(5)T(5)Ch5U1", "K5T5Ch(o)U1", "K3T3Ch6U1"],
+        "answer": 0,
+        "explanation": "Karamdoshlar gulining kosachabargi 4 ta, tojbargi 4 ta xochsimon joylashgan, changchisi 6 ta (4 ta uzun, 2 ta qisqa) va urug'chisi 1 ta."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "Urug'li o'simliklar ichida qaysi guruh eng yuqori takomillashgan hisoblanadi?",
+        "options": ["Yopiq urug'lilar (Gulli o'simliklar)", "Ochiq urug'lilar", "Qirqquloqlar", "Yo'sinlar"],
+        "answer": 0,
+        "explanation": "Gulli o'simliklar (yopiq urug'lilar) evolyutsion jihatdan eng taraqqiy etgan guruh bo'lib, ularda gul va meva hosil bo'lishi kuzatiladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Qaysi hayvon Soxta oyoqlilar sinfiga kiradi?",
+        "options": ["Oddiy amyoba", "Yashil evglena", "Tufelka", "Gidra"],
+        "answer": 0,
+        "explanation": "Oddiy amyoba soxta oyoqlar hosil qilib harakatlanadigan bir hujayrali (sarkodinali) hayvon hisoblanadi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Chuchuk suv gidrasining tanasi qanday hujayra qavatlaridan tashkil topgan?",
+        "options": ["Ektoderma va endoderma", "Faqat ektoderma", "Faqat endoderma", "Ektoderma, mezoderma va endoderma"],
+        "answer": 0,
+        "explanation": "Gidralar tuban ko'p hujayrali (bo'shliqichlilar) hayvonlar bo'lib, tanasi tashqi ektoderma va ichki endoderma qavatlaridan iborat ikki qavatlidir."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Qon aylanish sistemasi hayvonot dunyosida ilk bor qaysi tip vakillarida paydo bo'lgan?",
+        "options": ["Halqali chuvalchanglar", "Yassi chuvalchanglar", "Bo'g'imoyoqlilar", "Molluskalar"],
+        "answer": 0,
+        "explanation": "Qon aylanish tizimi evolyutsiyada birinchi marta halqali chuvalchanglarda paydo bo'lgan (yopiq qon aylanish sistemasi shaklida)."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Hasharotlarning asosiy nafas olish organi nima?",
+        "options": ["Traxeyalar", "O'pkalar", "Jabralar", "Teri"],
+        "answer": 0,
+        "explanation": "Hasharotlar tanasining ichiga kirib boruvchi tarmoqlangan naychalar tizimi bo'lgan traxeyalar yordamida nafas oladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Suyakli baliqlarning yuragi necha kamerali?",
+        "options": ["2 kamerali", "3 kamerali", "4 kamerali", "1 kamerali"],
+        "answer": 0,
+        "explanation": "Baliqlarning yuragi bitta qorincha va bitta bo'lmachadan iborat 2 kamerali bo'lib, faqat bitta qon aylanish doirasiga ega."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Suvda va quruqlikda yashovchilarning (amfibiyalar) yuragi necha kamerali?",
+        "options": ["3 kamerali", "2 kamerali", "4 kamerali", "Kamerali yuragi yo'q"],
+        "answer": 0,
+        "explanation": "Amfibiyalar (masalan baqalar)ning yuragi ikkita bo'lmacha va bitta qorinchadan iborat bo'lib, 3 kamerali hisoblanadi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Qaysi qush ucholmaydi va unda to'sh suyagi qirrasi (kil) rivojlanmagan?",
+        "options": ["Afrika tuyaqushi", "Burgut", "Laylak", "Kaptar"],
+        "answer": 0,
+        "explanation": "Tuyaqushlar evolution jihatdan uchish qobiliyatini yo'qotgan va shu sababli uchish muskullari yopishadigan to'sh suyagi qirrasi (kil) ham ularda rivojlanmagan."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Sutemizuvchilar sinfi vakillarining ko'pchiligida bo'yin umurtqalari soni nechta bo'ladi?",
+        "options": ["7 ta", "5 ta", "12 ta", "9 ta"],
+        "answer": 0,
+        "explanation": "Sutemizuvchilar uchun 7 ta bo'yin umurtqasining mavjudligi xos belgilardan biridir, bu sichqondan tortib jirafagacha deyarli barchada bir xil."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Kemiruvchilarning tish sistemasi qanday maxsus xususiyatga ega?",
+        "options": ["Kurak tishlari doimiy o'sib boradi", "Barcha tishlari tez tushib yangilanadi", "Faqat qoziq tishlari yaxshi rivojlangan", "Ularda oziqni chaynash uchun maxsus tishlar yo'q"],
+        "answer": 0,
+        "explanation": "Kemiruvchilarning tepa va pastki jag'laridagi ikkitadan kurak tishlari ildizsiz bo'lib, hayoti davomida doim o'sib boradi va oziq kemirish orqali yeyilib qisqaradi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Odam askaridasi (to'garak chuvalchang) qanday muhitda yashaydi?",
+        "options": ["Odamning ingichka ichagida parazitlik qiladi", "Chuchuk suv havzalarida", "Odam qonida", "O'simliklar ildizida"],
+        "answer": 0,
+        "explanation": "Odam askaridasi to'garak chuvalchanglar tipiga kiruvchi parazit bo'lib, uning voyaga yetgan davri odamning ingichka ichagida yashaydi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "O'rgimchaksimonlarning nechta juft yurish oyoqlari bor?",
+        "options": ["4 juft (8 ta)", "3 juft (6 ta)", "5 juft (10 ta)", "2 juft (4 ta)"],
+        "answer": 0,
+        "explanation": "Barcha o'rgimchaksimonlar sinfi vakillarida tanasining boshko'krak qismida joylashgan 4 juft (8 ta) yurish oyoqlari mavjud."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Kapalaklarning rivojlanishi qanday ketma-ketlikda kechadi?",
+        "options": ["Tuxum -> lichinka (qurt) -> g'umbak -> yetuk hasharot", "Tuxum -> lichinka -> yetuk hasharot", "Tuxum -> g'umbak -> lichinka", "Metamorfozsiz to'g'ridan-to'g'ri"],
+        "answer": 0,
+        "explanation": "Kapalaklar to'liq o'zgarish (metamorfoz) bilan rivojlanadigan hasharotlar guruhiga kiradi va ularning sikli tuxum, qurt, g'umbak hamda imagodan iborat."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Xordalilar tipining barcha vakillari uchun xos bo'lgan asosiy belgi nima?",
+        "options": ["Tana o'qini tashkil etuvchi xordaning mavjudligi", "Xitin qoplamining bo'lishi", "Tanasining segmentlarga bo'linishi", "Tashqi skeletining bo'lishi"],
+        "answer": 0,
+        "explanation": "Barcha xordalilar ontogenezining ma'lum bir bosqichida tana bo'ylab o'tuvchi elastik tayan o'q – xordaga ega bo'ladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Odam skeletida jami nechta umurtqa suyaklari bor?",
+        "options": ["33-34 ta", "12 ta", "24 ta", "7 ta"],
+        "answer": 0,
+        "explanation": "Odam umurtqa pog'onasi 7 ta bo'yin, 12 ta ko'krak, 5 ta bel, 5 ta dumg'aza va 4-5 ta dum umurtqalaridan iborat bo'lib, jami 33-34 tani tashkil etadi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Odamning qaysi qon guruhida qizil qon tanachalarida (eritrotsitlarda) agglyutinogenlar mavjud emas?",
+        "options": ["I guruh (0)", "II guruh (A)", "III guruh (B)", "IV guruh (AB)"],
+        "answer": 0,
+        "explanation": "Birinchi (0) qon guruhida eritrotsitlar tarkibida A va B agglyutinogenlari umuman bo'lmaydi, shuning uchun bu guruh umumiy donor hisoblanadi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Odam yuragidan katta qon aylanish doirasi qayerdan boshlanadi?",
+        "options": ["Chap qorincha", "O'ng qorincha", "Chap bo'lmacha", "O'ng bo'lmacha"],
+        "answer": 0,
+        "explanation": "Katta qon aylanish doirasi yurakning chap qorinchasidan eng yirik arteriya qon tomiri — aorta orqali arterial qon bilan boshlanadi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Ovqat hazm qilish sistemasining qaysi qismida oziq moddalar asosan qon va limfaga so'riladi?",
+        "options": ["Ingichka ichak", "Yo'g'on ichak", "Qizilo'ngach", "Oshqozon"],
+        "answer": 0,
+        "explanation": "Ingichka ichak devorida juda ko'p miqdorda vorsinkalar joylashgan bo'lib, ular orqali parchalangan ozuqa moddalari qon va limfaga so'riladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Odam tanasida joylashgan eng yirik bez qaysi?",
+        "options": ["Jigar", "Oshqozon osti bezi", "Qalqonsimon bez", "Gipofiz"],
+        "answer": 0,
+        "explanation": "Jigar inson tanasidagi eng yirik tana a'zosi va bez (tashqi sekretsiya) bo'lib, o't ishlab chiqaradi va zaharli moddalarni zararsizlantiradi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Nafas olish mexanizmida qaysi muskullar asosiy vazifani bajaradi?",
+        "options": ["Qovurg'alararo muskullar va diafragma", "Qorin muskullari", "Orqa muskullar", "Bo'yin muskullari"],
+        "answer": 0,
+        "explanation": "Nafas olish tashqi qovurg'alararo muskullar va ko'krak qafasini qorin bo'shlig'idan ajratib turuvchi muskul – diafragmaning qisqarishi natijasida yuz beradi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Odamning markaziy nerv sistemasiga nimalar kiradi?",
+        "options": ["Bosh miya va orqa miya", "Nerv tugunlari va nerv tolalari", "Somatik nerv sistemasi", "Faqat bosh miya"],
+        "answer": 0,
+        "explanation": "Markaziy nerv sistemasi kalla suyagi qutisi ichida joylashgan bosh miya va umurtqa pog'onasi kanalida joylashgan orqa miyadan tashkil topgan."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Ko'zning yorug'lik nurlarini sezuvchi (retseptorlari joylashgan) qavati qaysi?",
+        "options": ["To'rparda (retina)", "Muguz parda", "Ko'z gavhari", "Rangdor parda"],
+        "answer": 0,
+        "explanation": "Ko'zning to'rpardasida yorug'likka sezgir retseptor hujayralar — tayoqchalar va kolbachalar bo'lib, ular yorug'likni nerv impulsiga aylantiradi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Odam qulog'ining qaysi qismida eshitish retseptorlari joylashgan?",
+        "options": ["Ichki quloqdagi chig'anoqda", "Nog'ora pardasida", "Eshitish suyakchalarida", "O'rta quloq bo'shlig'ida"],
+        "answer": 0,
+        "explanation": "Ichki quloqda suyak labirintida joylashgan chig'anoq bo'shlig'ida maxsus tukchali hujayralar (Korti organi) eshitish retseptorlari bo'lib xizmat qiladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Odam terisining qaysi qavati unga rang beruvchi melanin pigmentini saqlaydi?",
+        "options": ["Epidermis", "Derma (chin teri)", "Teri osti yog' qatlami", "Ter bezlari"],
+        "answer": 0,
+        "explanation": "Terining eng ustki qismi – epidermisning o'suvchi qatlamidagi hujayralarda melanin pigmenti ishlab chiqariladi va teriga rang beradi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Buyrakning qonni filtrlab, siydik hosil qiluvchi asosiy tuzilmaviy birligi nima?",
+        "options": ["Nefron", "Alveola", "Neyron", "Osteon"],
+        "answer": 0,
+        "explanation": "Buyraklarning asosiy tuzilish va ishlash birligi nefronlardir. Har bir buyrakda bir million atrofida nefron bo'ladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Gormonlarni bevosita qonga ajratuvchi, o'zining xususiy chiqarish nayiga ega bo'lmagan bezlar nima deyiladi?",
+        "options": ["Ichki sekretsiya (endokrin) bezlari", "Tashqi sekretsiya (ekzokrin) bezlari", "Aralash bezlar", "So'lak bezlari"],
+        "answer": 0,
+        "explanation": "Endokrin bezlar (masalan, gipofiz, qalqonsimon bez) maxsus ishlab chiqargan faol moddalarini — gormonlarni bevosita qon oqimiga chiqaradi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Bolalarda kalsiy va fosfor almashinuvining buzilishi va suyaklarning qiyshayishi (raxit) qaysi vitamin yetishmasligi oqibatida kelib chiqadi?",
+        "options": ["D vitamini", "C vitamini", "A vitamini", "B1 vitamini"],
+        "answer": 0,
+        "explanation": "D vitamini organizmda kalsiy hamda fosfor moddalarini suyak to'qimasida so'rilishini ta'minlaydi. Yetishmasa suyaklar yumshab, raxit kasalligi yuzaga keladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Genetika",
+        "question": "Mendelning birinchi qonuni qanday ataladi?",
+        "options": ["Birinchi bo'g'in duragaylarining bir xillik qonuni", "Belgilarning ajralish qonuni", "Mustaqil holda irsiylanish qonuni", "Tirkashib irsiylanish qonuni"],
+        "answer": 0,
+        "explanation": "G. Mendel tajribasida toza gomozigota liniyalar chatishtirilganda, F1 bo'g'inda barcha duragaylar dominant belgi bilan namoyon bo'lishi (bir xillik) kashf etilgan."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Genetika",
+        "question": "Odamda jinsiy xromosomalar (gonosomalar) qanday belgilanadi?",
+        "options": ["Ayollarda XX, erkaklarda XY", "Ayollarda XY, erkaklarda XX", "Ikkalasida ham XX", "Ayollarda ZZ, erkaklarda ZW"],
+        "answer": 0,
+        "explanation": "Odamlarda sutemizuvchilarga xos ravishda urg'ochi jins gomogametali (XX) bo'lsa, erkak jins geterogametali (XY) xromosoma to'plamiga ega."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Genetika",
+        "question": "RNK molekulasida DNKdan farqli o'laroq qaysi azotli asos qatnashadi?",
+        "options": ["Urasil", "Timin", "Adenin", "Guanin"],
+        "answer": 0,
+        "explanation": "DNK da 4 turdagi azotli asos: adenin, guanin, sitozin va timin qatnashsa, RNKda timinning o'rnini urasil (U) egallaydi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Genetika",
+        "question": "Hujayra bo'linishining (mitoz) qaysi fazasida xromosomalar hujayra ekvatori bo'ylab tekis joylashadi?",
+        "options": ["Metafaza", "Anafaza", "Profaza", "Telofaza"],
+        "answer": 0,
+        "explanation": "Mitozning metafaza bosqichida xromosomalar spirallashishi eng yuqori nuqtaga yetib, ular hujayraning ekvatorial tekisligida 'metafaza plastinkasi'ni hosil qiladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Genetika",
+        "question": "Genetik kodning 'tripletlik' xususiyati nima degani?",
+        "options": ["Har bir aminokislota DNKdagi ketma-ket joylashgan 3 ta nukleotid orqali kodlanishi", "Kodni faqat uch xil turdagi organizmlar ishlata olishi", "Nukleotidlar uch xil turda bo'lishi", "Oqsillar doim uchta gen orqali kodlanishi"],
+        "answer": 0,
+        "explanation": "Genetik axborot 3 ta nukleotiddan iborat guruh (kodon yoki triplet) shaklida yozilgan bo'lib, har bir triplet bitta ma'lum aminokislotaga to'g'ri keladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Genetika",
+        "question": "Organizmdagi genotip o'zgarmagan holda atrof-muhit ta'sirida fenotipning o'zgarishi nima deyiladi?",
+        "options": ["Modifikatsion (fenotipik) o'zgaruvchanlik", "Mutatsion o'zgaruvchanlik", "Kombinativ o'zgaruvchanlik", "Ontogenez"],
+        "answer": 0,
+        "explanation": "Muhit ta'sirida organizm belgilarining genotip ta'sir doirasida (reaksiya normasi) o'zgarishi modifikatsion o'zgaruvchanlik deyiladi. Bu nasldan-naslga o'tmaydi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Genetika",
+        "question": "Mutatsiya deb qanday jarayonga aytiladi?",
+        "options": ["Genetik materialning to'satdan va barqaror, nasldan naslga o'tuvchi o'zgarishiga", "Tashqi muhit ta'siridagi vaqtinchalik fenotipik o'zgarishga", "Duragaylash natijasida genlarning qayta guruhlanishiga", "Organizmning qarishi natijasidagi o'zgarishlarga"],
+        "answer": 0,
+        "explanation": "Mutatsiya — xromosomalar tuzilishi yoki DNK ketma-ketligining kutilmaganda barqaror o'zgarishi bo'lib, u keyingi avlodga uzatilishi mumkin."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Genetika",
+        "question": "Hujayrada oqsillar biosintezi jarayoni qaysi organoidda amalga oshadi?",
+        "options": ["Ribosoma", "Mitoxondriya", "Golji majmuasi", "Lizosoma"],
+        "answer": 0,
+        "explanation": "Ribosomalar i-RNK dagi axborot (matritsa) asosida t-RNK tashiydigan aminokislotalardan polipeptid zanjir, ya'ni oqsil yig'ish vazifasini bajaradi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Umumiy biologiya",
+        "question": "Populyatsiya nima?",
+        "options": ["Bir turga mansub, umumiy hududni egallagan va o'zaro erkin chatishadigan individlar yig'indisi", "Bir hududda yashovchi turli turlarga mansub organizmlar majmuasi", "Faqat o'simlik va hayvonlar jamoasi", "Organizm ichidagi hujayralar to'plami"],
+        "answer": 0,
+        "explanation": "Populyatsiya (lot. populus - xalq) — ma'lum bir areal (hudud) doirasida uzoq vaqt yashovchi, o'zaro chatishib serpusht nasl qoldiruvchi bir tur individlari guruhidir."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Umumiy biologiya",
+        "question": "R. Lindeman (Ekologik piramida) qoidasiga ko'ra oziq zanjirining keyingi pog'onasiga energiyaning o'rtacha qancha qismi o'tadi?",
+        "options": ["Taxminan 10%", "50% dan ortig'i", "100%", "Atigi 1%"],
+        "answer": 0,
+        "explanation": "Oziq zanjiri (trofik zanjir) bo'ylab har bir pog'onadan (darajadan) keyingisiga energiya o'tishida uning 90% qismi sarflanib yo'qotiladi, faqatgina taxminan 10% gina o'zlashtiriladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Umumiy biologiya",
+        "question": "Ch. Darvin ta'limotiga ko'ra, evolyutsiyaning asosiy harakatlantiruvchi va yo'naltiruvchi kuchi nima?",
+        "options": ["Tabiiy tanlanish", "Irsiyat", "O'zgaruvchanlik", "Kombinatsiya"],
+        "answer": 0,
+        "explanation": "Darvinga ko'ra, irsiyat va o'zgaruvchanlik evolyutsiya uchun xomashyo vazifasini bajaradi, tabiiy tanlanish esa u yoki bu moslashgan individlarning saqlanib qolishini ta'minlovchi harakatlantiruvchi kuchdir."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Umumiy biologiya",
+        "question": "Biosfera (Yerning tirik qobig'i) haqidagi ta'limotning asoschisi kim?",
+        "options": ["V.I. Vernadskiy", "Ch. Darvin", "G. Mendel", "J.B. Lamark"],
+        "answer": 0,
+        "explanation": "Rus olimi akademik Vladimir Ivanovich Vernadskiy Yerdagi barcha tirik organizmlar yig'indisi va ular o'zgartirgan geologik qobiq — Biosfera haqidagi ta'limotga asos solgan."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Qushlar ovqat hazm qilish sistemasining o'ziga xosligi nimada?",
+        "options": ["Ularda tishlar yo'q va oshqozoni ikki bo'limga bo'lingan", "Ularning oshqozoni to'rt kamerali", "Ularda hazm qilish bevosita ingichka ichakda boshlanadi", "Ularda umuman me'da bezi yo'q"],
+        "answer": 0,
+        "explanation": "Qushlarda tishlar yo'q, shuning uchun ularning oshqozoni bezli (ovqatga ferment ajratuvchi) va muskulli (toshchalar yordamida ovqatni maydalovchi) qismlarga bo'lingan."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Odam anatomiyasi",
+        "question": "Odamda qon aylanishi katta va kichik doiralarining to'liq aylanish vaqti qancha?",
+        "options": ["20-23 soniya", "1 daqiqa", "5 soniya", "2 daqiqa"],
+        "answer": 0,
+        "explanation": "Qonning yurakdan chiqib, butun tanani aylanib yana yurakka qaytib kelishi o'rtacha 20-23 soniyani tashkil qiladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Genetika",
+        "question": "Erkak va ayol gametalarining qo'shilishidan qanday hujayra hosil bo'ladi?",
+        "options": ["Zigota", "Spora", "Somatik hujayra", "Blastula"],
+        "answer": 0,
+        "explanation": "Otalik (spermatozoid) va onalik (tuxumhujayra) jinsiy hujayralarining qo'shilishi natijasida urug'langan hujayra — zigota hosil bo'ladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Botanika",
+        "question": "Makkajo'xori qanday guldilli o'simlik hisoblanadi?",
+        "options": ["Bir uyli, ayrim jinsli", "Ikki uyli, ayrim jinsli", "Ikki jinsli", "Bir uyli, ikki jinsli"],
+        "answer": 0,
+        "explanation": "Makkajo'xori bir uyli o'simlik bo'lib, uning bir tupida ham otalik (changchi) gullardan iborat ro'vak, ham onalik gullaridan iborat so'ta shakllanadi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Genetika",
+        "question": "Odamning somatik (tana) hujayralarida xromosomalar soni nechta?",
+        "options": ["46 ta (23 juft)", "23 ta", "48 ta", "22 ta"],
+        "answer": 0,
+        "explanation": "Sog'lom odamning har bir somatik hujayrasida diploid to'plamli, ya'ni 46 ta xromosoma bo'ladi."
+    },
+    {
+        "subject": "bio",
+        "block": "mutaxassislik",
+        "topic": "Zoologiya",
+        "question": "Baliqlarda yon chiziq organi qanday vazifani bajaradi?",
+        "options": ["Suv oqimi yo'nalishini va bosimini sezadi", "Nafas oladi", "Oziqni farqlaydi", "Qon aylanadi"],
+        "answer": 0,
+        "explanation": "Baliqlarda suv oqimi, uning kuchi hamda bosimini qabul qilib oluvchi yon chiziq organi yaxshi rivojlangan."
+    }
+]
+
+target_dir = r"C:\Users\T450\Downloads\FIKRA_v8\FIKRA_v8\src\data\new_questions"
+os.makedirs(target_dir, exist_ok=True)
+target_path = os.path.join(target_dir, "bio.json")
+with open(target_path, "w", encoding="utf-8") as f:
+    json.dump(questions, f, ensure_ascii=False, indent=4)
+print(f"Generated {len(questions)} questions!")

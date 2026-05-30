@@ -273,13 +273,15 @@ Material qismi (${i+1}/${actualBatches}):
 ${chunkContent}
 """
 
-QOIDALAR:
-1. AYNAN ${questionsToGenerate} ta savol — kam ham emas, ko'p ham emas
-2. Har bir savol material mavzusiga to'g'ridan-to'g'ri yoki bilvosita bog'liq bo'lsin
-3. 4 ta variant (A, B, C, D) — bittasi to'g'ri, uchtasi mantiqli noto'g'ri
-4. DTM uslubida — aniq, qisqa, bir ma'noli savollar
-5. O'zbek tilida yoz (chet tili fanlari bundan mustasno)
-6. Mavzuni "topic" sifatida ko'rsat
+QOIDALAR VA PREMIUM ESTETIKA:
+1. AYNAN ${questionsToGenerate} ta savol tuzing — kam ham emas, ko'p ham emas.
+2. SAVOL SIFATI (Premium daraja): Savollar shunchaki faktni so'ramasin. Abituriyentning mantiqiy fikrlashini, qoidalarni amaliyotga qo'llay olishini va tahlil qilishini sinaydigan savollar tuzing.
+3. ESTETIK IFODALASH: Savollarni HECH QACHON "Matnda...", "Ushbu matnga ko'ra..." kabi so'zlar bilan boshlamang. Savol mustaqil, ravon va ilmiy xulosalangan bo'lishi kerak.
+4. MANTIQIY CHALG'ITUVCHILAR (Distractors): Noto'g'ri variantlar eng ko'p chalg'itadigan mantiqiy "tuzoq" variantlar bo'lishi shart. Qolgan 3 ta noto'g'ri variant to'g'ri variant bilan bir xil uzunlik va uslubda yozilsin.
+5. DTM STANDARTI: Bitta savolda faqat bitta to'g'ri javob bo'lsin, javoblar aniq va bir ma'noli bo'lishi qat'iy talab qilinadi.
+6. O'zbek tilida yozing (chet tili fanlari bundan mustasno).
+7. Mavzuni "topic" sifatida ko'rsating.
+8. TUSHUNTIRISH (Explanation): To'g'ri javob nega to'g'riligi va noto'g'ri javoblar nega xato ekanligi haqida 2-3 jumlali o'ta sifatli ilmiy tushuntirish yozing.
 
 FAQAT quyidagi JSON formatda javob ber:
 {

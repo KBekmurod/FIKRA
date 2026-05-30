@@ -83,7 +83,7 @@ export default function PersonalTestResultPage() {
         const folderIdSafe = safeId(t.folderId)
         if (folderIdSafe) {
           api.get(`/api/folders/${folderIdSafe}`).then(({ data: f }) => {
-            setFolderTitle(f.folder?.title || '')
+            setFolderTitle(f.folder?.title || t.folderTitle || '')
             setMiniGenerated(f.folder?.miniTestGenerated || false)
             setFolderActive(true)
             // Mini-test ma'lumotini olish (agar mavjud va asosiy test bo'lsa)
@@ -98,7 +98,12 @@ export default function PersonalTestResultPage() {
                 .catch(() => {})
             }
           }).catch((err) => {
-            if (err?.response?.status === 404) setFolderActive(false)
+            if (err?.response?.status === 404) {
+              setFolderActive(false)
+              if (t.folderTitle) {
+                setFolderTitle(`${t.folderTitle} (O'chirilgan)`)
+              }
+            }
           })
         }
 

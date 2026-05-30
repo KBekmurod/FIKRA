@@ -20,7 +20,7 @@ export default function FikraTestsPage() {
           DTM standartiga ko'ra ikki xil rejim
         </p>
 
-        <div style={{ display: 'grid', gap: 12 }}>
+        <div className="tests-list">
           {/* B1) Maxsus blok testlar */}
           <button
             onClick={() => navigate('/testlar/fikra/blok')}

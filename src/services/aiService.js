@@ -66,8 +66,9 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
   res.setHeader('Connection', 'keep-alive');
 
   let fullContent = '';
-  // maxPages ni 1 dan 30 gacha cheklaymiz (1 chunk ~ 2 sahifa)
-  const targetChunks = Math.max(1, Math.min(Math.ceil(maxPages / 2), 15)); 
+  // 1 ta chunk odatda AI tomonidan juda uzun yoziladi va DOCX formatida 3-4 sahifani egallaydi.
+  // Sahifalar sonini me'yorga keltirish uchun maxPages ni 3 ga bo'lamiz.
+  const targetChunks = Math.max(1, Math.min(Math.ceil(maxPages / 3), 10));
   
   try {
     res.write(`data: ${JSON.stringify({ status: 'reja', message: 'Hujjat rejasi tuzilmoqda...' })}\n\n`);
@@ -104,7 +105,7 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
 
         const extraInstructions = options.designPrompt ? `\n- Foydalanuvchining alohida talabi/uslubi: "${options.designPrompt}". (Matnni va jadvallarni shunga moslab yoz!)` : '';
 
-        const chunkPrompt = `Mavzu: "${prompt}". Hujjat rejasi: \n${outline}\n\nShu rejadagi ${j}-qismni batafsil, mantiqiy va professional tarzda yoz.\n- Markdown formatida sarlavhalar (#, ##), qalin yozuvlar (**matn**), ro'yxatlar (- matn) va JADVALLARdan (| ustun | ustun |) judayam keng foydalan.\n- Muhim faktlar, maslahatlar yoki eslatmalarni ajratib ko'rsatish uchun Iqtibos (Blockquote: > matn) dan albatta foydalan (bu hujjatda maxsus vizual blok bo'lib chiqadi).\n- Agar bu 1-qism bo'lsa munosib "Kirish" yoz, agar eng oxirgi qism bo'lsa aniq "Xulosa va Tavsiyalar" yoz.\n${formatRules}${extraInstructions}\nQAT'IY QOIDA: Yozishdan oldin fikrlaringni tizimlashtir (Self-Correction), grammatik va mantiqiy xatolarni to'g'irla va faqat eng toza, mukammal xatosiz matnni chiqargin. Hech qachon matnni, gapni yoki jadvalni yarim yo'lda uzib qo'yma. Hajmi kamida 800-1000 so'zdan iborat bo'lsin. Faqat shu ${j}-qismni yoz.`;
+        const chunkPrompt = `Mavzu: "${prompt}". Hujjat rejasi: \n${outline}\n\nShu rejadagi ${j}-qismni batafsil, mantiqiy va professional tarzda yoz.\n- Markdown formatida sarlavhalar (#, ##), qalin yozuvlar (**matn**), ro'yxatlar (- matn) va JADVALLARdan (| ustun | ustun |) judayam keng foydalan.\n- Muhim faktlar, maslahatlar yoki eslatmalarni ajratib ko'rsatish uchun Iqtibos (Blockquote: > matn) dan albatta foydalan (bu hujjatda maxsus vizual blok bo'lib chiqadi).\n- Agar bu 1-qism bo'lsa munosib "Kirish" yoz, agar eng oxirgi qism bo'lsa aniq "Xulosa va Tavsiyalar" yoz.\n${formatRules}${extraInstructions}\nQAT'IY QOIDALAR:\n1. Matnlarni qalin qilishda yulduzchalarga yopishib yozing (**matn**), yulduzcha ichida bo'sh joy qoldirmang (** matn ** QILMANG).\n2. Hajmi qat'iy ravishda taxminan 600 so'zdan iborat bo'lsin.\n3. Faqat shu ${j}-qismni yozing. Asosiy hujjat mavzusini qism sarlavhasi sifatida qayta yozmang.\n4. Hech qachon matnni, gapni yoki jadvalni yarim yo'lda uzib qo'yma. Fikringni to'liq tugat.`;
         
         batch.push(
           withRetry(() => deepseek().chat.completions.create({
@@ -124,7 +125,22 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
     }
 
     clearInterval(pingInterval);
-    fullContent = `# ${prompt}\n\n` + chunkResults.join('\n\n');
+    fullContent = chunkResults.join('\n\n');
+
+    // --- Sifat va Estetika Tuzatishlari ---
+    // 1. AI " ** matn ** " tarzida noto'g'ri yozib qo'ygan qalin yozuvlarni tuzatish
+    fullContent = fullContent.replace(/\*\*\s+/g, '**').replace(/\s+\*\*/g, '**');
+    // Escaped yulduzchalarni oddiy yulduzchaga aylantirish (DOCX da yulduzcha chiqib qolmasligi uchun)
+    fullContent = fullContent.replace(/\\\*/g, '*');
+
+    // 2. Takroriy bosh sarlavhani o'chirish (DOCX generatori o'zi Title Page yasaydi)
+    // Agar AI chunk boshida yozgan bo'lsa, xunuk ko'rinadi (2 marta sarlavha ketma-ket)
+    const escapedPrompt = prompt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const duplicateTitleRegex = new RegExp(`^#\\s*${escapedPrompt}\\s*$`, 'gmi');
+    fullContent = fullContent.replace(duplicateTitleRegex, '');
+    
+    // 3. Ortiqcha bo'sh qatorlarni tozalash
+    fullContent = fullContent.replace(/\n{3,}/g, '\n\n').trim();
 
     res.write(`data: ${JSON.stringify({ status: 'audit', message: 'Sifat auditi va yakuniy tahlil o\'tkazilmoqda...' })}\n\n`);
     

@@ -8,22 +8,36 @@ const PptxGenJS = require('pptxgenjs');
 const { marked } = require('marked');
 const { logger } = require('../utils/logger');
 
-function parseInlineTokens(tokens) {
-  if (!tokens) return [];
+function decodeHtml(text) {
+  if (!text) return text;
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/');
+}
+
+function parseInlineTokens(tokens, inheritedStyles = {}) {
+  if (!tokens || tokens.length === 0) return [];
   const segments = [];
+  
   tokens.forEach(t => {
-    if (t.type === 'strong') {
-      segments.push({ text: t.text, bold: true });
-    } else if (t.type === 'em') {
-      segments.push({ text: t.text, italics: true });
-    } else if (t.type === 'codespan') {
-      segments.push({ text: t.text, code: true });
-    } else if (t.type === 'text' || t.type === 'escape') {
-      segments.push({ text: t.text });
+    let currentStyles = { ...inheritedStyles };
+    if (t.type === 'strong') currentStyles.bold = true;
+    if (t.type === 'em') currentStyles.italics = true;
+    if (t.type === 'codespan') currentStyles.code = true;
+
+    if (t.tokens && t.tokens.length > 0) {
+      segments.push(...parseInlineTokens(t.tokens, currentStyles));
     } else {
-      segments.push({ text: t.raw });
+      let decoded = decodeHtml(t.text || t.raw);
+      segments.push({ text: decoded, ...currentStyles });
     }
   });
+  
   return segments;
 }
 

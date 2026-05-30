@@ -1,0 +1,702 @@
+[
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "Python dasturlash tilida ro'yxatning (list) uzunligini qanday aniqlash mumkin?",
+    "options": [
+      "len()",
+      "length()",
+      "size()",
+      "count()"
+    ],
+    "answer": 0,
+    "explanation": "Python'da ro'yxat yoki boshqa to'plamlarning uzunligini aniqlash uchun len() funksiyasidan foydalaniladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "C++ dasturlash tilida qaysi ma'lumot toifasi faqat rost (true) yoki yolg'on (false) qiymatlarini qabul qiladi?",
+    "options": [
+      "bool",
+      "int",
+      "char",
+      "float"
+    ],
+    "answer": 0,
+    "explanation": "C++ da mantiqiy qiymatlarni saqlash uchun bool toifasi ishlatiladi, u faqat true yoki false qabul qiladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "Obyektga yo'naltirilgan dasturlashda (OOP) bitta sinfdan boshqa sinfning xususiyatlarini meros qilib olish qanday nomlanadi?",
+    "options": [
+      "Polimorfizm",
+      "Inkapsulyatsiya",
+      "Merosxorlik",
+      "Abstraksiya"
+    ],
+    "answer": 2,
+    "explanation": "Merosxorlik (Inheritance) yordamida bir sinf boshqa sinfning metodlari va xususiyatlarini o'zlashtiradi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "Quyidagi qaysi algoritmik tuzilma shart bajarilgunga qadar takrorlanishni ta'minlaydi?",
+    "options": [
+      "Chiziqli",
+      "Tarmoqlanuvchi",
+      "Sikl",
+      "Massiv"
+    ],
+    "answer": 2,
+    "explanation": "Sikl (Loop) tuzilmalari ma'lum bir shart bajarilguncha ko'rsatmalarni takroran bajarish uchun xizmat qiladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "Java dasturlash tilida barcha sinflar to'g'ridan-to'g'ri yoki bilvosita qaysi sinfdan meros oladi?",
+    "options": [
+      "Main",
+      "Object",
+      "System",
+      "Class"
+    ],
+    "answer": 1,
+    "explanation": "Java'da Object sinfi barcha sinflarning super-sinfi (ota sinfi) hisoblanadi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "C++ da ko'rsatkich (pointer) qanday ma'lumotni saqlaydi?",
+    "options": [
+      "O'zgaruvchining qiymatini",
+      "O'zgaruvchining xotiradagi manzilini",
+      "Matnli ma'lumotni",
+      "Massiv uzunligini"
+    ],
+    "answer": 1,
+    "explanation": "Ko'rsatkichlar (pointers) boshqa o'zgaruvchilarning xotiradagi manzillarini saqlaydigan maxsus o'zgaruvchilardir."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "Quyidagilardan qaysi biri relyatsion ma'lumotlar bazasini boshqarish tizimi (RDBMS) hisoblanadi?",
+    "options": [
+      "MongoDB",
+      "MySQL",
+      "Redis",
+      "Cassandra"
+    ],
+    "answer": 1,
+    "explanation": "MySQL - jadval shaklidagi relyatsion ma'lumotlar bazasini boshqarish tizimi hisoblanadi. Boshqalari NoSQL bazalaridir."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "HTML tilida eng katta sarlavhani yaratish uchun qaysi teg ishlatiladi?",
+    "options": [
+      "<head>",
+      "<title>",
+      "<h1>",
+      "<h6>"
+    ],
+    "answer": 2,
+    "explanation": "HTML da sarlavhalar <h1> dan <h6> gacha bo'lib, <h1> eng katta sarlavhani ifodalaydi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "Python tilida siklni to'xtatish va undan chiqish uchun qaysi kalit so'z ishlatiladi?",
+    "options": [
+      "stop",
+      "exit",
+      "break",
+      "continue"
+    ],
+    "answer": 2,
+    "explanation": "'break' operatori siklning ishlashini darhol to'xtatib, undan chiqishni ta'minlaydi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "Qaysi saralash algoritmi 'bo'l va hukmronlik qil' (divide and conquer) usuliga asoslangan?",
+    "options": [
+      "Pufakchali saralash",
+      "Tanlash orqali saralash",
+      "Tezkor saralash",
+      "Qo'shish orqali saralash"
+    ],
+    "answer": 2,
+    "explanation": "Tezkor saralash (Quick sort) va Qo'shish (Merge sort) algoritmlari 'bo'l va hukmronlik qil' paradigmasiga asoslangan."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "CSS nima maqsadda ishlatiladi?",
+    "options": [
+      "Veb-sahifaga dinamiklik qo'shish uchun",
+      "Ma'lumotlar bazasi bilan ishlash uchun",
+      "Veb-sahifaning tashqi ko'rinishini shakllantirish uchun",
+      "Server tomonida kod yozish uchun"
+    ],
+    "answer": 2,
+    "explanation": "CSS (Cascading Style Sheets) veb-sahifalarning vizual dizayni, ranglari va joylashuvini belgilash uchun qo'llaniladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "C dasturlash tilida xotirani dinamik ajratish uchun qaysi funksiyadan foydalaniladi?",
+    "options": [
+      "malloc()",
+      "alloc()",
+      "new",
+      "create()"
+    ],
+    "answer": 0,
+    "explanation": "C tilida xotiradan dinamik joy ajratish uchun malloc(), calloc(), realloc() funksiyalari ishlatiladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "Binar qidiruv (Binary search) algoritmi qanday massivlarda to'g'ri ishlaydi?",
+    "options": [
+      "Faqat butun sonli massivlarda",
+      "Tartiblangan massivlarda",
+      "Tartiblanmagan massivlarda",
+      "Faqat manfiy sonlardan iborat massivlarda"
+    ],
+    "answer": 1,
+    "explanation": "Binar qidiruv faqat oldindan o'sish yoki kamayish tartibida saralangan massivlarda ishlaydi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "Qaysi xatolik dastur ishga tushganidan so'ng (runtime error) yuzaga keladi?",
+    "options": [
+      "Sintaktik xatolik",
+      "Kompilyatsiya xatoligi",
+      "Nolga bo'lish",
+      "Tizim xatoligi"
+    ],
+    "answer": 2,
+    "explanation": "Nolga bo'lish kabi xatolar dastur kompilyatsiyadan o'tgandan so'ng, ishlash vaqtida (runtime) yuzaga keladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "OOP da ma'lumotlarni yashirish va ularga faqat maxsus metodlar orqali murojaat qilish mexanizmi nima deyiladi?",
+    "options": [
+      "Inkapsulyatsiya",
+      "Polimorfizm",
+      "Merosxorlik",
+      "Interfeys"
+    ],
+    "answer": 0,
+    "explanation": "Inkapsulyatsiya – ma'lumotlarni himoyalash va yashirish mexanizmi bo'lib, o'zgaruvchilarga faqat maxsus metodlar orqali murojaat qilishni ta'minlaydi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "SQL da ma'lumotlarni filtrlash uchun qaysi kalit so'z ishlatiladi?",
+    "options": [
+      "SELECT",
+      "WHERE",
+      "ORDER BY",
+      "GROUP BY"
+    ],
+    "answer": 1,
+    "explanation": "WHERE qismi SQL so'rovlarida jadvaldagi ma'lumotlarni berilgan shart bo'yicha saralab olish (filtrlash) uchun ishlatiladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "JavaScript dasturlash tilida o'zgaruvchi e'lon qilish uchun qaysi kalit so'zlardan foydalaniladi?",
+    "options": [
+      "var, let, const",
+      "int, float, char",
+      "dim, set",
+      "def, function"
+    ],
+    "answer": 0,
+    "explanation": "JavaScript-da o'zgaruvchilar var, let va const kalit so'zlari yordamida e'lon qilinadi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "Algoritmning vaqt murakkabligini ifodalash uchun qanday belgi ishlatiladi?",
+    "options": [
+      "Kichik 'o'",
+      "Katta 'O' (Big O)",
+      "Omega",
+      "Teta"
+    ],
+    "answer": 1,
+    "explanation": "Algoritmlarning eng yomon holatdagi vaqt va xotira murakkabligi ko'pincha Katta 'O' (Big O notation) bilan belgilanadi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "Dasturlashda 'Rekursiya' nima?",
+    "options": [
+      "Xatolarni topish jarayoni",
+      "Funksiyaning o'z-o'zini chaqirishi",
+      "O'zgaruvchilarni global e'lon qilish",
+      "Ma'lumotlar bazasiga ulanish"
+    ],
+    "answer": 1,
+    "explanation": "Funksiyaning o'z tanasida o'zini-o'zi chaqirishiga rekursiya deyiladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Dasturlash",
+    "question": "Git versiyalarni boshqarish tizimida o'zgarishlarni saqlash (commit qilish) uchun qaysi buyruqdan foydalaniladi?",
+    "options": [
+      "git add",
+      "git push",
+      "git commit",
+      "git pull"
+    ],
+    "answer": 2,
+    "explanation": "'git commit' buyrug'i saqlangan o'zgarishlarni mahalliy repozitoriyga yozib qo'yish (tasdiqlash) uchun xizmat qiladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "OSI modelida nechta qatlam mavjud?",
+    "options": [
+      "4",
+      "5",
+      "7",
+      "9"
+    ],
+    "answer": 2,
+    "explanation": "OSI (Open Systems Interconnection) modeli 7 ta qatlamdan iborat."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "IP manzillarni domen nomlariga va aksincha o'giruvchi tizim qanday ataladi?",
+    "options": [
+      "DHCP",
+      "DNS",
+      "FTP",
+      "HTTP"
+    ],
+    "answer": 1,
+    "explanation": "DNS (Domain Name System) domen nomlarini IP-manzillarga (va aksincha) tarjima qilib beruvchi tizimdir."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "Quyidagilardan qaysi biri Transport qatlamining protokoli hisoblanadi?",
+    "options": [
+      "IP",
+      "HTTP",
+      "TCP",
+      "Ethernet"
+    ],
+    "answer": 2,
+    "explanation": "TCP (Transmission Control Protocol) va UDP transport qatlami protokollari sanaladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "Tarmoqdagi qurilmalarga avtomatik tarzda IP manzil tarqatuvchi protokol nima?",
+    "options": [
+      "DNS",
+      "DHCP",
+      "ARP",
+      "ICMP"
+    ],
+    "answer": 1,
+    "explanation": "DHCP (Dynamic Host Configuration Protocol) tarmoqdagi kompyuter va boshqa qurilmalarga avtomatik ravishda IP manzil taqdim etadi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "IPv4 manzili necha bitdan iborat?",
+    "options": [
+      "16",
+      "32",
+      "64",
+      "128"
+    ],
+    "answer": 1,
+    "explanation": "IPv4 manzili 32 bit (4 ta bayt) uzunlikka ega bo'lib, odatda to'rtta o'nlik son bilan yoziladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "MAC manzil (Media Access Control address) qaysi qatlamda ishlaydi?",
+    "options": [
+      "Fizik qatlam",
+      "Kanal qatlami (Data Link)",
+      "Tarmoq qatlami",
+      "Transport qatlami"
+    ],
+    "answer": 1,
+    "explanation": "MAC manzil OSI modelining Kanal (Data Link) qatlamida qurilmalarni identifikatsiya qilish uchun ishlatiladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "Router (marshrutizator) OSI modelining qaysi qatlamida faoliyat yuritadi?",
+    "options": [
+      "Kanal qatlami",
+      "Transport qatlami",
+      "Tarmoq qatlami",
+      "Amaliy qatlam"
+    ],
+    "answer": 2,
+    "explanation": "Router IP manzillar asosida paketlarni yo'naltirish (marshrutlash) uchun Tarmoq (Network) qatlamida ishlaydi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "HTTP va HTTPS protokollari farqi nimada?",
+    "options": [
+      "HTTPS ma'lumotlarni shifrlangan holda uzatadi",
+      "HTTPS faqat lokal tarmoqda ishlaydi",
+      "HTTP videolarni uzatish uchun, HTTPS matn uchun",
+      "Hech qanday farqi yo'q"
+    ],
+    "answer": 0,
+    "explanation": "HTTPS (Hypertext Transfer Protocol Secure) ma'lumotlar xavfsizligini ta'minlash uchun TLS/SSL shifrlashdan foydalanadi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "PING buyrug'i qaysi protokol yordamida tarmoq ulanishini tekshiradi?",
+    "options": [
+      "TCP",
+      "UDP",
+      "ICMP",
+      "IGMP"
+    ],
+    "answer": 2,
+    "explanation": "Ping buyrug'i paketlarni yuborish va qabul qilish uchun ICMP protokolidan foydalanadi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "Quyidagilardan qaysi biri simsiz mahalliy tarmoq standarti hisoblanadi?",
+    "options": [
+      "IEEE 802.3",
+      "IEEE 802.11",
+      "IEEE 802.15",
+      "IEEE 802.5"
+    ],
+    "answer": 1,
+    "explanation": "IEEE 802.11 Wi-Fi (simsiz mahalliy tarmoqlar - WLAN) standartlari to'plamidir."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "Local Area Network (LAN) nima?",
+    "options": [
+      "Keng hududni qamrab oluvchi tarmoq",
+      "Shahar miqyosidagi tarmoq",
+      "Bitta bino yoki xona ichidagi mahalliy kompyuter tarmog'i",
+      "Internetning boshqa nomi"
+    ],
+    "answer": 2,
+    "explanation": "LAN bu cheklangan kichik hududda (ofis, uy, bino) qurilmalarni birlashtiruvchi mahalliy tarmoqdir."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "IP manzildagi tarmoq qismini va xost qismini ajratib ko'rsatuvchi qiymat qanday ataladi?",
+    "options": [
+      "MAC manzil",
+      "Subnet Mask (Tarmoq niqobi)",
+      "Default Gateway",
+      "DNS server"
+    ],
+    "answer": 1,
+    "explanation": "Tarmoq niqobi (Subnet Mask) IP manzilning qaysi qismi tarmoqni, qaysi qismi uzelni (xostni) ko'rsatishini aniqlashga xizmat qiladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "TCP va UDP o'rtasidagi asosiy farq nima?",
+    "options": [
+      "TCP sekinroq va ishonchli; UDP tezroq, lekin kafolatlanmagan",
+      "TCP faqat matn uzatadi, UDP faqat video",
+      "TCP faqat IPv6 da ishlaydi, UDP IPv4 da",
+      "Ularning farqi yo'q, ikkalasi bir xil"
+    ],
+    "answer": 0,
+    "explanation": "TCP ma'lumotlarning yetib borishini kafolatlaydi, shuning uchun ishonchli. UDP tezroq ishlaydi, lekin paketlar yo'qolishiga javobgar emas."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "127.0.0.1 IP manzili qanday manzil hisoblanadi?",
+    "options": [
+      "Broadcast manzil",
+      "Multicast manzil",
+      "Loopback (mahalliy uzel) manzili",
+      "Gateway manzili"
+    ],
+    "answer": 2,
+    "explanation": "127.0.0.1 - loopback manzili bo'lib, tarmoq interfeysini test qilish va qurilmaning o'ziga ulanish uchun ishlatiladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Tarmoqlar",
+    "question": "Tarmoqda ma'lumotlarni qabul qilib, uni faqat kerakli portga yo'naltiruvchi qurilma nima?",
+    "options": [
+      "Hub",
+      "Switch (Kommutator)",
+      "Repeater (Qaytaruvchi)",
+      "Modem"
+    ],
+    "answer": 1,
+    "explanation": "Switch (Kommutator) MAC manzillarga asoslanib, paketlarni faqat o'sha paket mo'ljallangan aniq portga uzatadi. Hub esa barcha portlarga jo'natadi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "Axborot xavfsizligining uchta asosiy tamoyili (CIA triad) qaysilar?",
+    "options": [
+      "Maxfiylik, Yaxlitlik, Ochiqlik (Mavjudlik)",
+      "Maxfiylik, Himoya, Shifrlash",
+      "Yaxlitlik, Autentifikatsiya, Parol",
+      "Kriptografiya, Blokcheyn, Maxfiylik"
+    ],
+    "answer": 0,
+    "explanation": "Axborot xavfsizligining asosiy prinsiplari (CIA) – Confidentiality (Maxfiylik), Integrity (Yaxlitlik) va Availability (Mavjudlik/Ochiqlik)."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "Foydalanuvchi tizimga kirish uchun o'z shaxsini tasdiqlashi qanday jarayon hisoblanadi?",
+    "options": [
+      "Autorizatsiya",
+      "Autentifikatsiya",
+      "Identifikatsiya",
+      "Auditing"
+    ],
+    "answer": 1,
+    "explanation": "Autentifikatsiya – bu foydalanuvchi taqdim etgan ma'lumotlar (parol, biometriya) yordamida uning shaxsini haqiqiyligini tekshirish."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "Phishing (Fishing) hujumi nima?",
+    "options": [
+      "Tarmoq trafigini to'sib qo'yish",
+      "DDoS hujum orqali serverni ishdan chiqarish",
+      "Foydalanuvchilarni aldamchi yo'l bilan maxfiy ma'lumotlarini o'g'irlash",
+      "Parollarni barcha variantlarini sinab ko'rish"
+    ],
+    "answer": 2,
+    "explanation": "Fishing - foydalanuvchini chalg'itib, unga soxta havola yoki elektron xat yuborish orqali nozik ma'lumotlarini qo'lga kiritish ijtimoiy muhandislik turidir."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "Simmetrik shifrlashning asosiy xususiyati nima?",
+    "options": [
+      "Shifrlash va deshifrlash uchun ikkita turli xil kalit ishlatiladi",
+      "Shifrlash va deshifrlash uchun bir xil kalit ishlatiladi",
+      "U faqat matnli fayllar bilan ishlaydi",
+      "U faqat apparat vositalari orqali amalga oshiriladi"
+    ],
+    "answer": 1,
+    "explanation": "Simmetrik shifrlashda ham ma'lumotni shifrlash, ham uni dastlabki holiga qaytarish (deshifrlash) uchun yagona, bir xil kalitdan foydalaniladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "Brute-force (Qo'pol kuch) hujumi nima maqsadda amalga oshiriladi?",
+    "options": [
+      "Faqat tarmoqqa virus tarqatish uchun",
+      "Parollarni topish uchun barcha mumkin bo'lgan kombinatsiyalarni sinab ko'rish",
+      "Serverning IP manzilini o'zgartirish uchun",
+      "Foydalanuvchi brauzerini bloklash uchun"
+    ],
+    "answer": 1,
+    "explanation": "Brute-force - parolni yoki kalitni topish maqsadida kompyuter orqali avtomatik ravishda barcha ehtimoliy variantlarni ketma-ket sinab ko'rish usuli."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "Qaysi xavfsizlik dasturi tarmoqdagi kirish va chiqish trafigini nazorat qiladi va shubhali aloqalarni bloklaydi?",
+    "options": [
+      "Antivirus",
+      "Firewall (Tarmoq ekrani)",
+      "VPN",
+      "Spam filtr"
+    ],
+    "answer": 1,
+    "explanation": "Firewall – o'rnatilgan xavfsizlik qoidalariga asosan tarmoq trafigini tahlil qiluvchi va ruxsatsiz kirishlarni cheklovchi apparat yoki dasturiy vositadir."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "Asimmetrik shifrlashda nechta kalitdan foydalaniladi?",
+    "options": [
+      "1 ta kalit",
+      "2 ta kalit (Ochiq va Yopiq kalitlar)",
+      "3 ta kalit",
+      "Umuman kalit ishlatilmaydi"
+    ],
+    "answer": 1,
+    "explanation": "Asimmetrik kriptografiyada bir juft kalit ishlatiladi: ommaviy (Public) kalit shifrlash uchun, maxfiy (Private) kalit deshifrlash uchun xizmat qiladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "DDoS (Distributed Denial of Service) hujumining asosiy maqsadi nima?",
+    "options": [
+      "Ma'lumotlar bazasidan ma'lumotlarni o'g'irlash",
+      "Foydalanuvchi parolini buzib kirish",
+      "Tizim resurslarini band qilib, xizmatni ko'rsata olmaydigan holatga keltirish",
+      "Tizim kodiga o'zgartirish kiritish"
+    ],
+    "answer": 2,
+    "explanation": "DDoS hujumida serverga bir vaqtning o'zida ko'plab qurilmalardan so'rovlar jo'natiladi, natijada tizim ortiqcha yuklama sabab ishdan chiqadi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "Ransomware (To'lov talab qiluvchi dastur) qanday ishlaydi?",
+    "options": [
+      "Foydalanuvchining fayllarini shifrlab qo'yib, ochish uchun pul talab qiladi",
+      "Kompyuterning qattiq diskini to'liq o'chirib tashlaydi",
+      "Tizimga yashirincha kirib faqat ma'lumotlarni o'g'irlaydi",
+      "Klaviatura tugmalarini bosilishini kuzatib boradi"
+    ],
+    "answer": 0,
+    "explanation": "Ransomware tushgan kompyuterdagi muhim ma'lumotlar shifrlanadi. Jinoyatchilar ularni qayta tiklash uchun to'lov (odatda kriptovalyuta) talab qilishadi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "Hash funksiyalari (masalan, SHA-256) qanday maqsadlar uchun ishlatiladi?",
+    "options": [
+      "Katta fayllarni siqish uchun",
+      "Ma'lumotlarni bir manbadan ikkinchi manbaga uzatish uchun",
+      "Ma'lumot yaxlitligini tekshirish va parollarni xavfsiz saqlash uchun",
+      "Ma'lumotni asimmetrik shifrlash uchun"
+    ],
+    "answer": 2,
+    "explanation": "Hash funksiyalaridan fayllarning o'zgarmaganligini (yaxlitligini) tekshirish va ma'lumotlar bazasida parollarni ochiq matn o'rniga xesh holatida saqlashda foydalaniladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "Xavfsizlikda 'Ijtimoiy muhandislik' (Social Engineering) tushunchasi nimani anglatadi?",
+    "options": [
+      "Dastur kodidagi bo'shliqlarni topish",
+      "Texnik vositalar orqali parollarni buzish",
+      "Odamlarni psixologik manipulyatsiya orqali maxfiy ma'lumotlarni berishga undash",
+      "Tarmoq infratuzilmasini loyihalash"
+    ],
+    "answer": 2,
+    "explanation": "Ijtimoiy muhandislik kiberxujumlarda odamlarning ishonchiga kirish, qiziqish yoki qo'rquvlaridan foydalanib o'zlaridan yashirin axborotlarni ajratib olish san'atidir."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "VPN (Virtual Private Network) dan foydalanishning asosiy afzalligi nima?",
+    "options": [
+      "Internet tezligini 10 barobar oshiradi",
+      "Tarmoq trafigini shifrlaydi va haqiqiy IP-manzilni yashiradi",
+      "Dasturlarning litsenziyasiz ishlashiga yordam beradi",
+      "Kompyuterni viruslardan 100% himoya qiladi"
+    ],
+    "answer": 1,
+    "explanation": "VPN internet aloqasini maxsus himoyalangan tunnel orqali shifrlaydi, bu xavfsizlikni oshiradi va haqiqiy IP-manzilni yashiradi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "SQL Injection hujumi qanday tizimlarga qaratilgan bo'ladi?",
+    "options": [
+      "Operatsion tizim yadrosiga",
+      "Ma'lumotlar bazasiga murojaat qiluvchi veb-ilovalarga",
+      "Simsiz tarmoq qurilmalariga",
+      "Oddiy matnli fayllarga"
+    ],
+    "answer": 1,
+    "explanation": "SQL Injection veb-saytning kiritish maydonlariga zararli SQL kodlarini kiritish orqali ruxsatsiz ma'lumotlar bazasiga kirish usulidir."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "Ikki faktorli autentifikatsiya (2FA) ning ishlash prinsipi qanday?",
+    "options": [
+      "Ikkita xil paroldan foydalanish",
+      "Shaxsni tasdiqlash uchun ikki xil turdagi isbotni (masalan: parol va telefon kodi) talab qilish",
+      "Faqat barmoq izi orqali kirish",
+      "Har ikkinchi urinishda bloklash"
+    ],
+    "answer": 1,
+    "explanation": "2FA tizim himoyasini kuchaytirish uchun parol (bilim) va mobil qurilmaga keladigan kod (ega bo'lish) kabi ikkita mustaqil tasdiqlash omilini talab qiladi."
+  },
+  {
+    "subject": "inform",
+    "block": "mutaxassislik",
+    "topic": "Axborot xavfsizligi",
+    "question": "Zero-day (Nolinchi kun) hujumi nima?",
+    "options": [
+      "Eski, himoyalanmagan tizimlarga qilinadigan hujum",
+      "Yilning birinchi kunida qilinadigan ommaviy hujum",
+      "Dasturiy ta'minotdagi xatoni dasturchilar bilishidan va yamoq chiqarishidan oldin foydalanib qilingan hujum",
+      "DDoS hujumlarining boshlanish bosqichi"
+    ],
+    "answer": 2,
+    "explanation": "Zero-day hujumlari hali ishlab chiquvchilar xabardor bo'lmagan yoki tuzatish (patch) chiqarishga ulgurmagan dasturiy bo'shliqlar orqali amalga oshiriladi."
+  }
+]

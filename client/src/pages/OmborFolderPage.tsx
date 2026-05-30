@@ -246,7 +246,7 @@ export default function OmborFolderPage() {
             <div style={{ fontSize: 12, color: 'var(--txt-2)' }}>Papkada material yo'q</div>
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
+          <div className="materials-list" style={{ marginBottom: 14 }}>
             {materials.map((m: any) => (
               <div key={m._id} className="tilt-card glass" style={{
                 padding: 12,
@@ -388,7 +388,7 @@ export default function OmborFolderPage() {
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5, margin: '14px 0 8px' }}>
               📈 URINISHLAR TARIXI ({attempts.length})
             </div>
-            <div style={{ display: 'grid', gap: 6 }}>
+            <div className="tests-list">
               {attempts.slice(0, 5).map((a, i) => {
                 const pct = a.scorePercent || 0
                 // Safe ID

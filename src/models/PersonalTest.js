@@ -79,6 +79,9 @@ const personalTestSchema = new mongoose.Schema({
     index: true,
   },
 
+  // Papkaning nomi (agar papka o'chirilsa, nomini eslab qolish uchun muhr)
+  folderTitle: { type: String, default: null },
+
   // Asosiy material (1 marta yaratilgan testning manbai)
   materialId: {
     type: mongoose.Schema.Types.ObjectId,

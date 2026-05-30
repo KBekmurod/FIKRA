@@ -1,0 +1,452 @@
+[
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Arifmetika",
+        "question": "15 va 25 ning eng kichik umumiy karralisini (EKUK) toping.",
+        "options": ["75", "150", "50", "100"],
+        "answer": 0,
+        "explanation": "15 = 3 * 5, 25 = 5^2. EKUK(15, 25) = 3 * 5^2 = 75."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Arifmetika",
+        "question": "48 va 36 ning eng katta umumiy bo'luvchisini (EKUB) toping.",
+        "options": ["12", "6", "24", "18"],
+        "answer": 0,
+        "explanation": "48 va 36 sonlari bir vaqtda bo'linadigan eng katta son bu 12 dir."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Arifmetika",
+        "question": "120 sonining 15% ini toping.",
+        "options": ["15", "18", "20", "12"],
+        "answer": 1,
+        "explanation": "120 * 15 / 100 = 120 * 0.15 = 18."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Arifmetika",
+        "question": "5/8 va 3/4 kasrlarning yig'indisini toping.",
+        "options": ["11/8", "9/8", "7/8", "13/8"],
+        "answer": 0,
+        "explanation": "3/4 kasrni 8 maxrajga keltiramiz: 6/8. 5/8 + 6/8 = 11/8."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Arifmetika",
+        "question": "3.5 va 4.2 sonlarining ko'paytmasini toping.",
+        "options": ["14.7", "15.2", "14.5", "15.7"],
+        "answer": 0,
+        "explanation": "3.5 * 4.2 = 14.7."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Arifmetika",
+        "question": "1000 so'mga olingan tovar 1200 so'mga sotildi. Foyda necha foiz bo'ldi?",
+        "options": ["10%", "20%", "15%", "25%"],
+        "answer": 1,
+        "explanation": "Foyda: 1200 - 1000 = 200. Foizda: (200 / 1000) * 100% = 20%."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Arifmetika",
+        "question": "1 dan 50 gacha bo'lgan tub sonlar nechta?",
+        "options": ["15", "12", "16", "14"],
+        "answer": 0,
+        "explanation": "1 dan 50 gacha 15 ta tub son mavjud (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47)."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Arifmetika",
+        "question": "24 sonining nechta natural bo'luvchisi bor?",
+        "options": ["6", "8", "10", "12"],
+        "answer": 1,
+        "explanation": "24 ning bo'luvchilari: 1, 2, 3, 4, 6, 8, 12, 24. Jami 8 ta."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Arifmetika",
+        "question": "7 ga bo'lganda qoldiq 3 ga teng bo'lgan eng kichik ikki xonali natural sonni toping.",
+        "options": ["10", "17", "13", "20"],
+        "answer": 0,
+        "explanation": "7 * 1 + 3 = 10. Eng kichik ikki xonali son bu 10."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Arifmetika",
+        "question": "2^5 * 3^2 ko'paytma nechaga teng?",
+        "options": ["288", "144", "128", "256"],
+        "answer": 0,
+        "explanation": "2^5 = 32, 3^2 = 9. 32 * 9 = 288."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "x + 5 = 12 tenglamani yeching.",
+        "options": ["5", "7", "6", "8"],
+        "answer": 1,
+        "explanation": "x = 12 - 5 = 7."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "3(x - 2) = 15 tenglamani yeching.",
+        "options": ["5", "7", "6", "8"],
+        "answer": 1,
+        "explanation": "x - 2 = 5, x = 7."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "x^2 - 9 = 0 tenglamaning ildizlari yig'indisini toping.",
+        "options": ["0", "3", "-3", "9"],
+        "answer": 0,
+        "explanation": "Ildizlar x = 3 va x = -3. Yig'indisi 0."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "(a-b)(a+b) ifoda qaysi formulaga mos keladi?",
+        "options": ["a^2 - b^2", "(a-b)^2", "a^2 + b^2", "(a+b)^2"],
+        "answer": 0,
+        "explanation": "Bu qisqa ko'paytirish formulasi: (a-b)(a+b) = a^2 - b^2."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "5x - 3 > 12 tengsizlikning eng kichik butun yechimini toping.",
+        "options": ["2", "3", "4", "5"],
+        "answer": 2,
+        "explanation": "5x > 15, x > 3. Eng kichik butun yechim bu 4."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "x^2 - 5x + 6 = 0 tenglamaning ildizlarini toping.",
+        "options": ["2 va 3", "1 va 6", "-2 va -3", "-1 va -6"],
+        "answer": 0,
+        "explanation": "Viyet teoremasiga ko'ra yig'indisi 5, ko'paytmasi 6 bo'lishi kerak. Bu sonlar 2 va 3."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "y = 2x + 3 funksiyaning x = 4 dagi qiymatini toping.",
+        "options": ["10", "11", "12", "9"],
+        "answer": 1,
+        "explanation": "y = 2*4 + 3 = 8 + 3 = 11."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "Agar a = 2 va b = 3 bo'lsa, a^3 - b^2 ni hisoblang.",
+        "options": ["-1", "1", "0", "2"],
+        "answer": 0,
+        "explanation": "2^3 - 3^2 = 8 - 9 = -1."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "y = x^2 funksiyaning grafigi qanday shaklga ega?",
+        "options": ["to'g'ri chiziq", "parabola", "giperbola", "aylana"],
+        "answer": 1,
+        "explanation": "Kvadratik funksiya grafigi parabola hisoblanadi."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "2x + y = 5 va x - y = 1 tenglamalar sistemasining yechimi (x; y) ni toping.",
+        "options": ["(2; 1)", "(1; 2)", "(3; -1)", "(2; 3)"],
+        "answer": 0,
+        "explanation": "Tenglamalarni qo'shsak: 3x = 6 -> x = 2. y = x - 1 = 1."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Geometriya",
+        "question": "To'g'ri to'rtburchakning tomonlari 4 sm va 6 sm bo'lsa, uning perimetrini toping.",
+        "options": ["10 sm", "20 sm", "24 sm", "12 sm"],
+        "answer": 1,
+        "explanation": "P = 2 * (4 + 6) = 20 sm."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Geometriya",
+        "question": "To'g'ri burchakli uchburchakning katetlari 3 sm va 4 sm bo'lsa, gipotenuzasini toping.",
+        "options": ["5 sm", "6 sm", "7 sm", "8 sm"],
+        "answer": 0,
+        "explanation": "Pifagor teoremasiga ko'ra: c = sqrt(3^2 + 4^2) = sqrt(25) = 5 sm."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Geometriya",
+        "question": "Kvadratning yuzi 49 sm^2 bo'lsa, uning tomonini toping.",
+        "options": ["6 sm", "7 sm", "8 sm", "9 sm"],
+        "answer": 1,
+        "explanation": "S = a^2, a = sqrt(49) = 7 sm."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Geometriya",
+        "question": "Aylananing radiusi 5 sm bo'lsa, uning uzunligini toping (pi = 3).",
+        "options": ["15 sm", "25 sm", "30 sm", "20 sm"],
+        "answer": 2,
+        "explanation": "C = 2 * pi * r = 2 * 3 * 5 = 30 sm."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Geometriya",
+        "question": "Uchburchakning ichki burchaklari yig'indisi necha gradusga teng?",
+        "options": ["90", "180", "360", "270"],
+        "answer": 1,
+        "explanation": "Har qanday uchburchakning ichki burchaklari yig'indisi 180 gradusga teng."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Geometriya",
+        "question": "Tomoni a bo'lgan teng tomonli uchburchakning perimetri qanday topiladi?",
+        "options": ["2a", "3a", "4a", "a^2"],
+        "answer": 1,
+        "explanation": "Teng tomonli uchburchakda uchta tomon ham teng bo'lgani uchun P = 3a."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Geometriya",
+        "question": "Rombning diagonallari 6 va 8 ga teng bo'lsa, uning yuzini toping.",
+        "options": ["24", "48", "14", "10"],
+        "answer": 0,
+        "explanation": "Romb yuzi diagonallar ko'paytmasining yarmiga teng: S = (6 * 8) / 2 = 24."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Geometriya",
+        "question": "Trapetsiyaning asoslari 5 va 9 ga, balandligi 4 ga teng. Yuzini toping.",
+        "options": ["28", "56", "18", "36"],
+        "answer": 0,
+        "explanation": "S = ((5 + 9) / 2) * 4 = 7 * 4 = 28."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Geometriya",
+        "question": "Doiraning yuzini topish formulasi qaysi?",
+        "options": ["2*pi*r", "pi*r^2", "4*pi*r", "4/3*pi*r^3"],
+        "answer": 1,
+        "explanation": "Doira yuzi pi*r^2 formulasi bilan topiladi."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Geometriya",
+        "question": "Kubning qirrasi 3 ga teng bo'lsa, uning hajmini toping.",
+        "options": ["9", "27", "18", "36"],
+        "answer": 1,
+        "explanation": "Kubning hajmi V = a^3, ya'ni 3^3 = 27."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Matnli masalalar",
+        "question": "3 ta qalam va 2 ta o'chirg'ich 1200 so'm turadi. 1 ta o'chirg'ich 300 so'm bo'lsa, 1 ta qalam necha so'm turadi?",
+        "options": ["150 so'm", "200 so'm", "250 so'm", "300 so'm"],
+        "answer": 1,
+        "explanation": "2 ta o'chirg'ich = 600 so'm. 3 ta qalam = 1200 - 600 = 600 so'm. 1 ta qalam = 200 so'm."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Matnli masalalar",
+        "question": "Kitob 120 betdan iborat. O'quvchi uning 1/3 qismini o'qidi. Yana necha bet o'qilmagan qoldi?",
+        "options": ["40 bet", "60 bet", "80 bet", "90 bet"],
+        "answer": 2,
+        "explanation": "O'qilgan betlar: 120 * (1/3) = 40. Qolgan betlar: 120 - 40 = 80."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Matnli masalalar",
+        "question": "Avtomobil 80 km/soat tezlik bilan 3 soatda qancha masofani bosib o'tadi?",
+        "options": ["240 km", "160 km", "320 km", "200 km"],
+        "answer": 0,
+        "explanation": "Masofa S = v * t = 80 * 3 = 240 km."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Matnli masalalar",
+        "question": "5 ta ishchi bir ishni 10 kunda tugatadi. Shu ishni 2 ta ishchi necha kunda tugatadi?",
+        "options": ["20 kun", "25 kun", "15 kun", "30 kun"],
+        "answer": 1,
+        "explanation": "Ishning hajmi o'zgarmas (teskari proporsionallik): 5 * 10 = 2 * x -> x = 25."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Matnli masalalar",
+        "question": "Sinfda 30 ta o'quvchi bor. Qizlar o'g'il bolalardan 4 taga ko'p. Sinfda nechta qiz bor?",
+        "options": ["13 ta", "17 ta", "15 ta", "18 ta"],
+        "answer": 1,
+        "explanation": "x (o'g'il) + x + 4 (qiz) = 30 -> 2x = 26 -> x = 13. Qizlar = 13 + 4 = 17."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Matnli masalalar",
+        "question": "Poezdning uzunligi 200 metr. U ustun yonidan 10 sekundda o'tgan bo'lsa, tezligi qancha (m/s)?",
+        "options": ["10", "15", "20", "25"],
+        "answer": 2,
+        "explanation": "Tezlik v = S / t = 200 / 10 = 20 m/s."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Matnli masalalar",
+        "question": "Hozir otaning yoshi o'g'linikidan 3 marta katta. 5 yildan so'ng ular yoshlarining yig'indisi 66 ga teng bo'ladi. O'g'il hozir necha yoshda?",
+        "options": ["12", "14", "16", "18"],
+        "answer": 1,
+        "explanation": "Hozir: o'g'il x, ota 3x. 5 yildan so'ng: x+5 + 3x+5 = 66 -> 4x + 10 = 66 -> 4x = 56 -> x = 14."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Matnli masalalar",
+        "question": "2 kg olma va 3 kg nok 17000 so'm. 1 kg olma 4000 so'm bo'lsa, 1 kg nok necha so'm?",
+        "options": ["2500", "3000", "3500", "4000"],
+        "answer": 1,
+        "explanation": "2 * 4000 + 3 * x = 17000 -> 8000 + 3x = 17000 -> 3x = 9000 -> x = 3000."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Mantiq",
+        "question": "1, 3, 6, 10, 15... ketma-ketlikning keyingi hadini toping.",
+        "options": ["18", "21", "20", "25"],
+        "answer": 1,
+        "explanation": "Farqlar o'sib bormoqda: +2, +3, +4, +5. Keyingi farq +6 bo'ladi. 15 + 6 = 21."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Mantiq",
+        "question": "Qutida 5 ta oq va 7 ta qora shar bor. Qutidan tavakkaliga olingan 1 ta sharning oq bo'lish ehtimolini toping.",
+        "options": ["5/12", "7/12", "5/7", "7/5"],
+        "answer": 0,
+        "explanation": "Jami sharlar: 5 + 7 = 12 ta. Oq sharlar 5 ta. Ehtimollik: P = 5/12."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Arifmetika",
+        "question": "Arifmetik progressiyada a1 = 2 va d = 3 bo'lsa, a5 ni toping.",
+        "options": ["14", "15", "11", "17"],
+        "answer": 0,
+        "explanation": "a5 = a1 + 4d = 2 + 4*3 = 14."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "Geometrik progressiyada b1 = 3 va q = 2 bo'lsa, b4 ni toping.",
+        "options": ["18", "24", "12", "48"],
+        "answer": 1,
+        "explanation": "b4 = b1 * q^3 = 3 * 2^3 = 3 * 8 = 24."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "log_2(8) qiymatini toping.",
+        "options": ["2", "3", "4", "8"],
+        "answer": 1,
+        "explanation": "2^3 = 8 bo'lgani uchun, log_2(8) = 3."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "3^(x-1) = 27 tenglamani yeching.",
+        "options": ["2", "3", "4", "5"],
+        "answer": 2,
+        "explanation": "27 = 3^3, x - 1 = 3 -> x = 4."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Funksiyalar",
+        "question": "Agar f(x) = x^2 - 2x + 1 bo'lsa, f(-1) ni hisoblang.",
+        "options": ["0", "2", "4", "-2"],
+        "answer": 2,
+        "explanation": "f(-1) = (-1)^2 - 2(-1) + 1 = 1 + 2 + 1 = 4."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Algebra",
+        "question": "Modulli tenglamani yeching: |x - 3| = 5.",
+        "options": ["x=8", "x=8 va x=-2", "x=-2", "x=2 va x=-8"],
+        "answer": 1,
+        "explanation": "x - 3 = 5 -> x = 8 yoki x - 3 = -5 -> x = -2."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Geometriya",
+        "question": "Sin(30 gradus) ning qiymati qancha?",
+        "options": ["1", "0", "0.5", "0.866"],
+        "answer": 2,
+        "explanation": "Trigonometrik jadvalga ko'ra, sin(30) = 1/2 = 0.5."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Tenglamalar",
+        "question": "1/x + 1/(2x) = 3/4 tenglamani yeching.",
+        "options": ["x = 1", "x = 2", "x = 3", "x = 4"],
+        "answer": 1,
+        "explanation": "Umumiy maxraj 2x. (2+1)/(2x) = 3/(2x) = 3/4. Demak, 2x = 4 -> x = 2."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Geometriya",
+        "question": "Silindrning asosining radiusi 3 ga, balandligi 4 ga teng. Hajmini toping (pi = 3 deb oling).",
+        "options": ["108", "36", "72", "144"],
+        "answer": 0,
+        "explanation": "V = pi * r^2 * h = 3 * 3^2 * 4 = 3 * 9 * 4 = 108."
+    },
+    {
+        "subject": "majburiy_math",
+        "block": "mutaxassislik",
+        "topic": "Mantiq",
+        "question": "Ikkita tanga tashlanganda ikkalasining ham \"gerb\" tomoni tushish ehtimoli qancha?",
+        "options": ["1/2", "1/3", "1/4", "1"],
+        "answer": 2,
+        "explanation": "Tanganing ikkita tomoni bor. 1-tanga gerb tushishi 1/2, 2-tanga ham 1/2. 1/2 * 1/2 = 1/4."
+    }
+]

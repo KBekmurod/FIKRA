@@ -81,39 +81,12 @@ input, textarea, select {
 /* .app aniq HEIGHT bo'lishi kerak — flex:1 ichki konteynerlarga ishlasin */
 .app {
   width: 100%;
-  max-width: 480px;
-  height: var(--real-100vh); /* min-height emas, aynan shu balandlik */
+  height: var(--real-100vh);
   margin: 0 auto;
   background: var(--bg);
   display: flex;
   flex-direction: column;
   position: relative;
-  /* overflow yo'q — scroll .app-content da bo'ladi */
-}
-
-/* Desktop: chiroyli ramka */
-@media (min-width: 600px) {
-  body { background: #04040f; }
-  .app {
-    max-width: 420px;
-    /* Desktop uchun ham real-100vh */
-    height: var(--real-100vh);
-    border-radius: 22px;
-    /* overflow:hidden EMAS — scroll bloklaydi. Shadow border bilan */
-    box-shadow: 0 0 0 1px rgba(123,104,238,0.15), 0 30px 80px rgba(0,0,0,0.6);
-    /* Ramka ko'rinishi uchun clip qilish kerak — lekin scroll uchun xavfli */
-    /* Yechim: border-radius faqat vizual, overflow auto */
-    overflow: hidden; /* border-radius ishlashi uchun kerak */
-    overflow-y: auto; /* lekin scroll desktop uchun .app da bo'ladi */
-    -webkit-overflow-scrolling: touch;
-  }
-  /* Desktop'da nav joylashuvi */
-  .nav {
-    max-width: 420px !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    border-radius: 0 0 22px 22px !important;
-  }
 }
 
 /* ─── app-content — SCROLL MARKAZI ──────────────────────────────────── */
@@ -169,8 +142,7 @@ input, textarea, select {
 .nav {
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  max-width: 480px;
-  margin: 0 auto;
+  width: 100%;
   height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
   background: rgba(10, 10, 20, 0.97);
   backdrop-filter: blur(20px);
@@ -373,7 +345,8 @@ input, textarea, select {
 .modal {
   background: var(--s1);
   border-radius: 20px 20px 0 0;
-  width: 100%; max-width: 480px;
+  width: 100%;
+
   padding-bottom: env(safe-area-inset-bottom, 0px);
   max-height: 90vh;
   overflow-y: auto; -webkit-overflow-scrolling: touch;
@@ -406,6 +379,18 @@ input, textarea, select {
 }
 .scroll-y::-webkit-scrollbar { display: none; }
 .scroll-y { scrollbar-width: none; }
+
+/* ─── Generic Layout Classes (Mobile First) ──────────────────────────── */
+.grid-responsive,
+.list-container,
+.ombor-grid,
+.tests-list,
+.folders-grid,
+.materials-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
 /* ─── Empty / Badge / misc ───────────────────────────────────────────── */
 .empty {
@@ -519,21 +504,20 @@ input, textarea, select {
     display: flex;
     flex-direction: row;
     justify-content: center;
-    background: #04040f;
+    background: #06060c;
   }
   
   .app {
-    max-width: 1200px !important;
     width: 100%;
     flex-direction: row !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     background: transparent !important;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
   .nav {
-    position: sticky !important;
+    position: relative !important;
     top: 0;
     bottom: auto;
     left: auto !important;
@@ -547,10 +531,11 @@ input, textarea, select {
     border-right: 1px solid rgba(240, 238, 255, 0.04) !important;
     border-top: none !important;
     max-width: none !important;
-    background: transparent !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+    background: rgba(15, 15, 25, 0.5) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
     margin: 0;
+    flex-shrink: 0;
   }
   
   .nav-item {
@@ -563,7 +548,7 @@ input, textarea, select {
     border-radius: 12px !important;
   }
   
-  .nav-label { font-size: 14px !important; font-weight: 800 !important; }
+  .nav-label { font-size: 14px !important; font-weight: 700 !important; }
   .nav-icon { font-size: 20px !important; }
 
   .app-content {
@@ -571,9 +556,6 @@ input, textarea, select {
     flex: 1;
     min-height: 100vh;
     background: var(--bg);
-    border-radius: 20px;
-    margin: 10px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
     overflow-x: hidden;
   }
   
@@ -583,11 +565,26 @@ input, textarea, select {
     border-bottom: 1px solid rgba(240, 238, 255, 0.04);
   }
 
-  /* Grids */
-  .grid-responsive {
+  .modal-backdrop {
+    align-items: center !important;
+    padding: 20px;
+  }
+  
+  .modal {
+    border-radius: 20px !important;
+    max-width: 500px;
+  }
+
+  /* Keng ekranlar uchun barcha ro'yxatlarga tatbiq qilinadigan grid */
+  .grid-responsive,
+  .list-container,
+  .ombor-grid,
+  .tests-list,
+  .folders-grid {
     display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
-    gap: 14px !important;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important;
+    gap: 16px !important;
+    align-items: stretch;
   }
 }
 

@@ -21,7 +21,7 @@ export default function AiTestsPage() {
         </p>
 
         {/* 3 ta rejim */}
-        <div style={{ display: 'grid', gap: 12 }}>
+        <div className="tests-list">
 
           {/* 1. Papka testlari (1 papka = 1 test) */}
           <button

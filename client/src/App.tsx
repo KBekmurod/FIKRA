@@ -41,6 +41,15 @@ const PersonalTestExplainPage = lazy(() => import('./pages/PersonalTestExplainPa
 const HistoryPage = lazy(() => import('./pages/HistoryPage'))
 const AIPage = lazy(() => import('./pages/AIPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+
+// --- Admin Pages ---
+import { AdminRoute } from './components/AdminRoute'
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then(m => ({ default: m.AdminLayout })))
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers').then(m => ({ default: m.AdminUsers })))
+const AdminOrders = lazy(() => import('./pages/admin/AdminOrders').then(m => ({ default: m.AdminOrders })))
+const AdminQuestions = lazy(() => import('./pages/admin/AdminQuestions').then(m => ({ default: m.AdminQuestions })))
+
 import { ToastProvider } from './components/Toast'
 import { FikraEntity } from './components/FikraEntity'
 
@@ -241,6 +250,7 @@ export default function App() {
   if (!initialized) return <FullLoader />
 
   const isAuthRoute = location.pathname.startsWith('/auth')
+  const isAdminRoute = location.pathname.startsWith('/admin')
 
   return (
     <div className="app">
@@ -287,7 +297,7 @@ export default function App() {
       )}
       <ToastProvider>
         <GlobalJobWatcher />
-        {!isAuthRoute && <BottomNav />}
+        {!isAuthRoute && !isAdminRoute && <BottomNav />}
         <div className="app-content">
           <Suspense fallback={<PageLoader />}>
             <AnimatePresence mode="wait">
@@ -337,6 +347,14 @@ export default function App() {
                 <Route path="/tarix"                       element={<HistoryPage />} />
                 <Route path="/ai/*"                        element={<AIPage />} />
                 <Route path="/profil"                      element={<ProfilePage />} />
+
+                {/* Admin Marshrutlari */}
+                <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="users" element={<AdminUsers />} />
+                  <Route path="orders" element={<AdminOrders />} />
+                  <Route path="questions" element={<AdminQuestions />} />
+                </Route>
                 </Routes>
               </motion.div>
             </AnimatePresence>

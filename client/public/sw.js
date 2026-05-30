@@ -1,9 +1,9 @@
 // FIKRA Service Worker v1.0
 // Cache-first strategiya: statik assetlar offline ishlaydi
 
-const CACHE_NAME = 'fikra-v2';
-const STATIC_CACHE = 'fikra-static-v2';
-const API_CACHE = 'fikra-api-v2';
+const CACHE_NAME = 'fikra-v3';
+const STATIC_CACHE = 'fikra-static-v3';
+const API_CACHE = 'fikra-api-v3';
 
 // Offline cache ga olinadigan fayllar
 const STATIC_ASSETS = [

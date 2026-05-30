@@ -150,7 +150,7 @@ export default function OmborSubjectPage() {
             </p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div className="folders-grid">
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 0.5 }}>
               📁 PAPKALAR ({folders.length})
             </div>
