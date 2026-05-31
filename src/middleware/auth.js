@@ -82,7 +82,7 @@ function requireAiAccess(kind) {
         const used = req.user.getAiUsage(kind);
         if (used >= limit) {
           return res.status(429).json({
-            error: `Kunlik limit tugadi (${used}/${limit})`,
+            error: `Bu tizimda nosozlik bo'lmasligi uchun qilingan limit, ertaga yana davom etishingiz mumkin!`,
             code: 'DAILY_LIMIT_REACHED',
             kind,
             limit,
@@ -101,40 +101,64 @@ function requireAiAccess(kind) {
 }
 
 // ─── AI usage atomic increment ──────────────────────────────────────────────
+const userLocks = new Map();
+
 async function incrementAiUsage(userId, kind) {
-  const todayKey = User.todayKey();
-  const result = await User.findOneAndUpdate(
-    { _id: userId },
-    [{
-      $set: {
-        aiUsage: {
-          $cond: [
-            { $eq: ['$aiUsage.date', todayKey] },
-            {
-              $mergeObjects: [
-                '$aiUsage',
-                { [kind]: { $add: [{ $ifNull: [`$aiUsage.${kind}`, 0] }, 1] } },
-              ],
-            },
-            {
-              date: todayKey,
-              hints: 0, chats: 0, docs: 0, images: 0, calories: 0,
-              ocrUploads: 0, fileUploads: 0, testsGen: 0,
-              [kind]: 1,
-            },
-          ],
+  const id = userId.toString();
+  while (userLocks.get(id)) await userLocks.get(id);
+  let release;
+  userLocks.set(id, new Promise(r => release = r));
+
+  try {
+    // 1. Qat'iy tekshiruv (Race Condition oldini olish uchun yagona oqim)
+    const user = await User.findById(userId);
+    if (!user) throw new Error("Foydalanuvchi topilmadi");
+    
+    const limit = user.getAiLimit(kind);
+    if (limit !== Infinity && user.getAiUsage(kind) >= limit) {
+      const err = new Error("Bu tizimda nosozlik bo'lmasligi uchun qilingan limit, ertaga yana davom etishingiz mumkin!");
+      err.statusCode = 429;
+      err.code = 'DAILY_LIMIT_REACHED';
+      throw err;
+    }
+
+    const todayKey = User.todayKey();
+    const result = await User.findOneAndUpdate(
+      { _id: userId },
+      [{
+        $set: {
+          aiUsage: {
+            $cond: [
+              { $eq: ['$aiUsage.date', todayKey] },
+              {
+                $mergeObjects: [
+                  '$aiUsage',
+                  { [kind]: { $add: [{ $ifNull: [`$aiUsage.${kind}`, 0] }, 1] } },
+                ],
+              },
+              {
+                date: todayKey,
+                hints: 0, chats: 0, docs: 0, images: 0, calories: 0,
+                ocrUploads: 0, fileUploads: 0, testsGen: 0,
+                [kind]: 1,
+              },
+            ],
+          },
+          lifetimeAiUsage: {
+            $mergeObjects: [
+              '$lifetimeAiUsage',
+              { [kind]: { $add: [{ $ifNull: [`$lifetimeAiUsage.${kind}`, 0] }, 1] } },
+            ],
+          }
         },
-        lifetimeAiUsage: {
-          $mergeObjects: [
-            '$lifetimeAiUsage',
-            { [kind]: { $add: [{ $ifNull: [`$lifetimeAiUsage.${kind}`, 0] }, 1] } },
-          ],
-        }
-      },
-    }],
-    { new: true }
-  );
-  return result;
+      }],
+      { new: true }
+    );
+    return result;
+  } finally {
+    userLocks.delete(id);
+    release();
+  }
 }
 
 // ─── Plan helper ─────────────────────────────────────────────────────────────

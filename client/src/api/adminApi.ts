@@ -25,6 +25,8 @@ export const adminApi = {
   getStats: () => fetchAdmin('/stats'),
   getAnalytics: () => fetchAdmin('/analytics'),
   getRevenue: () => fetchAdmin('/revenue'),
+  getConfig: () => fetchAdmin('/config'),
+  updateConfig: (data: any) => fetchAdmin('/config', { method: 'POST', body: JSON.stringify(data) }),
   getUsers: (page = 1, limit = 20, q = '') => fetchAdmin(`/users?page=${page}&limit=${limit}&q=${encodeURIComponent(q)}`),
   banUser: (id: string) => fetchAdmin(`/users/${id}/ban`, { method: 'POST' }),
   activatePlan: (id: string, planId: string) => fetchAdmin(`/users/${id}/activate-plan`, {

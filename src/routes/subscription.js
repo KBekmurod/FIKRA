@@ -3,7 +3,6 @@ const router  = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const User         = require('../models/User');
 const PendingOrder = require('../models/PendingOrder');
-const PromoCode    = require('../models/PromoCode');
 const { logger }   = require('../utils/logger');
 
 // ─── NARXLAR (UZS) ──────────────────────────────────────────────────────────
@@ -11,35 +10,35 @@ const PLANS = {
   // Basic
   basic_1m: { id:'basic_1m', name:'Basic', tier:'basic', period:'1 oy', durationDays:30,
     priceUZS:19900, badge:null,
-    features:['30 ta AI tushuntirish','50 ta AI xabar/kun','5 ta Hujjat & 10 ta test','Reklamasiz ishlash'] },
+    features:['600 ta AI xabar (oyiga)','150 ta test (oyiga)','300 ta tushuntirish','Reklamasiz ishlash'] },
   basic_3m: { id:'basic_3m', name:'Basic', tier:'basic', period:'3 oy', durationDays:90,
     priceUZS:49900, badge:'16% chegirma',
-    features:['30 ta AI tushuntirish','50 ta AI xabar/kun','5 ta Hujjat & 10 ta test','3 oy muddatli'] },
+    features:['600 ta AI xabar (oyiga)','150 ta test (oyiga)','300 ta tushuntirish','3 oy muddatli'] },
   basic_12m: { id:'basic_12m', name:'Basic', tier:'basic', period:'1 yil', durationDays:365,
     priceUZS:179000, badge:'25% chegirma',
-    features:['30 ta AI tushuntirish','50 ta AI xabar/kun','5 ta Hujjat & 10 ta test','Eng arzon yillik plan'] },
+    features:['600 ta AI xabar (oyiga)','150 ta test (oyiga)','300 ta tushuntirish','Eng arzon yillik plan'] },
     
   // Pro
   pro_1m: { id:'pro_1m', name:'Pro', tier:'pro', period:'1 oy', durationDays:30,
     priceUZS:39900, badge:'Mashhur',
-    features:['Cheksiz AI tushuntirish','Cheksiz AI xabar','20 ta Hujjat & cheksiz test','Pro belgi va yuqori tezlik'] },
+    features:['900 ta AI xabar (oyiga)','300 ta test (oyiga)','450 ta tushuntirish','Pro belgi va yuqori tezlik'] },
   pro_3m: { id:'pro_3m', name:'Pro', tier:'pro', period:'3 oy', durationDays:90,
     priceUZS:99900, badge:'16% chegirma',
-    features:['Cheksiz AI tushuntirish','Cheksiz AI xabar','20 ta Hujjat & cheksiz test','3 oy muddatli'] },
+    features:['900 ta AI xabar (oyiga)','300 ta test (oyiga)','450 ta tushuntirish','3 oy muddatli'] },
   pro_12m: { id:'pro_12m', name:'Pro', tier:'pro', period:'1 yil', durationDays:365,
     priceUZS:349000, badge:'27% chegirma',
-    features:['Cheksiz AI tushuntirish','Cheksiz AI xabar','20 ta Hujjat & cheksiz test','Uzoq va qulay'] },
+    features:['900 ta AI xabar (oyiga)','300 ta test (oyiga)','450 ta tushuntirish','Uzoq va qulay'] },
     
   // VIP
   vip_1m: { id:'vip_1m', name:'VIP', tier:'vip', period:'1 oy', durationDays:30,
     priceUZS:69900, badge:'Eng to\'liq',
-    features:['Barcha imkoniyatlar cheksiz','VIP tezlik va ustuvorlik','Yangi funksiyalar 1-bo\'lib sizga','Shaxsiy AI yordamchi'] },
+    features:['Barcha imkoniyatlar (Keng FUP*)','1800 ta xabar & 600 ta test (oyiga)','Yangi funksiyalar 1-bo\'lib sizga','Shaxsiy AI yordamchi'] },
   vip_3m: { id:'vip_3m', name:'VIP', tier:'vip', period:'3 oy', durationDays:90,
     priceUZS:179900, badge:'14% chegirma',
-    features:['Barcha imkoniyatlar cheksiz','VIP tezlik va ustuvorlik','Yangi funksiyalar 1-bo\'lib sizga','3 oy muddatli'] },
+    features:['Barcha imkoniyatlar (Keng FUP*)','1800 ta xabar & 600 ta test (oyiga)','Yangi funksiyalar 1-bo\'lib sizga','3 oy muddatli'] },
   vip_12m: { id:'vip_12m', name:'VIP', tier:'vip', period:'1 yil', durationDays:365,
     priceUZS:599000, badge:'28% chegirma',
-    features:['Barcha imkoniyatlar cheksiz','VIP tezlik va ustuvorlik','Yangi funksiyalar 1-bo\'lib sizga','Yillik to\'liq paket'] },
+    features:['Barcha imkoniyatlar (Keng FUP*)','1800 ta xabar & 600 ta test (oyiga)','Yangi funksiyalar 1-bo\'lib sizga','Yillik to\'liq paket'] },
 };
 
 // Unikal order ID generator
@@ -79,56 +78,23 @@ router.post('/create-invoice', authMiddleware, (req, res) => {
   });
 });
 
-// ─── Promocode tekshirish ────────────────────────────────────────────────────
-router.post('/validate-promo', authMiddleware, async (req, res) => {
-  try {
-    const { code } = req.body;
-    if (!code) return res.status(400).json({ error: 'Kod kiritilmadi' });
-    
-    const pc = await PromoCode.findOne({ code: code.toUpperCase() });
-    if (!pc) return res.status(404).json({ error: 'Promokod topilmadi' });
-    if (!pc.isActive) return res.status(400).json({ error: 'Promokod faol emas' });
-    if (pc.expiresAt && pc.expiresAt < new Date()) return res.status(400).json({ error: 'Promokod muddati o\'tgan' });
-    if (pc.maxUses > 0 && pc.usedCount >= pc.maxUses) return res.status(400).json({ error: 'Promokod limitiga yetgan' });
-    
-    res.json({ success: true, discountPercent: pc.discountPercent });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // ─── P2P buyurtma yaratish ───────────────────────────────────────────────────
 router.post('/create-p2p-order', authMiddleware, async (req, res, next) => {
   try {
-    const { planId, promoCode } = req.body;
+    const { planId } = req.body;
     const plan = PLANS[planId];
     if (!plan) return res.status(400).json({ error: 'Yaroqsiz tariff' });
 
     const user = req.user;
     let finalPrice = plan.priceUZS;
 
-    // Promokodni tekshirish va chegirma qo'llash
-    if (promoCode) {
-      const pc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
-      if (pc && pc.isActive && (!pc.expiresAt || pc.expiresAt > new Date()) && (pc.maxUses === 0 || pc.usedCount < pc.maxUses)) {
-        finalPrice = Math.max(0, Math.round(plan.priceUZS * (1 - pc.discountPercent / 100)));
-        // Incremet usedCount when confirming order, not here. But we can mark it.
-      }
-    }
-
-    // Agar boshqa planlar uchun oldingi pending buyurtmalar bo'lsa, bekor qilamiz
-    await PendingOrder.updateMany(
-      { userId: user._id, status: 'pending', paymentType: 'p2p', planId: { $ne: plan.id } },
-      { $set: { status: 'cancelled' } }
-    );
-
-    // Aynan shu plan uchun eski pending buyurtma bormi?
+    // 1. Aynan shu plan va narx uchun eski pending buyurtma bormi? (Spamning oldini olish)
     const existing = await PendingOrder.findOne({
       userId: user._id,
       planId: plan.id,
       status: 'pending',
       paymentType: 'p2p',
-      priceUZS: finalPrice, // faqat narxi bir xil bo'lsa
+      priceUZS: finalPrice, // faqat narxi ham bir xil bo'lsa qabul qilamiz
     });
     
     if (existing) {
@@ -145,6 +111,13 @@ router.post('/create-p2p-order', authMiddleware, async (req, res, next) => {
       });
     }
 
+    // 2. Agar foydalanuvchi boshqa plan tanlagan bo'lsa, eski barcha P2P kutayotganlarni bekor qilamiz.
+    // Shunday qilib, admin panelda bitta userdan 10 ta har xil ID li buyurtma paydo bo'lib qolmaydi (Spam filtering).
+    await PendingOrder.updateMany(
+      { userId: user._id, status: 'pending', paymentType: 'p2p' },
+      { $set: { status: 'cancelled' } }
+    );
+
     // Yangi buyurtma
     let orderId;
     let attempts = 0;
@@ -160,15 +133,10 @@ router.post('/create-p2p-order', authMiddleware, async (req, res, next) => {
       firstName: user.firstName || '',
       orderId,
       planId: plan.id,
-      planName: `${plan.name} ${plan.period}${promoCode ? ` (Promo: ${promoCode.toUpperCase()})` : ''}`,
+      planName: `${plan.name} ${plan.period}`,
       priceUZS: finalPrice,
       paymentType: 'p2p',
     });
-
-    // Increment promocode use count (temporary logic: increment on create, but strictly should be on payment)
-    if (promoCode && finalPrice < plan.priceUZS) {
-      await PromoCode.updateOne({ code: promoCode.toUpperCase() }, { $inc: { usedCount: 1 } });
-    }
 
     logger.info(`P2P order created: ${orderId} for user=${user._id} plan=${plan.id} price=${finalPrice}`);
 

@@ -51,7 +51,6 @@ const AdminOrders = lazy(() => import('./pages/admin/AdminOrders').then(m => ({ 
 const AdminQuestions = lazy(() => import('./pages/admin/AdminQuestions').then(m => ({ default: m.AdminQuestions })))
 
 import { ToastProvider } from './components/Toast'
-import { FikraEntity } from './components/FikraEntity'
 
 function FullLoader() {
   return (

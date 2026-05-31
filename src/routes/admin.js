@@ -6,7 +6,6 @@ const TestQuestion = require('../models/TestQuestion');
 const { logger, memoryLogs } = require('../utils/logger');
 const { PLANS, _activatePlan } = require('./subscription');
 const StudyMaterial = require('../models/StudyMaterial');
-const PromoCode = require('../models/PromoCode');
 const Announcement = require('../models/Announcement');
 const ExamSession = require('../models/ExamSession');
 const PersonalTest = require('../models/PersonalTest');
@@ -147,11 +146,12 @@ router.get('/users', adminAuth, async (req, res) => {
     const { q, plan, page = 1, limit = 20 } = req.query;
     const filter = {};
     if (q) {
+      const safeQ = String(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { firstName: { $regex: q, $options: 'i' } },
-        { displayName: { $regex: q, $options: 'i' } },
-        { email: { $regex: q, $options: 'i' } },
-        { phone: { $regex: q, $options: 'i' } },
+        { firstName: { $regex: safeQ, $options: 'i' } },
+        { displayName: { $regex: safeQ, $options: 'i' } },
+        { email: { $regex: safeQ, $options: 'i' } },
+        { phone: { $regex: safeQ, $options: 'i' } },
       ];
     }
     if (plan) filter.plan = plan;
@@ -294,7 +294,10 @@ router.get('/questions', adminAuth, async (req, res) => {
     const filter = {};
     if (subject) filter.subject = subject;
     if (block) filter.block = block;
-    if (q) filter.question = { $regex: q, $options: 'i' };
+    if (q) {
+      const safeQ = String(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.question = { $regex: safeQ, $options: 'i' };
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [questions, total] = await Promise.all([
@@ -408,11 +411,46 @@ router.post('/questions/csv-import', adminAuth, async (req, res) => {
   }
 });
 
+const AdminConfig = require('../models/AdminConfig');
+
+// ─── GET /api/admin/config ───────────────────────────────────────────────────
+router.get('/config', adminAuth, async (req, res) => {
+  try {
+    let config = await AdminConfig.findOne({ isSingleton: true });
+    if (!config) {
+      config = await AdminConfig.create({});
+    }
+    res.json(config);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── POST /api/admin/config ──────────────────────────────────────────────────
+router.post('/config', adminAuth, async (req, res) => {
+  try {
+    let config = await AdminConfig.findOne({ isSingleton: true });
+    if (!config) config = new AdminConfig({});
+    
+    const { usdToUzsRate, costPerChat, costPerTest, costPerDoc, costPerHint, costPerImg, fixedMonthlyCosts } = req.body;
+    
+    if (usdToUzsRate !== undefined) config.usdToUzsRate = Number(usdToUzsRate);
+    if (costPerChat !== undefined) config.costPerChat = Number(costPerChat);
+    if (costPerTest !== undefined) config.costPerTest = Number(costPerTest);
+    if (costPerDoc !== undefined) config.costPerDoc = Number(costPerDoc);
+    if (costPerHint !== undefined) config.costPerHint = Number(costPerHint);
+    if (costPerImg !== undefined) config.costPerImg = Number(costPerImg);
+    if (fixedMonthlyCosts !== undefined) config.fixedMonthlyCosts = Number(fixedMonthlyCosts);
+
+    await config.save();
+    res.json({ success: true, config });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── GET /api/admin/revenue ──────────────────────────────────────────────────
-// Daromad kalkulyatori
+// Daromad kalkulyatori (Aniq Matematika)
 router.get('/revenue', adminAuth, async (req, res) => {
   try {
-    const { deepseekCostPer1k = 0.27, geminiCostPer1k = 0.1 } = req.query;
+    let config = await AdminConfig.findOne({ isSingleton: true });
+    if (!config) config = await AdminConfig.create({});
 
     const [
       confirmedOrders, activeUsers, aiRequestsStats
@@ -435,20 +473,33 @@ router.get('/revenue', adminAuth, async (req, res) => {
 
     // P2P daromad (UZS) — barcha tasdiqlangan buyurtmalar
     const p2pRevenue = confirmedOrders.reduce((sum, o) => sum + (o.priceUZS || 0), 0);
+    const p2pRevenueUSD = p2pRevenue / config.usdToUzsRate;
 
-    // Jami AI so'rovlar (Haqiqiy xarajat lifetimeAiUsage asosida)
+    // AI so'rovlar hajmi
     const stats = aiRequestsStats[0] || { totalChats: 0, totalDocs: 0, totalHints: 0, totalImages: 0, totalTests: 0 };
     const totalReqs = stats.totalChats + stats.totalDocs + stats.totalHints + stats.totalImages + stats.totalTests;
     
-    // Taxminiy hisob: 
-    // - Docs/TestsGen ko'proq token yeydi (x5)
-    // - Qolganlari standart 1x.
-    const weightedTokens = (stats.totalDocs * 5) + (stats.totalTests * 5) + stats.totalChats + stats.totalHints + (stats.totalImages * 2);
-    
-    // Faraz qilamiz: Har 1000 weighted so'rov $0.15 atrofida tushadi
-    const averageCostPer1k = 0.15;
-    const totalApiCostUSD = (weightedTokens / 1000) * averageCostPer1k;
-    const totalApiCostUZS = totalApiCostUSD * 12700;
+    // Aniq xarajat hisobi (USD)
+    const costChats = stats.totalChats * config.costPerChat;
+    const costTests = stats.totalTests * config.costPerTest;
+    const costDocs = stats.totalDocs * config.costPerDoc;
+    const costHints = stats.totalHints * config.costPerHint;
+    const costImages = stats.totalImages * config.costPerImg;
+
+    const totalApiCostUSD = costChats + costTests + costDocs + costHints + costImages;
+    const totalApiCostUZS = totalApiCostUSD * config.usdToUzsRate;
+
+    const fixedCostUSD = config.fixedMonthlyCosts;
+    const fixedCostUZS = fixedCostUSD * config.usdToUzsRate;
+
+    const totalCostUSD = totalApiCostUSD + fixedCostUSD;
+    const totalCostUZS = totalApiCostUZS + fixedCostUZS;
+
+    const netProfitUZS = p2pRevenue - totalCostUZS;
+    const netProfitUSD = p2pRevenueUSD - totalCostUSD;
+
+    const profitMargin = p2pRevenue > 0 ? ((netProfitUZS / p2pRevenue) * 100).toFixed(1) : 0;
+    const arpuUZS = activeUsers.length > 0 ? Math.round(p2pRevenue / activeUsers.length) : 0;
 
     // Plan taqsimoti
     const planDist = { basic: 0, pro: 0, vip: 0 };
@@ -457,20 +508,35 @@ router.get('/revenue', adminAuth, async (req, res) => {
     res.json({
       revenue: {
         p2p: p2pRevenue,
-        total: p2pRevenue,
+        p2pUSD: p2pRevenueUSD
       },
       costs: {
-        apiUSD: +totalApiCostUSD.toFixed(2),
+        apiUSD: totalApiCostUSD,
         apiUZS: Math.round(totalApiCostUZS),
+        breakdown: {
+          chatsUSD: costChats,
+          testsUSD: costTests,
+          docsUSD: costDocs,
+          hintsUSD: costHints,
+          imagesUSD: costImages
+        },
+        fixedUSD: fixedCostUSD,
+        fixedUZS: Math.round(fixedCostUZS),
+        totalUSD: totalCostUSD,
+        totalUZS: Math.round(totalCostUZS)
       },
       profit: {
-        uzs: p2pRevenue - Math.round(totalApiCostUZS),
+        uzs: Math.round(netProfitUZS),
+        usd: netProfitUSD,
+        marginPercent: Number(profitMargin)
+      },
+      metrics: {
+        arpuUZS,
+        activeSubs: activeUsers.length,
+        totalReqs
       },
       orders: { total: confirmedOrders.length },
-      aiRequests: totalReqs,
-      activeSubs: activeUsers.length,
       planDistribution: planDist,
-      note: 'API xarajat taxminiy. Aniq hisob uchun DeepSeek/Gemini dashboard\'ini tekshiring.',
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

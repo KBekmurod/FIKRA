@@ -112,6 +112,9 @@ router.post('/text', authMiddleware, async (req, res, next) => {
   try {
     const { folderId, subjectId, title, content } = req.body;
     if (!folderId) return res.status(400).json({ error: 'folderId kerak' });
+    if (!content || content.length > User.MATERIAL_RULES.maxTextChars) {
+      return res.status(400).json({ error: `Matn juda uzun. Maksimum ${User.MATERIAL_RULES.maxTextChars} belgi ruxsat etiladi.` });
+    }
     const material = await materialService.createTextMaterial(req.user._id, {
       folderId,
       subjectId,

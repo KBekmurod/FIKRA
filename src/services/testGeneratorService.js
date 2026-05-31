@@ -31,7 +31,7 @@ async function _safeDeepseekCall(prompt, maxTokens, temperature) {
   );
   return Promise.race([
     _deepseek().chat.completions.create({
-      model: 'deepseek-chat',
+      model: 'deepseek-v4-pro',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: maxTokens,
       temperature,

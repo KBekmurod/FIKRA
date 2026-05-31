@@ -22,7 +22,7 @@ function deepseek() {
 // ─── AI Chat (SSE stream) ──────────────────────────────────────────────────
 async function streamChat(messages, res, onComplete) {
   const stream = await deepseek().chat.completions.create({
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-pro',
     messages,
     stream: true,
     max_tokens: 4000,
@@ -76,7 +76,7 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
     const outlineInstructions = options.designPrompt ? ` Foydalanuvchining qo'shimcha dizayn/uslub talabi: "${options.designPrompt}". Iltimos shuni hisobga olgan holda rejani tuz.` : '';
     
     const outlineRes = await deepseek().chat.completions.create({
-      model: 'deepseek-chat',
+      model: 'deepseek-v4-pro',
       messages: [{ role: 'user', content: `Sen professional yozuvchisan. Mavzu: "${prompt}". Shu mavzuda ${targetChunks} qismdan iborat juda batafsil hujjat rejasini tuz. Faqat rejani raqamlab yoz.${outlineInstructions}` }],
       max_tokens: 1000,
     });
@@ -109,7 +109,7 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
         
         batch.push(
           withRetry(() => deepseek().chat.completions.create({
-            model: 'deepseek-chat',
+            model: 'deepseek-v4-pro',
             messages: [{ role: 'user', content: chunkPrompt }],
             max_tokens: 8000,
             temperature: 0.7,
@@ -155,7 +155,7 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
   "comment": "Hujjatning sifati va ishonchliligi haqida 1-2 gaplik qisqa xulosa."
 }`;
       const auditRes = await deepseek().chat.completions.create({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-pro',
         messages: [{ role: 'user', content: auditPrompt }],
         max_tokens: 500,
         response_format: { type: 'json_object' }
@@ -181,7 +181,7 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
 async function getTestHint(question, options, subject) {
   const optsText = options.map((o, i) => `${['A','B','C','D'][i]}) ${o}`).join('\n');
   const res = await deepseek().chat.completions.create({
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-pro',
     messages: [{
       role: 'user',
       content: `DTM ${subject} fanidan savol:\n\n${question}\n\nVariantlar:\n${optsText}\n\nTo'g'ri javobni aytmasdan, abituriyent o'zi topishi uchun 2-3 jumlada yo'l ko'rsat (o'zbek tilida). Mavzuni esga sol, lekin javobni ochib yuborma.`,
@@ -198,7 +198,7 @@ async function getTestHint(question, options, subject) {
 async function explainTestQuestion(question, options, subject) {
   const optsText = options.map((o, i) => `${['A','B','C','D'][i]}) ${o}`).join('\n');
   const res = await deepseek().chat.completions.create({
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-pro',
     messages: [{
       role: 'system',
       content: `Sen FIKRA — abituriyentlarga DTM testlariga tayyorlovchi AI o'qituvchisan.
@@ -241,7 +241,7 @@ async function chatWithMemory(userId, message) {
   ];
 
   const response = await deepseek().chat.completions.create({
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-pro',
     messages: messagesToSend,
     max_tokens: 1000,
     temperature: 0.7,
@@ -315,7 +315,7 @@ async function explainWrongAnswer(question, options, correctAnswer, userSelectio
   }).join('\n');
 
   const res = await deepseek().chat.completions.create({
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-pro',
     messages: [{
       role: 'system',
       content: `Sen FIKRA — abituriyentlarga DTM testlariga tayyorlovchi AI o'qituvchisan.
@@ -346,7 +346,7 @@ async function analyzeUserPerformance(stats) {
     .join('\n');
 
   const res = await deepseek().chat.completions.create({
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-pro',
     messages: [{
       role: 'system',
       content: `Sen FIKRA — abituriyent uchun shaxsiy tayyorgarlik maslahatchisi.
@@ -400,7 +400,7 @@ JSON strukturasi:
 ]`;
 
   const res = await deepseek().chat.completions.create({
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-pro',
     messages: [
       { role: 'system', content: prompt },
       { role: 'user', content: rawText }

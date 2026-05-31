@@ -196,10 +196,8 @@ export async function streamJsonFetch<T>(url: string, body: any, timeoutMs: numb
 export const subApi = {
   plans: () => api.get<PlanData[]>('/api/sub/plans'),
   status: () => api.get('/api/sub/status'),
-  validatePromo: (code: string) =>
-    api.post<{ success: boolean; discountPercent: number }>('/api/sub/validate-promo', { code }),
-  createP2POrder: (planId: string, promoCode?: string) =>
-    api.post<{ order: { orderId: string; planName: string; priceUZS: number } }>('/api/sub/create-p2p-order', { planId, promoCode }),
+  createP2POrder: (planId: string) =>
+    api.post<{ order: { orderId: string; planName: string; priceUZS: number } }>('/api/sub/create-p2p-order', { planId }),
   myOrders: () => api.get('/api/sub/my-orders'),
 }
 

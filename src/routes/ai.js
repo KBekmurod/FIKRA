@@ -59,6 +59,7 @@ router.post('/chat',
     try {
       const { message, sessionId } = req.body;
       if (!message) return res.status(400).json({ error: 'Xabar kerak' });
+      if (message.length > 20000) return res.status(400).json({ error: 'Matn hajmi juda katta. Iltimos, qisqaroq yozing.' });
       await incrementAiUsage(req.user._id, 'chats');
 
       let session;

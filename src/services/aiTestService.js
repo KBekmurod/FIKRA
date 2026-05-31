@@ -297,7 +297,7 @@ FAQAT quyidagi JSON formatda javob ber:
     try {
       const res = await Promise.race([
         _internal.deepseek().chat.completions.create({
-          model: 'deepseek-chat',
+          model: 'deepseek-v4-pro',
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 6000,
           temperature: 0.4,
