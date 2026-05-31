@@ -1,7 +1,8 @@
 const axios = require('axios');
 const { logger } = require('../utils/logger');
 const ChatHistory = require('../models/ChatHistory');
-
+const AICache = require('../models/AICache');
+const crypto = require('crypto');
 // ─── Lazy DeepSeek client ──────────────────────────────────────────────────
 // Required env variable: DEEPSEEK_API_KEY — DeepSeek API kaliti
 // Optional env variable: DEEPSEEK_BASE_URL — DeepSeek API manzili (default: https://api.deepseek.com/v1)
@@ -17,6 +18,46 @@ function deepseek() {
     });
   }
   return _deepseek;
+}
+
+// ─── AI Response Caching Layer (Semantic / Exact Match) ────────────────────
+async function cachedChatCompletion(config) {
+  // Hash the critical parts of the prompt
+  const hashPayload = JSON.stringify({
+    model: config.model,
+    messages: config.messages,
+    max_tokens: config.max_tokens,
+    temperature: config.temperature,
+    response_format: config.response_format,
+  });
+  const promptHash = crypto.createHash('sha256').update(hashPayload).digest('hex');
+
+  // Check cache
+  const cached = await AICache.findOne({ promptHash });
+  if (cached) {
+    logger.info(`[AI Cache Hit] Reusing cached response for hash: ${promptHash.substring(0, 8)}...`);
+    // Simulate OpenAI response object structure
+    return {
+      choices: [{ message: { content: cached.response } }],
+      cached: true
+    };
+  }
+
+  // Cache miss, call actual API
+  logger.info(`[AI Cache Miss] Calling DeepSeek API for hash: ${promptHash.substring(0, 8)}...`);
+  const response = await deepseek().chat.completions.create(config);
+  const content = response.choices[0]?.message?.content;
+
+  // Save to cache asynchronously (don't block the return)
+  if (content) {
+    AICache.create({
+      promptHash,
+      model: config.model || 'unknown',
+      response: content
+    }).catch(err => logger.error('[AI Cache Error] Failed to save cache:', err.message));
+  }
+
+  return response;
 }
 
 // ─── AI Chat (SSE stream) ──────────────────────────────────────────────────
@@ -75,7 +116,7 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
     
     const outlineInstructions = options.designPrompt ? ` Foydalanuvchining qo'shimcha dizayn/uslub talabi: "${options.designPrompt}". Iltimos shuni hisobga olgan holda rejani tuz.` : '';
     
-    const outlineRes = await deepseek().chat.completions.create({
+    const outlineRes = await cachedChatCompletion({
       model: 'deepseek-v4-pro',
       messages: [{ role: 'user', content: `Sen professional yozuvchisan. Mavzu: "${prompt}". Shu mavzuda ${targetChunks} qismdan iborat juda batafsil hujjat rejasini tuz. Faqat rejani raqamlab yoz.${outlineInstructions}` }],
       max_tokens: 1000,
@@ -108,7 +149,7 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
         const chunkPrompt = `Mavzu: "${prompt}". Hujjat rejasi: \n${outline}\n\nShu rejadagi ${j}-qismni batafsil, mantiqiy va professional tarzda yoz.\n- Markdown formatida sarlavhalar (#, ##), qalin yozuvlar (**matn**), ro'yxatlar (- matn) va JADVALLARdan (| ustun | ustun |) judayam keng foydalan.\n- Muhim faktlar, maslahatlar yoki eslatmalarni ajratib ko'rsatish uchun Iqtibos (Blockquote: > matn) dan albatta foydalan (bu hujjatda maxsus vizual blok bo'lib chiqadi).\n- Agar bu 1-qism bo'lsa munosib "Kirish" yoz, agar eng oxirgi qism bo'lsa aniq "Xulosa va Tavsiyalar" yoz.\n${formatRules}${extraInstructions}\nQAT'IY QOIDALAR:\n1. Matnlarni qalin qilishda yulduzchalarga yopishib yozing (**matn**), yulduzcha ichida bo'sh joy qoldirmang (** matn ** QILMANG).\n2. Hajmi qat'iy ravishda taxminan 600 so'zdan iborat bo'lsin.\n3. Faqat shu ${j}-qismni yozing. Asosiy hujjat mavzusini qism sarlavhasi sifatida qayta yozmang.\n4. Hech qachon matnni, gapni yoki jadvalni yarim yo'lda uzib qo'yma. Fikringni to'liq tugat.`;
         
         batch.push(
-          withRetry(() => deepseek().chat.completions.create({
+          withRetry(() => cachedChatCompletion({
             model: 'deepseek-v4-pro',
             messages: [{ role: 'user', content: chunkPrompt }],
             max_tokens: 8000,
@@ -154,7 +195,7 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
   "structureScore": "100/100",
   "comment": "Hujjatning sifati va ishonchliligi haqida 1-2 gaplik qisqa xulosa."
 }`;
-      const auditRes = await deepseek().chat.completions.create({
+      const auditRes = await cachedChatCompletion({
         model: 'deepseek-v4-pro',
         messages: [{ role: 'user', content: auditPrompt }],
         max_tokens: 500,
@@ -180,7 +221,7 @@ async function generateLongDocumentStream(prompt, format, maxPages, options, res
 // ─── DTM test: maslahat (to'g'ri javob ochilmaydi) ─────────────────────────
 async function getTestHint(question, options, subject) {
   const optsText = options.map((o, i) => `${['A','B','C','D'][i]}) ${o}`).join('\n');
-  const res = await deepseek().chat.completions.create({
+  const res = await cachedChatCompletion({
     model: 'deepseek-v4-pro',
     messages: [{
       role: 'user',
@@ -197,7 +238,7 @@ async function getTestHint(question, options, subject) {
 // joyida AI orqali mavzuni tushunib olishi mumkin
 async function explainTestQuestion(question, options, subject) {
   const optsText = options.map((o, i) => `${['A','B','C','D'][i]}) ${o}`).join('\n');
-  const res = await deepseek().chat.completions.create({
+  const res = await cachedChatCompletion({
     model: 'deepseek-v4-pro',
     messages: [{
       role: 'system',
@@ -240,7 +281,7 @@ async function chatWithMemory(userId, message) {
     { role: 'user', content: message },
   ];
 
-  const response = await deepseek().chat.completions.create({
+  const response = await cachedChatCompletion({
     model: 'deepseek-v4-pro',
     messages: messagesToSend,
     max_tokens: 1000,
@@ -314,7 +355,7 @@ async function explainWrongAnswer(question, options, correctAnswer, userSelectio
     return `${['A','B','C','D'][i]}) ${o}${marker ? ' ['+marker+']' : ''}`;
   }).join('\n');
 
-  const res = await deepseek().chat.completions.create({
+  const res = await cachedChatCompletion({
     model: 'deepseek-v4-pro',
     messages: [{
       role: 'system',
@@ -345,7 +386,7 @@ async function analyzeUserPerformance(stats) {
     .map(s => `- ${s.subjectName}: ${s.accuracy}% aniqlik (${s.correct}/${s.total})`)
     .join('\n');
 
-  const res = await deepseek().chat.completions.create({
+  const res = await cachedChatCompletion({
     model: 'deepseek-v4-pro',
     messages: [{
       role: 'system',
@@ -399,7 +440,7 @@ JSON strukturasi:
   }
 ]`;
 
-  const res = await deepseek().chat.completions.create({
+  const res = await cachedChatCompletion({
     model: 'deepseek-v4-pro',
     messages: [
       { role: 'system', content: prompt },

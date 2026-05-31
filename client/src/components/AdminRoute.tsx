@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 
 export const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [secret, setSecret] = useState(localStorage.getItem('adminSecret') || '');
@@ -14,6 +15,15 @@ export const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }
     localStorage.removeItem('adminSecret');
     setSecret('');
   };
+
+  // ─── QAT'IY XAVFSIZLIK QULFI ────────────────────────────────────────────────
+  // Admin panelga faqat Railway domeni yoki Localhost orqali kirish mumkin.
+  // Fikra.cc domeni orqali admin sahifasiga kirish butunlay taqiqlanadi (404/Redirect).
+  const isPublicDomain = window.location.hostname.includes('fikra.cc');
+  
+  if (isPublicDomain) {
+    return <Navigate to="/" replace />;
+  }
 
   if (!secret) {
     return (

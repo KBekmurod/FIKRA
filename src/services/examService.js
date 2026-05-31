@@ -170,9 +170,27 @@ async function startDtmSession(userId, direction) {
   const spec1Meta = SUBJECT_META[spec1Id];
   const spec2Meta = SUBJECT_META[spec2Id];
 
-  const compQuestions = (
-    await Promise.all(COMPULSORY_SUBJECTS.map(s => fetchRandom(s.id, s.count)))
-  ).flat();
+  // --- MAJBURIY FANLAR (PAKET USULI) ---
+  const packages = await TestQuestion.distinct('packageId', { block: 'majburiy', packageId: { $ne: null } });
+  let compQuestions = [];
+  
+  if (packages && packages.length > 0) {
+    // Tasodifiy bitta paketni tanlaymiz
+    const randomPackageId = packages[Math.floor(Math.random() * packages.length)];
+    const pkgQuestions = await TestQuestion.find({ packageId: randomPackageId, block: 'majburiy' }).lean();
+    
+    // Har bir fandan 10 tadan savolni ajratamiz (agar paketda xatolik bo'lsa xavfsizlik uchun slice(0, count))
+    for (const sub of COMPULSORY_SUBJECTS) {
+      const qList = pkgQuestions.filter(q => q.subject === sub.id).slice(0, sub.count);
+      compQuestions.push(...qList);
+    }
+  } else {
+    // Agar paketlar umuman yo'q bo'lsa, eski usulda aralash olamiz
+    compQuestions = (
+      await Promise.all(COMPULSORY_SUBJECTS.map(s => fetchRandom(s.id, s.count)))
+    ).flat();
+  }
+  // ---------------------------------------
 
   const spec1Questions = await fetchRandom(spec1Id, 30);
   const spec2Questions = await fetchRandom(spec2Id, 30);
@@ -252,7 +270,46 @@ async function startSubjectSession(userId, subjects, advanced = {}) {
   const subjectBreakdown = [];
   const allQ = [];
 
-  for (const subId of subjects) {
+  const majburiySubjects = subjects.filter(s => s.startsWith('majburiy_'));
+  const otherSubjects = subjects.filter(s => !s.startsWith('majburiy_'));
+
+  // 1. Majburiy fanlarni paket bo'yicha olamiz (agar paket bo'lsa)
+  if (majburiySubjects.length > 0) {
+    const packages = await TestQuestion.distinct('packageId', { block: 'majburiy', packageId: { $ne: null } });
+    let pkgQuestions = [];
+    if (packages && packages.length > 0) {
+      const randomPackageId = packages[Math.floor(Math.random() * packages.length)];
+      pkgQuestions = await TestQuestion.find({ packageId: randomPackageId, block: 'majburiy' }).lean();
+    }
+    
+    for (const subId of majburiySubjects) {
+      const meta = SUBJECT_META[subId];
+      if (!meta) throw new Error(`Noma'lum fan: "${subId}"`);
+
+      const count = (advanced.questionCounts && advanced.questionCounts[subId])
+        ? Math.min(Math.max(parseInt(advanced.questionCounts[subId]) || meta.defaultCount, 1), 50)
+        : meta.defaultCount;
+
+      let questions = [];
+      if (pkgQuestions.length > 0) {
+        questions = pkgQuestions.filter(q => q.subject === subId).slice(0, count);
+      } else {
+        questions = await fetchRandom(subId, count);
+      }
+      
+      allQ.push(...questions);
+      const maxScore = parseFloat((questions.length * meta.weight).toFixed(2));
+      subjectBreakdown.push({
+        subjectId: subId, subjectName: meta.name,
+        block: 'subject', weight: meta.weight,
+        questionCount: questions.length, correct: 0, wrong: 0,
+        score: 0, maxScore,
+      });
+    }
+  }
+
+  // 2. Qolgan mutaxassislik fanlarini oddiy o'qiymiz
+  for (const subId of otherSubjects) {
     const meta = SUBJECT_META[subId];
     if (!meta) throw new Error(`Noma'lum fan: "${subId}"`);
 

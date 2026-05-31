@@ -1,17 +1,19 @@
 // FIKRA Service Worker v1.0
 // Cache-first strategiya: statik assetlar offline ishlaydi
 
-const CACHE_NAME = 'fikra-v3';
-const STATIC_CACHE = 'fikra-static-v3';
-const API_CACHE = 'fikra-api-v3';
+const CACHE_NAME = 'fikra-v4';
+const STATIC_CACHE = 'fikra-static-v4';
+const API_CACHE = 'fikra-api-v4';
 
 // Offline cache ga olinadigan fayllar
 const STATIC_ASSETS = [
   '/',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/apple-touch-icon.png',
+  '/manifest.json?v=7',
+  '/icon-192.png?v=7',
+  '/icon-512.png?v=7',
+  '/icon-192-maskable.png?v=7',
+  '/icon-512-maskable.png?v=7',
+  '/apple-touch-icon.png?v=7',
 ];
 
 // ─── Install ──────────────────────────────────────────────────────────────────
@@ -68,7 +70,9 @@ self.addEventListener('fetch', (event) => {
         cache.match(request).then((cached) => {
           if (cached) return cached;
           return fetch(request).then((response) => {
-            if (response.ok) cache.put(request, response.clone());
+            if (response.ok && request.url.startsWith('http')) {
+              cache.put(request, response.clone());
+            }
             return response;
           });
         })
